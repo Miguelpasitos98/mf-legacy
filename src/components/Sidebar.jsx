@@ -10,10 +10,9 @@ export default function Sidebar({ open, onToggle }) {
       className="relative flex flex-col h-full overflow-hidden shrink-0"
       style={{ backgroundColor: "#003399" }}
     >
-      <div className="flex-1" />
       <button
         onClick={onToggle}
-        className="flex items-center gap-3 px-5 py-5 text-white/90 hover:text-white transition-colors"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-white/90 hover:text-white transition-colors"
         aria-label={open ? "Cerrar menú" : "Abrir menú"}
       >
         {open ? <X size={22} /> : <Menu size={22} />}
