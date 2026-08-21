@@ -8,11 +8,11 @@ export default function Layout() {
 
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6"
+      className="min-h-screen w-full flex items-center justify-center py-10 px-6 sm:py-16 sm:px-10"
       style={{ backgroundColor: "#D1D3D9" }}
     >
       <div
-        className="relative w-full max-w-[1400px] h-[calc(100vh-2rem)] sm:h-[calc(100vh-3rem)] flex overflow-hidden rounded-[20px]"
+        className="relative w-full max-w-[1400px] h-[calc(100vh-5rem)] sm:h-[calc(100vh-8rem)] flex overflow-hidden rounded-[20px]"
         style={{
           backgroundColor: "#E8E9EC",
           boxShadow:
