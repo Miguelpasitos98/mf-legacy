@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   Globe,
@@ -76,53 +76,6 @@ const emptyTeamForm = {
   isActive: true,
 };
 
-function normalizeTeamFromBase44(record, countriesById = {}) {
-  const countryId = record.country_id ?? record.countryId ?? "";
-  const countryName =
-    record.country ??
-    record.country_name ??
-    countriesById[countryId] ??
-    "";
-
-  return {
-    ...record,
-    id: record.id,
-    name: record.name ?? "",
-    shortName: record.short_name ?? record.shortName ?? "",
-    country: countryName,
-    countryId,
-    continent: record.continent ?? "Europe",
-    city: record.city ?? "",
-    logo: record.logo ?? record.logo_url ?? "",
-    primaryColor: record.primary_color ?? record.primaryColor ?? "",
-    secondaryColor: record.secondary_color ?? record.secondaryColor ?? "",
-    foundedYear: record.founded_year ?? record.foundedYear ?? null,
-    stadium: record.stadium ?? "",
-    stadiumId: record.stadium_id ?? record.stadiumId ?? "",
-    stadiumCapacity: record.stadium_capacity ?? record.stadiumCapacity ?? null,
-    stadiumBuiltYear: record.stadium_built_year ?? record.stadiumBuiltYear ?? null,
-    stadiumRenovation: record.stadium_renovation ?? record.stadiumRenovation ?? null,
-    pitchDimensions: record.pitch_dimensions ?? record.pitchDimensions ?? "",
-    stadiumInteriorUrl: record.stadium_interior_url ?? record.stadiumInteriorUrl ?? "",
-    stadiumExteriorUrl: record.stadium_exterior_url ?? record.stadiumExteriorUrl ?? "",
-    reputation: record.reputation ?? "Unclassified",
-    market: record.market ?? "Unclassified",
-    history: record.history ?? "",
-    coachName: record.coach_name ?? record.coachName ?? "",
-    coachPhotoUrl: record.coach_photo_url ?? record.coachPhotoUrl ?? "",
-    captainName: record.captain_name ?? record.captainName ?? "",
-    captainPhotoUrl: record.captain_photo_url ?? record.captainPhotoUrl ?? "",
-    secondCaptainName: record.second_captain_name ?? record.secondCaptainName ?? "",
-    secondCaptainPhotoUrl: record.second_captain_photo_url ?? record.secondCaptainPhotoUrl ?? "",
-    keyPlayerName: record.key_player_name ?? record.keyPlayerName ?? "",
-    keyPlayerPhotoUrl: record.key_player_photo_url ?? record.keyPlayerPhotoUrl ?? "",
-    dataSource: record.data_source ?? record.dataSource ?? "Manual",
-    isActive: record.is_active ?? record.isActive ?? true,
-    incomplete: Boolean(record.incomplete),
-    competition: record.competition ?? "Without competition",
-  };
-}
-
 const inputClassName =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
 
@@ -169,6 +122,180 @@ function TeamLogo({ team }) {
   );
 }
 
+
+function normalizeHex(value, fallback = "#ffffff") {
+  const normalized = String(value || "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized : fallback;
+}
+
+function LogoAndColorPicker({ logoUrl, primaryColor, secondaryColor, onChange }) {
+  const canvasRef = useRef(null);
+  const imageRef = useRef(null);
+  const [palette, setPalette] = useState([]);
+  const [activeTarget, setActiveTarget] = useState("primaryColor");
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  const drawAndExtractPalette = (image) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const size = 160;
+    canvas.width = size;
+    canvas.height = size;
+    context.clearRect(0, 0, size, size);
+    context.drawImage(image, 0, 0, size, size);
+
+    const pixels = context.getImageData(0, 0, size, size).data;
+    const colorCounts = new Map();
+
+    for (let index = 0; index < pixels.length; index += 16) {
+      const alpha = pixels[index + 3];
+      if (alpha < 180) continue;
+
+      const red = Math.round(pixels[index] / 32) * 32;
+      const green = Math.round(pixels[index + 1] / 32) * 32;
+      const blue = Math.round(pixels[index + 2] / 32) * 32;
+      const key = `${red},${green},${blue}`;
+      colorCounts.set(key, (colorCounts.get(key) || 0) + 1);
+    }
+
+    const extracted = [...colorCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([key]) => {
+        const [red, green, blue] = key.split(",").map(Number);
+        return `#${[red, green, blue].map((channel) => Math.min(255, channel).toString(16).padStart(2, "0")).join("")}`;
+      })
+      .filter((color, index, colors) => colors.indexOf(color) === index)
+      .filter((color) => !["#ffffff", "#000000", "#202020"].includes(color.toLowerCase()))
+      .slice(0, 8);
+
+    setPalette(extracted);
+  };
+
+  const handleImageLoad = (event) => {
+    setImageError(false);
+    setImageLoaded(true);
+    try {
+      drawAndExtractPalette(event.currentTarget);
+    } catch (error) {
+      console.warn("Could not extract colors from logo. The image may block canvas access.", error);
+      setPalette([]);
+    }
+  };
+
+  const handleImageClick = (event) => {
+    const image = imageRef.current;
+    const canvas = canvasRef.current;
+    if (!image || !canvas || !imageLoaded) return;
+
+    try {
+      const bounds = image.getBoundingClientRect();
+      const x = Math.max(0, Math.min(canvas.width - 1, Math.floor(((event.clientX - bounds.left) / bounds.width) * canvas.width)));
+      const y = Math.max(0, Math.min(canvas.height - 1, Math.floor(((event.clientY - bounds.top) / bounds.height) * canvas.height)));
+      const pixel = canvas.getContext("2d", { willReadFrequently: true }).getImageData(x, y, 1, 1).data;
+      const selectedColor = `#${[pixel[0], pixel[1], pixel[2]].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+      onChange(activeTarget, selectedColor);
+    } catch (error) {
+      console.warn("Could not sample a color from this logo.", error);
+    }
+  };
+
+  useEffect(() => {
+    setPalette([]);
+    setImageError(false);
+    setImageLoaded(false);
+  }, [logoUrl]);
+
+  return (
+    <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start">
+        <div className="flex w-full flex-col items-center gap-2 md:w-44 md:shrink-0">
+          {logoUrl ? (
+            <button
+              type="button"
+              onClick={handleImageClick}
+              className="group relative flex h-36 w-36 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+              title="Haz clic sobre el escudo para seleccionar un color"
+            >
+              <img
+                ref={imageRef}
+                src={logoUrl}
+                alt="Logo preview"
+                crossOrigin="anonymous"
+                onLoad={handleImageLoad}
+                onError={() => setImageError(true)}
+                className="h-full w-full object-contain"
+              />
+              <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-lg bg-slate-900/75 px-1 py-1 text-center text-[10px] font-semibold text-white opacity-0 transition group-hover:opacity-100">
+                Clic para tomar color
+              </span>
+            </button>
+          ) : (
+            <div className="flex h-36 w-36 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-center text-xs text-slate-400">
+              Introduce una URL para ver el escudo
+            </div>
+          )}
+          {imageError && <p className="text-center text-[11px] text-rose-500">No se pudo cargar la imagen.</p>}
+          {logoUrl && !imageError && <p className="text-center text-[11px] text-slate-400">Haz clic en una zona del escudo para tomar su color.</p>}
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-4">
+          <div>
+            <h4 className="text-xs font-extrabold uppercase tracking-wide text-slate-700">Logo palette</h4>
+            <p className="mt-1 text-xs text-slate-500">Colores detectados automáticamente. Puedes pulsar uno para asignarlo.</p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {palette.length > 0 ? palette.map((color) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => onChange(activeTarget, color)}
+                className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-400"
+                title={`Usar ${color} como ${activeTarget === "primaryColor" ? "color primario" : "color secundario"}`}
+              >
+                <span className="h-6 w-6 rounded-lg border border-black/10" style={{ backgroundColor: color }} />
+                {color.toUpperCase()}
+              </button>
+            )) : (
+              <span className="text-xs text-slate-400">Introduce una imagen compatible para detectar colores.</span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setActiveTarget("primaryColor")} className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${activeTarget === "primaryColor" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600"}`}>
+              Seleccionar primario
+            </button>
+            <button type="button" onClick={() => setActiveTarget("secondaryColor")} className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${activeTarget === "secondaryColor" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600"}`}>
+              Seleccionar secundario
+            </button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[{ field: "primaryColor", label: "Primary color", value: primaryColor }, { field: "secondaryColor", label: "Secondary color", value: secondaryColor }].map((colorField) => (
+              <FormField key={colorField.field} label={colorField.label}>
+                <div className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2">
+                  <input
+                    type="color"
+                    value={normalizeHex(colorField.value)}
+                    onChange={(event) => onChange(colorField.field, event.target.value.toUpperCase())}
+                    className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0"
+                    aria-label={colorField.label}
+                  />
+                  <span className="text-xs font-semibold text-slate-600">{normalizeHex(colorField.value).toUpperCase()}</span>
+                </div>
+              </FormField>
+            ))}
+          </div>
+        </div>
+      </div>
+      <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
+    </div>
+  );
+}
+
 function CompetitionHeader({ competitionName, teams }) {
   const competition = competitionDetails[competitionName] || { level: "Competition", logo: "FC" };
 
@@ -202,7 +329,14 @@ function TeamCard({ team }) {
   );
 }
 
-function AddTeamModal({ form, setForm, onClose, onSubmit }) {
+function AddTeamModal({
+  form,
+  setForm,
+  countries,
+  setCountries,
+  onClose,
+  onSubmit,
+}) {
   const updateField = (field, value) => {
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
   };
@@ -248,20 +382,38 @@ function AddTeamModal({ form, setForm, onClose, onSubmit }) {
             <div className="grid gap-4 md:grid-cols-2">
               {textField("name", "Team name *", "e.g. Real Madrid")}
               {textField("shortName", "Short name *", "e.g. RMA")}
-              {textField("country", "Country name", "e.g. Spain", { hint: "Display value. The Base44 country ID can be added below." })}
-              {textField("countryId", "Country ID (Base44)", "Internal Country record ID")}
+              <FormField label="Country *">
+  <input
+    type="text"
+    value={form.country}
+    onChange={(event) => {
+      updateField("country", event.target.value);
+      updateField("countryId", "");
+    }}
+    placeholder="Search country..."
+    className={inputClassName}
+  />
+
+  <p className="mt-1 text-[11px] text-slate-400">
+    Escribe el nombre del país. El identificador se gestionará automáticamente.
+  </p>
+</FormField>
               {selectField("continent", "Continent", ["Europe", "South America", "North America", "Asia", "Africa", "Oceania"])}
               {textField("city", "City", "e.g. Madrid")}
               {textField("foundedYear", "Founded year", "1902", { type: "number", min: 1800, max: 2100 })}
               {textField("logo", "Logo URL", "https://...")}
+              <LogoAndColorPicker
+                logoUrl={form.logo}
+                primaryColor={form.primaryColor}
+                secondaryColor={form.secondaryColor}
+                onChange={updateField}
+              />
             </div>
           </section>
 
           <section>
             <SectionHeader icon={Palette} title="Identity & classification" description="Colors and internal club categories." />
             <div className="grid gap-4 md:grid-cols-2">
-              {textField("primaryColor", "Primary color", "#FFFFFF")}
-              {textField("secondaryColor", "Secondary color", "#000000")}
               {selectField("reputation", "Reputation", ["Elite", "High", "Medium", "Low", "Unclassified"])}
               {selectField("market", "Market", ["High", "Medium", "Low", "Unclassified"])}
             </div>
@@ -577,54 +729,13 @@ function ImportTeamJsonModal({ onClose, onImport }) {
 
 export default function Teams() {
   const [teams, setTeams] = useState([]);
+  const [countries, setCountries] = useState([]);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("countries");
   const [searchOpen, setSearchOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [importJsonModalOpen, setImportJsonModalOpen] = useState(false);
   const [form, setForm] = useState(emptyTeamForm);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadTeams = async () => {
-      let countriesById = {};
-
-      try {
-        const countriesResult = await base44.entities.Country.list();
-        const countries = Array.isArray(countriesResult)
-          ? countriesResult
-          : countriesResult?.data ?? countriesResult?.items ?? [];
-
-        countriesById = countries.reduce((map, country) => {
-          if (country?.id) map[country.id] = country.name ?? "";
-          return map;
-        }, {});
-      } catch (error) {
-        console.warn("Could not load countries. Teams will still be loaded.", error);
-      }
-
-      try {
-        const teamsResult = await base44.entities.Team.list();
-        const records = Array.isArray(teamsResult)
-          ? teamsResult
-          : teamsResult?.data ?? teamsResult?.items ?? [];
-
-        if (!cancelled) {
-          setTeams(records.map((record) => normalizeTeamFromBase44(record, countriesById)));
-        }
-      } catch (error) {
-        console.error("Error loading teams from Base44:", error);
-        if (!cancelled) setTeams([]);
-      }
-    };
-
-    loadTeams();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filteredTeams = useMemo(() => {
     const normalizedSearch = search.toLowerCase().trim();
@@ -859,7 +970,16 @@ export default function Teams() {
         </div>
       )}
 
-      {addModalOpen && <AddTeamModal form={form} setForm={setForm} onClose={() => setAddModalOpen(false)} onSubmit={handleAddTeam} />}
+      {addModalOpen && (
+  <AddTeamModal
+    form={form}
+    setForm={setForm}
+    countries={countries}
+    setCountries={setCountries}
+    onClose={() => setAddModalOpen(false)}
+    onSubmit={handleAddTeam}
+  />
+)}
       {importJsonModalOpen && <ImportTeamJsonModal onClose={() => setImportJsonModalOpen(false)} onImport={handleImportJson} />}
     </div>
   );
