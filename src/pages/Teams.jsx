@@ -128,13 +128,32 @@ function normalizeHex(value, fallback = "#ffffff") {
   return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized : fallback;
 }
 
+function normalizeLogoUrl(value) {
+  let normalized = String(value || "").trim();
+  if (!normalized) return "";
+
+  if (!/^https?:\/\//i.test(normalized)) {
+    normalized = `https://${normalized}`;
+  }
+
+  // FotMob logo paths are normally served from images.fotmob.com.
+  normalized = normalized.replace(
+    /^https?:\/\/(?:www\.)?fotmob\.com\//i,
+    "https://images.fotmob.com/"
+  );
+
+  return normalized;
+}
+
 function LogoAndColorPicker({ logoUrl, primaryColor, secondaryColor, onChange }) {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const [palette, setPalette] = useState([]);
   const [activeTarget, setActiveTarget] = useState("primaryColor");
-  const [imageError, setImageError] = useState(false);
+  const [imageError, setImageError] = useState("");
+  const [paletteError, setPaletteError] = useState("");
   const [imageLoaded, setImageLoaded] = useState(false);
+  const resolvedLogoUrl = useMemo(() => normalizeLogoUrl(logoUrl), [logoUrl]);
 
   const drawAndExtractPalette = (image) => {
     const canvas = canvasRef.current;
@@ -175,13 +194,17 @@ function LogoAndColorPicker({ logoUrl, primaryColor, secondaryColor, onChange })
   };
 
   const handleImageLoad = (event) => {
-    setImageError(false);
+    setImageError("");
     setImageLoaded(true);
+    setPaletteError("");
     try {
       drawAndExtractPalette(event.currentTarget);
     } catch (error) {
       console.warn("Could not extract colors from logo. The image may block canvas access.", error);
       setPalette([]);
+      setPaletteError(
+        "La imagen se ha cargado, pero su servidor no permite leer los píxeles para detectar colores automáticamente. Puedes usar el selector manual."
+      );
     }
   };
 
@@ -199,20 +222,24 @@ function LogoAndColorPicker({ logoUrl, primaryColor, secondaryColor, onChange })
       onChange(activeTarget, selectedColor);
     } catch (error) {
       console.warn("Could not sample a color from this logo.", error);
+      setPaletteError(
+        "No se puede leer el color directamente de esta imagen porque el servidor bloquea el acceso desde el navegador. Usa el selector manual."
+      );
     }
   };
 
   useEffect(() => {
     setPalette([]);
-    setImageError(false);
+    setImageError("");
+    setPaletteError("");
     setImageLoaded(false);
-  }, [logoUrl]);
+  }, [resolvedLogoUrl]);
 
   return (
     <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
       <div className="flex flex-col gap-4 md:flex-row md:items-start">
         <div className="flex w-full flex-col items-center gap-2 md:w-44 md:shrink-0">
-          {logoUrl ? (
+          {resolvedLogoUrl ? (
             <button
               type="button"
               onClick={handleImageClick}
@@ -221,11 +248,10 @@ function LogoAndColorPicker({ logoUrl, primaryColor, secondaryColor, onChange })
             >
               <img
                 ref={imageRef}
-                src={logoUrl}
+                src={resolvedLogoUrl}
                 alt="Logo preview"
-                crossOrigin="anonymous"
                 onLoad={handleImageLoad}
-                onError={() => setImageError(true)}
+                onError={() => setImageError("El navegador no pudo cargar esta URL. Comprueba que sea una imagen directa y accesible públicamente.")}
                 className="h-full w-full object-contain"
               />
               <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-lg bg-slate-900/75 px-1 py-1 text-center text-[10px] font-semibold text-white opacity-0 transition group-hover:opacity-100">
@@ -237,8 +263,13 @@ function LogoAndColorPicker({ logoUrl, primaryColor, secondaryColor, onChange })
               Introduce una URL para ver el escudo
             </div>
           )}
-          {imageError && <p className="text-center text-[11px] text-rose-500">No se pudo cargar la imagen.</p>}
-          {logoUrl && !imageError && <p className="text-center text-[11px] text-slate-400">Haz clic en una zona del escudo para tomar su color.</p>}
+          {imageError && (
+            <div className="max-w-44 text-center text-[11px] text-rose-500">
+              <p>{imageError}</p>
+              <p className="mt-1 break-words text-slate-400">URL utilizada: {resolvedLogoUrl}</p>
+            </div>
+          )}
+          {resolvedLogoUrl && !imageError && <p className="text-center text-[11px] text-slate-400">Haz clic en una zona del escudo para tomar su color.</p>}
         </div>
 
         <div className="min-w-0 flex-1 space-y-4">
@@ -401,7 +432,19 @@ function AddTeamModal({
               {selectField("continent", "Continent", ["Europe", "South America", "North America", "Asia", "Africa", "Oceania"])}
               {textField("city", "City", "e.g. Madrid")}
               {textField("foundedYear", "Founded year", "1902", { type: "number", min: 1800, max: 2100 })}
-              {textField("logo", "Logo URL", "https://...")}
+              <FormField
+                label="Logo URL"
+                hint="Puedes pegar una URL con o sin https://. Las rutas de FotMob se normalizan automáticamente."
+              >
+                <input
+                  type="text"
+                  value={form.logo}
+                  onChange={(event) => updateField("logo", event.target.value)}
+                  onBlur={() => updateField("logo", normalizeLogoUrl(form.logo))}
+                  placeholder="https://images.fotmob.com/..."
+                  className={inputClassName}
+                />
+              </FormField>
               <LogoAndColorPicker
                 logoUrl={form.logo}
                 primaryColor={form.primaryColor}
