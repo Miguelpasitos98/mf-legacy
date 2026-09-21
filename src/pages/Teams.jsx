@@ -35,6 +35,10 @@ const emptyTeamForm = {
   shortName: "",
   country: "",
   countryId: "",
+  countryCode: "",
+  leagueId: "",
+  newLeagueName: "",
+  season: "2026-2027",
   continent: "Europe",
   city: "",
   logo: "",
@@ -49,8 +53,8 @@ const emptyTeamForm = {
   pitchDimensions: "",
   stadiumInteriorUrl: "",
   stadiumExteriorUrl: "",
-  reputation: "Unclassified",
-  market: "Unclassified",
+  reputation: "0",
+  market: "0",
   history: "",
   coachName: "",
   coachPhotoUrl: "",
@@ -82,6 +86,59 @@ const inputClassName =
 const textareaClassName =
   "min-h-[104px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
 
+const normalizeImageUrl = (value) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
+const rgbToHex = (r, g, b) =>
+  `#${[r, g, b].map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+
+const extractImagePalette = (image) => {
+  try {
+    const canvas = document.createElement("canvas");
+    const size = 80;
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return [];
+
+    context.drawImage(image, 0, 0, size, size);
+    const pixels = context.getImageData(0, 0, size, size).data;
+    const buckets = new Map();
+
+    for (let index = 0; index < pixels.length; index += 16) {
+      const alpha = pixels[index + 3];
+      if (alpha < 160) continue;
+
+      const r = pixels[index];
+      const g = pixels[index + 1];
+      const b = pixels[index + 2];
+      const brightness = (r + g + b) / 3;
+      if (brightness > 248 || brightness < 8) continue;
+
+      const key = [Math.round(r / 24), Math.round(g / 24), Math.round(b / 24)].join(",");
+      const previous = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
+      previous.count += 1;
+      previous.r += r;
+      previous.g += g;
+      previous.b += b;
+      buckets.set(key, previous);
+    }
+
+    return Array.from(buckets.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 12)
+      .map((bucket) => rgbToHex(bucket.r / bucket.count, bucket.g / bucket.count, bucket.b / bucket.count));
+  } catch (error) {
+    console.warn("Could not extract logo colors. The image server may not allow canvas access.", error);
+    return [];
+  }
+};
+
 function FormField({ label, children, hint }) {
   return (
     <label className="block">
@@ -109,20 +166,15 @@ function SectionHeader({ icon: Icon, title, description }) {
 function TeamLogo({ team }) {
   if (team.logo) {
     return (
-      <div className="flex h-20 w-20 shrink-0 items-center justify-center bg-transparent">
-        <img
-          src={team.logo}
-          alt={`${team.name} logo`}
-          className="h-16 w-16 object-contain"
-          loading="lazy"
-        />
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white">
+        <img src={team.logo} alt={`${team.name} logo`} className="h-full w-full object-contain" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-20 w-20 shrink-0 items-center justify-center bg-transparent">
-      <span className="text-xs font-extrabold tracking-tight text-slate-800">{team.shortName || "FC"}</span>
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white">
+      <span className="text-[10px] font-extrabold tracking-tight text-slate-800">{team.shortName || "FC"}</span>
     </div>
   );
 }
@@ -152,10 +204,10 @@ function TeamCard({ team }) {
   return (
     <button
       type="button"
-      className="group flex h-[132px] w-full min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-3 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
+      className="group flex min-h-[112px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
     >
       <TeamLogo team={team} />
-      <span className="w-full truncate text-xs font-bold text-slate-800 transition group-hover:text-[#003399]" title={team.name}>
+      <span className="w-full truncate text-xs font-bold text-slate-800 transition group-hover:text-[#003399]">
         {team.name}
       </span>
     </button>
@@ -166,10 +218,17 @@ function AddTeamModal({
   form,
   setForm,
   countries,
-  setCountries,
+  leagues,
   onClose,
   onSubmit,
 }) {
+  const [logoImageError, setLogoImageError] = useState(false);
+  const [logoPalette, setLogoPalette] = useState([]);
+  const [colorTarget, setColorTarget] = useState("primary");
+  const [isLogoZoomOpen, setIsLogoZoomOpen] = useState(false);
+
+  const logoPreviewUrl = normalizeImageUrl(form.logo);
+
   const updateField = (field, value) => {
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
   };
@@ -215,38 +274,219 @@ function AddTeamModal({
             <div className="grid gap-4 md:grid-cols-2">
               {textField("name", "Team name *", "e.g. Real Madrid")}
               {textField("shortName", "Short name *", "e.g. RMA")}
-              <FormField label="Country *">
-  <input
-    type="text"
-    value={form.country}
-    onChange={(event) => {
-      updateField("country", event.target.value);
-      updateField("countryId", "");
-    }}
-    placeholder="Search country..."
-    className={inputClassName}
-  />
+              <FormField label="Country *" hint="Selecciona un país existente o elige crear uno nuevo.">
+                <select
+                  value={form.countryId || "__new__"}
+                  onChange={(event) => {
+                    const selectedId = event.target.value;
+                    if (selectedId === "__new__") {
+                      updateField("countryId", "");
+                      updateField("country", "");
+                      updateField("countryCode", "");
+                      return;
+                    }
 
-  <p className="mt-1 text-[11px] text-slate-400">
-    Escribe el nombre del país. El identificador se gestionará automáticamente.
-  </p>
-</FormField>
+                    const selectedCountry = countries.find((country) => String(country.id) === String(selectedId));
+                    updateField("countryId", selectedId);
+                    updateField("country", selectedCountry?.name || "");
+                    updateField("countryCode", selectedCountry?.code || "");
+                    if (selectedCountry?.continent) updateField("continent", selectedCountry.continent);
+                  }}
+                  className={inputClassName}
+                >
+                  <option value="__new__">+ Create or enter a new country</option>
+                  {countries
+                    .filter((country) => country.id && country.name)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((country) => (
+                      <option key={country.id} value={country.id}>
+                        {country.name}{country.code ? ` (${country.code})` : ""}
+                      </option>
+                    ))}
+                </select>
+                {countries.length === 0 && (
+                  <p className="mt-1 text-[11px] text-amber-600">No se han cargado países existentes. Puedes crear uno abajo.</p>
+                )}
+              </FormField>
+
+              {!form.countryId && (
+                <>
+                  {textField("country", "New country name *", "e.g. Spain")}
+                  {textField("countryCode", "Country code *", "e.g. ESP", { hint: "Código de 2 o 3 letras. Se utiliza al crear el país." })}
+                </>
+              )}
+
+              <FormField label="League" hint="Selecciona una liga existente o crea una nueva.">
+                <select
+                  value={form.leagueId}
+                  onChange={(event) => {
+                    const selectedId = event.target.value;
+                    updateField("leagueId", selectedId);
+                    updateField("newLeagueName", "");
+                  }}
+                  className={inputClassName}
+                >
+                  <option value="">Without league</option>
+                  {leagues
+                    .filter((league) => league.id && league.name)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((league) => (
+                      <option key={league.id} value={league.id}>
+                        {league.name}{league.shortName ? ` (${league.shortName})` : ""}
+                      </option>
+                    ))}
+                </select>
+              </FormField>
+
+              <FormField label="New league name (optional)" hint="Si introduces un nombre que no existe, se intentará crear automáticamente. Déjalo vacío si no quieres asociar una liga.">
+                  <input
+                    type="text"
+                    value={form.newLeagueName}
+                    onChange={(event) => updateField("newLeagueName", event.target.value)}
+                    placeholder="e.g. LaLiga EA Sports"
+                    className={inputClassName}
+                  />
+                </FormField>
+
+              {form.leagueId && (
+                <FormField label="Season *" hint="Ejemplo: 2026-2027">
+                  <input type="text" value={form.season} onChange={(event) => updateField("season", event.target.value)} placeholder="2026-2027" className={inputClassName} required />
+                </FormField>
+              )}
               {selectField("continent", "Continent", ["Europe", "South America", "North America", "Asia", "Africa", "Oceania"])}
               {textField("city", "City", "e.g. Madrid")}
               {textField("foundedYear", "Founded year", "1902", { type: "number", min: 1800, max: 2100 })}
-              {textField("logo", "Logo URL", "https://...")}
+              <div className="md:col-span-2">
+                <FormField label="Logo URL" hint="Puedes pegar una URL completa o una dirección como fotmob.com/image_resources/logo/teamlogo/8633_large.png">
+                  <input
+                    type="text"
+                    value={form.logo}
+                    onChange={(event) => {
+                      updateField("logo", event.target.value);
+                      setLogoImageError(false);
+                      setLogoPalette([]);
+                    }}
+                    placeholder="https://..."
+                    className={inputClassName}
+                  />
+                </FormField>
+
+                {logoPreviewUrl && (
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-4 md:flex-row">
+                      <div className="relative flex min-h-[180px] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white md:w-56">
+                        <img
+                          src={logoPreviewUrl}
+                          alt="Logo preview"
+                          className="max-h-44 max-w-[90%] object-contain"
+                          onLoad={() => {
+                            setLogoImageError(false);
+                            const paletteImage = new Image();
+                            paletteImage.crossOrigin = "anonymous";
+                            paletteImage.onload = () => setLogoPalette(extractImagePalette(paletteImage));
+                            paletteImage.onerror = () => setLogoPalette([]);
+                            paletteImage.src = logoPreviewUrl;
+                          }}
+                          onError={() => {
+                            setLogoImageError(true);
+                            setLogoPalette([]);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setIsLogoZoomOpen(true)}
+                          className="absolute bottom-2 right-2 rounded-lg bg-slate-900/80 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-900"
+                        >
+                          Ampliar imagen
+                        </button>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <div>
+                            <h4 className="text-xs font-extrabold uppercase tracking-wide text-slate-800">Logo palette</h4>
+                            <p className="mt-1 text-[11px] text-slate-500">Pulsa un color para asignarlo al campo seleccionado.</p>
+                          </div>
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">
+                            {colorTarget === "primary" ? "Primary" : "Secondary"}
+                          </span>
+                        </div>
+
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setColorTarget("primary")}
+                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${colorTarget === "primary" ? "bg-[#003399] text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+                          >
+                            Seleccionar primario
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setColorTarget("secondary")}
+                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${colorTarget === "secondary" ? "bg-[#003399] text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+                          >
+                            Seleccionar secundario
+                          </button>
+                        </div>
+
+                        {logoImageError ? (
+                          <p className="text-xs text-red-600">No se pudo cargar la imagen. Comprueba que la URL sea pública y completa.</p>
+                        ) : logoPalette.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {logoPalette.map((color) => (
+                              <button
+                                key={color}
+                                type="button"
+                                title={`Asignar ${color} a ${colorTarget}`}
+                                onClick={() => updateField(colorTarget === "primary" ? "primaryColor" : "secondaryColor", color)}
+                                className="group flex w-14 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 hover:border-[#003399]"
+                              >
+                                <span className="h-8 w-8 rounded-md border border-slate-200" style={{ backgroundColor: color }} />
+                                <span className="text-[9px] font-semibold text-slate-500">{color}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400">Introduce una imagen compatible para detectar colores. Si el servidor bloquea el análisis, puedes introducir el HEX manualmente.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
           <section>
             <SectionHeader icon={Palette} title="Identity & classification" description="Colors and internal club categories." />
             <div className="grid gap-4 md:grid-cols-2">
-              {textField("primaryColor", "Primary color", "#FFFFFF")}
-              {textField("secondaryColor", "Secondary color", "#000000")}
-              {selectField("reputation", "Reputation", ["Elite", "High", "Medium", "Low", "Unclassified"])}
-              {selectField("market", "Market", ["High", "Medium", "Low", "Unclassified"])}
+              <FormField label="Primary color" hint="HEX seleccionado desde la paleta o introducido manualmente.">
+                <div className="flex gap-2">
+                  <input type="color" value={/^#[0-9A-Fa-f]{6}$/.test(form.primaryColor) ? form.primaryColor : "#FFFFFF"} onChange={(event) => updateField("primaryColor", event.target.value.toUpperCase())} className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
+                  <input type="text" value={form.primaryColor} onChange={(event) => updateField("primaryColor", event.target.value.toUpperCase())} placeholder="#FFFFFF" className={inputClassName} />
+                </div>
+              </FormField>
+              <FormField label="Secondary color" hint="HEX seleccionado desde la paleta o introducido manualmente.">
+                <div className="flex gap-2">
+                  <input type="color" value={/^#[0-9A-Fa-f]{6}$/.test(form.secondaryColor) ? form.secondaryColor : "#000000"} onChange={(event) => updateField("secondaryColor", event.target.value.toUpperCase())} className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
+                  <input type="text" value={form.secondaryColor} onChange={(event) => updateField("secondaryColor", event.target.value.toUpperCase())} placeholder="#000000" className={inputClassName} />
+                </div>
+              </FormField>
+              {textField("reputation", "Reputation (0-10000)", "9500", { type: "number", min: 0, max: 10000, step: 1 })}
+              {textField("market", "Market value (€)", "25.000.001", {
+  type: "text",
+  inputMode: "numeric",
+  hint: "Introduce el valor total en euros. Ejemplo: 25.000.001"
+})}
             </div>
           </section>
+
+          {isLogoZoomOpen && logoPreviewUrl && (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-5" role="dialog" aria-modal="true" aria-label="Expanded logo preview">
+              <button type="button" onClick={() => setIsLogoZoomOpen(false)} className="absolute right-5 top-5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800">Cerrar</button>
+              <img src={logoPreviewUrl} alt="Expanded logo preview" className="max-h-[85vh] max-w-[90vw] object-contain" />
+            </div>
+          )}
 
           <section>
             <SectionHeader icon={Building2} title="Stadium" description="Main stadium information and images." />
@@ -337,6 +577,25 @@ function importedValue(value) {
   return value === null || value === undefined ? "" : String(value);
 }
 
+function numericValue(value, fallback = "0") {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  const normalized = String(value).trim().toLowerCase();
+  const categoryMap = { elite: "9500", high: "8000", medium: "6000", low: "3500", unclassified: "0" };
+  if (categoryMap[normalized]) return categoryMap[normalized];
+  const digits = normalized.replace(/[^0-9.-]/g, "");
+  return digits && Number.isFinite(Number(digits)) ? digits : fallback;
+}
+
+function marketValue(value, fallback = "0") {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  const normalized = String(value).trim();
+  if (!normalized || /^(high|medium|low|elite|unclassified)$/i.test(normalized)) return fallback;
+  const digits = normalized.replace(/[^0-9.-]/g, "");
+  return digits && Number.isFinite(Number(digits)) ? digits : fallback;
+}
+
 function mapImportedTeamToForm(data) {
   const stadium = data.stadium || {};
   const classification = data.classification || {};
@@ -349,6 +608,8 @@ function mapImportedTeamToForm(data) {
     shortName: importedValue(data.short_name),
     country: importedValue(data.country),
     countryId: importedValue(data.country_id),
+    countryCode: importedValue(data.country_code),
+    newLeagueName: importedValue(data.competitions?.[0]?.name || data.league_name),
     continent: importedValue(data.continent) || "Europe",
     city: importedValue(data.city),
     logo: importedValue(data.logo || data.badge_url),
@@ -363,8 +624,8 @@ function mapImportedTeamToForm(data) {
     pitchDimensions: importedValue(stadium.pitch_dimensions || data.pitch_dimensions),
     stadiumInteriorUrl: importedValue(stadium.interior_url || data.stadium_interior_url),
     stadiumExteriorUrl: importedValue(stadium.exterior_url || data.stadium_exterior_url),
-    reputation: classification.reputation || data.reputation || "Unclassified",
-    market: classification.market || data.market || "Unclassified",
+    reputation: numericValue(classification.reputation ?? data.reputation, "0"),
+    market: marketValue(data.market_value ?? data.market, "0"),
     history: importedValue(data.history),
     coachName: importedValue(staff.coach_name || data.coach_name),
     coachPhotoUrl: importedValue(staff.coach_photo_url || data.coach_photo_url),
@@ -559,12 +820,154 @@ function ImportTeamJsonModal({ onClose, onImport }) {
 export default function Teams() {
   const [teams, setTeams] = useState([]);
   const [countries, setCountries] = useState([]);
+  const [leagues, setLeagues] = useState([]);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("countries");
   const [searchOpen, setSearchOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [importJsonModalOpen, setImportJsonModalOpen] = useState(false);
   const [form, setForm] = useState(emptyTeamForm);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const getList = (result) => {
+      if (Array.isArray(result)) return result;
+      if (Array.isArray(result?.data)) return result.data;
+      if (Array.isArray(result?.items)) return result.items;
+      if (Array.isArray(result?.results)) return result.results;
+      return [];
+    };
+
+    const normalizeCountry = (country) => ({
+      ...country,
+      id: country?.id || country?._id || country?.data?.id || "",
+      name: country?.name || "",
+      code: country?.code || country?.country_code || "",
+      continent: country?.continent || "",
+    });
+
+    const normalizeLeague = (league) => ({
+      ...league,
+      id: league?.id || league?._id || league?.data?.id || "",
+      name: league?.name || "",
+      shortName: league?.short_name || league?.shortName || "",
+      countryId: league?.country_id || league?.countryId || "",
+      level: league?.level ?? league?.league_level ?? "",
+      logo: league?.logo || league?.logo_url || "",
+      isActive: league?.is_active ?? league?.isActive ?? true,
+    });
+
+    const loadCountries = async () => {
+      try {
+        const result = await base44.entities.Country.list();
+        const loadedCountries = getList(result).map(normalizeCountry);
+        if (!cancelled) setCountries(loadedCountries);
+        return loadedCountries;
+      } catch (error) {
+        console.error("Error loading countries:", error);
+        return [];
+      }
+    };
+
+    const loadLeagues = async () => {
+      try {
+        const result = await base44.entities.League.list();
+        const loadedLeagues = getList(result).map(normalizeLeague).filter((league) => league.id && league.name && league.isActive !== false);
+        if (!cancelled) setLeagues(loadedLeagues);
+        return loadedLeagues;
+      } catch (error) {
+        console.error("Error loading leagues:", error);
+        return [];
+      }
+    };
+
+    const loadTeamLeagueRelations = async () => {
+      try {
+        const result = await base44.entities.TeamLeague.list();
+        return getList(result);
+      } catch (error) {
+        console.error("Error loading team-league relations:", error);
+        return [];
+      }
+    };
+
+    const loadTeams = async (loadedCountries = [], loadedLeagues = [], relations = []) => {
+      try {
+        const result = await base44.entities.Team.list();
+        const loadedTeams = getList(result);
+        const currentRelationsByTeam = new Map();
+        relations.forEach((relation) => {
+          const teamId = relation?.team_id || relation?.teamId || "";
+          const isCurrent = relation?.is_current ?? relation?.isCurrent ?? true;
+          if (teamId && isCurrent && !currentRelationsByTeam.has(String(teamId))) currentRelationsByTeam.set(String(teamId), relation);
+        });
+
+        const normalizedTeams = loadedTeams.map((team) => {
+          const teamId = team.id || team._id || "";
+          const teamCountryId = team.country_id || team.countryId || "";
+          const country = loadedCountries.find((item) => String(item.id || "") === String(teamCountryId));
+          const relation = currentRelationsByTeam.get(String(teamId));
+          const leagueId = relation?.league_id || relation?.leagueId || "";
+          const league = loadedLeagues.find((item) => String(item.id || "") === String(leagueId));
+          return {
+            ...team,
+            id: teamId,
+            name: team.name || "",
+            shortName: team.short_name || team.shortName || "",
+            countryId: teamCountryId,
+            country: team.country || team.country_name || team.countryName || country?.name || "Unknown country",
+            countryCode: team.country_code || team.countryCode || country?.code || "",
+            continent: team.continent || country?.continent || "Unknown continent",
+            city: team.city || "",
+            logo: team.logo || team.logo_url || "",
+            primaryColor: team.primary_color || team.primaryColor || "",
+            secondaryColor: team.secondary_color || team.secondaryColor || "",
+            foundedYear: team.founded_year || team.foundedYear || null,
+            stadium: team.stadium || "",
+            stadiumId: team.stadium_id || team.stadiumId || "",
+            stadiumCapacity: team.stadium_capacity || team.stadiumCapacity || null,
+            stadiumBuiltYear: team.stadium_built_year || team.stadiumBuiltYear || null,
+            stadiumRenovation: team.stadium_renovation || team.stadiumRenovation || null,
+            pitchDimensions: team.pitch_dimensions || team.pitchDimensions || "",
+            stadiumInteriorUrl: team.stadium_interior_url || team.stadiumInteriorUrl || "",
+            stadiumExteriorUrl: team.stadium_exterior_url || team.stadiumExteriorUrl || "",
+            reputation: numericValue(team.reputation, "0"),
+            market: marketValue(team.market, "0"),
+            history: team.history || "",
+            coachName: team.coach_name || team.coachName || "",
+            coachPhotoUrl: team.coach_photo_url || team.coachPhotoUrl || "",
+            captainName: team.captain_name || team.captainName || "",
+            captainPhotoUrl: team.captain_photo_url || team.captainPhotoUrl || "",
+            secondCaptainName: team.second_captain_name || team.secondCaptainName || "",
+            secondCaptainPhotoUrl: team.second_captain_photo_url || team.secondCaptainPhotoUrl || "",
+            keyPlayerName: team.key_player_name || team.keyPlayerName || "",
+            keyPlayerPhotoUrl: team.key_player_photo_url || team.keyPlayerPhotoUrl || "",
+            dataSource: team.data_source || team.dataSource || "Manual",
+            isActive: team.is_active ?? team.isActive ?? true,
+            leagueId,
+            season: relation?.season || "",
+            competition: league?.name || "Without competition",
+            incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
+          };
+        });
+        if (!cancelled) setTeams(normalizedTeams);
+      } catch (error) {
+        console.error("Error loading teams:", error);
+      }
+    };
+
+    const loadData = async () => {
+      const [loadedCountries, loadedLeagues, relations] = await Promise.all([loadCountries(), loadLeagues(), loadTeamLeagueRelations()]);
+      await loadTeams(loadedCountries, loadedLeagues, relations);
+    };
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredTeams = useMemo(() => {
     const normalizedSearch = search.toLowerCase().trim();
@@ -609,6 +1012,10 @@ export default function Teams() {
       shortName: form.shortName.trim().toUpperCase(),
       country: form.country.trim(),
       countryId: form.countryId.trim(),
+      countryCode: form.countryCode.trim().toUpperCase(),
+      leagueId: form.leagueId.trim(),
+      newLeagueName: form.newLeagueName.trim(),
+      season: form.season.trim(),
       continent: form.continent,
       city: form.city.trim(),
       logo: form.logo.trim(),
@@ -623,8 +1030,8 @@ export default function Teams() {
       pitchDimensions: form.pitchDimensions.trim(),
       stadiumInteriorUrl: form.stadiumInteriorUrl.trim(),
       stadiumExteriorUrl: form.stadiumExteriorUrl.trim(),
-      reputation: form.reputation,
-      market: form.market,
+      reputation: Number(form.reputation || 0),
+      market: Number(form.market || 0),
       history: form.history.trim(),
       coachName: form.coachName.trim(),
       coachPhotoUrl: form.coachPhotoUrl.trim(),
@@ -648,20 +1055,90 @@ export default function Teams() {
       kit3BadgeText: form.kit3BadgeText.trim(),
       dataSource: form.dataSource,
       isActive: form.isActive,
-      incomplete: !form.name.trim() || !form.shortName.trim() || !form.countryId.trim() || !form.logo.trim(),
+      incomplete: !form.name.trim() || !form.shortName.trim() || !form.country.trim() || !form.logo.trim(),
       competition: "Without competition",
     };
 
     try {
-  if (!form.name.trim() || !form.shortName.trim() || !form.countryId.trim()) {
-    alert("Name, short name and Country ID are required.");
-    return;
-  }
+      if (!form.name.trim() || !form.shortName.trim() || !form.country.trim()) {
+        alert("Name, short name and country are required.");
+        return;
+      }
 
-  const savedTeam = await base44.entities.Team.create({
+      let countryId = form.countryId.trim();
+      const normalizedCountryName = form.country.trim().toLowerCase();
+
+      const existingCountry = countries.find(
+        (country) => country.name?.trim().toLowerCase() === normalizedCountryName
+      );
+
+      if (!countryId && existingCountry?.id) {
+        countryId = existingCountry.id;
+      }
+
+      if (!countryId) {
+        if (!form.countryCode.trim()) {
+          alert("Introduce the country code to create the country automatically.");
+          return;
+        }
+
+        const createdCountry = await base44.entities.Country.create({
+          name: form.country.trim(),
+          code: form.countryCode.trim().toUpperCase(),
+          continent: form.continent || "Europe",
+          is_active: true,
+        });
+
+        countryId = createdCountry?.id || createdCountry?.data?.id || createdCountry?._id || "";
+
+        if (!countryId) {
+          alert("The country was created, but Base44 did not return its ID. Check the Country entity response.");
+          return;
+        }
+
+        setCountries((currentCountries) => [...currentCountries, { ...createdCountry, id: countryId }]);
+      }
+
+      newTeam.countryId = countryId;
+
+      let leagueId = newTeam.leagueId;
+      let selectedLeague = leagues.find((league) => String(league.id) === String(leagueId));
+
+      if (!leagueId && newTeam.newLeagueName) {
+        const existingLeague = leagues.find((league) => league.name?.trim().toLowerCase() === newTeam.newLeagueName.toLowerCase());
+        if (existingLeague?.id) {
+          leagueId = existingLeague.id;
+          selectedLeague = existingLeague;
+        } else {
+          const createdLeague = await base44.entities.League.create({
+            name: newTeam.newLeagueName,
+            league_level: 1,
+            level: 1,
+            country_id: countryId,
+            is_active: true,
+            status: "Incompleto",
+          });
+          leagueId = createdLeague?.id || createdLeague?.data?.id || createdLeague?._id || "";
+          if (!leagueId) {
+            alert("The league was created, but Base44 did not return its ID.");
+            return;
+          }
+          selectedLeague = { ...createdLeague, id: leagueId, name: newTeam.newLeagueName };
+          setLeagues((currentLeagues) => [...currentLeagues, selectedLeague]);
+        }
+      }
+
+      const generatedCode = newTeam.shortName
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 12) || `TEAM${Date.now()}`;
+
+      const savedTeam = await base44.entities.Team.create({
     name: newTeam.name,
     short_name: newTeam.shortName,
-    country_id: newTeam.countryId,
+    code: generatedCode,
+    continent: newTeam.continent || "Europe",
+    country_id: countryId,
     city: newTeam.city,
     logo: newTeam.logo,
     primary_color: newTeam.primaryColor,
@@ -675,8 +1152,8 @@ export default function Teams() {
     pitch_dimensions: newTeam.pitchDimensions,
     stadium_interior_url: newTeam.stadiumInteriorUrl,
     stadium_exterior_url: newTeam.stadiumExteriorUrl,
-    reputation: newTeam.reputation,
-    market: newTeam.market,
+    reputation: String(newTeam.reputation ?? ""),
+    market: String(newTeam.market ?? ""),
     history: newTeam.history,
     coach_name: newTeam.coachName,
     coach_photo_url: newTeam.coachPhotoUrl,
@@ -690,11 +1167,24 @@ export default function Teams() {
     is_active: newTeam.isActive,
   });
 
+  let savedRelation = null;
+  if (leagueId) {
+    savedRelation = await base44.entities.TeamLeague.create({
+      team_id: savedTeam.id,
+      league_id: leagueId,
+      season: newTeam.season || "2026-2027",
+      is_current: true,
+    });
+  }
+
   setTeams((currentTeams) => [
     ...currentTeams,
     {
       ...newTeam,
       id: savedTeam.id,
+      competition: selectedLeague?.name || "Without competition",
+      leagueId,
+      season: savedRelation?.season || newTeam.season || "",
     },
   ]);
 
@@ -703,7 +1193,12 @@ export default function Teams() {
   setActiveFilter("countries");
 } catch (error) {
   console.error("Error saving team:", error);
-  alert("Could not save the team to Base44.");
+  const errorMessage =
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    (typeof error === "string" ? error : JSON.stringify(error));
+  alert(`Error real de Base44:\n\n${errorMessage}`);
 }
   };
 
@@ -780,7 +1275,7 @@ export default function Teams() {
                   {Object.entries(competitions).map(([competitionName, competitionTeams]) => (
                     <div key={competitionName}>
                       <CompetitionHeader competitionName={competitionName} teams={competitionTeams} />
-                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                         {competitionTeams.map((team) => <TeamCard key={team.id} team={team} />)}
                       </div>
                     </div>
@@ -804,7 +1299,7 @@ export default function Teams() {
     form={form}
     setForm={setForm}
     countries={countries}
-    setCountries={setCountries}
+    leagues={leagues}
     onClose={() => setAddModalOpen(false)}
     onSubmit={handleAddTeam}
   />
