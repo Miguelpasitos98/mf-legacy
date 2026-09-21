@@ -12,7 +12,12 @@ export default function Sidebar({
 }) {
   return (
     <motion.aside
-      animate={{ width: open ? 220 : 48 }}
+  initial={false}
+  animate={{
+    width: visible ? (open ? 220 : 48) : 0,
+    opacity: visible ? 1 : 0,
+  }}
+      pointerEvents: visible ? "auto" : "none",
       transition={{
         duration: 0.32,
         ease: [0.4, 0, 0.2, 1],
