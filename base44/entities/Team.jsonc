@@ -7,20 +7,32 @@
     },
     "short_name": {
       "type": "string",
-      "description": "Abreviatura del equipo"
+      "description": "Nombre corto o abreviatura del equipo"
     },
     "country_id": {
       "type": "string",
-      "description": "ID del país del equipo"
+      "description": "ID interno del país relacionado en Base44"
     },
+    "country_code": {
+      "type": "string",
+      "description": "Código ISO del país, por ejemplo ESP, ENG o GER"
+    },
+
     "logo": {
       "type": "string",
-      "description": "URL o identificador del logotipo"
+      "description": "URL del logotipo del equipo"
     },
+
     "stadium": {
       "type": "string",
       "description": "Nombre del estadio principal"
     },
+
+    "stadium_capacity": {
+      "type": "integer",
+      "description": "Capacidad del estadio principal"
+    },
+
     "reputation": {
       "type": "string",
       "enum": [
@@ -32,6 +44,7 @@
       ],
       "description": "Categoría de reputación del equipo"
     },
+
     "market": {
       "type": "string",
       "enum": [
@@ -42,21 +55,67 @@
       ],
       "description": "Categoría de mercado del equipo"
     },
+
     "founded_year": {
       "type": "integer",
       "description": "Año de fundación del equipo"
     },
+
+    "fotmob_id": {
+      "type": "integer",
+      "description": "Identificador único del equipo en FotMob"
+    },
+
+    "fotmob_league_id": {
+      "type": "integer",
+      "description": "Identificador de la competición principal en FotMob"
+    },
+
+    "fotmob_league_name": {
+      "type": "string",
+      "description": "Nombre de la competición principal en FotMob"
+    },
+
+    "fotmob_url": {
+      "type": "string",
+      "description": "URL de la ficha del equipo en FotMob"
+    },
+
+    "primary_league_id": {
+      "type": "string",
+      "description": "ID interno de la competición principal relacionada en Base44"
+    },
+
     "is_active": {
       "type": "boolean",
       "default": true,
       "description": "Indica si el equipo está activo"
+    },
+
+    "data_source": {
+      "type": "string",
+      "enum": [
+        "FotMob",
+        "Manual",
+        "Imported",
+        "Other"
+      ],
+      "default": "Manual",
+      "description": "Origen de los datos del equipo"
+    },
+
+    "last_synced_at": {
+      "type": "string",
+      "description": "Fecha de la última sincronización de datos"
     }
   },
+
   "required": [
     "name",
     "short_name",
     "country_id"
   ],
+
   "name": "Team",
   "type": "object"
-}
+}dime q
