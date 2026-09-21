@@ -1,10 +1,10 @@
-
 import React from "react";
 import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
 export default function Sidebar({
   open,
+  visible = true,
   onToggle,
   backgroundColor = "#003399",
   accentColor = "#FFFFFF",
@@ -12,12 +12,12 @@ export default function Sidebar({
 }) {
   return (
     <motion.aside
-  initial={false}
-  animate={{
-    width: visible ? (open ? 220 : 48) : 0,
-    opacity: visible ? 1 : 0,
-  }}
-      pointerEvents: visible ? "auto" : "none",
+      initial={false}
+      animate={{
+        width: visible ? (open ? 220 : 48) : 0,
+        opacity: visible ? 1 : 0,
+        pointerEvents: visible ? "auto" : "none",
+      }}
       transition={{
         duration: 0.32,
         ease: [0.4, 0, 0.2, 1],
