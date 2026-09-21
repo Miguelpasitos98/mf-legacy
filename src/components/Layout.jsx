@@ -26,14 +26,15 @@ export default function Layout() {
             "0 24px 70px -20px rgba(20,30,60,0.28), 0 8px 24px -12px rgba(20,30,60,0.18)",
         }}
       >
-        <Sidebar
-          open={sidebarOpen}
-          visible={sidebarVisible}
-          onToggle={() => setSidebarOpen((o) => !o)}
-          backgroundColor={teamTheme.primaryColor}
-          accentColor="#FFFFFF"
-          secondaryColor={teamTheme.secondaryColor}
-        />
+        {sidebarVisible && (
+  <Sidebar
+    open={sidebarOpen}
+    onToggle={() => setSidebarOpen((o) => !o)}
+    backgroundColor={teamTheme.primaryColor}
+    accentColor="#FFFFFF"
+    secondaryColor={teamTheme.secondaryColor}
+  />
+)}
 
         <div className="flex-1 flex flex-col min-w-0">
           <TopNavbar />
