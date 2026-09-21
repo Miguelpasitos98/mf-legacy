@@ -14,14 +14,18 @@ export default function TopNavbar() {
     { label: "STATS", path: "/stats" },
     { label: "PLAYERS", path: "/players" },
     { label: "TEAMS", path: "/teams" },
+    { label: "COUNTRIES", path: "/countries" },
   ];
 
   return (
     <header className="relative flex h-16 shrink-0 items-center justify-center border-b border-black/5 bg-white">
       {/* Navegación principal de fútbol */}
-      <nav className="flex items-center gap-16">
+      <nav className="flex items-center gap-10">
         {footballNav.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive =
+            location.pathname === item.path ||
+            (item.path === "/countries" &&
+              location.pathname.startsWith("/countries/"));
 
           return (
             <button
