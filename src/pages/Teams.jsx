@@ -623,10 +623,59 @@ export default function Teams() {
       competition: "Without competition",
     };
 
-    setTeams((currentTeams) => [...currentTeams, newTeam]);
-    setForm(emptyTeamForm);
-    setAddModalOpen(false);
-    setActiveFilter("countries");
+    try {
+  if (!form.name.trim() || !form.shortName.trim() || !form.countryId.trim()) {
+    alert("Name, short name and Country ID are required.");
+    return;
+  }
+
+  const savedTeam = await base44.entities.Team.create({
+    name: newTeam.name,
+    short_name: newTeam.shortName,
+    country_id: newTeam.countryId,
+    city: newTeam.city,
+    logo: newTeam.logo,
+    primary_color: newTeam.primaryColor,
+    secondary_color: newTeam.secondaryColor,
+    founded_year: newTeam.foundedYear,
+    stadium_id: newTeam.stadiumId,
+    stadium: newTeam.stadium,
+    stadium_capacity: newTeam.stadiumCapacity,
+    stadium_built_year: newTeam.stadiumBuiltYear,
+    stadium_renovation: newTeam.stadiumRenovation,
+    pitch_dimensions: newTeam.pitchDimensions,
+    stadium_interior_url: newTeam.stadiumInteriorUrl,
+    stadium_exterior_url: newTeam.stadiumExteriorUrl,
+    reputation: newTeam.reputation,
+    market: newTeam.market,
+    history: newTeam.history,
+    coach_name: newTeam.coachName,
+    coach_photo_url: newTeam.coachPhotoUrl,
+    captain_name: newTeam.captainName,
+    captain_photo_url: newTeam.captainPhotoUrl,
+    second_captain_name: newTeam.secondCaptainName,
+    second_captain_photo_url: newTeam.secondCaptainPhotoUrl,
+    key_player_name: newTeam.keyPlayerName,
+    key_player_photo_url: newTeam.keyPlayerPhotoUrl,
+    data_source: newTeam.dataSource,
+    is_active: newTeam.isActive,
+  });
+
+  setTeams((currentTeams) => [
+    ...currentTeams,
+    {
+      ...newTeam,
+      id: savedTeam.id,
+    },
+  ]);
+
+  setForm(emptyTeamForm);
+  setAddModalOpen(false);
+  setActiveFilter("countries");
+} catch (error) {
+  console.error("Error saving team:", error);
+  alert("Could not save the team to Base44.");
+}
   };
 
   const handleImportJson = (importedForm) => {
