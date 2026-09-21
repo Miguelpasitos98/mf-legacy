@@ -889,11 +889,38 @@ const kitHomeUrl =
 
   const displayName = teamName.toUpperCase();
 
+  // Tipografías editoriales MF LEGACY
+  const displayFontStyle = {
+    fontFamily:
+      '"Juventus Fans", "Juventus Distinct", "Druk Condensed", "Tungsten", Impact, sans-serif',
+  };
+
+  const condensedFontStyle = {
+    fontFamily:
+      '"DIN Next Pro Condensed", "DIN 1451", "Barlow Semi Condensed", sans-serif',
+  };
+
+  const dataFontStyle = {
+    fontFamily:
+      '"DIN Pro", "DIN Next Pro", Inter, sans-serif',
+  };
+
   return (
     <div
       className="relative min-h-full overflow-hidden p-3 sm:p-4 md:p-6"
       style={{
-        backgroundColor: primaryColor,
+        background: `
+          radial-gradient(
+            ellipse at 48% 45%,
+            rgba(255,255,255,0.13) 0%,
+            transparent 42%
+          ),
+          linear-gradient(
+            135deg,
+            ${primaryColor} 0%,
+            ${primaryColor} 100%
+          )
+        `,
       }}
     >
       {/* FONDO SECUNDARIO DIAGONAL */}
@@ -937,6 +964,16 @@ const kitHomeUrl =
             />
           )}
 
+          {/* TEXTO GIGANTE DE FONDO */}
+          <div className="pointer-events-none absolute bottom-[-12px] left-4 z-0 select-none overflow-hidden md:left-10">
+            <span
+              className="block whitespace-nowrap text-[clamp(7rem,16vw,17rem)] font-black uppercase leading-[0.75] tracking-[-0.08em] text-black/[0.12]"
+              style={displayFontStyle}
+            >
+              {displayName}
+            </span>
+          </div>
+
           {/* CABECERA INTEGRADA */}
           <div className="relative z-30 flex items-center justify-between gap-4 px-5 pt-5 md:px-8 md:pt-7">
             <button
@@ -947,7 +984,7 @@ const kitHomeUrl =
               ← Volver a equipos
             </button>
 
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/75">
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/75" style={condensedFontStyle}>
               Team profile
             </span>
           </div>
@@ -975,55 +1012,55 @@ const kitHomeUrl =
                     />
                   </div>
 
-                  <span className="team-section-label text-[10px] text-white/80 sm:text-xs">
+                  <span className="team-section-label text-[10px] text-white/80 sm:text-xs" style={condensedFontStyle}>
                     Más que un club
                   </span>
                 </div>
 
                 {/* CIUDAD / IDENTIFICADOR */}
-                <p className="team-section-label mb-4 text-xs text-white/65">
+                <p className="team-section-label mb-4 text-xs text-white/65" style={condensedFontStyle}>
                   {city || shortName || "Football Club"}
                 </p>
 
                 {/* NOMBRE PRINCIPAL */}
-               <h1 className="team-display-title max-w-none whitespace-nowrap text-5xl text-white sm:text-7xl md:text-[clamp(3rem,5.2vw,8.5rem)]">
+               <h1 className="team-display-title max-w-none whitespace-nowrap text-5xl text-white sm:text-7xl md:text-[clamp(3rem,5.2vw,8.5rem)]" style={displayFontStyle}>
   {displayName}
 </h1>
 
-                <p className="team-section-label mt-7 text-[9px] text-white/65 sm:text-xs">
+                <p className="team-section-label mt-7 text-[9px] text-white/65 sm:text-xs" style={condensedFontStyle}>
                   MF LEGACY · TEAM PROFILE
                 </p>
               </div>
 
               {/* DATOS BÁSICOS */}
-              <div className="relative z-20 mt-14 md:mt-8">
+              <div className="relative z-20 mt-14 border-t border-white/20 pt-6 md:mt-8">
                 <div className="grid grid-cols-2 gap-x-5 gap-y-7 md:grid-cols-3">
                   <div>
-                    <p className="team-section-label text-[9px] text-white/55">
+                    <p className="team-section-label text-[9px] text-white/55" style={condensedFontStyle}>
                       Año de fundación
                     </p>
 
-                    <p className="team-data-value mt-2 text-xl text-white">
+                    <p className="team-data-value mt-2 text-xl text-white" style={dataFontStyle}>
                       {foundedYear || "—"}
                     </p>
                   </div>
 
                   <div>
-                    <p className="team-section-label text-[9px] text-white/55">
+                    <p className="team-section-label text-[9px] text-white/55" style={condensedFontStyle}>
                       País
                     </p>
 
-                    <p className="team-data-value mt-2 text-xl text-white">
+                    <p className="team-data-value mt-2 text-xl text-white" style={dataFontStyle}>
                       {country || "—"}
                     </p>
                   </div>
 
                   <div>
-                    <p className="team-section-label text-[9px] text-white/55">
+                    <p className="team-section-label text-[9px] text-white/55" style={condensedFontStyle}>
                       Ciudad
                     </p>
 
-                    <p className="team-data-value mt-2 text-xl text-white">
+                    <p className="team-data-value mt-2 text-xl text-white" style={dataFontStyle}>
                       {city || "—"}
                     </p>
                   </div>
@@ -1034,11 +1071,11 @@ const kitHomeUrl =
                   <div className="mt-8 grid grid-cols-2 gap-5 border-t border-white/20 pt-5">
                     {(ranking || ranking === 0) && (
                       <div>
-                        <p className="team-section-label text-[9px] text-white/55">
+                        <p className="team-section-label text-[9px] text-white/55" style={condensedFontStyle}>
                           Ranking
                         </p>
 
-                        <p className="team-data-value mt-2 text-lg text-white">
+                        <p className="team-data-value mt-2 text-lg text-white" style={dataFontStyle}>
                           {ranking}
                         </p>
                       </div>
@@ -1046,16 +1083,16 @@ const kitHomeUrl =
 
                     {stadium && (
                       <div>
-                        <p className="team-section-label text-[9px] text-white/55">
+                        <p className="team-section-label text-[9px] text-white/55" style={condensedFontStyle}>
                           Estadio
                         </p>
 
-                        <p className="team-data-value mt-2 text-sm text-white">
+                        <p className="team-data-value mt-2 text-sm text-white" style={dataFontStyle}>
                           {stadium}
                         </p>
 
                         {stadiumCapacity && (
-                          <p className="mt-1 text-xs text-white/60">
+                          <p className="mt-1 text-xs text-white/60" style={dataFontStyle}>
                             Capacidad {stadiumCapacity}
                           </p>
                         )}
@@ -1113,7 +1150,7 @@ const kitHomeUrl =
   </div>
 ) : (
   <div className="relative z-20 flex min-h-[520px] w-full items-center justify-center md:min-h-[700px]">
-    <p className="text-center text-xs uppercase tracking-[0.3em] text-white/60">
+    <p className="text-center text-xs uppercase tracking-[0.3em] text-white/60" style={condensedFontStyle}>
       Añade la URL de la camiseta
     </p>
   </div>
@@ -1121,11 +1158,11 @@ const kitHomeUrl =
 
               {/* IDENTIDAD DEL CLUB */}
               <div className="relative z-20 mt-5 text-center md:mt-2">
-                <p className="team-section-label text-[10px] text-white/60">
+                <p className="team-section-label text-[10px] text-white/60" style={condensedFontStyle}>
                   {shortName || city || "Football Club"}
                 </p>
 
-                <h2 className="mt-3 font-display text-xl font-bold uppercase tracking-[0.25em] text-white sm:text-2xl">
+                <h2 className="mt-3 font-display text-xl font-bold uppercase tracking-[0.25em] text-white sm:text-2xl" style={displayFontStyle}>
                   {city || country || "Legacy"}
                 </h2>
               </div>
@@ -1133,15 +1170,15 @@ const kitHomeUrl =
               {/* TEXTO DECORATIVO INFERIOR */}
               <div className="absolute bottom-8 right-6 flex items-center gap-3 sm:right-10 md:right-12">
                 <div className="text-right">
-                  <p className="team-section-label text-[9px] text-white/70">
+                  <p className="team-section-label text-[9px] text-white/70" style={condensedFontStyle}>
                     Tradition
                   </p>
 
-                  <p className="team-section-label text-[9px] text-white/70">
+                  <p className="team-section-label text-[9px] text-white/70" style={condensedFontStyle}>
                     Identity
                   </p>
 
-                  <p className="team-section-label text-[9px] text-white/70">
+                  <p className="team-section-label text-[9px] text-white/70" style={condensedFontStyle}>
                     Legacy
                   </p>
                 </div>
