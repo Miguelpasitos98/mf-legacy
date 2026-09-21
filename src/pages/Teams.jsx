@@ -10,6 +10,8 @@ import {
   Plus,
   X,
   Shield,
+  Loader2,
+  Check,
 } from "lucide-react";
 
 const initialTeams = [
@@ -97,12 +99,96 @@ const emptyTeamForm = {
   market: "Unclassified",
 };
 
+async function searchFotMobTeams(searchTerm) {
+  const url = `https://www.fotmob.com/api/data/search/suggest?term=${encodeURIComponent(searchTerm)}&hits=50&lang=en`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`FotMob HTTP ${response.status}`);
+  const data = await response.json();
+  const suggestions = Array.isArray(data)
+    ? data.flatMap((group) => group.suggestions || [])
+    : [];
+
+  return Array.from(
+    new Map(
+      suggestions
+        .filter((item) => item.type === "team")
+        .map((team) => [team.id, team])
+    ).values()
+  ).map((team) => ({
+    id: `fotmob-${team.id}`,
+    fotmobId: Number(team.id),
+    name: team.name,
+    shortName: team.name.slice(0, 5).toUpperCase(),
+    competition: team.leagueName || "Unclassified",
+    leagueFotmobId: team.leagueId ? Number(team.leagueId) : null,
+    logo: `https://images.fotmob.com/image_resources/logo/teamlogo/${team.id}_xsmall.png`,
+    country: "",
+    continent: "Europe",
+    reputation: "Unclassified",
+    market: "Unclassified",
+    incomplete: true,
+  }));
+}
+
+function FotMobSearchModal({ results, loading, error, onSearch, onImport, onClose }) {
+  const [term, setTerm] = useState("");
+
+  const submitSearch = (event) => {
+    event.preventDefault();
+    if (term.trim()) onSearch(term.trim());
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900">Import from FotMob</h2>
+            <p className="mt-1 text-xs text-slate-500">Search for a club and import its basic information.</p>
+          </div>
+          <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={submitSearch} className="flex gap-2">
+          <input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="e.g. Real Madrid" className={inputClassName} autoFocus />
+          <button type="submit" disabled={loading} className="flex h-10 shrink-0 items-center gap-2 rounded-xl bg-[#073B35] px-4 text-xs font-semibold text-white disabled:opacity-60">
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+            Search
+          </button>
+        </form>
+
+        {error && <p className="mt-3 rounded-xl bg-red-50 p-3 text-xs text-red-600">{error}</p>}
+
+        <div className="mt-5 space-y-2">
+          {results.map((team) => (
+            <div key={team.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+              <img src={team.logo} alt={team.name} className="h-10 w-10 object-contain" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-slate-800">{team.name}</p>
+                <p className="text-xs text-slate-500">{team.competition} · FotMob ID {team.fotmobId}</p>
+              </div>
+              <button type="button" onClick={() => onImport(team)} className="flex h-9 items-center gap-1 rounded-lg bg-[#073B35] px-3 text-xs font-semibold text-white hover:bg-[#0A5047]">
+                <Check size={14} /> Import
+              </button>
+            </div>
+          ))}
+          {!loading && results.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Search for a team to see FotMob results.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TeamLogo({ team }) {
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white">
-      <span className="text-[10px] font-extrabold tracking-tight text-slate-800">
-        {team.shortName || "FC"}
-      </span>
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white p-1">
+      {team.logo ? (
+        <img src={team.logo} alt={team.name} className="h-full w-full object-contain" />
+      ) : (
+        <span className="text-[10px] font-extrabold tracking-tight text-slate-800">{team.shortName || "FC"}</span>
+      )}
     </div>
   );
 }
@@ -361,6 +447,10 @@ export default function Teams() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [form, setForm] = useState(emptyTeamForm);
+  const [fotmobModalOpen, setFotmobModalOpen] = useState(false);
+  const [fotmobResults, setFotmobResults] = useState([]);
+  const [fotmobLoading, setFotmobLoading] = useState(false);
+  const [fotmobError, setFotmobError] = useState("");
 
   const filteredTeams = useMemo(() => {
     const normalizedSearch = search.toLowerCase().trim();
@@ -407,6 +497,32 @@ export default function Teams() {
   }, [filteredTeams, activeFilter]);
 
   const hasResults = Object.keys(groupedTeams).length > 0;
+
+  const handleFotMobSearch = async (term) => {
+    setFotmobLoading(true);
+    setFotmobError("");
+    try {
+      const results = await searchFotMobTeams(term);
+      setFotmobResults(results);
+    } catch (error) {
+      setFotmobResults([]);
+      setFotmobError("No se pudo consultar FotMob desde el navegador. Puede requerir un proxy/backend por restricciones CORS.");
+      console.error(error);
+    } finally {
+      setFotmobLoading(false);
+    }
+  };
+
+  const handleFotMobImport = (team) => {
+    setTeams((currentTeams) => {
+      const exists = currentTeams.some((item) => item.fotmobId === team.fotmobId);
+      if (exists) return currentTeams;
+      return [...currentTeams, team];
+    });
+    setFotmobModalOpen(false);
+    setFotmobResults([]);
+    setActiveFilter("countries");
+  };
 
   const handleAddTeam = (event) => {
     event.preventDefault();
@@ -522,6 +638,20 @@ export default function Teams() {
             ) : (
               <Search size={17} strokeWidth={2} />
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setFotmobModalOpen(true);
+              setFotmobError("");
+              setFotmobResults([]);
+            }}
+            className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+            title="Import from FotMob"
+          >
+            <Globe size={16} strokeWidth={2} />
+            <span className="hidden sm:inline">Import</span>
           </button>
 
           {/* BOTÓN AÑADIR EQUIPO */}
@@ -640,6 +770,17 @@ export default function Teams() {
           </button>
 
         </div>
+      )}
+
+      {fotmobModalOpen && (
+        <FotMobSearchModal
+          results={fotmobResults}
+          loading={fotmobLoading}
+          error={fotmobError}
+          onSearch={handleFotMobSearch}
+          onImport={handleFotMobImport}
+          onClose={() => setFotmobModalOpen(false)}
+        />
       )}
 
       {/* MODAL PARA AÑADIR EQUIPO */}
