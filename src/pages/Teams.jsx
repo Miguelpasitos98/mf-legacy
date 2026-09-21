@@ -1090,6 +1090,34 @@ export default function Teams() {
   const [selectedTeam, setSelectedTeam] = useState(null);
   const { setTeamTheme } = useOutletContext();
 
+  const { setTeamTheme } = useOutletContext();
+
+useEffect(() => {
+  if (!selectedTeam) {
+    setTeamTheme({
+      primaryColor: "#003399",
+      secondaryColor: "#FFFFFF",
+    });
+
+    return;
+  }
+
+  const primaryColor =
+    selectedTeam.primaryColor ||
+    selectedTeam.primary_color ||
+    "#063B78";
+
+  const secondaryColor =
+    selectedTeam.secondaryColor ||
+    selectedTeam.secondary_color ||
+    "#941638";
+
+  setTeamTheme({
+    primaryColor,
+    secondaryColor,
+  });
+}, [selectedTeam, setTeamTheme]);
+
   useEffect(() => {
     let cancelled = false;
 
