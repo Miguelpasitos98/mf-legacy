@@ -35,9 +35,6 @@ const emptyTeamForm = {
   shortName: "",
   country: "",
   countryId: "",
-  countryCode: "",
-  leagueId: "",
-  season: "2026-2027",
   continent: "Europe",
   city: "",
   logo: "",
@@ -78,6 +75,53 @@ const emptyTeamForm = {
   dataSource: "Manual",
   isActive: true,
 };
+
+function normalizeTeamFromBase44(record, countriesById = {}) {
+  const countryId = record.country_id ?? record.countryId ?? "";
+  const countryName =
+    record.country ??
+    record.country_name ??
+    countriesById[countryId] ??
+    "";
+
+  return {
+    ...record,
+    id: record.id,
+    name: record.name ?? "",
+    shortName: record.short_name ?? record.shortName ?? "",
+    country: countryName,
+    countryId,
+    continent: record.continent ?? "Europe",
+    city: record.city ?? "",
+    logo: record.logo ?? record.logo_url ?? "",
+    primaryColor: record.primary_color ?? record.primaryColor ?? "",
+    secondaryColor: record.secondary_color ?? record.secondaryColor ?? "",
+    foundedYear: record.founded_year ?? record.foundedYear ?? null,
+    stadium: record.stadium ?? "",
+    stadiumId: record.stadium_id ?? record.stadiumId ?? "",
+    stadiumCapacity: record.stadium_capacity ?? record.stadiumCapacity ?? null,
+    stadiumBuiltYear: record.stadium_built_year ?? record.stadiumBuiltYear ?? null,
+    stadiumRenovation: record.stadium_renovation ?? record.stadiumRenovation ?? null,
+    pitchDimensions: record.pitch_dimensions ?? record.pitchDimensions ?? "",
+    stadiumInteriorUrl: record.stadium_interior_url ?? record.stadiumInteriorUrl ?? "",
+    stadiumExteriorUrl: record.stadium_exterior_url ?? record.stadiumExteriorUrl ?? "",
+    reputation: record.reputation ?? "Unclassified",
+    market: record.market ?? "Unclassified",
+    history: record.history ?? "",
+    coachName: record.coach_name ?? record.coachName ?? "",
+    coachPhotoUrl: record.coach_photo_url ?? record.coachPhotoUrl ?? "",
+    captainName: record.captain_name ?? record.captainName ?? "",
+    captainPhotoUrl: record.captain_photo_url ?? record.captainPhotoUrl ?? "",
+    secondCaptainName: record.second_captain_name ?? record.secondCaptainName ?? "",
+    secondCaptainPhotoUrl: record.second_captain_photo_url ?? record.secondCaptainPhotoUrl ?? "",
+    keyPlayerName: record.key_player_name ?? record.keyPlayerName ?? "",
+    keyPlayerPhotoUrl: record.key_player_photo_url ?? record.keyPlayerPhotoUrl ?? "",
+    dataSource: record.data_source ?? record.dataSource ?? "Manual",
+    isActive: record.is_active ?? record.isActive ?? true,
+    incomplete: Boolean(record.incomplete),
+    competition: record.competition ?? "Without competition",
+  };
+}
 
 const inputClassName =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
@@ -150,24 +194,15 @@ function TeamCard({ team }) {
   return (
     <button
       type="button"
-      className="group flex min-h-[112px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
+      className="group flex h-[64px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
     >
       <TeamLogo team={team} />
-      <span className="w-full truncate text-xs font-bold text-slate-800 transition group-hover:text-[#003399]">
-        {team.name}
-      </span>
+      <span className="min-w-0 truncate text-xs font-bold text-slate-800 transition group-hover:text-[#003399]">{team.name}</span>
     </button>
   );
 }
 
-function AddTeamModal({
-  form,
-  setForm,
-  countries,
-  leagues,
-  onClose,
-  onSubmit,
-}) {
+function AddTeamModal({ form, setForm, onClose, onSubmit }) {
   const updateField = (field, value) => {
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
   };
@@ -213,82 +248,8 @@ function AddTeamModal({
             <div className="grid gap-4 md:grid-cols-2">
               {textField("name", "Team name *", "e.g. Real Madrid")}
               {textField("shortName", "Short name *", "e.g. RMA")}
-              <FormField label="Country *" hint="Selecciona un país existente o crea uno nuevo automáticamente.">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={form.country}
-                    onChange={(event) => {
-                      updateField("country", event.target.value);
-                      updateField("countryId", "");
-                    }}
-                    placeholder="Search country..."
-                    className={inputClassName}
-                    autoComplete="off"
-                  />
-
-                  {form.country.trim() && (
-                    <div className="absolute left-0 right-0 top-11 z-20 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
-                      {countries
-                        .filter((country) =>
-                          country.name?.toLowerCase().includes(form.country.trim().toLowerCase())
-                        )
-                        .slice(0, 8)
-                        .map((country) => (
-                          <button
-                            key={country.id}
-                            type="button"
-                            onClick={() => {
-                              updateField("country", country.name);
-                              updateField("countryId", country.id || "");
-                              updateField("countryCode", country.code || "");
-                              updateField("continent", country.continent || form.continent);
-                            }}
-                            className="block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 transition hover:bg-slate-100"
-                          >
-                            <span className="font-semibold">{country.name}</span>
-                            {country.code && (
-                              <span className="ml-2 text-[10px] text-slate-400">{country.code}</span>
-                            )}
-                          </button>
-                        ))}
-
-                      {!countries.some(
-                        (country) =>
-                          country.name?.toLowerCase() === form.country.trim().toLowerCase()
-                      ) && (
-                        <div className="border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500">
-                          Si no existe, introduce el código del país abajo y se creará al guardar.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </FormField>
-
-              {!form.countryId && form.country.trim() && (
-                <FormField label="Country code *" hint="Ejemplos: ES, GB, DE, IT. Se utiliza para crear el país si todavía no existe.">
-                  <input
-                    type="text"
-                    value={form.countryCode}
-                    onChange={(event) => updateField("countryCode", event.target.value.toUpperCase())}
-                    placeholder="e.g. ES"
-                    maxLength={3}
-                    className={inputClassName}
-                  />
-                </FormField>
-              )}
-              <FormField label="League" hint="Selecciona la liga actual del equipo.">
-                <select value={form.leagueId} onChange={(event) => updateField("leagueId", event.target.value)} className={inputClassName}>
-                  <option value="">Without league</option>
-                  {leagues.map((league) => <option key={league.id} value={league.id}>{league.name}{league.shortName ? ` (${league.shortName})` : ""}</option>)}
-                </select>
-              </FormField>
-              {form.leagueId && (
-                <FormField label="Season *" hint="Ejemplo: 2026-2027">
-                  <input type="text" value={form.season} onChange={(event) => updateField("season", event.target.value)} placeholder="2026-2027" className={inputClassName} required />
-                </FormField>
-              )}
+              {textField("country", "Country name", "e.g. Spain", { hint: "Display value. The Base44 country ID can be added below." })}
+              {textField("countryId", "Country ID (Base44)", "Internal Country record ID")}
               {selectField("continent", "Continent", ["Europe", "South America", "North America", "Asia", "Africa", "Oceania"])}
               {textField("city", "City", "e.g. Madrid")}
               {textField("foundedYear", "Founded year", "1902", { type: "number", min: 1800, max: 2100 })}
@@ -407,7 +368,6 @@ function mapImportedTeamToForm(data) {
     shortName: importedValue(data.short_name),
     country: importedValue(data.country),
     countryId: importedValue(data.country_id),
-    countryCode: importedValue(data.country_code),
     continent: importedValue(data.continent) || "Europe",
     city: importedValue(data.city),
     logo: importedValue(data.logo || data.badge_url),
@@ -617,8 +577,6 @@ function ImportTeamJsonModal({ onClose, onImport }) {
 
 export default function Teams() {
   const [teams, setTeams] = useState([]);
-  const [countries, setCountries] = useState([]);
-  const [leagues, setLeagues] = useState([]);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("countries");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -629,138 +587,39 @@ export default function Teams() {
   useEffect(() => {
     let cancelled = false;
 
-    const getList = (result) => {
-      if (Array.isArray(result)) return result;
-      if (Array.isArray(result?.data)) return result.data;
-      if (Array.isArray(result?.items)) return result.items;
-      if (Array.isArray(result?.results)) return result.results;
-      return [];
-    };
+    const loadTeams = async () => {
+      let countriesById = {};
 
-    const normalizeCountry = (country) => ({
-      ...country,
-      id: country?.id || country?._id || country?.data?.id || "",
-      name: country?.name || "",
-      code: country?.code || country?.country_code || "",
-      continent: country?.continent || "",
-    });
-
-    const normalizeLeague = (league) => ({
-      ...league,
-      id: league?.id || league?._id || league?.data?.id || "",
-      name: league?.name || "",
-      shortName: league?.short_name || league?.shortName || "",
-      countryId: league?.country_id || league?.countryId || "",
-      level: league?.level ?? league?.league_level ?? "",
-      logo: league?.logo || league?.logo_url || "",
-      isActive: league?.is_active ?? league?.isActive ?? true,
-    });
-
-    const loadCountries = async () => {
       try {
-        const result = await base44.entities.Country.list();
-        const loadedCountries = getList(result).map(normalizeCountry);
-        if (!cancelled) setCountries(loadedCountries);
-        return loadedCountries;
+        const countriesResult = await base44.entities.Country.list();
+        const countries = Array.isArray(countriesResult)
+          ? countriesResult
+          : countriesResult?.data ?? countriesResult?.items ?? [];
+
+        countriesById = countries.reduce((map, country) => {
+          if (country?.id) map[country.id] = country.name ?? "";
+          return map;
+        }, {});
       } catch (error) {
-        console.error("Error loading countries:", error);
-        return [];
+        console.warn("Could not load countries. Teams will still be loaded.", error);
+      }
+
+      try {
+        const teamsResult = await base44.entities.Team.list();
+        const records = Array.isArray(teamsResult)
+          ? teamsResult
+          : teamsResult?.data ?? teamsResult?.items ?? [];
+
+        if (!cancelled) {
+          setTeams(records.map((record) => normalizeTeamFromBase44(record, countriesById)));
+        }
+      } catch (error) {
+        console.error("Error loading teams from Base44:", error);
+        if (!cancelled) setTeams([]);
       }
     };
 
-    const loadLeagues = async () => {
-      try {
-        const result = await base44.entities.League.list();
-        const loadedLeagues = getList(result).map(normalizeLeague).filter((league) => league.id && league.name && league.isActive !== false);
-        if (!cancelled) setLeagues(loadedLeagues);
-        return loadedLeagues;
-      } catch (error) {
-        console.error("Error loading leagues:", error);
-        return [];
-      }
-    };
-
-    const loadTeamLeagueRelations = async () => {
-      try {
-        const result = await base44.entities.TeamLeague.list();
-        return getList(result);
-      } catch (error) {
-        console.error("Error loading team-league relations:", error);
-        return [];
-      }
-    };
-
-    const loadTeams = async (loadedCountries = [], loadedLeagues = [], relations = []) => {
-      try {
-        const result = await base44.entities.Team.list();
-        const loadedTeams = getList(result);
-        const currentRelationsByTeam = new Map();
-        relations.forEach((relation) => {
-          const teamId = relation?.team_id || relation?.teamId || "";
-          const isCurrent = relation?.is_current ?? relation?.isCurrent ?? true;
-          if (teamId && isCurrent && !currentRelationsByTeam.has(String(teamId))) currentRelationsByTeam.set(String(teamId), relation);
-        });
-
-        const normalizedTeams = loadedTeams.map((team) => {
-          const teamId = team.id || team._id || "";
-          const teamCountryId = team.country_id || team.countryId || "";
-          const country = loadedCountries.find((item) => String(item.id || "") === String(teamCountryId));
-          const relation = currentRelationsByTeam.get(String(teamId));
-          const leagueId = relation?.league_id || relation?.leagueId || "";
-          const league = loadedLeagues.find((item) => String(item.id || "") === String(leagueId));
-          return {
-            ...team,
-            id: teamId,
-            name: team.name || "",
-            shortName: team.short_name || team.shortName || "",
-            countryId: teamCountryId,
-            country: team.country || team.country_name || team.countryName || country?.name || "Unknown country",
-            countryCode: team.country_code || team.countryCode || country?.code || "",
-            continent: team.continent || country?.continent || "Unknown continent",
-            city: team.city || "",
-            logo: team.logo || team.logo_url || "",
-            primaryColor: team.primary_color || team.primaryColor || "",
-            secondaryColor: team.secondary_color || team.secondaryColor || "",
-            foundedYear: team.founded_year || team.foundedYear || null,
-            stadium: team.stadium || "",
-            stadiumId: team.stadium_id || team.stadiumId || "",
-            stadiumCapacity: team.stadium_capacity || team.stadiumCapacity || null,
-            stadiumBuiltYear: team.stadium_built_year || team.stadiumBuiltYear || null,
-            stadiumRenovation: team.stadium_renovation || team.stadiumRenovation || null,
-            pitchDimensions: team.pitch_dimensions || team.pitchDimensions || "",
-            stadiumInteriorUrl: team.stadium_interior_url || team.stadiumInteriorUrl || "",
-            stadiumExteriorUrl: team.stadium_exterior_url || team.stadiumExteriorUrl || "",
-            reputation: team.reputation || "Unclassified",
-            market: team.market || "Unclassified",
-            history: team.history || "",
-            coachName: team.coach_name || team.coachName || "",
-            coachPhotoUrl: team.coach_photo_url || team.coachPhotoUrl || "",
-            captainName: team.captain_name || team.captainName || "",
-            captainPhotoUrl: team.captain_photo_url || team.captainPhotoUrl || "",
-            secondCaptainName: team.second_captain_name || team.secondCaptainName || "",
-            secondCaptainPhotoUrl: team.second_captain_photo_url || team.secondCaptainPhotoUrl || "",
-            keyPlayerName: team.key_player_name || team.keyPlayerName || "",
-            keyPlayerPhotoUrl: team.key_player_photo_url || team.keyPlayerPhotoUrl || "",
-            dataSource: team.data_source || team.dataSource || "Manual",
-            isActive: team.is_active ?? team.isActive ?? true,
-            leagueId,
-            season: relation?.season || "",
-            competition: league?.name || "Without competition",
-            incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
-          };
-        });
-        if (!cancelled) setTeams(normalizedTeams);
-      } catch (error) {
-        console.error("Error loading teams:", error);
-      }
-    };
-
-    const loadData = async () => {
-      const [loadedCountries, loadedLeagues, relations] = await Promise.all([loadCountries(), loadLeagues(), loadTeamLeagueRelations()]);
-      await loadTeams(loadedCountries, loadedLeagues, relations);
-    };
-
-    loadData();
+    loadTeams();
 
     return () => {
       cancelled = true;
@@ -810,9 +669,6 @@ export default function Teams() {
       shortName: form.shortName.trim().toUpperCase(),
       country: form.country.trim(),
       countryId: form.countryId.trim(),
-      countryCode: form.countryCode.trim().toUpperCase(),
-      leagueId: form.leagueId.trim(),
-      season: form.season.trim(),
       continent: form.continent,
       city: form.city.trim(),
       logo: form.logo.trim(),
@@ -852,56 +708,20 @@ export default function Teams() {
       kit3BadgeText: form.kit3BadgeText.trim(),
       dataSource: form.dataSource,
       isActive: form.isActive,
-      incomplete: !form.name.trim() || !form.shortName.trim() || !form.country.trim() || !form.logo.trim(),
+      incomplete: !form.name.trim() || !form.shortName.trim() || !form.countryId.trim() || !form.logo.trim(),
       competition: "Without competition",
     };
 
     try {
-      if (!form.name.trim() || !form.shortName.trim() || !form.country.trim()) {
-        alert("Name, short name and country are required.");
-        return;
-      }
+  if (!form.name.trim() || !form.shortName.trim() || !form.countryId.trim()) {
+    alert("Name, short name and Country ID are required.");
+    return;
+  }
 
-      let countryId = form.countryId.trim();
-      const normalizedCountryName = form.country.trim().toLowerCase();
-
-      const existingCountry = countries.find(
-        (country) => country.name?.trim().toLowerCase() === normalizedCountryName
-      );
-
-      if (!countryId && existingCountry?.id) {
-        countryId = existingCountry.id;
-      }
-
-      if (!countryId) {
-        if (!form.countryCode.trim()) {
-          alert("Introduce the country code to create the country automatically.");
-          return;
-        }
-
-        const createdCountry = await base44.entities.Country.create({
-          name: form.country.trim(),
-          code: form.countryCode.trim().toUpperCase(),
-          continent: form.continent,
-          is_active: true,
-        });
-
-        countryId = createdCountry?.id || createdCountry?.data?.id || "";
-
-        if (!countryId) {
-          alert("The country was created, but Base44 did not return its ID. Check the Country entity response.");
-          return;
-        }
-
-        setCountries((currentCountries) => [...currentCountries, createdCountry]);
-      }
-
-      newTeam.countryId = countryId;
-
-      const savedTeam = await base44.entities.Team.create({
+  const savedTeam = await base44.entities.Team.create({
     name: newTeam.name,
     short_name: newTeam.shortName,
-    country_id: countryId,
+    country_id: newTeam.countryId,
     city: newTeam.city,
     logo: newTeam.logo,
     primary_color: newTeam.primaryColor,
@@ -930,26 +750,11 @@ export default function Teams() {
     is_active: newTeam.isActive,
   });
 
-  let savedRelation = null;
-  if (newTeam.leagueId) {
-    savedRelation = await base44.entities.TeamLeague.create({
-      team_id: savedTeam.id,
-      league_id: newTeam.leagueId,
-      season: newTeam.season || "2026-2027",
-      is_current: true,
-    });
-  }
-
-  const selectedLeague = leagues.find((league) => String(league.id) === String(newTeam.leagueId));
-
   setTeams((currentTeams) => [
     ...currentTeams,
     {
       ...newTeam,
       id: savedTeam.id,
-      competition: selectedLeague?.name || "Without competition",
-      leagueId: newTeam.leagueId,
-      season: savedRelation?.season || newTeam.season || "",
     },
   ]);
 
@@ -1054,16 +859,7 @@ export default function Teams() {
         </div>
       )}
 
-      {addModalOpen && (
-  <AddTeamModal
-    form={form}
-    setForm={setForm}
-    countries={countries}
-    leagues={leagues}
-    onClose={() => setAddModalOpen(false)}
-    onSubmit={handleAddTeam}
-  />
-)}
+      {addModalOpen && <AddTeamModal form={form} setForm={setForm} onClose={() => setAddModalOpen(false)} onSubmit={handleAddTeam} />}
       {importJsonModalOpen && <ImportTeamJsonModal onClose={() => setImportJsonModalOpen(false)} onImport={handleImportJson} />}
     </div>
   );
