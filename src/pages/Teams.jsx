@@ -1102,30 +1102,26 @@ function TeamDetail({ team, onClose }) {
                 </div>
               </div>
 
-              {/* CAMISETA PRINCIPAL */}
-              {kitHomeUrl ? (
-                <div className="relative z-20 mt-10 flex w-full items-center justify-center md:mt-0">
-                  <div className="absolute h-64 w-64 rounded-full bg-white/10 blur-3xl md:h-[420px] md:w-[420px]" />
+{/* CAMISETA PRINCIPAL */}
+{kitHomeUrl ? (
+  <div className="relative z-20 flex min-h-[420px] w-full items-center justify-center md:min-h-[560px]">
+    {/* Halo de luz detrás de la camiseta */}
+    <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-3xl md:h-[440px] md:w-[440px]" />
 
-                  <img
-                    src={kitHomeUrl}
-                    alt={`${teamName} camiseta local`}
-                    className="relative z-10 h-auto max-h-[430px] w-[78%] max-w-[460px] object-contain drop-shadow-2xl transition-transform duration-500 hover:scale-[1.03] md:w-[115%] md:max-w-[540px]"
-                  />
-                </div>
-              ) : (
-                <div className="relative z-10 mt-10 flex h-64 w-64 items-center justify-center rounded-full border border-white/20 bg-white/10 text-center backdrop-blur-sm md:mt-0 md:h-[350px] md:w-[350px]">
-                  <div>
-                    <p className="team-section-label text-xs text-white/70">
-                      Home kit
-                    </p>
-
-                    <p className="mt-3 text-sm text-white/60">
-                      Añade la URL de la camiseta
-                    </p>
-                  </div>
-                </div>
-              )}
+    {/* Camiseta centrada y flotante */}
+    <img
+      src={kitHomeUrl}
+      alt={`${teamName} camiseta local`}
+      className="relative z-10 mx-auto h-auto max-h-[430px] w-auto max-w-[88%] object-contain drop-shadow-[0_30px_35px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-[1.04] md:max-h-[560px] md:max-w-[540px]"
+    />
+  </div>
+) : (
+  <div className="relative z-20 flex min-h-[420px] w-full items-center justify-center md:min-h-[560px]">
+    <p className="text-center text-xs uppercase tracking-[0.3em] text-white/60">
+      Añade la URL de la camiseta
+    </p>
+  </div>
+)}
 
               {/* IDENTIDAD DEL CLUB */}
               <div className="relative z-20 mt-5 text-center md:mt-2">
