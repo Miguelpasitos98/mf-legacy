@@ -1204,19 +1204,27 @@ export default function Teams() {
   const [importJsonModalOpen, setImportJsonModalOpen] = useState(false);
   const [form, setForm] = useState(emptyTeamForm);
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const { setTeamTheme } = useOutletContext();
 
-useEffect(() => {
-  if (!setTeamTheme) return;
+  const {
+    setTeamTheme,
+    setSidebarVisible,
+  } = useOutletContext() || {};
 
-  if (!selectedTeam) {
-    setTeamTheme({
-      primaryColor: "#003399",
-      secondaryColor: "#FFFFFF",
-    });
+  useEffect(() => {
+    if (!setTeamTheme) return;
 
-    return;
-  }
+    if (!selectedTeam) {
+      setTeamTheme({
+        primaryColor: "#003399",
+        secondaryColor: "#FFFFFF",
+      });
+
+      if (setSidebarVisible) {
+        setSidebarVisible(true);
+      }
+
+      return;
+    }
 
   const primaryColor =
     selectedTeam.primaryColor ||
