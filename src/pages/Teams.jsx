@@ -285,7 +285,7 @@ function AddTeamModal({ form, setForm, onClose, onSubmit }) {
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
             <button type="button" onClick={onClose} className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Cancel</button>
-            <button type="submit" className="flex h-10 items-center gap-2 rounded-xl bg-[#073B35] px-4 text-xs font-semibold text-white transition hover:bg-[#0A5047]">
+            <button type="submit" className="flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-xs font-semibold text-white transition hover:bg-[#002477]">
               <Plus size={15} />
               Add team
             </button>
@@ -492,10 +492,10 @@ function ImportTeamJsonModal({ onClose, onImport }) {
         </div>
 
         <div className="mb-4 flex gap-2">
-          <button type="button" onClick={() => { setMode("text"); setError(""); }} className={`rounded-lg border px-4 py-2 text-xs font-semibold transition ${mode === "text" ? "border-[#073B35] bg-[#073B35] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+          <button type="button" onClick={() => { setMode("text"); setError(""); }} className={`rounded-lg border px-4 py-2 text-xs font-semibold transition ${mode === "text" ? "border-[#073B35] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
             Pegar texto
           </button>
-          <button type="button" onClick={() => { setMode("json"); setError(""); }} className={`rounded-lg border px-4 py-2 text-xs font-semibold transition ${mode === "json" ? "border-[#073B35] bg-[#073B35] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+          <button type="button" onClick={() => { setMode("json"); setError(""); }} className={`rounded-lg border px-4 py-2 text-xs font-semibold transition ${mode === "json" ? "border-[#073B35] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
             JSON
           </button>
         </div>
@@ -517,7 +517,7 @@ function ImportTeamJsonModal({ onClose, onImport }) {
           {error && <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
             <button type="button" onClick={onClose} className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Cancelar</button>
-            <button type="submit" className="flex h-10 items-center gap-2 rounded-xl bg-[#073B35] px-4 text-xs font-semibold text-white transition hover:bg-[#0A5047]">
+            <button type="submit" className="flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-xs font-semibold text-white transition hover:bg-[#002477]">
               <ClipboardPaste size={15} />
               Detectar información
             </button>
@@ -698,7 +698,7 @@ export default function Teams() {
             const isActive = activeFilter === filter.id;
 
             return (
-              <button key={filter.id} type="button" onClick={() => setActiveFilter(filter.id)} className={`flex h-10 items-center gap-2 rounded-xl border px-4 text-xs font-semibold transition ${isActive ? "border-[#073B35] bg-[#073B35] text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`}>
+              <button key={filter.id} type="button" onClick={() => setActiveFilter(filter.id)} className={`flex h-10 items-center gap-2 rounded-xl border px-4 text-xs font-semibold transition ${isActive ? "border-[#073B35] bg-[#003399] text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`}>
                 <Icon size={14} strokeWidth={1.8} />
                 {filter.label}
               </button>
@@ -717,7 +717,7 @@ export default function Teams() {
             </div>
           )}
 
-          <button type="button" onClick={() => setSearchOpen((open) => !open)} className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${searchOpen ? "border-[#073B35] bg-[#073B35] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Search teams" title="Search teams">
+          <button type="button" onClick={() => setSearchOpen((open) => !open)} className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${searchOpen ? "border-[#073B35] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Search teams" title="Search teams">
             {searchOpen ? <X size={17} strokeWidth={2} /> : <Search size={17} strokeWidth={2} />}
           </button>
 
@@ -725,7 +725,7 @@ export default function Teams() {
             <FileJson size={17} strokeWidth={2} />
           </button>
 
-          <button type="button" onClick={() => setAddModalOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#073B35] text-white transition hover:bg-[#0A5047]" aria-label="Add team" title="Add team">
+          <button type="button" onClick={() => setAddModalOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003399] text-white transition hover:bg-[#002477]" aria-label="Add team" title="Add team">
             <Plus size={18} strokeWidth={2} />
           </button>
         </div>
@@ -766,7 +766,7 @@ export default function Teams() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-50"><CircleAlert size={22} className="text-slate-400" /></div>
           <h2 className="mt-4 text-base font-bold text-slate-800">No teams found</h2>
           <p className="mt-2 text-sm text-slate-500">Add your first team using the plus button.</p>
-          <button type="button" onClick={() => setAddModalOpen(true)} className="mt-5 rounded-xl bg-[#073B35] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#0A5047]">Add first team</button>
+          <button type="button" onClick={() => setAddModalOpen(true)} className="mt-5 rounded-xl bg-[#003399] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#002477]">Add first team</button>
         </div>
       )}
 
