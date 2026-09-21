@@ -1185,7 +1185,14 @@ export default function Teams() {
   setActiveFilter("countries");
 } catch (error) {
   console.error("Error saving team:", error);
-  alert("Could not save the team to Base44.");
+
+  const errorMessage =
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    JSON.stringify(error);
+
+  alert(`Error real de Base44:\n\n${errorMessage}`);
 }
   };
 
