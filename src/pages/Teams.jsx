@@ -1,5 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import { useOutletContext } from "react-router-dom";
   Search,
   Globe,
   Star,
