@@ -8,9 +8,11 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [teamTheme, setTeamTheme] = useState({
-    primaryColor: "#003399",
-    secondaryColor: "#FFFFFF",
-  });
+  primaryColor: "#003399",
+  secondaryColor: "#FFFFFF",
+});
+
+const [sidebarVisible, setSidebarVisible] = useState(true);
 
   return (
     <div
