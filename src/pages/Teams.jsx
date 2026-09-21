@@ -473,7 +473,11 @@ function AddTeamModal({
                 </div>
               </FormField>
               {textField("reputation", "Reputation (0-10000)", "9500", { type: "number", min: 0, max: 10000, step: 1 })}
-              {textField("market", "Market value (€)", "458223670", { type: "number", min: 0, step: 1000000, hint: "Introduce el valor total en euros. Ejemplo: 458223670" })}
+              {textField("market", "Market value (€)", "25.000.001", {
+  type: "text",
+  inputMode: "numeric",
+  hint: "Introduce el valor total en euros. Ejemplo: 25.000.001"
+})}
             </div>
           </section>
 
@@ -1148,8 +1152,8 @@ export default function Teams() {
     pitch_dimensions: newTeam.pitchDimensions,
     stadium_interior_url: newTeam.stadiumInteriorUrl,
     stadium_exterior_url: newTeam.stadiumExteriorUrl,
-    reputation: newTeam.reputation,
-    market: newTeam.market,
+    reputation: String(newTeam.reputation ?? ""),
+    market: String(newTeam.market ?? ""),
     history: newTeam.history,
     coach_name: newTeam.coachName,
     coach_photo_url: newTeam.coachPhotoUrl,
