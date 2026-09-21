@@ -14,6 +14,8 @@ import {
   Shirt,
   Palette,
   Database,
+  FileJson,
+  ClipboardPaste,
 } from "lucide-react";
 
 const navigationFilters = [
@@ -292,12 +294,245 @@ function AddTeamModal({ form, setForm, onClose, onSubmit }) {
   );
 }
 
+
+function cleanJsonInput(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  return fenced ? fenced[1].trim() : trimmed;
+}
+
+function importedValue(value) {
+  return value === null || value === undefined ? "" : String(value);
+}
+
+function mapImportedTeamToForm(data) {
+  const stadium = data.stadium || {};
+  const classification = data.classification || {};
+  const staff = data.staff || {};
+  const kits = data.kits || {};
+
+  return {
+    ...emptyTeamForm,
+    name: importedValue(data.name),
+    shortName: importedValue(data.short_name),
+    country: importedValue(data.country),
+    countryId: importedValue(data.country_id),
+    continent: importedValue(data.continent) || "Europe",
+    city: importedValue(data.city),
+    logo: importedValue(data.logo || data.badge_url),
+    primaryColor: importedValue(data.primary_color),
+    secondaryColor: importedValue(data.secondary_color),
+    foundedYear: importedValue(data.founded_year),
+    stadium: importedValue(stadium.name || data.stadium),
+    stadiumId: importedValue(data.stadium_id),
+    stadiumCapacity: importedValue(stadium.capacity || data.stadium_capacity),
+    stadiumBuiltYear: importedValue(stadium.built_year || data.stadium_built_year),
+    stadiumRenovation: importedValue(stadium.renovation_year || data.stadium_renovation),
+    pitchDimensions: importedValue(stadium.pitch_dimensions || data.pitch_dimensions),
+    stadiumInteriorUrl: importedValue(stadium.interior_url || data.stadium_interior_url),
+    stadiumExteriorUrl: importedValue(stadium.exterior_url || data.stadium_exterior_url),
+    reputation: classification.reputation || data.reputation || "Unclassified",
+    market: classification.market || data.market || "Unclassified",
+    history: importedValue(data.history),
+    coachName: importedValue(staff.coach_name || data.coach_name),
+    coachPhotoUrl: importedValue(staff.coach_photo_url || data.coach_photo_url),
+    captainName: importedValue(staff.captain_name || data.captain_name),
+    captainPhotoUrl: importedValue(staff.captain_photo_url || data.captain_photo_url),
+    secondCaptainName: importedValue(staff.second_captain_name || data.second_captain_name),
+    secondCaptainPhotoUrl: importedValue(staff.second_captain_photo_url || data.second_captain_photo_url),
+    keyPlayerName: importedValue(staff.key_player_name || data.key_player_name),
+    keyPlayerPhotoUrl: importedValue(staff.key_player_photo_url || data.key_player_photo_url),
+    kit1PhotoUrl: importedValue(kits.kit1?.photo_url || data.kit1_photo_url),
+    kit1ShopUrl: importedValue(kits.kit1?.shop_url || data.kit1_shop_url),
+    kit1BadgeBg: importedValue(kits.kit1?.badge_bg || data.kit1_badge_bg),
+    kit1BadgeText: importedValue(kits.kit1?.badge_text || data.kit1_badge_text),
+    kit2PhotoUrl: importedValue(kits.kit2?.photo_url || data.kit2_photo_url),
+    kit2ShopUrl: importedValue(kits.kit2?.shop_url || data.kit2_shop_url),
+    kit2BadgeBg: importedValue(kits.kit2?.badge_bg || data.kit2_badge_bg),
+    kit2BadgeText: importedValue(kits.kit2?.badge_text || data.kit2_badge_text),
+    kit3PhotoUrl: importedValue(kits.kit3?.photo_url || data.kit3_photo_url),
+    kit3ShopUrl: importedValue(kits.kit3?.shop_url || data.kit3_shop_url),
+    kit3BadgeBg: importedValue(kits.kit3?.badge_bg || data.kit3_badge_bg),
+    kit3BadgeText: importedValue(kits.kit3?.badge_text || data.kit3_badge_text),
+    dataSource: "Manual",
+    isActive: true,
+  };
+}
+
+function extractJsonFromText(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced) return fenced[1].trim();
+
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) return trimmed;
+
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1).trim();
+  }
+
+  return "";
+}
+
+function parseLabeledTeamText(text) {
+  const result = {};
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+
+  const aliases = {
+    "nombre": "name",
+    "nombre oficial": "name",
+    "team name": "name",
+    "club": "name",
+    "nombre corto": "short_name",
+    "short name": "short_name",
+    "abreviatura": "short_name",
+    "país": "country",
+    "pais": "country",
+    "country": "country",
+    "código": "country_code",
+    "codigo": "country_code",
+    "country code": "country_code",
+    "continente": "continent",
+    "continent": "continent",
+    "ciudad": "city",
+    "city": "city",
+    "escudo": "logo",
+    "logo": "logo",
+    "logo url": "logo",
+    "año de fundación": "founded_year",
+    "ano de fundacion": "founded_year",
+    "founded year": "founded_year",
+    "estadio": "stadium",
+    "stadium": "stadium",
+    "capacidad": "stadium_capacity",
+    "stadium capacity": "stadium_capacity",
+    "entrenador": "coach_name",
+    "coach": "coach_name",
+    "capitán": "captain_name",
+    "capitan": "captain_name",
+    "captain": "captain_name",
+    "historia": "history",
+    "history": "history",
+    "reputación": "reputation",
+    "reputacion": "reputation",
+    "reputation": "reputation",
+    "mercado": "market",
+    "market": "market"
+  };
+
+  lines.forEach((line) => {
+    const match = line.match(/^[-*•]?\s*([^:：-]+?)\s*[:：-]\s*(.+)$/);
+    if (!match) return;
+
+    const label = match[1].trim().toLowerCase();
+    const value = match[2].trim();
+    const field = aliases[label];
+    if (field && value) result[field] = value;
+  });
+
+  return result;
+}
+
+function normalizeImportedTeamText(value) {
+  const jsonCandidate = extractJsonFromText(value);
+
+  if (jsonCandidate) {
+    try {
+      const parsed = JSON.parse(jsonCandidate);
+      if (parsed && !Array.isArray(parsed) && typeof parsed === "object") return parsed;
+    } catch {
+      // If the content is not valid JSON, try the simple labelled-text parser below.
+    }
+  }
+
+  return parseLabeledTeamText(value);
+}
+
+function ImportTeamJsonModal({ onClose, onImport }) {
+  const [mode, setMode] = useState("text");
+  const [content, setContent] = useState("");
+  const [error, setError] = useState("");
+
+  const handleImport = (event) => {
+    event.preventDefault();
+    setError("");
+
+    const parsed = normalizeImportedTeamText(content);
+
+    if (!parsed || (!parsed.name && !parsed.short_name)) {
+      setError(
+        mode === "text"
+          ? "No se han identificado datos suficientes. Pega el JSON completo generado por el prompt o utiliza líneas con formato Campo: valor."
+          : "El contenido debe ser un objeto JSON válido con al menos name o short_name."
+      );
+      return;
+    }
+
+    onImport(mapImportedTeamToForm(parsed));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="import-team-json-title">
+      <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h2 id="import-team-json-title" className="text-lg font-extrabold text-slate-900">Añadir equipo mediante información</h2>
+            <p className="mt-1 text-xs text-slate-500">Pega el resultado completo del prompt y carga los datos en el editor.</p>
+          </div>
+          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Close import dialog">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mb-4 flex gap-2">
+          <button type="button" onClick={() => { setMode("text"); setError(""); }} className={`rounded-lg border px-4 py-2 text-xs font-semibold transition ${mode === "text" ? "border-[#073B35] bg-[#073B35] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+            Pegar texto
+          </button>
+          <button type="button" onClick={() => { setMode("json"); setError(""); }} className={`rounded-lg border px-4 py-2 text-xs font-semibold transition ${mode === "json" ? "border-[#073B35] bg-[#073B35] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+            JSON
+          </button>
+        </div>
+
+        <form onSubmit={handleImport} className="space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+            {mode === "text"
+              ? "Pega aquí toda la información del club. Se aceptan el JSON del prompt, bloques JSON con formato Markdown o líneas como Nombre: Real Madrid."
+              : "Pega el objeto JSON completo generado por el prompt. También se aceptan bloques con formato ```json ... ```."}
+          </div>
+          <textarea
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            placeholder={mode === "text" ? "Pega aquí toda la información del equipo..." : '{\n  "name": "Real Madrid",\n  "short_name": "RMA",\n  "country": "Spain"\n}'}
+            className={`${textareaClassName} min-h-[320px] font-mono text-xs`}
+            autoFocus
+            required
+          />
+          {error && <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <button type="button" onClick={onClose} className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Cancelar</button>
+            <button type="submit" className="flex h-10 items-center gap-2 rounded-xl bg-[#073B35] px-4 text-xs font-semibold text-white transition hover:bg-[#0A5047]">
+              <ClipboardPaste size={15} />
+              Detectar información
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Teams() {
   const [teams, setTeams] = useState([]);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("countries");
   const [searchOpen, setSearchOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [importJsonModalOpen, setImportJsonModalOpen] = useState(false);
   const [form, setForm] = useState(emptyTeamForm);
 
   const filteredTeams = useMemo(() => {
@@ -392,6 +627,12 @@ export default function Teams() {
     setActiveFilter("countries");
   };
 
+  const handleImportJson = (importedForm) => {
+    setForm(importedForm);
+    setImportJsonModalOpen(false);
+    setAddModalOpen(true);
+  };
+
   const handleCloseSearch = () => {
     setSearch("");
     setSearchOpen(false);
@@ -427,6 +668,10 @@ export default function Teams() {
 
           <button type="button" onClick={() => setSearchOpen((open) => !open)} className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${searchOpen ? "border-[#073B35] bg-[#073B35] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Search teams" title="Search teams">
             {searchOpen ? <X size={17} strokeWidth={2} /> : <Search size={17} strokeWidth={2} />}
+          </button>
+
+          <button type="button" onClick={() => setImportJsonModalOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50" aria-label="Import team from text or JSON" title="Import team from text or JSON">
+            <FileJson size={17} strokeWidth={2} />
           </button>
 
           <button type="button" onClick={() => setAddModalOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#073B35] text-white transition hover:bg-[#0A5047]" aria-label="Add team" title="Add team">
@@ -475,6 +720,7 @@ export default function Teams() {
       )}
 
       {addModalOpen && <AddTeamModal form={form} setForm={setForm} onClose={() => setAddModalOpen(false)} onSubmit={handleAddTeam} />}
+      {importJsonModalOpen && <ImportTeamJsonModal onClose={() => setImportJsonModalOpen(false)} onImport={handleImportJson} />}
     </div>
   );
 }
