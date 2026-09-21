@@ -148,10 +148,12 @@ function TeamCard({ team }) {
   return (
     <button
       type="button"
-      className="group flex h-[64px] items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
+      className="group flex min-h-[112px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
     >
       <TeamLogo team={team} />
-      <span className="min-w-0 truncate text-xs font-bold text-slate-800 transition group-hover:text-[#003399]">{team.name}</span>
+      <span className="w-full truncate text-xs font-bold text-slate-800 transition group-hover:text-[#003399]">
+        {team.name}
+      </span>
     </button>
   );
 }
@@ -613,22 +615,108 @@ export default function Teams() {
   useEffect(() => {
     let cancelled = false;
 
+    const getList = (result) => {
+      if (Array.isArray(result)) return result;
+      if (Array.isArray(result?.data)) return result.data;
+      if (Array.isArray(result?.items)) return result.items;
+      if (Array.isArray(result?.results)) return result.results;
+      return [];
+    };
+
+    const normalizeCountry = (country) => ({
+      ...country,
+      id: country?.id || country?._id || country?.data?.id || '',
+      name: country?.name || '',
+      code: country?.code || country?.country_code || '',
+      continent: country?.continent || '',
+    });
+
     const loadCountries = async () => {
       try {
         const result = await base44.entities.Country.list();
-        const loadedCountries = Array.isArray(result)
-          ? result
-          : result?.data || result?.items || [];
-
-        if (!cancelled) {
-          setCountries(loadedCountries);
-        }
+        const loadedCountries = getList(result).map(normalizeCountry);
+        if (!cancelled) setCountries(loadedCountries);
+        return loadedCountries;
       } catch (error) {
-        console.error("Error loading countries:", error);
+        console.error('Error loading countries:', error);
+        return [];
       }
     };
 
-    loadCountries();
+    const loadTeams = async (loadedCountries = []) => {
+      try {
+        const result = await base44.entities.Team.list();
+        const loadedTeams = getList(result);
+
+        const normalizedTeams = loadedTeams.map((team) => {
+          const teamCountryId = team.country_id || team.countryId || '';
+          const country = loadedCountries.find(
+            (item) => String(item.id || '') === String(teamCountryId)
+          );
+
+          return {
+            ...team,
+            id: team.id || team._id,
+            name: team.name || '',
+            shortName: team.short_name || team.shortName || '',
+            countryId: teamCountryId,
+            country:
+              team.country ||
+              team.country_name ||
+              team.countryName ||
+              country?.name ||
+              'Unknown country',
+            countryCode:
+              team.country_code ||
+              team.countryCode ||
+              country?.code ||
+              '',
+            continent: team.continent || country?.continent || 'Unknown continent',
+            city: team.city || '',
+            logo: team.logo || team.logo_url || '',
+            primaryColor: team.primary_color || team.primaryColor || '',
+            secondaryColor: team.secondary_color || team.secondaryColor || '',
+            foundedYear: team.founded_year || team.foundedYear || null,
+            stadium: team.stadium || '',
+            stadiumId: team.stadium_id || team.stadiumId || '',
+            stadiumCapacity: team.stadium_capacity || team.stadiumCapacity || null,
+            stadiumBuiltYear: team.stadium_built_year || team.stadiumBuiltYear || null,
+            stadiumRenovation: team.stadium_renovation || team.stadiumRenovation || null,
+            pitchDimensions: team.pitch_dimensions || team.pitchDimensions || '',
+            stadiumInteriorUrl: team.stadium_interior_url || team.stadiumInteriorUrl || '',
+            stadiumExteriorUrl: team.stadium_exterior_url || team.stadiumExteriorUrl || '',
+            reputation: team.reputation || 'Unclassified',
+            market: team.market || 'Unclassified',
+            history: team.history || '',
+            coachName: team.coach_name || team.coachName || '',
+            coachPhotoUrl: team.coach_photo_url || team.coachPhotoUrl || '',
+            captainName: team.captain_name || team.captainName || '',
+            captainPhotoUrl: team.captain_photo_url || team.captainPhotoUrl || '',
+            secondCaptainName: team.second_captain_name || team.secondCaptainName || '',
+            secondCaptainPhotoUrl: team.second_captain_photo_url || team.secondCaptainPhotoUrl || '',
+            keyPlayerName: team.key_player_name || team.keyPlayerName || '',
+            keyPlayerPhotoUrl: team.key_player_photo_url || team.keyPlayerPhotoUrl || '',
+            dataSource: team.data_source || team.dataSource || 'Manual',
+            isActive: team.is_active ?? team.isActive ?? true,
+            incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
+            competition: team.competition || 'Without competition',
+          };
+        });
+
+        if (!cancelled) setTeams(normalizedTeams);
+      } catch (error) {
+        console.error('Error loading teams:', error);
+      }
+    };
+
+    const loadData = async () => {
+      // Cada entidad se carga por separado para que un fallo en Countries
+      // no impida mostrar los equipos guardados.
+      const loadedCountries = await loadCountries();
+      await loadTeams(loadedCountries);
+    };
+
+    loadData();
 
     return () => {
       cancelled = true;
