@@ -1,4 +1,3 @@
-
 {
   "properties": {
     "name": {
@@ -11,7 +10,7 @@
     },
     "country_id": {
       "type": "string",
-      "description": "ID del país al que pertenece la liga"
+      "description": "Identificador del registro Country relacionado. La interfaz debe permitir seleccionar el país por su nombre."
     },
     "level": {
       "type": "integer",
