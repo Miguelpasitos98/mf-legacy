@@ -86,6 +86,59 @@ const inputClassName =
 const textareaClassName =
   "min-h-[104px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
 
+const normalizeImageUrl = (value) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
+const rgbToHex = (r, g, b) =>
+  `#${[r, g, b].map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+
+const extractImagePalette = (image) => {
+  try {
+    const canvas = document.createElement("canvas");
+    const size = 80;
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return [];
+
+    context.drawImage(image, 0, 0, size, size);
+    const pixels = context.getImageData(0, 0, size, size).data;
+    const buckets = new Map();
+
+    for (let index = 0; index < pixels.length; index += 16) {
+      const alpha = pixels[index + 3];
+      if (alpha < 160) continue;
+
+      const r = pixels[index];
+      const g = pixels[index + 1];
+      const b = pixels[index + 2];
+      const brightness = (r + g + b) / 3;
+      if (brightness > 248 || brightness < 8) continue;
+
+      const key = [Math.round(r / 24), Math.round(g / 24), Math.round(b / 24)].join(",");
+      const previous = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
+      previous.count += 1;
+      previous.r += r;
+      previous.g += g;
+      previous.b += b;
+      buckets.set(key, previous);
+    }
+
+    return Array.from(buckets.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 12)
+      .map((bucket) => rgbToHex(bucket.r / bucket.count, bucket.g / bucket.count, bucket.b / bucket.count));
+  } catch (error) {
+    console.warn("Could not extract logo colors. The image server may not allow canvas access.", error);
+    return [];
+  }
+};
+
 function FormField({ label, children, hint }) {
   return (
     <label className="block">
@@ -169,6 +222,13 @@ function AddTeamModal({
   onClose,
   onSubmit,
 }) {
+  const [logoImageError, setLogoImageError] = useState(false);
+  const [logoPalette, setLogoPalette] = useState([]);
+  const [colorTarget, setColorTarget] = useState("primary");
+  const [isLogoZoomOpen, setIsLogoZoomOpen] = useState(false);
+
+  const logoPreviewUrl = normalizeImageUrl(form.logo);
+
   const updateField = (field, value) => {
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
   };
@@ -296,19 +356,133 @@ function AddTeamModal({
               {selectField("continent", "Continent", ["Europe", "South America", "North America", "Asia", "Africa", "Oceania"])}
               {textField("city", "City", "e.g. Madrid")}
               {textField("foundedYear", "Founded year", "1902", { type: "number", min: 1800, max: 2100 })}
-              {textField("logo", "Logo URL", "https://...")}
+              <div className="md:col-span-2">
+                <FormField label="Logo URL" hint="Puedes pegar una URL completa o una dirección como fotmob.com/image_resources/logo/teamlogo/8633_large.png">
+                  <input
+                    type="text"
+                    value={form.logo}
+                    onChange={(event) => {
+                      updateField("logo", event.target.value);
+                      setLogoImageError(false);
+                      setLogoPalette([]);
+                    }}
+                    placeholder="https://..."
+                    className={inputClassName}
+                  />
+                </FormField>
+
+                {logoPreviewUrl && (
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-4 md:flex-row">
+                      <div className="relative flex min-h-[180px] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white md:w-56">
+                        <img
+                          src={logoPreviewUrl}
+                          alt="Logo preview"
+                          className="max-h-44 max-w-[90%] object-contain"
+                          onLoad={() => {
+                            setLogoImageError(false);
+                            const paletteImage = new Image();
+                            paletteImage.crossOrigin = "anonymous";
+                            paletteImage.onload = () => setLogoPalette(extractImagePalette(paletteImage));
+                            paletteImage.onerror = () => setLogoPalette([]);
+                            paletteImage.src = logoPreviewUrl;
+                          }}
+                          onError={() => {
+                            setLogoImageError(true);
+                            setLogoPalette([]);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setIsLogoZoomOpen(true)}
+                          className="absolute bottom-2 right-2 rounded-lg bg-slate-900/80 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-900"
+                        >
+                          Ampliar imagen
+                        </button>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <div>
+                            <h4 className="text-xs font-extrabold uppercase tracking-wide text-slate-800">Logo palette</h4>
+                            <p className="mt-1 text-[11px] text-slate-500">Pulsa un color para asignarlo al campo seleccionado.</p>
+                          </div>
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">
+                            {colorTarget === "primary" ? "Primary" : "Secondary"}
+                          </span>
+                        </div>
+
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setColorTarget("primary")}
+                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${colorTarget === "primary" ? "bg-[#003399] text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+                          >
+                            Seleccionar primario
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setColorTarget("secondary")}
+                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${colorTarget === "secondary" ? "bg-[#003399] text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+                          >
+                            Seleccionar secundario
+                          </button>
+                        </div>
+
+                        {logoImageError ? (
+                          <p className="text-xs text-red-600">No se pudo cargar la imagen. Comprueba que la URL sea pública y completa.</p>
+                        ) : logoPalette.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {logoPalette.map((color) => (
+                              <button
+                                key={color}
+                                type="button"
+                                title={`Asignar ${color} a ${colorTarget}`}
+                                onClick={() => updateField(colorTarget === "primary" ? "primaryColor" : "secondaryColor", color)}
+                                className="group flex w-14 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 hover:border-[#003399]"
+                              >
+                                <span className="h-8 w-8 rounded-md border border-slate-200" style={{ backgroundColor: color }} />
+                                <span className="text-[9px] font-semibold text-slate-500">{color}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400">Introduce una imagen compatible para detectar colores. Si el servidor bloquea el análisis, puedes introducir el HEX manualmente.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
           <section>
             <SectionHeader icon={Palette} title="Identity & classification" description="Colors and internal club categories." />
             <div className="grid gap-4 md:grid-cols-2">
-              {textField("primaryColor", "Primary color", "#FFFFFF")}
-              {textField("secondaryColor", "Secondary color", "#000000")}
+              <FormField label="Primary color" hint="HEX seleccionado desde la paleta o introducido manualmente.">
+                <div className="flex gap-2">
+                  <input type="color" value={/^#[0-9A-Fa-f]{6}$/.test(form.primaryColor) ? form.primaryColor : "#FFFFFF"} onChange={(event) => updateField("primaryColor", event.target.value.toUpperCase())} className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
+                  <input type="text" value={form.primaryColor} onChange={(event) => updateField("primaryColor", event.target.value.toUpperCase())} placeholder="#FFFFFF" className={inputClassName} />
+                </div>
+              </FormField>
+              <FormField label="Secondary color" hint="HEX seleccionado desde la paleta o introducido manualmente.">
+                <div className="flex gap-2">
+                  <input type="color" value={/^#[0-9A-Fa-f]{6}$/.test(form.secondaryColor) ? form.secondaryColor : "#000000"} onChange={(event) => updateField("secondaryColor", event.target.value.toUpperCase())} className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
+                  <input type="text" value={form.secondaryColor} onChange={(event) => updateField("secondaryColor", event.target.value.toUpperCase())} placeholder="#000000" className={inputClassName} />
+                </div>
+              </FormField>
               {textField("reputation", "Reputation (0-10000)", "9500", { type: "number", min: 0, max: 10000, step: 1 })}
               {textField("market", "Market value (€)", "458223670", { type: "number", min: 0, step: 1000000, hint: "Introduce el valor total en euros. Ejemplo: 458223670" })}
             </div>
           </section>
+
+          {isLogoZoomOpen && logoPreviewUrl && (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-5" role="dialog" aria-modal="true" aria-label="Expanded logo preview">
+              <button type="button" onClick={() => setIsLogoZoomOpen(false)} className="absolute right-5 top-5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800">Cerrar</button>
+              <img src={logoPreviewUrl} alt="Expanded logo preview" className="max-h-[85vh] max-w-[90vw] object-contain" />
+            </div>
+          )}
 
           <section>
             <SectionHeader icon={Building2} title="Stadium" description="Main stadium information and images." />
