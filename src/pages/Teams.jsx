@@ -953,7 +953,7 @@ const kitHomeUrl =
           </div>
 
           {/* COMPOSICIÓN PRINCIPAL */}
-          <div className="relative z-10 grid min-h-[720px] grid-cols-1 md:grid-cols-[55%_45%]">
+<div className="relative z-10 grid min-h-[720px] grid-cols-1 md:grid-cols-[55%_45%]">
             {/* LADO IZQUIERDO */}
             <div className="relative flex flex-col justify-between p-6 pt-14 sm:p-8 sm:pt-16 md:p-12 md:pt-20">
               {/* LEMA */}
@@ -986,16 +986,9 @@ const kitHomeUrl =
                 </p>
 
                 {/* NOMBRE PRINCIPAL */}
-                <h1 className="team-display-title max-w-full break-words text-7xl text-white sm:text-8xl md:text-[clamp(4rem,6.5vw,8.5rem)]">
-                  {displayName.split(" ").map((word, index) => (
-                    <span
-                      key={`${word}-${index}`}
-                      className="block"
-                    >
-                      {word}
-                    </span>
-                  ))}
-                </h1>
+               <h1 className="team-display-title max-w-none whitespace-nowrap text-5xl text-white sm:text-7xl md:text-[clamp(3rem,5.2vw,8.5rem)]">
+  {displayName}
+</h1>
 
                 <p className="team-section-label mt-7 text-[9px] text-white/65 sm:text-xs">
                   MF LEGACY · TEAM PROFILE
@@ -1081,7 +1074,7 @@ const kitHomeUrl =
             </div>
 
             {/* LADO DERECHO */}
-            <div className="relative flex min-h-[450px] flex-col items-center justify-center p-6 pt-20 sm:p-10 md:min-h-0 md:p-8">
+<div className="relative flex min-h-[450px] flex-col items-center justify-center p-6 pt-20 sm:p-10 md:absolute md:inset-0 md:z-20 md:min-h-0 md:p-0">
               {/* ETIQUETA DE IDENTIDAD */}
               <div className="absolute right-6 top-12 text-right sm:right-10 md:right-12">
                 <p className="team-section-label text-[10px] text-white/80 sm:text-xs">
