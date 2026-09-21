@@ -166,7 +166,7 @@ function SectionHeader({ icon: Icon, title, description }) {
 function TeamLogo({ team }) {
   if (team.logo) {
     return (
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white">
+      <div className="flex h-20 w-20 shrink-0 items-center justify-center bg-transparent">
         <img src={team.logo} alt={`${team.name} logo`} className="h-full w-full object-contain" />
       </div>
     );
