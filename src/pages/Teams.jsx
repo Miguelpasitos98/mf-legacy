@@ -1092,9 +1092,9 @@ export default function Teams() {
   const [selectedTeam, setSelectedTeam] = useState(null);
   const { setTeamTheme } = useOutletContext();
 
-  const { setTeamTheme } = useOutletContext();
-
 useEffect(() => {
+  if (!setTeamTheme) return;
+
   if (!selectedTeam) {
     setTeamTheme({
       primaryColor: "#003399",
