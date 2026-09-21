@@ -826,6 +826,7 @@ function ImportTeamJsonModal({ onClose, onImport }) {
 }
 
 
+
 function TeamDetail({ team, onClose }) {
   const primaryColor =
     team.primaryColor ||
@@ -848,201 +849,306 @@ function TeamDetail({ team, onClose }) {
   const teamName = team.name || "Equipo";
   const shortName = team.shortName || team.short_name || "";
 
+  // Información adicional del equipo
+  const stadium =
+    team.stadium ||
+    team.stadium_name ||
+    team.stadiumName ||
+    "";
+
+  const stadiumCapacity =
+    team.stadiumCapacity ||
+    team.stadium_capacity ||
+    team.capacity ||
+    "";
+
+  const ranking =
+    team.ranking ||
+    team.worldRanking ||
+    team.world_ranking ||
+    "";
+
+  // Imagen de la camiseta
+  const kitHomeUrl =
+    team.kit_home_url ||
+    team.kitHomeUrl ||
+    team.home_kit_url ||
+    team.homeKitUrl ||
+    team.kit_url ||
+    "";
+
+  // Mapa del país
+  const countryMapUrl =
+    team.country_map_url ||
+    team.countryMapUrl ||
+    "";
+
+  const displayName = teamName.toUpperCase();
+
   return (
     <div
-      className="relative min-h-full overflow-hidden p-4 md:p-8"
+      className="relative min-h-full overflow-hidden p-3 sm:p-4 md:p-6"
       style={{
         backgroundColor: primaryColor,
       }}
     >
-      {/* Fondo secundario diagonal */}
+      {/* FONDO SECUNDARIO DIAGONAL */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundColor: secondaryColor,
-          clipPath: "polygon(58% 0, 100% 0, 100% 100%, 43% 100%)",
+          clipPath:
+            "polygon(60% 0, 100% 0, 100% 100%, 42% 100%)",
         }}
       />
 
-      {/* Degradado decorativo */}
+      {/* DEGRADADO DE PROFUNDIDAD */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-30"
+        className="pointer-events-none absolute inset-0 opacity-25"
         style={{
-          background: `linear-gradient(135deg, transparent 35%, ${secondaryColor} 65%)`,
+          background: `linear-gradient(135deg, ${primaryColor} 0%, transparent 45%, ${secondaryColor} 100%)`,
         }}
       />
 
+      {/* CONTENEDOR PRINCIPAL */}
       <div className="relative z-10">
-        {/* Cabecera */}
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
-          >
-            ← Volver a equipos
-          </button>
-
-          <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
-            Team profile
-          </span>
-        </div>
-
-        {/* Panel principal */}
         <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl">
-          {/* Marca de agua del escudo */}
+          {/* MARCA DE AGUA DEL ESCUDO */}
           {team.logo && (
             <img
               src={team.logo}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute right-[-90px] top-1/2 h-[650px] w-[650px] -translate-y-1/2 object-contain opacity-[0.09] grayscale"
+              className="pointer-events-none absolute -right-32 top-1/2 z-0 h-[520px] w-[520px] -translate-y-1/2 object-contain opacity-[0.08] grayscale md:h-[760px] md:w-[760px]"
             />
           )}
 
-          <div className="relative z-10 grid min-h-[650px] grid-cols-1 md:grid-cols-2">
+          {/* MAPA DEL PAÍS */}
+          {countryMapUrl && (
+            <img
+              src={countryMapUrl}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-0 right-0 z-0 w-[38%] max-w-[420px] opacity-[0.09] grayscale"
+            />
+          )}
+
+          {/* CABECERA INTEGRADA */}
+          <div className="relative z-30 flex items-center justify-between gap-4 px-5 pt-5 md:px-8 md:pt-7">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-white/40 bg-black/10 px-4 py-2 text-[11px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+            >
+              ← Volver a equipos
+            </button>
+
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/75">
+              Team profile
+            </span>
+          </div>
+
+          {/* COMPOSICIÓN PRINCIPAL */}
+          <div className="relative z-10 grid min-h-[720px] grid-cols-1 md:grid-cols-[55%_45%]">
             {/* LADO IZQUIERDO */}
-            <div className="flex flex-col justify-between p-8 md:p-12">
+            <div className="relative flex flex-col justify-between p-6 pt-14 sm:p-8 sm:pt-16 md:p-12 md:pt-20">
+              {/* LEMA */}
               <div>
-                {/* Lema */}
                 <div className="mb-8 flex items-center gap-3">
                   <div className="flex gap-2">
                     <span
-                      className="h-1 w-10"
-                      style={{ backgroundColor: primaryColor }}
+                      className="h-1 w-9"
+                      style={{
+                        backgroundColor: primaryColor,
+                      }}
                     />
+
                     <span
-                      className="h-1 w-10"
-                      style={{ backgroundColor: secondaryColor }}
+                      className="h-1 w-9"
+                      style={{
+                        backgroundColor: secondaryColor,
+                      }}
                     />
                   </div>
 
-                  <span className="text-xs font-bold uppercase tracking-[0.3em] text-white/80">
+                  <span className="team-section-label text-[10px] text-white/80 sm:text-xs">
                     Más que un club
                   </span>
                 </div>
 
-                {/* Nombre */}
-                <p className="mb-3 text-sm font-bold uppercase tracking-[0.3em] text-white/60">
-                  {shortName || "Football Club"}
+                {/* CIUDAD / IDENTIFICADOR */}
+                <p className="team-section-label mb-4 text-xs text-white/65">
+                  {city || shortName || "Football Club"}
                 </p>
 
-                <h1 className="max-w-xl text-6xl font-black uppercase leading-[0.85] tracking-tight text-white md:text-8xl">
-                  {teamName.split(" ").map((word, index) => (
-                    <span key={`${word}-${index}`} className="block">
+                {/* NOMBRE PRINCIPAL */}
+                <h1 className="team-display-title max-w-full break-words text-7xl text-white sm:text-8xl md:text-[clamp(4rem,6.5vw,8.5rem)]">
+                  {displayName.split(" ").map((word, index) => (
+                    <span
+                      key={`${word}-${index}`}
+                      className="block"
+                    >
                       {word}
                     </span>
                   ))}
                 </h1>
 
-                <p className="mt-7 text-xs font-medium uppercase tracking-[0.35em] text-white/60">
+                <p className="team-section-label mt-7 text-[9px] text-white/65 sm:text-xs">
                   MF LEGACY · TEAM PROFILE
                 </p>
               </div>
 
-              {/* Datos del equipo */}
-              <div className="mt-16">
-                <div className="grid grid-cols-2 gap-6 md:grid-cols-3">
+              {/* DATOS BÁSICOS */}
+              <div className="relative z-20 mt-14 md:mt-8">
+                <div className="grid grid-cols-2 gap-x-5 gap-y-7 md:grid-cols-3">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+                    <p className="team-section-label text-[9px] text-white/55">
                       Año de fundación
                     </p>
 
-                    <p className="mt-2 text-lg font-bold text-white">
+                    <p className="team-data-value mt-2 text-xl text-white">
                       {foundedYear || "—"}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+                    <p className="team-section-label text-[9px] text-white/55">
                       País
                     </p>
 
-                    <p className="mt-2 text-lg font-bold text-white">
+                    <p className="team-data-value mt-2 text-xl text-white">
                       {country || "—"}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+                    <p className="team-section-label text-[9px] text-white/55">
                       Ciudad
                     </p>
 
-                    <p className="mt-2 text-lg font-bold text-white">
+                    <p className="team-data-value mt-2 text-xl text-white">
                       {city || "—"}
                     </p>
                   </div>
                 </div>
+
+                {/* INFORMACIÓN DEPORTIVA */}
+                {(stadium || stadiumCapacity || ranking) && (
+                  <div className="mt-8 grid grid-cols-2 gap-5 border-t border-white/20 pt-5">
+                    {(ranking || ranking === 0) && (
+                      <div>
+                        <p className="team-section-label text-[9px] text-white/55">
+                          Ranking
+                        </p>
+
+                        <p className="team-data-value mt-2 text-lg text-white">
+                          {ranking}
+                        </p>
+                      </div>
+                    )}
+
+                    {stadium && (
+                      <div>
+                        <p className="team-section-label text-[9px] text-white/55">
+                          Estadio
+                        </p>
+
+                        <p className="team-data-value mt-2 text-sm text-white">
+                          {stadium}
+                        </p>
+
+                        {stadiumCapacity && (
+                          <p className="mt-1 text-xs text-white/60">
+                            Capacidad {stadiumCapacity}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Número de fundación */}
-              <div className="mt-8 hidden overflow-hidden md:block">
-                <span className="select-none text-[150px] font-black leading-none text-white/[0.08]">
+              {/* AÑO DE FUNDACIÓN DECORATIVO */}
+              <div className="pointer-events-none absolute bottom-[-10px] left-5 select-none overflow-hidden md:left-10">
+                <span className="text-[110px] font-black leading-none text-white/[0.07] sm:text-[150px] md:text-[190px]">
                   {foundedYear || "FC"}
                 </span>
               </div>
             </div>
 
             {/* LADO DERECHO */}
-            <div className="relative flex min-h-[420px] flex-col items-center justify-center p-8 md:min-h-0 md:p-10">
-              {/* Etiqueta de identidad */}
-              <div className="absolute right-8 top-10 text-right md:right-12">
-                <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/80">
+            <div className="relative flex min-h-[450px] flex-col items-center justify-center p-6 pt-20 sm:p-10 md:min-h-0 md:p-8">
+              {/* ETIQUETA DE IDENTIDAD */}
+              <div className="absolute right-6 top-12 text-right sm:right-10 md:right-12">
+                <p className="team-section-label text-[10px] text-white/80 sm:text-xs">
                   Identity
                 </p>
 
                 <div className="ml-auto mt-3 flex gap-2">
                   <span
-                    className="h-1 w-8"
-                    style={{ backgroundColor: primaryColor }}
+                    className="h-1 w-7"
+                    style={{
+                      backgroundColor: primaryColor,
+                    }}
                   />
+
                   <span
-                    className="h-1 w-8"
-                    style={{ backgroundColor: secondaryColor }}
+                    className="h-1 w-7"
+                    style={{
+                      backgroundColor: secondaryColor,
+                    }}
                   />
                 </div>
               </div>
 
-              {/* Escudo */}
-              <div className="relative mt-12 flex h-64 w-64 items-center justify-center md:h-[350px] md:w-[350px]">
-                <div className="absolute inset-0 rounded-full bg-white/10 blur-3xl" />
+              {/* CAMISETA PRINCIPAL */}
+              {kitHomeUrl ? (
+                <div className="relative z-20 mt-10 flex w-full items-center justify-center md:mt-0">
+                  <div className="absolute h-64 w-64 rounded-full bg-white/10 blur-3xl md:h-[420px] md:w-[420px]" />
 
-                {team.logo ? (
                   <img
-                    src={team.logo}
-                    alt={`${teamName} logo`}
-                    className="relative z-10 h-full w-full object-contain drop-shadow-2xl"
+                    src={kitHomeUrl}
+                    alt={`${teamName} camiseta local`}
+                    className="relative z-10 h-auto max-h-[430px] w-[78%] max-w-[460px] object-contain drop-shadow-2xl transition-transform duration-500 hover:scale-[1.03] md:w-[115%] md:max-w-[540px]"
                   />
-                ) : (
-                  <div className="relative z-10 flex h-48 w-48 items-center justify-center rounded-full border border-white/30 bg-white/10 text-4xl font-black text-white">
-                    {shortName || "FC"}
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="relative z-10 mt-10 flex h-64 w-64 items-center justify-center rounded-full border border-white/20 bg-white/10 text-center backdrop-blur-sm md:mt-0 md:h-[350px] md:w-[350px]">
+                  <div>
+                    <p className="team-section-label text-xs text-white/70">
+                      Home kit
+                    </p>
 
-              {/* Nombre corto */}
-              <div className="mt-8 text-center">
-                <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/60">
+                    <p className="mt-3 text-sm text-white/60">
+                      Añade la URL de la camiseta
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* IDENTIDAD DEL CLUB */}
+              <div className="relative z-20 mt-5 text-center md:mt-2">
+                <p className="team-section-label text-[10px] text-white/60">
                   {shortName || city || "Football Club"}
                 </p>
 
-                <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.2em] text-white">
-                  {city || country || "LEGACY"}
+                <h2 className="mt-3 font-display text-xl font-bold uppercase tracking-[0.25em] text-white sm:text-2xl">
+                  {city || country || "Legacy"}
                 </h2>
               </div>
 
-              {/* Decoración lateral */}
-              <div className="absolute bottom-10 right-8 flex items-center gap-3 md:right-12">
+              {/* TEXTO DECORATIVO INFERIOR */}
+              <div className="absolute bottom-8 right-6 flex items-center gap-3 sm:right-10 md:right-12">
                 <div className="text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/70">
+                  <p className="team-section-label text-[9px] text-white/70">
                     Tradition
                   </p>
 
-                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/70">
+                  <p className="team-section-label text-[9px] text-white/70">
                     Identity
                   </p>
 
-                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/70">
+                  <p className="team-section-label text-[9px] text-white/70">
                     Legacy
                   </p>
                 </div>
@@ -1050,28 +1156,36 @@ function TeamDetail({ team, onClose }) {
                 <div className="flex h-16 w-1 flex-col">
                   <div
                     className="h-1/2"
-                    style={{ backgroundColor: primaryColor }}
+                    style={{
+                      backgroundColor: primaryColor,
+                    }}
                   />
 
                   <div
                     className="h-1/2"
-                    style={{ backgroundColor: secondaryColor }}
+                    style={{
+                      backgroundColor: secondaryColor,
+                    }}
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Línea inferior */}
-          <div className="absolute bottom-0 left-0 right-0 flex h-1">
+          {/* LÍNEA INFERIOR DE COLOR */}
+          <div className="absolute bottom-0 left-0 right-0 z-30 flex h-1">
             <div
               className="w-1/2"
-              style={{ backgroundColor: primaryColor }}
+              style={{
+                backgroundColor: primaryColor,
+              }}
             />
 
             <div
               className="w-1/2"
-              style={{ backgroundColor: secondaryColor }}
+              style={{
+                backgroundColor: secondaryColor,
+              }}
             />
           </div>
         </div>
