@@ -1,0 +1,29 @@
+
+{
+  "properties": {
+    "team_id": {
+      "type": "string",
+      "description": "ID del equipo"
+    },
+    "league_id": {
+      "type": "string",
+      "description": "ID de la liga"
+    },
+    "season": {
+      "type": "string",
+      "description": "Temporada deportiva. Ejemplo: 2026-2027"
+    },
+    "is_current": {
+      "type": "boolean",
+      "default": true,
+      "description": "Indica si es la relación actual"
+    }
+  },
+  "required": [
+    "team_id",
+    "league_id",
+    "season"
+  ],
+  "name": "TeamLeague",
+  "type": "object"
+}
