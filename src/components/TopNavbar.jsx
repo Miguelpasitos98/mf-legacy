@@ -17,7 +17,7 @@ export default function TopNavbar() {
   ];
 
   return (
-    <header className="relative flex h-20 shrink-0 items-center justify-center border-b border-black/5 bg-white">
+    <header className="relative flex h-16 shrink-0 items-center justify-center border-b border-black/5 bg-white">
       {/* Navegación principal de fútbol */}
       <nav className="flex items-center gap-16">
         {footballNav.map((item) => {
