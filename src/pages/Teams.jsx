@@ -946,6 +946,7 @@ export default function Teams() {
       try {
         const result = await base44.entities.Team.list();
         const loadedTeams = getList(result);
+        console.log("EQUIPOS CARGADOS DESDE BASE44:", loadedTeams);
         const currentRelationsByTeam = new Map();
         relations.forEach((relation) => {
           const teamId = relation?.team_id || relation?.teamId || "";
