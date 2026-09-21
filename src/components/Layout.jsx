@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import TopNavbar from "@/components/TopNavbar";
 
 export default function Layout() {
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [teamTheme, setTeamTheme] = useState({
@@ -26,7 +27,7 @@ export default function Layout() {
             "0 24px 70px -20px rgba(20,30,60,0.28), 0 8px 24px -12px rgba(20,30,60,0.18)",
         }}
       >
-        {sidebarVisible && (
+        {sidebarVisible && !location.pathname.startsWith("/teams") && (
   <Sidebar
     open={sidebarOpen}
     onToggle={() => setSidebarOpen((o) => !o)}
