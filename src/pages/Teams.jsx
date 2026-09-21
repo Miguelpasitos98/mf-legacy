@@ -818,16 +818,17 @@ function ImportTeamJsonModal({ onClose, onImport }) {
   );
 }
 
+
 function TeamDetail({ team, onClose }) {
   const primaryColor =
     team.primaryColor ||
     team.primary_color ||
-    "#123B85";
+    "#063B78";
 
   const secondaryColor =
     team.secondaryColor ||
     team.secondary_color ||
-    "#9D1238";
+    "#941638";
 
   const foundedYear =
     team.foundedYear ||
@@ -837,19 +838,30 @@ function TeamDetail({ team, onClose }) {
 
   const city = team.city || "";
   const country = team.country || "";
+  const teamName = team.name || "Equipo";
+  const shortName = team.shortName || team.short_name || "";
 
   return (
     <div
       className="relative min-h-full overflow-hidden p-4 md:p-8"
       style={{
-        background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor} 49%, ${secondaryColor} 49%, ${secondaryColor} 100%)`,
+        backgroundColor: primaryColor,
       }}
     >
-      {/* Fondo decorativo */}
+      {/* Fondo secundario diagonal */}
       <div
-        className="pointer-events-none absolute -right-24 -top-24 h-[520px] w-[520px] rounded-full opacity-10"
+        className="pointer-events-none absolute inset-0"
         style={{
-          backgroundColor: "#FFFFFF",
+          backgroundColor: secondaryColor,
+          clipPath: "polygon(58% 0, 100% 0, 100% 100%, 43% 100%)",
+        }}
+      />
+
+      {/* Degradado decorativo */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-30"
+        style={{
+          background: `linear-gradient(135deg, transparent 35%, ${secondaryColor} 65%)`,
         }}
       />
 
@@ -859,141 +871,197 @@ function TeamDetail({ team, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-white/30 bg-black/20 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-black/30"
+            className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
           >
             ← Volver a equipos
           </button>
 
-          <span className="text-xs font-medium uppercase tracking-widest text-white/70">
+          <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
             Team profile
           </span>
         </div>
 
         {/* Panel principal */}
-        <div className="relative min-h-[620px] overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl backdrop-blur-sm">
-          {/* Escudo como marca de agua */}
+        <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl">
+          {/* Marca de agua del escudo */}
           {team.logo && (
             <img
               src={team.logo}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute right-[-100px] top-1/2 h-[520px] w-[520px] -translate-y-1/2 object-contain opacity-[0.08] grayscale"
+              className="pointer-events-none absolute right-[-90px] top-1/2 h-[650px] w-[650px] -translate-y-1/2 object-contain opacity-[0.09] grayscale"
             />
           )}
 
-          <div className="relative z-10 grid min-h-[620px] grid-cols-1 gap-10 p-8 md:grid-cols-[1.15fr_0.85fr] md:p-12">
-            {/* Columna izquierda */}
-            <div className="flex flex-col justify-between">
+          <div className="relative z-10 grid min-h-[650px] grid-cols-1 md:grid-cols-2">
+            {/* LADO IZQUIERDO */}
+            <div className="flex flex-col justify-between p-8 md:p-12">
               <div>
-                <div className="mb-6 flex items-center gap-3">
-                  <span className="h-1 w-12 bg-white" />
-                  <span className="text-xs font-bold uppercase tracking-[0.35em] text-white/80">
+                {/* Lema */}
+                <div className="mb-8 flex items-center gap-3">
+                  <div className="flex gap-2">
+                    <span
+                      className="h-1 w-10"
+                      style={{ backgroundColor: primaryColor }}
+                    />
+                    <span
+                      className="h-1 w-10"
+                      style={{ backgroundColor: secondaryColor }}
+                    />
+                  </div>
+
+                  <span className="text-xs font-bold uppercase tracking-[0.3em] text-white/80">
                     Más que un club
                   </span>
                 </div>
 
-                <p className="mb-2 text-sm font-semibold uppercase tracking-[0.3em] text-white/60">
-                  {team.shortName || "Football Club"}
+                {/* Nombre */}
+                <p className="mb-3 text-sm font-bold uppercase tracking-[0.3em] text-white/60">
+                  {shortName || "Football Club"}
                 </p>
 
-                <h1 className="max-w-xl text-5xl font-black uppercase leading-[0.9] tracking-tight text-white md:text-7xl">
-                  {team.name || "Equipo"}
+                <h1 className="max-w-xl text-6xl font-black uppercase leading-[0.85] tracking-tight text-white md:text-8xl">
+                  {teamName.split(" ").map((word, index) => (
+                    <span key={`${word}-${index}`} className="block">
+                      {word}
+                    </span>
+                  ))}
                 </h1>
 
-                <p className="mt-5 max-w-md text-sm uppercase tracking-[0.25em] text-white/60">
+                <p className="mt-7 text-xs font-medium uppercase tracking-[0.35em] text-white/60">
                   MF LEGACY · TEAM PROFILE
                 </p>
               </div>
 
-              {/* Datos básicos */}
-              <div className="mt-12 grid max-w-xl grid-cols-2 gap-6 md:grid-cols-3">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-                    País
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-white">
-                    {country || "—"}
-                  </p>
-                </div>
+              {/* Datos del equipo */}
+              <div className="mt-16">
+                <div className="grid grid-cols-2 gap-6 md:grid-cols-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+                      Año de fundación
+                    </p>
 
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-                    Ciudad
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-white">
-                    {city || "—"}
-                  </p>
-                </div>
+                    <p className="mt-2 text-lg font-bold text-white">
+                      {foundedYear || "—"}
+                    </p>
+                  </div>
 
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-                    Fundación
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-white">
-                    {foundedYear || "—"}
-                  </p>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+                      País
+                    </p>
+
+                    <p className="mt-2 text-lg font-bold text-white">
+                      {country || "—"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+                      Ciudad
+                    </p>
+
+                    <p className="mt-2 text-lg font-bold text-white">
+                      {city || "—"}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {/* Número decorativo */}
-              <div className="mt-10 hidden overflow-hidden md:block">
-                <span className="select-none text-[170px] font-black leading-none text-white/[0.07]">
+              {/* Número de fundación */}
+              <div className="mt-8 hidden overflow-hidden md:block">
+                <span className="select-none text-[150px] font-black leading-none text-white/[0.08]">
                   {foundedYear || "FC"}
                 </span>
               </div>
             </div>
 
-            {/* Columna derecha */}
-            <div className="flex flex-col items-center justify-center">
-              <div className="mb-8 text-center">
-                <p className="text-xs font-bold uppercase tracking-[0.4em] text-white/70">
+            {/* LADO DERECHO */}
+            <div className="relative flex min-h-[420px] flex-col items-center justify-center p-8 md:min-h-0 md:p-10">
+              {/* Etiqueta de identidad */}
+              <div className="absolute right-8 top-10 text-right md:right-12">
+                <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/80">
                   Identity
                 </p>
 
-                <div
-                  className="mx-auto mt-3 h-1 w-20"
-                  style={{
-                    background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`,
-                  }}
-                />
+                <div className="ml-auto mt-3 flex gap-2">
+                  <span
+                    className="h-1 w-8"
+                    style={{ backgroundColor: primaryColor }}
+                  />
+                  <span
+                    className="h-1 w-8"
+                    style={{ backgroundColor: secondaryColor }}
+                  />
+                </div>
               </div>
 
               {/* Escudo */}
-              <div className="relative flex h-64 w-64 items-center justify-center md:h-80 md:w-80">
-                <div className="absolute inset-0 rounded-full bg-white/5 blur-2xl" />
+              <div className="relative mt-12 flex h-64 w-64 items-center justify-center md:h-[350px] md:w-[350px]">
+                <div className="absolute inset-0 rounded-full bg-white/10 blur-3xl" />
 
                 {team.logo ? (
                   <img
                     src={team.logo}
-                    alt={`${team.name || "Equipo"} logo`}
+                    alt={`${teamName} logo`}
                     className="relative z-10 h-full w-full object-contain drop-shadow-2xl"
                   />
                 ) : (
                   <div className="relative z-10 flex h-48 w-48 items-center justify-center rounded-full border border-white/30 bg-white/10 text-4xl font-black text-white">
-                    {team.shortName || "FC"}
+                    {shortName || "FC"}
                   </div>
                 )}
               </div>
 
-              {/* Información inferior */}
+              {/* Nombre corto */}
               <div className="mt-8 text-center">
                 <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/60">
-                  {team.shortName || team.name || "Football Club"}
+                  {shortName || city || "Football Club"}
                 </p>
 
-                <p className="mt-3 text-2xl font-black uppercase tracking-widest text-white">
+                <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.2em] text-white">
                   {city || country || "LEGACY"}
-                </p>
+                </h2>
+              </div>
+
+              {/* Decoración lateral */}
+              <div className="absolute bottom-10 right-8 flex items-center gap-3 md:right-12">
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/70">
+                    Tradition
+                  </p>
+
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/70">
+                    Identity
+                  </p>
+
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/70">
+                    Legacy
+                  </p>
+                </div>
+
+                <div className="flex h-16 w-1 flex-col">
+                  <div
+                    className="h-1/2"
+                    style={{ backgroundColor: primaryColor }}
+                  />
+
+                  <div
+                    className="h-1/2"
+                    style={{ backgroundColor: secondaryColor }}
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Línea inferior decorativa */}
+          {/* Línea inferior */}
           <div className="absolute bottom-0 left-0 right-0 flex h-1">
             <div
               className="w-1/2"
               style={{ backgroundColor: primaryColor }}
             />
+
             <div
               className="w-1/2"
               style={{ backgroundColor: secondaryColor }}
