@@ -571,7 +571,7 @@ export default function Teams() {
     return groups;
   }, [filteredTeams, activeFilter]);
 
-  const handleAddTeam = (event) => {
+  const handleAddTeam = async (event) => {
     event.preventDefault();
 
     const newTeam = {
