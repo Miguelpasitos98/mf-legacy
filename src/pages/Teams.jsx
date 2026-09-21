@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Globe,
@@ -35,6 +35,7 @@ const emptyTeamForm = {
   shortName: "",
   country: "",
   countryId: "",
+  countryCode: "",
   continent: "Europe",
   city: "",
   logo: "",
@@ -155,7 +156,14 @@ function TeamCard({ team }) {
   );
 }
 
-function AddTeamModal({ form, setForm, onClose, onSubmit }) {
+function AddTeamModal({
+  form,
+  setForm,
+  countries,
+  setCountries,
+  onClose,
+  onSubmit,
+}) {
   const updateField = (field, value) => {
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
   };
@@ -201,8 +209,71 @@ function AddTeamModal({ form, setForm, onClose, onSubmit }) {
             <div className="grid gap-4 md:grid-cols-2">
               {textField("name", "Team name *", "e.g. Real Madrid")}
               {textField("shortName", "Short name *", "e.g. RMA")}
-              {textField("country", "Country name", "e.g. Spain", { hint: "Display value. The Base44 country ID can be added below." })}
-              {textField("countryId", "Country ID (Base44)", "Internal Country record ID")}
+              <FormField label="Country *" hint="Selecciona un país existente o crea uno nuevo automáticamente.">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={form.country}
+                    onChange={(event) => {
+                      updateField("country", event.target.value);
+                      updateField("countryId", "");
+                    }}
+                    placeholder="Search country..."
+                    className={inputClassName}
+                    autoComplete="off"
+                  />
+
+                  {form.country.trim() && (
+                    <div className="absolute left-0 right-0 top-11 z-20 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+                      {countries
+                        .filter((country) =>
+                          country.name?.toLowerCase().includes(form.country.trim().toLowerCase())
+                        )
+                        .slice(0, 8)
+                        .map((country) => (
+                          <button
+                            key={country.id}
+                            type="button"
+                            onClick={() => {
+                              updateField("country", country.name);
+                              updateField("countryId", country.id || "");
+                              updateField("countryCode", country.code || "");
+                              updateField("continent", country.continent || form.continent);
+                            }}
+                            className="block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-700 transition hover:bg-slate-100"
+                          >
+                            <span className="font-semibold">{country.name}</span>
+                            {country.code && (
+                              <span className="ml-2 text-[10px] text-slate-400">{country.code}</span>
+                            )}
+                          </button>
+                        ))}
+
+                      {!countries.some(
+                        (country) =>
+                          country.name?.toLowerCase() === form.country.trim().toLowerCase()
+                      ) && (
+                        <div className="border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500">
+                          Si no existe, introduce el código del país abajo y se creará al guardar.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </FormField>
+
+              {!form.countryId && form.country.trim() && (
+                <FormField label="Country code *" hint="Ejemplos: ES, GB, DE, IT. Se utiliza para crear el país si todavía no existe.">
+                  <input
+                    type="text"
+                    value={form.countryCode}
+                    onChange={(event) => updateField("countryCode", event.target.value.toUpperCase())}
+                    placeholder="e.g. ES"
+                    maxLength={3}
+                    className={inputClassName}
+                  />
+                </FormField>
+              )}
               {selectField("continent", "Continent", ["Europe", "South America", "North America", "Asia", "Africa", "Oceania"])}
               {textField("city", "City", "e.g. Madrid")}
               {textField("foundedYear", "Founded year", "1902", { type: "number", min: 1800, max: 2100 })}
@@ -321,6 +392,7 @@ function mapImportedTeamToForm(data) {
     shortName: importedValue(data.short_name),
     country: importedValue(data.country),
     countryId: importedValue(data.country_id),
+    countryCode: importedValue(data.country_code),
     continent: importedValue(data.continent) || "Europe",
     city: importedValue(data.city),
     logo: importedValue(data.logo || data.badge_url),
@@ -530,12 +602,38 @@ function ImportTeamJsonModal({ onClose, onImport }) {
 
 export default function Teams() {
   const [teams, setTeams] = useState([]);
+  const [countries, setCountries] = useState([]);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("countries");
   const [searchOpen, setSearchOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [importJsonModalOpen, setImportJsonModalOpen] = useState(false);
   const [form, setForm] = useState(emptyTeamForm);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCountries = async () => {
+      try {
+        const result = await base44.entities.Country.list();
+        const loadedCountries = Array.isArray(result)
+          ? result
+          : result?.data || result?.items || [];
+
+        if (!cancelled) {
+          setCountries(loadedCountries);
+        }
+      } catch (error) {
+        console.error("Error loading countries:", error);
+      }
+    };
+
+    loadCountries();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredTeams = useMemo(() => {
     const normalizedSearch = search.toLowerCase().trim();
@@ -580,6 +678,7 @@ export default function Teams() {
       shortName: form.shortName.trim().toUpperCase(),
       country: form.country.trim(),
       countryId: form.countryId.trim(),
+      countryCode: form.countryCode.trim().toUpperCase(),
       continent: form.continent,
       city: form.city.trim(),
       logo: form.logo.trim(),
@@ -619,20 +718,56 @@ export default function Teams() {
       kit3BadgeText: form.kit3BadgeText.trim(),
       dataSource: form.dataSource,
       isActive: form.isActive,
-      incomplete: !form.name.trim() || !form.shortName.trim() || !form.countryId.trim() || !form.logo.trim(),
+      incomplete: !form.name.trim() || !form.shortName.trim() || !form.country.trim() || !form.logo.trim(),
       competition: "Without competition",
     };
 
     try {
-  if (!form.name.trim() || !form.shortName.trim() || !form.countryId.trim()) {
-    alert("Name, short name and Country ID are required.");
-    return;
-  }
+      if (!form.name.trim() || !form.shortName.trim() || !form.country.trim()) {
+        alert("Name, short name and country are required.");
+        return;
+      }
 
-  const savedTeam = await base44.entities.Team.create({
+      let countryId = form.countryId.trim();
+      const normalizedCountryName = form.country.trim().toLowerCase();
+
+      const existingCountry = countries.find(
+        (country) => country.name?.trim().toLowerCase() === normalizedCountryName
+      );
+
+      if (!countryId && existingCountry?.id) {
+        countryId = existingCountry.id;
+      }
+
+      if (!countryId) {
+        if (!form.countryCode.trim()) {
+          alert("Introduce the country code to create the country automatically.");
+          return;
+        }
+
+        const createdCountry = await base44.entities.Country.create({
+          name: form.country.trim(),
+          code: form.countryCode.trim().toUpperCase(),
+          continent: form.continent,
+          is_active: true,
+        });
+
+        countryId = createdCountry?.id || createdCountry?.data?.id || "";
+
+        if (!countryId) {
+          alert("The country was created, but Base44 did not return its ID. Check the Country entity response.");
+          return;
+        }
+
+        setCountries((currentCountries) => [...currentCountries, createdCountry]);
+      }
+
+      newTeam.countryId = countryId;
+
+      const savedTeam = await base44.entities.Team.create({
     name: newTeam.name,
     short_name: newTeam.shortName,
-    country_id: newTeam.countryId,
+    country_id: countryId,
     city: newTeam.city,
     logo: newTeam.logo,
     primary_color: newTeam.primaryColor,
@@ -770,7 +905,16 @@ export default function Teams() {
         </div>
       )}
 
-      {addModalOpen && <AddTeamModal form={form} setForm={setForm} onClose={() => setAddModalOpen(false)} onSubmit={handleAddTeam} />}
+      {addModalOpen && (
+  <AddTeamModal
+    form={form}
+    setForm={setForm}
+    countries={countries}
+    setCountries={setCountries}
+    onClose={() => setAddModalOpen(false)}
+    onSubmit={handleAddTeam}
+  />
+)}
       {importJsonModalOpen && <ImportTeamJsonModal onClose={() => setImportJsonModalOpen(false)} onImport={handleImportJson} />}
     </div>
   );
