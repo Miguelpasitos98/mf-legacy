@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
@@ -8,11 +7,11 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [teamTheme, setTeamTheme] = useState({
-  primaryColor: "#003399",
-  secondaryColor: "#FFFFFF",
-});
+    primaryColor: "#003399",
+    secondaryColor: "#FFFFFF",
+  });
 
-const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
 
   return (
     <div
@@ -29,6 +28,7 @@ const [sidebarVisible, setSidebarVisible] = useState(true);
       >
         <Sidebar
           open={sidebarOpen}
+          visible={sidebarVisible}
           onToggle={() => setSidebarOpen((o) => !o)}
           backgroundColor={teamTheme.primaryColor}
           accentColor="#FFFFFF"
@@ -42,6 +42,7 @@ const [sidebarVisible, setSidebarVisible] = useState(true);
             <Outlet
               context={{
                 setTeamTheme,
+                setSidebarVisible,
               }}
             />
           </main>
