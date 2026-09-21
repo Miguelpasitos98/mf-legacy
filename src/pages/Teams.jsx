@@ -200,10 +200,11 @@ function CompetitionHeader({ competitionName, teams }) {
   );
 }
 
-function TeamCard({ team }) {
+function TeamCard({ team, onOpen }) {
   return (
     <button
       type="button"
+      onClick={onOpen}
       className="group flex min-h-[112px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
     >
       <TeamLogo team={team} />
@@ -816,7 +817,55 @@ function ImportTeamJsonModal({ onClose, onImport }) {
     </div>
   );
 }
+function TeamDetail({ team, onClose }) {
+  return (
+    <div className="min-h-full bg-[#F6F7F9] p-6 md:p-8">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          ← Volver a equipos
+        </button>
 
+        <span className="text-xs font-medium text-slate-400">
+          Team profile
+        </span>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col items-center gap-4 text-center">
+          {team.logo ? (
+            <img
+              src={team.logo}
+              alt={`${team.name} logo`}
+              className="h-32 w-32 object-contain"
+            />
+          ) : (
+            <div className="flex h-32 w-32 items-center justify-center rounded-full bg-slate-100 text-2xl font-black text-slate-500">
+              {team.shortName || "FC"}
+            </div>
+          )}
+
+          <div>
+            <h1 className="text-2xl font-black text-slate-900">
+              {team.name}
+            </h1>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {team.shortName || "Sin abreviatura"}
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              {team.country || "País desconocido"}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function Teams() {
   const [teams, setTeams] = useState([]);
   const [countries, setCountries] = useState([]);
@@ -827,6 +876,7 @@ export default function Teams() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [importJsonModalOpen, setImportJsonModalOpen] = useState(false);
   const [form, setForm] = useState(emptyTeamForm);
+  const [selectedTeam, setSelectedTeam] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1213,6 +1263,15 @@ export default function Teams() {
     setSearchOpen(false);
   };
 
+    if (selectedTeam) {
+    return (
+      <TeamDetail
+        team={selectedTeam}
+        onClose={() => setSelectedTeam(null)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-full bg-[#F6F7F9] p-6 md:p-8">
       <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -1276,7 +1335,13 @@ export default function Teams() {
                     <div key={competitionName}>
                       <CompetitionHeader competitionName={competitionName} teams={competitionTeams} />
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                        {competitionTeams.map((team) => <TeamCard key={team.id} team={team} />)}
+                        {competitionTeams.map((team) => (
+  <TeamCard
+    key={team.id}
+    team={team}
+    onOpen={() => setSelectedTeam(team)}
+  />
+))}
                       </div>
                     </div>
                   ))}
