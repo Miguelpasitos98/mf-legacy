@@ -1499,14 +1499,39 @@ export default function Teams() {
           is_active: true,
         });
 
-        countryId = createdCountry?.id || createdCountry?.data?.id || createdCountry?._id || "";
+        const countryData = createdCountry?.data || createdCountry;
 
-        if (!countryId) {
-          alert("The country was created, but Base44 did not return its ID. Check the Country entity response.");
-          return;
-        }
+countryId =
+  countryData?.id ||
+  countryData?._id ||
+  createdCountry?.id ||
+  createdCountry?._id ||
+  "";
 
-        setCountries((currentCountries) => [...currentCountries, { ...createdCountry, id: countryId }]);
+if (!countryId) {
+  alert(
+    "The country was created, but Base44 did not return its ID. Check the Country entity response."
+  );
+  return;
+}
+
+const normalizedCreatedCountry = {
+  ...countryData,
+  id: countryId,
+  name: countryData?.name || form.country.trim(),
+  code: countryData?.code || form.countryCode.trim().toUpperCase(),
+  continent: countryData?.continent || form.continent || "Europe",
+};
+
+setCountries((currentCountries) => {
+  const alreadyExists = currentCountries.some(
+    (country) => String(country.id) === String(countryId)
+  );
+
+  return alreadyExists
+    ? currentCountries
+    : [...currentCountries, normalizedCreatedCountry];
+});
       }
 
       newTeam.countryId = countryId;
