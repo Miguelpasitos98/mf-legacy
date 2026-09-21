@@ -11,6 +11,7 @@ import ScrollToTop from "./components/ScrollToTop";
 // Page imports
 import Layout from "@/components/Layout";
 import Home from "@/pages/Home";
+import Countries from '@/pages/Countries';
 import Teams from "@/pages/Teams";
 
 const AuthenticatedApp = () => {
