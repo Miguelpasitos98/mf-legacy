@@ -1088,6 +1088,7 @@ export default function Teams() {
   const [importJsonModalOpen, setImportJsonModalOpen] = useState(false);
   const [form, setForm] = useState(emptyTeamForm);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const { setTeamTheme } = useOutletContext();
 
   useEffect(() => {
     let cancelled = false;
