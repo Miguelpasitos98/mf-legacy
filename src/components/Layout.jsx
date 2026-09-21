@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
@@ -5,6 +6,11 @@ import TopNavbar from "@/components/TopNavbar";
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const [teamTheme, setTeamTheme] = useState({
+    primaryColor: "#003399",
+    secondaryColor: "#FFFFFF",
+  });
 
   return (
     <div
@@ -22,13 +28,20 @@ export default function Layout() {
         <Sidebar
           open={sidebarOpen}
           onToggle={() => setSidebarOpen((o) => !o)}
+          backgroundColor={teamTheme.primaryColor}
+          accentColor="#FFFFFF"
+          secondaryColor={teamTheme.secondaryColor}
         />
 
         <div className="flex-1 flex flex-col min-w-0">
           <TopNavbar />
 
           <main className="flex-1 overflow-auto">
-            <Outlet />
+            <Outlet
+              context={{
+                setTeamTheme,
+              }}
+            />
           </main>
         </div>
       </div>
