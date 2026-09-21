@@ -1107,19 +1107,19 @@ const kitHomeUrl =
 
 {/* CAMISETA PRINCIPAL */}
 {kitHomeUrl ? (
-  <div className="relative z-20 flex min-h-[420px] w-full items-center justify-center md:min-h-[560px] md:-translate-x-[24%]">
+  <div className="relative z-20 flex min-h-[520px] w-full items-center justify-center md:min-h-[700px]">
     {/* Halo de luz detrás de la camiseta */}
-    <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-3xl md:h-[440px] md:w-[440px]" />
+    <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-3xl md:h-[520px] md:w-[520px]" />
 
-    {/* Camiseta centrada y flotante */}
+    {/* Camiseta grande y centrada */}
     <img
       src={kitHomeUrl}
       alt={`${teamName} camiseta local`}
-      className="relative z-10 mx-auto h-auto max-h-[460px] w-auto max-w-[95%] object-contain drop-shadow-[0_30px_35px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-[1.04] md:max-h-[600px] md:max-w-[600px]"
+      className="relative z-10 mx-auto h-auto max-h-[520px] w-auto max-w-[100%] object-contain drop-shadow-[0_30px_35px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-[1.04] md:max-h-[700px] md:max-w-[700px]"
     />
   </div>
 ) : (
-  <div className="relative z-20 flex min-h-[420px] w-full items-center justify-center md:min-h-[560px]">
+  <div className="relative z-20 flex min-h-[520px] w-full items-center justify-center md:min-h-[700px]">
     <p className="text-center text-xs uppercase tracking-[0.3em] text-white/60">
       Añade la URL de la camiseta
     </p>
