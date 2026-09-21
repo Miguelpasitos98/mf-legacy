@@ -1,112 +1,591 @@
-import React from "react";
-import { ArrowLeft, Menu, MapPin, CalendarDays, Trophy } from "lucide-react";
 
-function safeColor(value, fallback) {
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
-}
+function TeamDetail({ team, onClose }) {
+  const primaryColor =
+    team.primary_color ||
+    team.primaryColor ||
+    "#151515";
 
-function normalizeImageUrl(value) {
-  if (!value) return "";
-  const url = String(value).trim();
-  if (!url) return "";
-  if (/^https?:\/\//i.test(url)) return url;
-  return `https://${url}`;
-}
+  const secondaryColor =
+    team.secondary_color ||
+    team.secondaryColor ||
+    "#E7EBEF";
 
-export default function TeamDetail({ team, onBack }) {
-  const primary = safeColor(team.primaryColor || team.primary_color, "#151515");
-  const secondary = safeColor(team.secondaryColor || team.secondary_color, "#E9EDF2");
-  const logo = normalizeImageUrl(team.logo);
-  const kit = normalizeImageUrl(
-    team.kit1PhotoUrl || team.kit1_photo_url || team.kit1?.photo_url
-  );
-  const teamName = team.name || "Unnamed club";
-  const shortName = team.shortName || team.short_name || teamName;
-  const city = team.city || "";
-  const country = team.country || "";
+  const primaryTextColor =
+    team.primary_text_color ||
+    "#FFFFFF";
+
+  const secondaryTextColor =
+    team.secondary_text_color ||
+    "#151515";
+
+  const teamName =
+    team.name ||
+    "Football Club";
+
+  const shortName =
+    team.short_name ||
+    team.shortName ||
+    "";
+
+  const country =
+    team.country ||
+    "";
+
+  const city =
+    team.city ||
+    "";
+
+  const foundedYear =
+    team.founded_year ||
+    team.foundedYear ||
+    team.yearFounded ||
+    "";
+
+  const stadium =
+    team.stadium ||
+    "";
+
+  const stadiumCapacity =
+    team.stadium_capacity ||
+    "";
+
+  const ranking =
+    team.team_ranking ||
+    "";
+
+  const motto =
+    team.motto ||
+    "";
+
+  const kitUrl =
+    team.kit1_photo_url ||
+    team.kit1PhotoUrl ||
+    "";
+
+  const countryOutlineUrl =
+    team.country_outline_url ||
+    team.countryOutlineUrl ||
+    "";
+
+  const condensedFont = {
+    fontFamily:
+      '"Arial Narrow", "Roboto Condensed", "Arial Narrow", Impact, sans-serif',
+  };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#dfe4eb] text-white">
+    <div
+      className="relative min-h-full overflow-hidden p-0"
+      style={{
+        backgroundColor: primaryColor,
+      }}
+    >
+      {/* =====================================================
+          FONDO GENERAL
+      ====================================================== */}
+
       <div
-        className="absolute inset-0"
+        className="pointer-events-none absolute inset-0"
         style={{
-          background: `linear-gradient(76deg, ${primary} 0%, ${primary} 29%, #17191d 29%, #17191d 48%, ${secondary} 48%, ${secondary} 100%)`,
+          background: `
+            radial-gradient(
+              ellipse at 20% 40%,
+              rgba(255,255,255,0.06),
+              transparent 55%
+            ),
+            linear-gradient(
+              135deg,
+              ${primaryColor},
+              ${primaryColor} 45%,
+              ${secondaryColor} 45%,
+              ${secondaryColor}
+            )
+          `,
         }}
       />
 
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_40%,rgba(255,255,255,0.4),transparent_30%)]" />
-      <div className="absolute -right-[12%] top-[15%] h-[70%] w-[48%] rotate-[18deg] bg-white/10" />
+      {/* =====================================================
+          PANEL PRINCIPAL
+      ====================================================== */}
 
-      <header className="relative z-10 flex items-center justify-between px-6 py-5 md:px-12">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-white/85 transition hover:text-white"
-        >
-          <ArrowLeft size={16} />
-          Back to teams
-        </button>
-        <div className="text-xs font-black tracking-[0.2em] text-white/80">MF LEGACY</div>
-        <button
-          type="button"
-          className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/85"
-          aria-label="Open team menu"
-        >
-          MENU <Menu size={16} />
-        </button>
-      </header>
+      <div className="relative min-h-screen overflow-hidden">
+        {/* División diagonal principal */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundColor: secondaryColor,
+            clipPath:
+              "polygon(54% 0%, 100% 0%, 100% 100%, 44% 100%)",
+          }}
+        />
 
-      <section className="relative z-10 grid min-h-[calc(100vh-76px)] grid-cols-1 items-center gap-8 px-6 pb-12 pt-4 md:grid-cols-[1.05fr_1fr] md:px-12 lg:px-20">
-        <div className="pointer-events-none absolute left-[5%] top-[18%] select-none text-[clamp(4rem,12vw,12rem)] font-black uppercase leading-[0.78] tracking-[-0.08em] text-white/90">
-          {teamName}
+        {/* Franja clara de transición */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-30"
+          style={{
+            backgroundColor: "#FFFFFF",
+            clipPath:
+              "polygon(51% 0%, 54% 0%, 44% 100%, 41% 100%)",
+          }}
+        />
+
+        {/* Textura suave del fondo */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage:
+              "linear-gradient(135deg, transparent 0%, #FFFFFF 50%, transparent 100%)",
+          }}
+        />
+
+        {/* =====================================================
+            CABECERA
+        ====================================================== */}
+
+        <div className="relative z-40 flex items-center justify-between px-6 py-6 md:px-10">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-white/40 bg-black/20 px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-md transition hover:bg-black/40"
+          >
+            ← Volver a equipos
+          </button>
+
+          <div className="flex items-center gap-6">
+            <span
+              className="hidden text-[10px] font-bold uppercase tracking-[0.35em] md:block"
+              style={{
+                color: secondaryTextColor,
+              }}
+            >
+              Team profile
+            </span>
+
+            <span
+              className="text-[10px] font-bold uppercase tracking-[0.3em]"
+              style={{
+                color: secondaryTextColor,
+              }}
+            >
+              MF Legacy
+            </span>
+          </div>
         </div>
 
-        <div className="relative z-20 flex min-h-[420px] flex-col justify-between py-8 md:min-h-[560px]">
-          <div>
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-white/65">Club profile</p>
-            <h1 className="max-w-xl text-5xl font-black uppercase leading-[0.88] tracking-[-0.055em] text-white md:text-7xl lg:text-8xl">
-              {teamName}
-            </h1>
-            <p className="mt-5 max-w-md text-sm font-medium uppercase tracking-[0.14em] text-white/70">
-              {shortName}
-              {city ? ` · ${city}` : ""}
-              {country ? ` · ${country}` : ""}
-            </p>
+        {/* =====================================================
+            PANEL INTERIOR
+        ====================================================== */}
+
+        <div className="relative z-10 mx-6 mb-6 overflow-hidden rounded-2xl border border-white/20 md:mx-10">
+          {/* ===================================================
+              MARCA DE AGUA TIPOGRÁFICA
+          ==================================================== */}
+
+          <div
+            className="pointer-events-none absolute bottom-[15%] left-[-30px] z-0 select-none whitespace-nowrap text-[110px] font-black uppercase leading-none tracking-[-0.09em] opacity-[0.09] md:text-[190px]"
+            style={{
+              ...condensedFont,
+              color: secondaryTextColor,
+            }}
+          >
+            {teamName}
           </div>
 
-          <div className="mt-10 flex items-center gap-4">
-            {logo ? (
-              <img src={logo} alt={`${teamName} crest`} className="h-20 w-20 object-contain" />
-            ) : (
-              <div className="flex h-20 w-20 items-center justify-center border border-white/40 text-xs font-black">FC</div>
-            )}
-            <div className="text-xs uppercase tracking-[0.18em] text-white/75">
-              <p className="font-black text-white">{teamName}</p>
-              <p className="mt-1">Official club profile</p>
-            </div>
-          </div>
-        </div>
+          {/* ===================================================
+              CONTORNO DEL PAÍS
+          ==================================================== */}
 
-        <div className="relative z-20 flex min-h-[420px] items-center justify-center md:min-h-[560px]">
-          {kit ? (
+          {countryOutlineUrl && (
             <img
-              src={kit}
-              alt={`${teamName} home kit`}
-              className="max-h-[580px] w-full max-w-[560px] object-contain drop-shadow-[0_28px_24px_rgba(0,0,0,0.35)]"
+              src={countryOutlineUrl}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute right-[-100px] top-1/2 z-0 h-[440px] w-[440px] -translate-y-1/2 object-contain opacity-[0.09] blur-[1px] md:h-[620px] md:w-[620px]"
+              style={{
+                filter: "grayscale(1)",
+              }}
             />
-          ) : (
-            <div className="max-w-sm text-center text-xs font-bold uppercase tracking-[0.16em] text-black/45">
-              Add the home kit image URL to display the shirt here.
-            </div>
           )}
-        </div>
-      </section>
 
-      <footer className="relative z-10 grid grid-cols-1 gap-3 border-t border-white/20 px-6 py-5 text-xs uppercase tracking-[0.12em] text-white/75 md:grid-cols-3 md:px-12 lg:px-20">
-        <div className="flex items-center gap-2"><MapPin size={14} /> {city || "City unknown"}</div>
-        <div className="flex items-center gap-2"><CalendarDays size={14} /> Founded {team.foundedYear || team.founded_year || "—"}</div>
-        <div className="flex items-center gap-2"><Trophy size={14} /> {team.competition || "Club profile"}</div>
-      </footer>
-    </main>
+          <div className="relative z-10 grid min-h-[720px] grid-cols-1 md:grid-cols-[1.05fr_0.95fr]">
+            {/* =================================================
+                COLUMNA IZQUIERDA
+            ================================================== */}
+
+            <div className="relative flex flex-col justify-between p-8 md:p-14">
+              <div>
+                {/* Lema */}
+                <div className="mb-10 flex items-center gap-4">
+                  <div
+                    className="h-1 w-12"
+                    style={{
+                      backgroundColor: secondaryTextColor,
+                    }}
+                  />
+
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-[0.4em]"
+                    style={{
+                      color: secondaryTextColor,
+                    }}
+                  >
+                    Más que un club
+                  </span>
+                </div>
+
+                {/* Nombre corto */}
+                <p
+                  className="mb-5 text-xs font-bold uppercase tracking-[0.4em]"
+                  style={{
+                    color: secondaryTextColor,
+                    opacity: 0.65,
+                  }}
+                >
+                  {shortName || "Football Club"}
+                </p>
+
+                {/* Nombre principal */}
+                <h1
+                  className="relative max-w-[650px] text-6xl font-black uppercase leading-[0.8] tracking-[-0.075em] md:text-8xl lg:text-[112px]"
+                  style={{
+                    ...condensedFont,
+                    color: primaryTextColor,
+                  }}
+                >
+                  {teamName}
+                </h1>
+
+                <p
+                  className="mt-10 text-[10px] font-bold uppercase tracking-[0.45em]"
+                  style={{
+                    color: secondaryTextColor,
+                    opacity: 0.7,
+                  }}
+                >
+                  Football club profile
+                </p>
+              </div>
+
+              {/* Datos inferiores */}
+              <div className="relative z-10 mt-20">
+                <div className="grid grid-cols-2 gap-8 md:grid-cols-3">
+                  <div>
+                    <p
+                      className="text-[9px] font-bold uppercase tracking-widest"
+                      style={{
+                        color: secondaryTextColor,
+                        opacity: 0.6,
+                      }}
+                    >
+                      Año de fundación
+                    </p>
+
+                    <p
+                      className="mt-2 text-xl font-bold"
+                      style={{
+                        color: primaryTextColor,
+                      }}
+                    >
+                      {foundedYear || "—"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p
+                      className="text-[9px] font-bold uppercase tracking-widest"
+                      style={{
+                        color: secondaryTextColor,
+                        opacity: 0.6,
+                      }}
+                    >
+                      País
+                    </p>
+
+                    <p
+                      className="mt-2 text-xl font-bold"
+                      style={{
+                        color: primaryTextColor,
+                      }}
+                    >
+                      {country || "—"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p
+                      className="text-[9px] font-bold uppercase tracking-widest"
+                      style={{
+                        color: secondaryTextColor,
+                        opacity: 0.6,
+                      }}
+                    >
+                      Ciudad
+                    </p>
+
+                    <p
+                      className="mt-2 text-xl font-bold"
+                      style={{
+                        color: primaryTextColor,
+                      }}
+                    >
+                      {city || "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Identidad inferior */}
+              <div className="mt-14 flex items-center gap-8">
+                <div
+                  className="h-12 w-px"
+                  style={{
+                    backgroundColor: secondaryTextColor,
+                    opacity: 0.4,
+                  }}
+                />
+
+                <div>
+                  <p
+                    className="text-[10px] font-bold uppercase tracking-[0.4em]"
+                    style={{
+                      color: secondaryTextColor,
+                    }}
+                  >
+                    {motto || "History · Passion · Identity"}
+                  </p>
+
+                  <div
+                    className="mt-3 h-1 w-12"
+                    style={{
+                      backgroundColor: secondaryTextColor,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* =================================================
+                COLUMNA DERECHA
+            ================================================== */}
+
+            <div className="relative flex min-h-[560px] flex-col justify-between p-8 md:p-12">
+              {/* Datos superiores */}
+              <div className="relative z-20 grid grid-cols-2 gap-x-8 gap-y-7 md:grid-cols-2">
+                <div>
+                  <p
+                    className="text-[9px] font-bold uppercase tracking-widest"
+                    style={{
+                      color: secondaryTextColor,
+                      opacity: 0.55,
+                    }}
+                  >
+                    Ranking
+                  </p>
+
+                  <p
+                    className="mt-1 text-3xl font-black"
+                    style={{
+                      color: secondaryTextColor,
+                    }}
+                  >
+                    {ranking || "—"}
+                  </p>
+
+                  <p
+                    className="text-xs"
+                    style={{
+                      color: secondaryTextColor,
+                      opacity: 0.6,
+                    }}
+                  >
+                    Mundial
+                  </p>
+                </div>
+
+                <div>
+                  <p
+                    className="text-[9px] font-bold uppercase tracking-widest"
+                    style={{
+                      color: secondaryTextColor,
+                      opacity: 0.55,
+                    }}
+                  >
+                    Estadio
+                  </p>
+
+                  <p
+                    className="mt-1 text-sm font-black"
+                    style={{
+                      color: secondaryTextColor,
+                    }}
+                  >
+                    {stadium || "—"}
+                  </p>
+
+                  {stadiumCapacity && (
+                    <p
+                      className="mt-1 text-xs"
+                      style={{
+                        color: secondaryTextColor,
+                        opacity: 0.6,
+                      }}
+                    >
+                      Capacidad {stadiumCapacity}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <p
+                    className="text-[9px] font-bold uppercase tracking-widest"
+                    style={{
+                      color: secondaryTextColor,
+                      opacity: 0.55,
+                    }}
+                  >
+                    Fundación
+                  </p>
+
+                  <p
+                    className="mt-1 text-xl font-black"
+                    style={{
+                      color: secondaryTextColor,
+                    }}
+                  >
+                    {foundedYear || "—"}
+                  </p>
+                </div>
+
+                <div>
+                  <p
+                    className="text-[9px] font-bold uppercase tracking-widest"
+                    style={{
+                      color: secondaryTextColor,
+                      opacity: 0.55,
+                    }}
+                  >
+                    Ciudad
+                  </p>
+
+                  <p
+                    className="mt-1 text-xl font-black"
+                    style={{
+                      color: secondaryTextColor,
+                    }}
+                  >
+                    {city || "—"}
+                  </p>
+                </div>
+
+                <div>
+                  <p
+                    className="text-[9px] font-bold uppercase tracking-widest"
+                    style={{
+                      color: secondaryTextColor,
+                      opacity: 0.55,
+                    }}
+                  >
+                    País
+                  </p>
+
+                  <p
+                    className="mt-1 text-xl font-black"
+                    style={{
+                      color: secondaryTextColor,
+                    }}
+                  >
+                    {country || "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* =================================================
+                  CAMISETA
+              ================================================== */}
+
+              {kitUrl && (
+                <div className="pointer-events-none absolute inset-x-[-20px] top-[170px] z-30 flex items-center justify-center md:inset-x-[-100px] md:top-[180px]">
+                  <img
+                    src={kitUrl}
+                    alt={`${teamName} home kit`}
+                    className="h-[360px] w-[360px] object-contain drop-shadow-[0_30px_35px_rgba(0,0,0,0.35)] md:h-[530px] md:w-[530px]"
+                  />
+                </div>
+              )}
+
+              {/* Zona visual secundaria */}
+              {!kitUrl && (
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 select-none text-center text-[90px] font-black uppercase leading-none opacity-[0.08] md:text-[150px]"
+                  style={{
+                    ...condensedFont,
+                    color: secondaryTextColor,
+                  }}
+                >
+                  {shortName || teamName}
+                </div>
+              )}
+
+              {/* Identidad inferior derecha */}
+              <div className="relative z-20 mt-auto flex items-end justify-between gap-6 pt-80">
+                <div>
+                  <p
+                    className="text-[10px] font-bold uppercase tracking-[0.4em]"
+                    style={{
+                      color: secondaryTextColor,
+                      opacity: 0.65,
+                    }}
+                  >
+                    Team identity
+                  </p>
+
+                  <p
+                    className="mt-3 text-2xl font-black uppercase tracking-[0.15em]"
+                    style={{
+                      ...condensedFont,
+                      color: secondaryTextColor,
+                    }}
+                  >
+                    {city || country || "Legacy"}
+                  </p>
+                </div>
+
+                <div className="flex h-20 w-1 flex-col">
+                  <div
+                    className="h-1/2"
+                    style={{
+                      backgroundColor: primaryColor,
+                    }}
+                  />
+
+                  <div
+                    className="h-1/2"
+                    style={{
+                      backgroundColor: secondaryColor,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Línea decorativa inferior */}
+          <div className="absolute bottom-0 left-0 right-0 z-40 flex h-1">
+            <div
+              className="w-1/2"
+              style={{
+                backgroundColor: primaryColor,
+              }}
+            />
+
+            <div
+              className="w-1/2"
+              style={{
+                backgroundColor: secondaryColor,
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
