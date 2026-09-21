@@ -1,0 +1,41 @@
+
+{
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre oficial del país"
+    },
+    "code": {
+      "type": "string",
+      "description": "Código ISO de tres letras"
+    },
+    "continent": {
+      "type": "string",
+      "enum": [
+        "Europe",
+        "South America",
+        "North America",
+        "Asia",
+        "Africa",
+        "Oceania"
+      ],
+      "description": "Continente del país"
+    },
+    "flag": {
+      "type": "string",
+      "description": "Emoji o URL de la bandera"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Indica si el país está activo"
+    }
+  },
+  "required": [
+    "name",
+    "code",
+    "continent"
+  ],
+  "name": "Country",
+  "type": "object"
+}
