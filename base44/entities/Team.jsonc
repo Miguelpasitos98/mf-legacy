@@ -1,0 +1,62 @@
+
+{
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre oficial del equipo"
+    },
+    "short_name": {
+      "type": "string",
+      "description": "Abreviatura del equipo"
+    },
+    "country_id": {
+      "type": "string",
+      "description": "ID del país del equipo"
+    },
+    "logo": {
+      "type": "string",
+      "description": "URL o identificador del logotipo"
+    },
+    "stadium": {
+      "type": "string",
+      "description": "Nombre del estadio principal"
+    },
+    "reputation": {
+      "type": "string",
+      "enum": [
+        "Elite",
+        "High",
+        "Medium",
+        "Low",
+        "Unclassified"
+      ],
+      "description": "Categoría de reputación del equipo"
+    },
+    "market": {
+      "type": "string",
+      "enum": [
+        "High",
+        "Medium",
+        "Low",
+        "Unclassified"
+      ],
+      "description": "Categoría de mercado del equipo"
+    },
+    "founded_year": {
+      "type": "integer",
+      "description": "Año de fundación del equipo"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Indica si el equipo está activo"
+    }
+  },
+  "required": [
+    "name",
+    "short_name",
+    "country_id"
+  ],
+  "name": "Team",
+  "type": "object"
+}
