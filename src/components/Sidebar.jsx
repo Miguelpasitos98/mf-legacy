@@ -8,6 +8,7 @@ export default function Sidebar({
   onToggle,
   backgroundColor = "#003399",
   accentColor = "#FFFFFF",
+  secondaryColor = "#FFFFFF",
 }) {
   return (
     <motion.aside
@@ -19,6 +20,8 @@ export default function Sidebar({
       className="relative flex h-full shrink-0 flex-col overflow-hidden"
       style={{
         backgroundColor,
+        borderRight: `3px solid ${secondaryColor}`,
+        transition: "background-color 0.4s ease, border-color 0.4s ease",
       }}
     >
       <button
