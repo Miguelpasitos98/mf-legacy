@@ -54,8 +54,8 @@ const emptyTeamForm = {
   pitchDimensions: "",
   stadiumInteriorUrl: "",
   stadiumExteriorUrl: "",
-  reputation: "Unclassified",
-  market: "Unclassified",
+  reputation: "",
+  market: "",
   history: "",
   coachName: "",
   coachPhotoUrl: "",
@@ -575,8 +575,8 @@ function AddTeamModal({
           <section>
             <SectionHeader icon={Palette} title="Identity & classification" description="Colors and internal club categories." />
             <div className="grid gap-4 md:grid-cols-2">
-              {selectField("reputation", "Reputation", ["Elite", "High", "Medium", "Low", "Unclassified"])}
-              {selectField("market", "Market", ["High", "Medium", "Low", "Unclassified"])}
+              {textField("reputation", "Reputation (0-100)", "e.g. 95", { type: "number", min: 0, max: 100, step: 1, hint: "Numeric score from 0 to 100." })}
+              {textField("market", "Market (0-100)", "e.g. 90", { type: "number", min: 0, max: 100, step: 1, hint: "Numeric score from 0 to 100." })}
             </div>
           </section>
 
@@ -689,6 +689,25 @@ function normalizeComparable(value) {
   return importedValue(value).trim().toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+function normalizeScore(value) {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "number" && Number.isFinite(value)) return String(Math.max(0, Math.min(100, value)));
+
+  const normalized = normalizeComparable(value);
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && normalized !== "") return String(Math.max(0, Math.min(100, numeric)));
+
+  const scoreMap = {
+    elite: 95,
+    high: 80,
+    medium: 60,
+    low: 35,
+    unclassified: "",
+  };
+
+  return Object.prototype.hasOwnProperty.call(scoreMap, normalized) ? String(scoreMap[normalized]) : "";
+}
+
 function mapImportedTeamToForm(data) {
   const stadium = data.stadium || {};
   const classification = data.classification || {};
@@ -722,8 +741,8 @@ function mapImportedTeamToForm(data) {
     pitchDimensions: importedValue(stadium.pitch_dimensions || data.pitch_dimensions),
     stadiumInteriorUrl: importedValue(stadium.interior_url || data.stadium_interior_url),
     stadiumExteriorUrl: importedValue(stadium.exterior_url || data.stadium_exterior_url),
-    reputation: classification.reputation || data.reputation || "Unclassified",
-    market: classification.market || data.market || "Unclassified",
+    reputation: normalizeScore(classification.reputation ?? data.reputation),
+    market: normalizeScore(classification.market ?? data.market),
     history: importedValue(typeof data.history === "string" ? data.history : [data.history?.foundation, data.history?.origin].filter(Boolean).join("\n\n")),
     coachName: importedValue(staff.coach_name || data.coach_name),
     coachPhotoUrl: importedValue(staff.coach_photo_url || data.coach_photo_url),
@@ -951,8 +970,8 @@ export default function Teams() {
           continent: team.continent || "Unknown continent",
           city: team.city || "",
           logo: team.logo || "",
-          reputation: team.reputation || "Unclassified",
-          market: team.market || "Unclassified",
+          reputation: team.reputation ?? "",
+          market: team.market ?? "",
           competition: team.competition || "Without competition",
           incomplete: !team.name || !team.short_name || !team.country_id || !team.logo,
         })));
@@ -985,8 +1004,8 @@ export default function Teams() {
 
       if (activeFilter === "countries") groupName = team.country || "Unknown country";
       else if (activeFilter === "continents") groupName = team.continent || "Unknown continent";
-      else if (activeFilter === "reputation") groupName = team.reputation || "Unclassified";
-      else if (activeFilter === "market") groupName = team.market || "Unclassified";
+      else if (activeFilter === "reputation") groupName = team.reputation ?? "Unclassified";
+      else if (activeFilter === "market") groupName = team.market ?? "Unclassified";
       else if (activeFilter === "incomplete") {
         if (!team.incomplete) return;
         groupName = "Incomplete information";
@@ -1062,8 +1081,8 @@ export default function Teams() {
       pitchDimensions: form.pitchDimensions.trim(),
       stadiumInteriorUrl: form.stadiumInteriorUrl.trim(),
       stadiumExteriorUrl: form.stadiumExteriorUrl.trim(),
-      reputation: form.reputation,
-      market: form.market,
+      reputation: form.reputation === "" ? null : Number(form.reputation),
+      market: form.market === "" ? null : Number(form.market),
       history: form.history.trim(),
       coachName: form.coachName.trim(),
       coachPhotoUrl: form.coachPhotoUrl.trim(),
