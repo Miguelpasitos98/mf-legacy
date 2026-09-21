@@ -575,8 +575,8 @@ function AddTeamModal({
           <section>
             <SectionHeader icon={Palette} title="Identity & classification" description="Colors and internal club categories." />
             <div className="grid gap-4 md:grid-cols-2">
-              {textField("reputation", "Reputation (0-100)", "e.g. 95", { type: "number", min: 0, max: 100, step: 1, hint: "Numeric score from 0 to 100." })}
-              {textField("market", "Market (0-100)", "e.g. 90", { type: "number", min: 0, max: 100, step: 1, hint: "Numeric score from 0 to 100." })}
+              {textField("reputation", "Reputation (0-10000)", "e.g. 9500", { type: "number", min: 0, max: 10000, step: 1, hint: "Numeric score from 0 to 10000." })}
+              {textField("market", "Market value (€)", "e.g. 458223670", { type: "number", min: 0, step: 1000000, hint: "Valor de mercado o valor comercial estimado en euros. Ejemplo: 458223670." })}
             </div>
           </section>
 
@@ -689,23 +689,44 @@ function normalizeComparable(value) {
   return importedValue(value).trim().toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function normalizeScore(value) {
+function normalizeReputation(value) {
   if (value === null || value === undefined || value === "") return "";
-  if (typeof value === "number" && Number.isFinite(value)) return String(Math.max(0, Math.min(100, value)));
+
+  const numeric = Number(String(value).replace(/[^0-9.-]/g, ""));
+  if (Number.isFinite(numeric)) {
+    return String(Math.max(0, Math.min(10000, Math.round(numeric))));
+  }
 
   const normalized = normalizeComparable(value);
-  const numeric = Number(value);
-  if (Number.isFinite(numeric) && normalized !== "") return String(Math.max(0, Math.min(100, numeric)));
-
-  const scoreMap = {
-    elite: 95,
-    high: 80,
-    medium: 60,
-    low: 35,
+  const reputationMap = {
+    elite: 9500,
+    high: 8000,
+    medium: 6000,
+    low: 3500,
     unclassified: "",
   };
 
-  return Object.prototype.hasOwnProperty.call(scoreMap, normalized) ? String(scoreMap[normalized]) : "";
+  return Object.prototype.hasOwnProperty.call(reputationMap, normalized)
+    ? String(reputationMap[normalized])
+    : "";
+}
+
+function normalizeMarketValue(value) {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "number" && Number.isFinite(value)) return String(Math.max(0, Math.round(value)));
+
+  const raw = String(value).trim();
+  const normalized = normalizeComparable(raw);
+
+  // Los valores cualitativos antiguos no contienen una cifra fiable.
+  // No inventamos una valoración económica a partir de High/Medium/Low.
+  if (["high", "medium", "low", "unclassified", "elite"].includes(normalized)) return "";
+
+  // Admite formatos como 458,223,670 €, 458.223.670 € o 458223670.
+  const digits = raw.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  const numeric = Number(digits);
+  return Number.isFinite(numeric) ? String(Math.max(0, Math.round(numeric))) : "";
 }
 
 function mapImportedTeamToForm(data) {
@@ -741,8 +762,8 @@ function mapImportedTeamToForm(data) {
     pitchDimensions: importedValue(stadium.pitch_dimensions || data.pitch_dimensions),
     stadiumInteriorUrl: importedValue(stadium.interior_url || data.stadium_interior_url),
     stadiumExteriorUrl: importedValue(stadium.exterior_url || data.stadium_exterior_url),
-    reputation: normalizeScore(classification.reputation ?? data.reputation),
-    market: normalizeScore(classification.market ?? data.market),
+    reputation: normalizeReputation(classification.reputation ?? data.reputation),
+    market: normalizeMarketValue(classification.market_value ?? classification.marketValue ?? data.market_value ?? data.market),
     history: importedValue(typeof data.history === "string" ? data.history : [data.history?.foundation, data.history?.origin].filter(Boolean).join("\n\n")),
     coachName: importedValue(staff.coach_name || data.coach_name),
     coachPhotoUrl: importedValue(staff.coach_photo_url || data.coach_photo_url),
