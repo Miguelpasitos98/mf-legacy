@@ -869,14 +869,17 @@ function TeamDetail({ team, onClose }) {
     team.world_ranking ||
     "";
 
-  // Imagen de la camiseta
-  const kitHomeUrl =
-    team.kit_home_url ||
-    team.kitHomeUrl ||
-    team.home_kit_url ||
-    team.homeKitUrl ||
-    team.kit_url ||
-    "";
+// Imagen de la camiseta
+const kitHomeUrl =
+  team.kit1_photo_url ||
+  team.kit1PhotoUrl ||
+  team.kit_home_url ||
+  team.kitHomeUrl ||
+  team.home_kit_url ||
+  team.homeKitUrl ||
+  team.kit_url ||
+  team.kits?.kit1?.photo_url ||
+  "";
 
   // Mapa del país
   const countryMapUrl =
