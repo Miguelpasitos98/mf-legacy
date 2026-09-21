@@ -987,7 +987,7 @@ const kitHomeUrl =
 
                 {/* NOMBRE PRINCIPAL */}
                <h1
-  className="team-display-title max-w-none whitespace-nowrap text-6xl text-white sm:text-8xl md:text-[clamp(4rem,8vw,14rem)]"
+  className="team-display-title max-w-none whitespace-nowrap text-5xl text-white sm:text-7xl md:text-[clamp(3rem,5.2vw,8.5rem)]"
   style={displayFontStyle}
 >
   {displayName}
