@@ -1,0 +1,37 @@
+
+{
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre oficial de la liga"
+    },
+    "short_name": {
+      "type": "string",
+      "description": "Nombre abreviado de la competición"
+    },
+    "country_id": {
+      "type": "string",
+      "description": "ID del país al que pertenece la liga"
+    },
+    "level": {
+      "type": "integer",
+      "description": "Nivel de la competición. 1 es la máxima categoría"
+    },
+    "logo": {
+      "type": "string",
+      "description": "URL o identificador del logotipo"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Indica si la liga está activa"
+    }
+  },
+  "required": [
+    "name",
+    "country_id",
+    "level"
+  ],
+  "name": "League",
+  "type": "object"
+}
