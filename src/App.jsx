@@ -11,7 +11,7 @@ import ScrollToTop from "./components/ScrollToTop";
 // Page imports
 import Layout from "@/components/Layout";
 import Home from "@/pages/Home";
-import Countries from '@/pages/Countries';
+import Countries from "@/pages/Countries";
 import Teams from "@/pages/Teams";
 
 const AuthenticatedApp = () => {
@@ -48,6 +48,7 @@ const AuthenticatedApp = () => {
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/teams" element={<Teams />} />
+        <Route path="/countries" element={<Countries />} />
       </Route>
 
       <Route path="*" element={<PageNotFound />} />
