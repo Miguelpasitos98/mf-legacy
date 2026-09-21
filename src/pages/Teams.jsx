@@ -1187,6 +1187,16 @@ const kitHomeUrl =
   );
 }
 export default function Teams() {
+  const { setSidebarVisible } = useOutletContext() || {};
+
+  useEffect(() => {
+    setSidebarVisible?.(false);
+
+    return () => {
+      setSidebarVisible?.(true);
+    };
+  }, [setSidebarVisible]);
+
   const [teams, setTeams] = useState([]);
   const [countries, setCountries] = useState([]);
   const [leagues, setLeagues] = useState([]);
