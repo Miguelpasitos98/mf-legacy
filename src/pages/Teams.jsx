@@ -18,6 +18,8 @@ import {
   ClipboardPaste,
 } from "lucide-react";
 
+import { base44 } from "@/api/base44Client";
+
 const navigationFilters = [
   { id: "countries", label: "Countries", icon: Globe },
   { id: "continents", label: "Continents", icon: Map },
