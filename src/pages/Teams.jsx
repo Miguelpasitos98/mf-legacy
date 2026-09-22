@@ -1033,7 +1033,10 @@ const kitHomeUrl =
 
             <button
   type="button"
-  onClick={() => onEdit(team)}
+  onClick={() => {
+  setEditPanelOpen(true);
+  onEdit(team);
+}}
   className="cursor-pointer rounded-sm text-[10px] font-bold uppercase tracking-[0.3em] text-white/75 transition hover:text-white focus:outline-none focus:ring-1 focus:ring-white/60"
 >
   Team profile
@@ -1839,14 +1842,18 @@ setActiveFilter("countries");
     if (selectedTeam) {
   return (
     <TeamDetail
-      team={selectedTeam}
-      onClose={() => setSelectedTeam(null)}
-      onEdit={(team) => {
-  setEditingTeam(team);
-  setSelectedTeam(null);
-  setAddModalOpen(true);
-}}
-    />
+  team={selectedTeam}
+  onClose={() => setSelectedTeam(null)}
+  onEdit={(team) => {
+    setEditingTeam(team);
+  }}
+  form={form}
+  setForm={setForm}
+  countries={countries}
+  leagues={leagues}
+  onCloseEdit={() => setEditingTeam(null)}
+  onSubmit={handleAddTeam}
+/>
   );
 }
 
