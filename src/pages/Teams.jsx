@@ -86,6 +86,7 @@ const emptyTeamForm = {
   kit3ShopUrl: "",
   kit3BadgeBg: "",
   kit3BadgeText: "",
+  kitsOverviewUrl: "",
   dataSource: "Manual",
   isActive: true,
 };
@@ -698,6 +699,7 @@ function mapImportedTeamToForm(data) {
     kit3ShopUrl: importedValue(kits.kit3?.shop_url || data.kit3_shop_url),
     kit3BadgeBg: importedValue(kits.kit3?.badge_bg || data.kit3_badge_bg),
     kit3BadgeText: importedValue(kits.kit3?.badge_text || data.kit3_badge_text),
+    kitsOverviewUrl: importedValue(data.kits_overview_url || data.kitsOverviewUrl),
     dataSource: "Manual",
     isActive: true,
   };
@@ -771,6 +773,7 @@ function mapTeamToForm(team) {
     kit3ShopUrl: team.kit3_shop_url || team.kit3ShopUrl || "",
     kit3BadgeBg: team.kit3_badge_bg || team.kit3BadgeBg || "",
     kit3BadgeText: team.kit3_badge_text || team.kit3BadgeText || "",
+    kitsOverviewUrl: team.kits_overview_url || team.kitsOverviewUrl || "",
 
     dataSource: team.data_source || team.dataSource || "Manual",
     isActive: team.is_active ?? team.isActive ?? true,
@@ -1024,7 +1027,7 @@ const kitHomeUrl =
 
   return (
     <div
-      className="relative min-h-full overflow-hidden p-3 sm:p-4 md:p-6"
+      className="relative h-[calc(100vh-0px)] snap-start overflow-y-auto p-3 sm:p-4 md:p-6"
       style={{
         backgroundColor: primaryColor,
       }}
@@ -1049,7 +1052,7 @@ const kitHomeUrl =
 
       {/* CONTENEDOR PRINCIPAL */}
       <div className="relative z-10">
-        <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl">
+        <div className="relative min-h-full overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl">
           {/* GRÁFICO GEOGRÁFICO: MISMA POSICIÓN, TAMAÑO Y PROPORCIÓN */}
           {countryMapUrl && (
             <img
@@ -1240,23 +1243,20 @@ const kitHomeUrl =
                 </div>
               </div>
 
-{/* CAMISETA PRINCIPAL */}
-{kitHomeUrl ? (
+{/* IMAGEN PRINCIPAL: TRES EQUIPACIONES EN UNA ÚNICA IMAGEN */}
+{kitsOverviewUrl || kitHomeUrl ? (
   <div className="relative z-20 flex min-h-[520px] w-full items-center justify-center md:min-h-[700px]">
-    {/* Halo de luz detrás de la camiseta */}
     <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-3xl md:h-[520px] md:w-[520px]" />
-
-    {/* Camiseta grande y centrada */}
     <img
-      src={kitHomeUrl}
-      alt={`${teamName} camiseta local`}
-      className="relative z-10 mx-auto h-auto max-h-[520px] w-auto max-w-[100%] object-contain drop-shadow-[0_30px_35px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-[1.04] md:max-h-[700px] md:max-w-[700px]"
+      src={kitsOverviewUrl || kitHomeUrl}
+      alt={kitsOverviewUrl ? `${teamName} tres equipaciones` : `${teamName} camiseta local`}
+      className="relative z-10 mx-auto h-auto max-h-[520px] w-auto max-w-[100%] object-contain drop-shadow-[0_30px_35px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-[1.04] md:max-h-[700px] md:max-w-[850px]"
     />
   </div>
 ) : (
   <div className="relative z-20 flex min-h-[520px] w-full items-center justify-center md:min-h-[700px]">
     <p className="text-center text-xs uppercase tracking-[0.3em] text-white/60">
-      Añade la URL de la camiseta
+      Añade la imagen de las tres equipaciones
     </p>
   </div>
 )}
@@ -1338,6 +1338,48 @@ const kitHomeUrl =
             />
           )}
         </div>
+
+        {/* SECCIÓN 2: HISTORIA DEL CLUB */}
+        <section className="mt-6 min-h-[100vh] snap-start rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12">
+          <div className="mx-auto flex min-h-[80vh] max-w-5xl flex-col justify-center">
+            <p className="team-section-label text-xs uppercase tracking-[0.3em] text-white/70">MF LEGACY · CLUB HISTORY</p>
+            <h2 className="mt-4 text-5xl font-black uppercase text-white md:text-8xl">History</h2>
+            <div className="mt-10 max-w-3xl border-l-2 border-white/30 pl-5">
+              <p className="text-sm leading-7 text-white/80 md:text-base">
+                {team.history || "Añade la historia del club desde Team profile para mostrarla aquí."}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* SECCIÓN 3: ESTADIO Y PERSONAL */}
+        <section className="mt-6 min-h-[100vh] snap-start rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12">
+          <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 md:grid-cols-2">
+            <div>
+              <p className="team-section-label text-xs uppercase tracking-[0.3em] text-white/70">MF LEGACY · CLUB DATA</p>
+              <h2 className="mt-4 text-5xl font-black uppercase text-white md:text-7xl">Stadium</h2>
+              <p className="mt-6 text-sm leading-7 text-white/80 md:text-base">
+                {stadium || "Estadio no disponible"}
+              </p>
+              {stadiumCapacity && (
+                <p className="mt-2 text-sm text-white/60">Capacidad: {stadiumCapacity}</p>
+              )}
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-white/20 bg-black/20">
+              {team.stadium_exterior_url || team.stadiumExteriorUrl ? (
+                <img
+                  src={team.stadium_exterior_url || team.stadiumExteriorUrl}
+                  alt={`${teamName} estadio`}
+                  className="h-full max-h-[520px] w-full object-cover"
+                />
+              ) : (
+                <div className="flex min-h-[300px] items-center justify-center p-6 text-center text-xs uppercase tracking-[0.25em] text-white/50">
+                  Añade una imagen exterior del estadio
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -1649,6 +1691,7 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
       kit3ShopUrl: form.kit3ShopUrl.trim(),
       kit3BadgeBg: form.kit3BadgeBg.trim(),
       kit3BadgeText: form.kit3BadgeText.trim(),
+      kitsOverviewUrl: form.kitsOverviewUrl.trim(),
       dataSource: form.dataSource,
       isActive: form.isActive,
       incomplete: !form.name.trim() || !form.shortName.trim() || !form.country.trim() || !form.logo.trim(),
