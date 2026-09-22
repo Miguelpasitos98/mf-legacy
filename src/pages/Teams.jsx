@@ -1534,8 +1534,13 @@ export default function Teams() {
             leagueId,
             season: relation?.season || "",
             competition: league?.name || "Without competition",
-competitionLogo: league?.logo || "",
-competitionLevel: league?.level || "",
+            competitionLogo: league?.logo || "",
+            competitionLevel:
+            league?.level !== undefined &&
+            league?.level !== null &&
+            league?.level !== ""
+    ? Number(league.level)
+    : 999,
 incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
           };
         });
