@@ -2000,7 +2000,41 @@ setActiveFilter("countries");
                   <span className="text-xs font-medium text-slate-400">{groupTeams.length} {groupTeams.length === 1 ? "team" : "teams"}</span>
                 </div>
                 <div className="space-y-6">
-                  {Object.entries(competitions).map(([competitionName, competitionTeams]) => (
+                  {Object.entries(competitions)
+  .sort(([, teamsA], [, teamsB]) => {
+    const levelA = Number(teamsA[0]?.competitionLevel ?? 999);
+    const levelB = Number(teamsB[0]?.competitionLevel ?? 999);
+
+    return levelA - levelB;
+  })
+  .map(([competitionName, competitionTeams]) => {
+    const sortedTeams = [...competitionTeams].sort((a, b) =>
+      (a.name || "").localeCompare(
+        b.name || "",
+        "es",
+        { sensitivity: "base" }
+      )
+    );
+
+    return (
+      <div key={competitionName}>
+        <CompetitionHeader
+          competitionName={competitionName}
+          teams={sortedTeams}
+        />
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          {sortedTeams.map((team) => (
+            <TeamCard
+              key={team.id}
+              team={team}
+              onOpen={() => setSelectedTeam(team)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  })}
                     <div key={competitionName}>
                       <CompetitionHeader competitionName={competitionName} teams={competitionTeams} />
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
