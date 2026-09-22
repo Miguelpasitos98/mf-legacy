@@ -1189,6 +1189,7 @@ const kitHomeUrl =
 export default function Teams() {
 
   const [teams, setTeams] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [countries, setCountries] = useState([]);
   const [leagues, setLeagues] = useState([]);
   const [search, setSearch] = useState("");
@@ -1300,12 +1301,19 @@ export default function Teams() {
       }
     };
 
-    const loadTeams = async (loadedCountries = [], loadedLeagues = [], relations = []) => {
-      try {
-        const result = await base44.entities.Team.list();
-        const loadedTeams = getList(result);
-        console.log("EQUIPOS CARGADOS DESDE BASE44:", loadedTeams);
-        const currentRelationsByTeam = new globalThis.Map();
+    const loadTeams = async (
+  loadedCountries = [],
+  loadedLeagues = [],
+  relations = []
+) => {
+  setIsLoading(true);
+
+  try {
+    const result = await base44.entities.Team.list();
+    const loadedTeams = getList(result);
+    console.log("EQUIPOS CARGADOS DESDE BASE44:", loadedTeams);
+
+    const currentRelationsByTeam = new globalThis.Map();
         relations.forEach((relation) => {
           const teamId = relation?.team_id || relation?.teamId || "";
           const isCurrent = relation?.is_current ?? relation?.isCurrent ?? true;
