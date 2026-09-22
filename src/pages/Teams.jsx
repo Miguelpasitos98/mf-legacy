@@ -190,14 +190,32 @@ function TeamLogo({ team }) {
 }
 
 function CompetitionHeader({ competitionName, teams }) {
-  const competition = competitionDetails[competitionName] || { level: "Competition", logo: "FC" };
+  const competition = competitionDetails[competitionName] || {
+  level: "Competition",
+  logo: "",
+};
+
+const competitionLogo =
+  teams.find((team) => team.competitionLogo)?.competitionLogo ||
+  competition.logo ||
+  "";
 
   return (
     <div className="mb-4 flex items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-[8px] font-black text-slate-700">
-          {competition.logo}
-        </div>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 p-1">
+  {competitionLogo ? (
+    <img
+      src={competitionLogo}
+      alt={`${competitionName} logo`}
+      className="h-full w-full object-contain"
+    />
+  ) : (
+    <span className="text-[8px] font-black text-slate-700">
+      FC
+    </span>
+  )}
+</div>
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="text-sm font-bold text-slate-900">{competitionName || "Without competition"}</h3>
           <span className="text-xs text-slate-400">{competition.level}</span>
@@ -1516,7 +1534,9 @@ export default function Teams() {
             leagueId,
             season: relation?.season || "",
             competition: league?.name || "Without competition",
-            incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
+competitionLogo: league?.logo || "",
+competitionLevel: league?.level || "",
+incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
           };
         });
         if (!cancelled) setTeams(normalizedTeams);
