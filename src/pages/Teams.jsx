@@ -960,55 +960,40 @@ function TeamDetail({
   onSubmit,
 }) {
   const [editPanelOpen, setEditPanelOpen] = useState(false);
+  const [isPageTransitioning, setIsPageTransitioning] = useState(false);
   const detailScrollRef = useRef(null);
-  const scrollLockRef = useRef(false);
+  const transitionTimeoutRef = useRef(null);
 
   useEffect(() => {
-    const container = detailScrollRef.current;
-    if (!container) return;
-
-    const handleWheel = (event) => {
-      if (Math.abs(event.deltaY) < 8 || scrollLockRef.current) return;
-
-      const sections = Array.from(
-        container.querySelectorAll("[data-scroll-section]")
-      );
-      if (sections.length < 2) return;
-
-      const currentTop = container.scrollTop;
-      const currentIndex = sections.reduce((closest, section, index) => {
-        const distance = Math.abs(section.offsetTop - currentTop);
-        const closestDistance = Math.abs(
-          sections[closest].offsetTop - currentTop
-        );
-        return distance < closestDistance ? index : closest;
-      }, 0);
-
-      const nextIndex =
-        event.deltaY > 0
-          ? Math.min(currentIndex + 1, sections.length - 1)
-          : Math.max(currentIndex - 1, 0);
-
-      if (nextIndex === currentIndex) return;
-
-      event.preventDefault();
-      scrollLockRef.current = true;
-
-      container.scrollTo({
-        top: sections[nextIndex].offsetTop,
-        behavior: "smooth",
-      });
-
-      window.setTimeout(() => {
-        scrollLockRef.current = false;
-      }, 850);
-    };
-
-    container.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
-      container.removeEventListener("wheel", handleWheel);
+      if (transitionTimeoutRef.current) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
     };
   }, []);
+
+  const goToSection = (sectionIndex) => {
+    const container = detailScrollRef.current;
+    if (!container || isPageTransitioning) return;
+
+    const sections = Array.from(
+      container.querySelectorAll("[data-scroll-section]")
+    );
+    const targetSection = sections[sectionIndex];
+
+    if (!targetSection) return;
+
+    setIsPageTransitioning(true);
+
+    container.scrollTo({
+      top: targetSection.offsetTop,
+      behavior: "smooth",
+    });
+
+    transitionTimeoutRef.current = window.setTimeout(() => {
+      setIsPageTransitioning(false);
+    }, 900);
+  };
 
   const primaryColor =
     team.primaryColor ||
@@ -1085,7 +1070,7 @@ const kitsOverviewUrl =
   return (
     <div
       ref={detailScrollRef}
-      className="relative h-[calc(100vh-0px)] overflow-y-auto overscroll-none p-3 sm:p-4 md:p-6"
+      className="relative h-[calc(100vh-0px)] overflow-y-hidden overscroll-none p-3 sm:p-4 md:p-6"
       style={{
         backgroundColor: primaryColor,
       }}
@@ -1315,23 +1300,37 @@ const kitsOverviewUrl =
                 </h2>
               </div>
 
-              {/* TEXTO DECORATIVO INFERIOR */}
-              <div className="absolute bottom-8 right-6 flex items-center gap-3 sm:right-10 md:right-12">
-                <div className="text-right">
-                  <p className="team-section-label text-[9px] text-white/70">
+              {/* NAVEGACIÓN A LA SIGUIENTE PÁGINA */}
+              <button
+                type="button"
+                onClick={() => goToSection(1)}
+                disabled={isPageTransitioning}
+                aria-label="Ir a History"
+                className={`group absolute bottom-8 right-6 flex items-center gap-3 text-right transition-all duration-500 sm:right-10 md:right-12 ${
+                  isPageTransitioning
+                    ? "translate-x-2 opacity-50"
+                    : "hover:-translate-x-1"
+                }`}
+              >
+                <span className="flex flex-col">
+                  <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
                     Tradition
-                  </p>
+                  </span>
 
-                  <p className="team-section-label text-[9px] text-white/70">
+                  <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
                     Identity
-                  </p>
+                  </span>
 
-                  <p className="team-section-label text-[9px] text-white/70">
+                  <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
                     Legacy
-                  </p>
-                </div>
+                  </span>
 
-                <div className="flex h-16 w-1 flex-col">
+                  <span className="mt-2 text-[8px] uppercase tracking-[0.25em] text-white/45 transition-colors duration-300 group-hover:text-white/80">
+                    Enter history →
+                  </span>
+                </span>
+
+                <span className="flex h-16 w-1 flex-col">
                   <div
                     className="h-1/2"
                     style={{
@@ -1345,8 +1344,8 @@ const kitsOverviewUrl =
                       backgroundColor: secondaryColor,
                     }}
                   />
-                </div>
-              </div>
+                </span>
+              </button>
             </div>
           </div>
 
