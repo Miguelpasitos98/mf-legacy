@@ -181,6 +181,10 @@
       "type": "string",
       "description": "Color del texto de la etiqueta de la tercera equipaci\u00f3n"
     },
+"kits_overview_url": {
+  "type": "string",
+  "description": "URL de la imagen única que contiene las tres equipaciones del equipo"
+},
     "fotmob_id": {
       "type": "integer",
       "description": "ID externo del equipo en FotMob, si existe"
