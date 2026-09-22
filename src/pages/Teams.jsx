@@ -230,6 +230,7 @@ function AddTeamModal({
   leagues,
   onClose,
   onSubmit,
+  isEditing = false,
 }) {
   const [logoImageError, setLogoImageError] = useState(false);
   const [logoPalette, setLogoPalette] = useState([]);
@@ -269,8 +270,8 @@ function AddTeamModal({
       <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h2 id="add-team-title" className="text-lg font-extrabold text-slate-900">Add team</h2>
-            <p className="mt-1 text-xs text-slate-500">Create a complete club profile manually.</p>
+            <h2 id="add-team-title" className="text-lg font-extrabold text-slate-900">{isEditing ? "Edit team" : "Add team"}</h2>
+            <p className="mt-1 text-xs text-slate-500">{isEditing ? "Update the club profile." : "Create a complete club profile manually."}</p>
           </div>
           <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Close modal">
             <X size={18} />
@@ -564,7 +565,7 @@ function AddTeamModal({
             <button type="button" onClick={onClose} className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Cancel</button>
             <button type="submit" className="flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-xs font-semibold text-white transition hover:bg-[#002477]">
               <Plus size={15} />
-              Add team
+              {isEditing ? "Save changes" : "Add team"}
             </button>
           </div>
         </form>
@@ -1284,6 +1285,7 @@ const kitHomeUrl =
                 onCloseEdit();
               }}
               onSubmit={onSubmit}
+              isEditing
             />
           )}
         </div>
@@ -1694,8 +1696,9 @@ setCountries((currentCountries) => {
         .replace(/[^A-Z0-9]/g, "")
         .slice(0, 12) || `TEAM${Date.now()}`;
 
-      const savedTeam = editingTeam
-  ? await base44.entities.Team.update(editingTeam.id, {
+      const editingTeamId = editingTeam?.id || editingTeam?._id;
+      const savedTeam = editingTeamId
+  ? await base44.entities.Team.update(editingTeamId, {
     name: newTeam.name,
     short_name: newTeam.shortName,
     code: generatedCode,
@@ -1704,11 +1707,23 @@ setCountries((currentCountries) => {
     city: newTeam.city,
     logo: newTeam.logo,
 country_map_url: newTeam.countryMapUrl,
-primary_color: newTeam.primaryColor,
+      country_code: newTeam.countryCode,
+      league_id: leagueId || null,
+      season: newTeam.season,
+      primary_color: newTeam.primaryColor,
 secondary_color: newTeam.secondaryColor,
 kit1_photo_url: newTeam.kit1PhotoUrl,
 kit2_photo_url: newTeam.kit2PhotoUrl,
 kit3_photo_url: newTeam.kit3PhotoUrl,
+    kit1_shop_url: newTeam.kit1ShopUrl,
+    kit1_badge_bg: newTeam.kit1BadgeBg,
+    kit1_badge_text: newTeam.kit1BadgeText,
+    kit2_shop_url: newTeam.kit2ShopUrl,
+    kit2_badge_bg: newTeam.kit2BadgeBg,
+    kit2_badge_text: newTeam.kit2BadgeText,
+    kit3_shop_url: newTeam.kit3ShopUrl,
+    kit3_badge_bg: newTeam.kit3BadgeBg,
+    kit3_badge_text: newTeam.kit3BadgeText,
     founded_year: newTeam.foundedYear,
     stadium_id: newTeam.stadiumId,
     stadium: newTeam.stadium,
@@ -1826,12 +1841,16 @@ if (leagueId) {
 
   if (editingTeam) {
     return currentTeams.map((team) =>
-      team.id === editingTeam.id ? updatedTeam : team
+      String(team.id) === String(editingTeamId) ? updatedTeam : team
     );
   }
 
   return [...currentTeams, updatedTeam];
 });
+
+  if (editingTeamId) {
+    setSelectedTeam(updatedTeam);
+  }
 
   setForm(emptyTeamForm);
 setEditingTeam(null);
@@ -1975,6 +1994,7 @@ setActiveFilter("countries");
   setEditingTeam(null);
 }}
     onSubmit={handleAddTeam}
+     isEditing={Boolean(editingTeam?.id || editingTeam?._id)}
   />
 )}
       {importJsonModalOpen && <ImportTeamJsonModal onClose={() => setImportJsonModalOpen(false)} onImport={handleImportJson} />}
