@@ -1830,8 +1830,7 @@ if (leagueId) {
   }
 }
 
-  setTeams((currentTeams) => {
-  const updatedTeam = {
+  const teamAfterSave = {
     ...newTeam,
     id: savedTeam.id,
     competition: selectedLeague?.name || "Without competition",
@@ -1839,17 +1838,18 @@ if (leagueId) {
     season: savedRelation?.season || newTeam.season || "",
   };
 
-  if (editingTeam) {
-    return currentTeams.map((team) =>
-      String(team.id) === String(editingTeamId) ? updatedTeam : team
-    );
-  }
+  setTeams((currentTeams) => {
+    if (editingTeamId) {
+      return currentTeams.map((team) =>
+        String(team.id) === String(editingTeamId) ? teamAfterSave : team
+      );
+    }
 
-  return [...currentTeams, updatedTeam];
-});
+    return [...currentTeams, teamAfterSave];
+  });
 
   if (editingTeamId) {
-    setSelectedTeam(updatedTeam);
+    setSelectedTeam(teamAfterSave);
   }
 
   setForm(emptyTeamForm);
