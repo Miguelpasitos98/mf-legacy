@@ -661,6 +661,78 @@ function mapImportedTeamToForm(data) {
   };
 }
 
+function mapTeamToForm(team) {
+  return {
+    ...emptyTeamForm,
+
+    name: team.name || "",
+    shortName: team.short_name || team.shortName || "",
+    country: team.country || "",
+    countryId: team.country_id || team.countryId || "",
+    countryCode: team.country_code || team.countryCode || "",
+    countryMapUrl: team.country_map_url || team.countryMapUrl || "",
+
+    leagueId: team.league_id || team.leagueId || "",
+    newLeagueName: "",
+    season: team.season || "",
+
+    continent: team.continent || "Europe",
+    city: team.city || "",
+    logo: team.logo || "",
+
+    primaryColor: team.primary_color || team.primaryColor || "",
+    secondaryColor: team.secondary_color || team.secondaryColor || "",
+
+    foundedYear: team.founded_year || team.foundedYear || "",
+
+    stadium: team.stadium || "",
+    stadiumId: team.stadium_id || team.stadiumId || "",
+    stadiumCapacity: team.stadium_capacity || team.stadiumCapacity || "",
+    stadiumBuiltYear: team.stadium_built_year || team.stadiumBuiltYear || "",
+    stadiumRenovation: team.stadium_renovation || team.stadiumRenovation || "",
+    pitchDimensions: team.pitch_dimensions || team.pitchDimensions || "",
+    stadiumInteriorUrl: team.stadium_interior_url || team.stadiumInteriorUrl || "",
+    stadiumExteriorUrl: team.stadium_exterior_url || team.stadiumExteriorUrl || "",
+
+    reputation: team.reputation || "",
+    market: team.market || "",
+    history: team.history || "",
+
+    coachName: team.coach_name || team.coachName || "",
+    coachPhotoUrl: team.coach_photo_url || team.coachPhotoUrl || "",
+
+    captainName: team.captain_name || team.captainName || "",
+    captainPhotoUrl: team.captain_photo_url || team.captainPhotoUrl || "",
+
+    secondCaptainName:
+      team.second_captain_name || team.secondCaptainName || "",
+    secondCaptainPhotoUrl:
+      team.second_captain_photo_url || team.secondCaptainPhotoUrl || "",
+
+    keyPlayerName: team.key_player_name || team.keyPlayerName || "",
+    keyPlayerPhotoUrl:
+      team.key_player_photo_url || team.keyPlayerPhotoUrl || "",
+
+    kit1PhotoUrl: team.kit1_photo_url || team.kit1PhotoUrl || "",
+    kit1ShopUrl: team.kit1_shop_url || team.kit1ShopUrl || "",
+    kit1BadgeBg: team.kit1_badge_bg || team.kit1BadgeBg || "",
+    kit1BadgeText: team.kit1_badge_text || team.kit1BadgeText || "",
+
+    kit2PhotoUrl: team.kit2_photo_url || team.kit2PhotoUrl || "",
+    kit2ShopUrl: team.kit2_shop_url || team.kit2ShopUrl || "",
+    kit2BadgeBg: team.kit2_badge_bg || team.kit2BadgeBg || "",
+    kit2BadgeText: team.kit2_badge_text || team.kit2BadgeText || "",
+
+    kit3PhotoUrl: team.kit3_photo_url || team.kit3PhotoUrl || "",
+    kit3ShopUrl: team.kit3_shop_url || team.kit3ShopUrl || "",
+    kit3BadgeBg: team.kit3_badge_bg || team.kit3BadgeBg || "",
+    kit3BadgeText: team.kit3_badge_text || team.kit3BadgeText || "",
+
+    dataSource: team.data_source || team.dataSource || "Manual",
+    isActive: team.is_active ?? team.isActive ?? true,
+  };
+}
+
 function extractJsonFromText(value) {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -828,7 +900,7 @@ function ImportTeamJsonModal({ onClose, onImport }) {
 
 
 
-function TeamDetail({ team, onClose }) {
+function TeamDetail({ team, onClose, onEdit }) {
   const [editPanelOpen, setEditPanelOpen] = useState(false);
   
   const primaryColor =
@@ -951,7 +1023,7 @@ const kitHomeUrl =
 
             <button
   type="button"
-  onClick={() => setEditPanelOpen(true)}
+  onClick={() => onEdit(team)}
   className="cursor-pointer rounded-sm text-[10px] font-bold uppercase tracking-[0.3em] text-white/75 transition hover:text-white focus:outline-none focus:ring-1 focus:ring-white/60"
 >
   Team profile
@@ -1205,6 +1277,13 @@ export default function Teams() {
   const [importJsonModalOpen, setImportJsonModalOpen] = useState(false);
   const [form, setForm] = useState(emptyTeamForm);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [editingTeam, setEditingTeam] = useState(null);
+
+  useEffect(() => {
+  if (editingTeam) {
+    setForm(mapTeamToForm(editingTeam));
+  }
+}, [editingTeam]);
 
   const {
     setTeamTheme,
@@ -1582,7 +1661,8 @@ setCountries((currentCountries) => {
         .replace(/[^A-Z0-9]/g, "")
         .slice(0, 12) || `TEAM${Date.now()}`;
 
-      const savedTeam = await base44.entities.Team.create({
+      const savedTeam = editingTeam
+  ? await base44.entities.Team.update(editingTeam.id, {
     name: newTeam.name,
     short_name: newTeam.shortName,
     code: generatedCode,
@@ -1617,8 +1697,45 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
     key_player_name: newTeam.keyPlayerName,
     key_player_photo_url: newTeam.keyPlayerPhotoUrl,
     data_source: newTeam.dataSource,
-    is_active: newTeam.isActive,
-  });
+        is_active: newTeam.isActive,
+  })
+  : await base44.entities.Team.create({
+      name: newTeam.name,
+      short_name: newTeam.shortName,
+      code: generatedCode,
+      continent: newTeam.continent || "Europe",
+      country_id: countryId,
+      city: newTeam.city,
+      logo: newTeam.logo,
+      country_map_url: newTeam.countryMapUrl,
+      primary_color: newTeam.primaryColor,
+      secondary_color: newTeam.secondaryColor,
+      kit1_photo_url: newTeam.kit1PhotoUrl,
+      kit2_photo_url: newTeam.kit2PhotoUrl,
+      kit3_photo_url: newTeam.kit3PhotoUrl,
+      founded_year: newTeam.foundedYear,
+      stadium_id: newTeam.stadiumId,
+      stadium: newTeam.stadium,
+      stadium_capacity: newTeam.stadiumCapacity,
+      stadium_built_year: newTeam.stadiumBuiltYear,
+      stadium_renovation: newTeam.stadiumRenovation,
+      pitch_dimensions: newTeam.pitchDimensions,
+      stadium_interior_url: newTeam.stadiumInteriorUrl,
+      stadium_exterior_url: newTeam.stadiumExteriorUrl,
+      reputation: String(newTeam.reputation ?? ""),
+      market: String(newTeam.market ?? ""),
+      history: newTeam.history,
+      coach_name: newTeam.coachName,
+      coach_photo_url: newTeam.coachPhotoUrl,
+      captain_name: newTeam.captainName,
+      captain_photo_url: newTeam.captainPhotoUrl,
+      second_captain_name: newTeam.secondCaptainName,
+      second_captain_photo_url: newTeam.secondCaptainPhotoUrl,
+      key_player_name: newTeam.keyPlayerName,
+      key_player_photo_url: newTeam.keyPlayerPhotoUrl,
+      data_source: newTeam.dataSource,
+      is_active: newTeam.isActive,
+    });
 
   let savedRelation = null;
   if (leagueId) {
@@ -1630,20 +1747,28 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
     });
   }
 
-  setTeams((currentTeams) => [
-    ...currentTeams,
-    {
-      ...newTeam,
-      id: savedTeam.id,
-      competition: selectedLeague?.name || "Without competition",
-      leagueId,
-      season: savedRelation?.season || newTeam.season || "",
-    },
-  ]);
+  setTeams((currentTeams) => {
+  const updatedTeam = {
+    ...newTeam,
+    id: savedTeam.id,
+    competition: selectedLeague?.name || "Without competition",
+    leagueId,
+    season: savedRelation?.season || newTeam.season || "",
+  };
+
+  if (editingTeam) {
+    return currentTeams.map((team) =>
+      team.id === editingTeam.id ? updatedTeam : team
+    );
+  }
+
+  return [...currentTeams, updatedTeam];
+});
 
   setForm(emptyTeamForm);
-  setAddModalOpen(false);
-  setActiveFilter("countries");
+setEditingTeam(null);
+setAddModalOpen(false);
+setActiveFilter("countries");
 } catch (error) {
   console.error("Error saving team:", error);
   const errorMessage =
@@ -1667,13 +1792,16 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
   };
 
     if (selectedTeam) {
-    return (
-      <TeamDetail
-        team={selectedTeam}
-        onClose={() => setSelectedTeam(null)}
-      />
-    );
-  }
+  return (
+    <TeamDetail
+      team={selectedTeam}
+      onClose={() => setSelectedTeam(null)}
+      onEdit={(team) => {
+        setEditingTeam(team);
+      }}
+    />
+  );
+}
 
   return (
     <div className="min-h-full bg-[#F6F7F9] p-6 md:p-8">
@@ -1762,7 +1890,7 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
         </div>
       )}
 
-      {addModalOpen && (
+      {(addModalOpen || editingTeam) && (
   <AddTeamModal
     form={form}
     setForm={setForm}
