@@ -2002,18 +2002,16 @@ setActiveFilter("countries");
                 <div className="space-y-6">
                   {Object.entries(competitions)
   .sort(([, teamsA], [, teamsB]) => {
-    const levelA = Number(teamsA[0]?.competitionLevel ?? 999);
-    const levelB = Number(teamsB[0]?.competitionLevel ?? 999);
+    const levelA = Number(teamsA?.[0]?.competitionLevel ?? 999);
+    const levelB = Number(teamsB?.[0]?.competitionLevel ?? 999);
 
     return levelA - levelB;
   })
   .map(([competitionName, competitionTeams]) => {
-    const sortedTeams = [...competitionTeams].sort((a, b) =>
-      (a.name || "").localeCompare(
-        b.name || "",
-        "es",
-        { sensitivity: "base" }
-      )
+    const sortedTeams = [...(competitionTeams || [])].sort((a, b) =>
+      (a.name || "").localeCompare(b.name || "", "es", {
+        sensitivity: "base",
+      })
     );
 
     return (
