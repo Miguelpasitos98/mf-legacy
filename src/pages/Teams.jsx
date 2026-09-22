@@ -44,6 +44,7 @@ const emptyTeamForm = {
   countryId: "",
   countryCode: "",
   countryMapUrl: "",
+  countryTeamMapUrl: "",
   locationMapUrl: "",
   leagueId: "",
   newLeagueName: "",
@@ -366,12 +367,23 @@ function AddTeamModal({
               {selectField("continent", "Continent", ["Europe", "South America", "North America", "Asia", "Africa", "Oceania"])}
               {textField("city", "City", "e.g. Madrid")}
               <div className="md:col-span-2">
-                <FormField label="Location graphic URL" hint="URL del SVG o PNG con el contorno del país y la ubicación de la ciudad.">
+                <FormField label="Country map URL" hint="Imagen del contorno del país. Se mostrará con una opacidad del 50 %.">
                   <input
                     type="url"
-                    value={form.locationMapUrl}
-                    onChange={(event) => updateField("locationMapUrl", event.target.value)}
-                    placeholder="https://.../italy-turin.svg"
+                    value={form.countryMapUrl}
+                    onChange={(event) => updateField("countryMapUrl", event.target.value)}
+                    placeholder="https://.../italy.svg"
+                    className={inputClassName}
+                  />
+                </FormField>
+              </div>
+              <div className="md:col-span-2">
+                <FormField label="Country team map URL" hint="Misma imagen y proporciones, con el escudo del equipo integrado. Se mostrará al 100 %.">
+                  <input
+                    type="url"
+                    value={form.countryTeamMapUrl}
+                    onChange={(event) => updateField("countryTeamMapUrl", event.target.value)}
+                    placeholder="https://.../italy-juventus.svg"
                     className={inputClassName}
                   />
                 </FormField>
@@ -683,6 +695,7 @@ function mapTeamToForm(team) {
     countryId: team.country_id || team.countryId || "",
     countryCode: team.country_code || team.countryCode || "",
     countryMapUrl: team.country_map_url || team.countryMapUrl || "",
+    countryTeamMapUrl: team.country_team_map_url || team.countryTeamMapUrl || "",
     locationMapUrl: team.location_map_url || team.locationMapUrl || "",
 
     leagueId: team.league_id || team.leagueId || "",
@@ -978,12 +991,15 @@ const kitHomeUrl =
   team.kits?.kit1?.photo_url ||
   "";
 
-  // Gráfico geográfico de ubicación
-  const locationMapUrl =
-    team.location_map_url ||
-    team.locationMapUrl ||
+  // Gráficos geográficos superpuestos: mapa del país + mapa con el escudo
+  const countryMapUrl =
     team.country_map_url ||
     team.countryMapUrl ||
+    "";
+
+  const countryTeamMapUrl =
+    team.country_team_map_url ||
+    team.countryTeamMapUrl ||
     "";
 
   const displayName = teamName.toUpperCase();
@@ -1016,13 +1032,21 @@ const kitHomeUrl =
       {/* CONTENEDOR PRINCIPAL */}
       <div className="relative z-10">
         <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl">
-          {/* GRÁFICO GEOGRÁFICO DE UBICACIÓN */}
-          {locationMapUrl && (
+          {/* GRÁFICO GEOGRÁFICO: MISMA POSICIÓN, TAMAÑO Y PROPORCIÓN */}
+          {countryMapUrl && (
             <img
-              src={locationMapUrl}
+              src={countryMapUrl}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-10 right-4 z-0 h-[86%] w-auto max-w-[68%] object-contain opacity-20 grayscale"
+              className="pointer-events-none absolute bottom-10 right-4 z-0 h-[86%] w-auto max-w-[68%] object-contain opacity-50 grayscale"
+            />
+          )}
+          {countryTeamMapUrl && (
+            <img
+              src={countryTeamMapUrl}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-10 right-4 z-0 h-[86%] w-auto max-w-[68%] object-contain"
             />
           )}
 
@@ -1554,6 +1578,7 @@ export default function Teams() {
       countryId: form.countryId.trim(),
       countryCode: form.countryCode.trim().toUpperCase(),
       countryMapUrl: form.countryMapUrl.trim(),
+      countryTeamMapUrl: form.countryTeamMapUrl.trim(),
       locationMapUrl: form.locationMapUrl.trim(),
       leagueId: form.leagueId.trim(),
       newLeagueName: form.newLeagueName.trim(),
@@ -1709,6 +1734,8 @@ setCountries((currentCountries) => {
     country_id: countryId,
     city: newTeam.city,
     logo: newTeam.logo,
+country_map_url: newTeam.countryMapUrl,
+country_team_map_url: newTeam.countryTeamMapUrl,
 location_map_url: newTeam.locationMapUrl,
 primary_color: newTeam.primaryColor,
 secondary_color: newTeam.secondaryColor,
@@ -1746,6 +1773,8 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
       country_id: countryId,
       city: newTeam.city,
       logo: newTeam.logo,
+      country_map_url: newTeam.countryMapUrl,
+      country_team_map_url: newTeam.countryTeamMapUrl,
       location_map_url: newTeam.locationMapUrl,
       primary_color: newTeam.primaryColor,
       secondary_color: newTeam.secondaryColor,
