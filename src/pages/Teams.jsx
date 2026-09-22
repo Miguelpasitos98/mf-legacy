@@ -1012,6 +1012,13 @@ const kitHomeUrl =
   team.kits?.kit1?.photo_url ||
   "";
 
+const kitsOverviewUrl =
+  team.kits_overview_url ||
+  team.kitsOverviewUrl ||
+  team.kits_image_url ||
+  team.kitsImageUrl ||
+  "";
+
   // Gráficos geográficos superpuestos: mapa del país + mapa con el escudo
   const countryMapUrl =
     team.country_map_url ||

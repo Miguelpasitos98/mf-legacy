@@ -1,4 +1,3 @@
-
 {
   "name": "Team",
   "type": "object",
@@ -13,20 +12,20 @@
     },
     "country_id": {
       "type": "string",
-      "description": "ID interno del país en Base44"
+      "description": "ID interno del pa\u00eds en Base44"
     },
     "city": {
       "type": "string",
       "description": "Ciudad del equipo"
     },
     "country_map_url": {
-  "type": "string",
-  "description": "URL de la imagen del contorno del país"
-},
-"country_team_map_url": {
-  "type": "string",
-  "description": "URL de la imagen del contorno del país con el escudo del equipo situado en su ciudad"
-},
+      "type": "string",
+      "description": "URL de la imagen del contorno del pa\u00eds"
+    },
+    "country_team_map_url": {
+      "type": "string",
+      "description": "URL de la imagen del contorno del pa\u00eds con el escudo del equipo situado en su ciudad"
+    },
     "logo": {
       "type": "string",
       "description": "URL del escudo del equipo"
@@ -39,13 +38,9 @@
       "type": "string",
       "description": "Color secundario en formato hexadecimal"
     },
-    "kits_overview_url": {
-  "type": "string",
-  "description": "URL de la imagen única con las tres equipaciones del equipo"
-}
     "founded_year": {
       "type": "integer",
-      "description": "Año de fundación del equipo"
+      "description": "A\u00f1o de fundaci\u00f3n del equipo"
     },
     "stadium_id": {
       "type": "string",
@@ -61,11 +56,11 @@
     },
     "stadium_built_year": {
       "type": "integer",
-      "description": "Año de construcción del estadio"
+      "description": "A\u00f1o de construcci\u00f3n del estadio"
     },
     "stadium_renovation": {
       "type": "integer",
-      "description": "Año de la última remodelación del estadio"
+      "description": "A\u00f1o de la \u00faltima remodelaci\u00f3n del estadio"
     },
     "pitch_dimensions": {
       "type": "string",
@@ -89,7 +84,7 @@
         "Unclassified"
       ],
       "default": "Unclassified",
-      "description": "Categoría de reputación del equipo"
+      "description": "Categor\u00eda de reputaci\u00f3n del equipo"
     },
     "market": {
       "type": "string",
@@ -100,7 +95,7 @@
         "Unclassified"
       ],
       "default": "Unclassified",
-      "description": "Categoría de mercado del equipo"
+      "description": "Categor\u00eda de mercado del equipo"
     },
     "history": {
       "type": "string",
@@ -112,7 +107,7 @@
     },
     "coach_photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del entrenador"
+      "description": "URL de la fotograf\u00eda del entrenador"
     },
     "key_player_name": {
       "type": "string",
@@ -120,71 +115,71 @@
     },
     "key_player_photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del jugador clave"
+      "description": "URL de la fotograf\u00eda del jugador clave"
     },
     "captain_name": {
       "type": "string",
-      "description": "Nombre del capitán actual"
+      "description": "Nombre del capit\u00e1n actual"
     },
     "captain_photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del capitán"
+      "description": "URL de la fotograf\u00eda del capit\u00e1n"
     },
     "second_captain_name": {
       "type": "string",
-      "description": "Nombre del segundo capitán"
+      "description": "Nombre del segundo capit\u00e1n"
     },
     "second_captain_photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del segundo capitán"
+      "description": "URL de la fotograf\u00eda del segundo capit\u00e1n"
     },
     "kit1_photo_url": {
       "type": "string",
-      "description": "URL de la primera equipación"
+      "description": "URL de la primera equipaci\u00f3n"
     },
     "kit1_shop_url": {
       "type": "string",
-      "description": "URL de compra de la primera equipación"
+      "description": "URL de compra de la primera equipaci\u00f3n"
     },
     "kit1_badge_bg": {
       "type": "string",
-      "description": "Color de fondo de la etiqueta de la primera equipación"
+      "description": "Color de fondo de la etiqueta de la primera equipaci\u00f3n"
     },
     "kit1_badge_text": {
       "type": "string",
-      "description": "Color del texto de la etiqueta de la primera equipación"
+      "description": "Color del texto de la etiqueta de la primera equipaci\u00f3n"
     },
     "kit2_photo_url": {
       "type": "string",
-      "description": "URL de la segunda equipación"
+      "description": "URL de la segunda equipaci\u00f3n"
     },
     "kit2_shop_url": {
       "type": "string",
-      "description": "URL de compra de la segunda equipación"
+      "description": "URL de compra de la segunda equipaci\u00f3n"
     },
     "kit2_badge_bg": {
       "type": "string",
-      "description": "Color de fondo de la etiqueta de la segunda equipación"
+      "description": "Color de fondo de la etiqueta de la segunda equipaci\u00f3n"
     },
     "kit2_badge_text": {
       "type": "string",
-      "description": "Color del texto de la etiqueta de la segunda equipación"
+      "description": "Color del texto de la etiqueta de la segunda equipaci\u00f3n"
     },
     "kit3_photo_url": {
       "type": "string",
-      "description": "URL de la tercera equipación"
+      "description": "URL de la tercera equipaci\u00f3n"
     },
     "kit3_shop_url": {
       "type": "string",
-      "description": "URL de compra de la tercera equipación"
+      "description": "URL de compra de la tercera equipaci\u00f3n"
     },
     "kit3_badge_bg": {
       "type": "string",
-      "description": "Color de fondo de la etiqueta de la tercera equipación"
+      "description": "Color de fondo de la etiqueta de la tercera equipaci\u00f3n"
     },
     "kit3_badge_text": {
       "type": "string",
-      "description": "Color del texto de la etiqueta de la tercera equipación"
+      "description": "Color del texto de la etiqueta de la tercera equipaci\u00f3n"
     },
     "fotmob_id": {
       "type": "integer",
@@ -207,12 +202,12 @@
     "is_complete": {
       "type": "boolean",
       "default": false,
-      "description": "Indica si la ficha del equipo está completa"
+      "description": "Indica si la ficha del equipo est\u00e1 completa"
     },
     "is_active": {
       "type": "boolean",
       "default": true,
-      "description": "Indica si el equipo está activo"
+      "description": "Indica si el equipo est\u00e1 activo"
     }
   },
   "required": [
