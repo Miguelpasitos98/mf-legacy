@@ -2,6 +2,7 @@ import React, {
   useEffect,
   useMemo,
   useState,
+  useRef,
 } from "react";
 
 import { useOutletContext } from "react-router-dom";
@@ -959,7 +960,56 @@ function TeamDetail({
   onSubmit,
 }) {
   const [editPanelOpen, setEditPanelOpen] = useState(false);
-  
+  const detailScrollRef = useRef(null);
+  const scrollLockRef = useRef(false);
+
+  useEffect(() => {
+    const container = detailScrollRef.current;
+    if (!container) return;
+
+    const handleWheel = (event) => {
+      if (Math.abs(event.deltaY) < 8 || scrollLockRef.current) return;
+
+      const sections = Array.from(
+        container.querySelectorAll("[data-scroll-section]")
+      );
+      if (sections.length < 2) return;
+
+      const currentTop = container.scrollTop;
+      const currentIndex = sections.reduce((closest, section, index) => {
+        const distance = Math.abs(section.offsetTop - currentTop);
+        const closestDistance = Math.abs(
+          sections[closest].offsetTop - currentTop
+        );
+        return distance < closestDistance ? index : closest;
+      }, 0);
+
+      const nextIndex =
+        event.deltaY > 0
+          ? Math.min(currentIndex + 1, sections.length - 1)
+          : Math.max(currentIndex - 1, 0);
+
+      if (nextIndex === currentIndex) return;
+
+      event.preventDefault();
+      scrollLockRef.current = true;
+
+      container.scrollTo({
+        top: sections[nextIndex].offsetTop,
+        behavior: "smooth",
+      });
+
+      window.setTimeout(() => {
+        scrollLockRef.current = false;
+      }, 850);
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
+
   const primaryColor =
     team.primaryColor ||
     team.primary_color ||
@@ -1034,7 +1084,8 @@ const kitsOverviewUrl =
 
   return (
     <div
-      className="relative h-[calc(100vh-0px)] snap-start overflow-y-auto p-3 sm:p-4 md:p-6"
+      ref={detailScrollRef}
+      className="relative h-[calc(100vh-0px)] overflow-y-auto overscroll-none p-3 sm:p-4 md:p-6"
       style={{
         backgroundColor: primaryColor,
       }}
@@ -1059,7 +1110,10 @@ const kitsOverviewUrl =
 
       {/* CONTENEDOR PRINCIPAL */}
       <div className="relative z-10">
-        <div className="relative min-h-full overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl">
+        <div
+          data-scroll-section
+          className="relative min-h-full overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl"
+        >
           {/* GRÁFICO GEOGRÁFICO: MISMA POSICIÓN, TAMAÑO Y PROPORCIÓN */}
           {countryMapUrl && (
             <img
@@ -1347,7 +1401,10 @@ const kitsOverviewUrl =
         </div>
 
         {/* SECCIÓN 2: HISTORIA DEL CLUB */}
-        <section className="mt-6 min-h-[100vh] snap-start rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12">
+        <section
+          data-scroll-section
+          className="mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
+        >
           <div className="mx-auto flex min-h-[80vh] max-w-5xl flex-col justify-center">
             <p className="team-section-label text-xs uppercase tracking-[0.3em] text-white/70">MF LEGACY · CLUB HISTORY</p>
             <h2 className="mt-4 text-5xl font-black uppercase text-white md:text-8xl">History</h2>
@@ -1360,7 +1417,10 @@ const kitsOverviewUrl =
         </section>
 
         {/* SECCIÓN 3: ESTADIO Y PERSONAL */}
-        <section className="mt-6 min-h-[100vh] snap-start rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12">
+        <section
+          data-scroll-section
+          className="mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
+        >
           <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 md:grid-cols-2">
             <div>
               <p className="team-section-label text-xs uppercase tracking-[0.3em] text-white/70">MF LEGACY · CLUB DATA</p>
