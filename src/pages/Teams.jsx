@@ -1738,7 +1738,31 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
     });
 
   let savedRelation = null;
-  if (leagueId) {
+
+if (leagueId) {
+  const existingRelations = await base44.entities.TeamLeague.list();
+
+  const currentRelation = getList(existingRelations).find((relation) => {
+    const relationTeamId = relation.team_id || relation.teamId;
+    const isCurrent = relation.is_current ?? relation.isCurrent ?? true;
+
+    return (
+      editingTeam &&
+      String(relationTeamId) === String(savedTeam.id) &&
+      isCurrent
+    );
+  });
+
+  if (currentRelation) {
+    savedRelation = await base44.entities.TeamLeague.update(
+      currentRelation.id,
+      {
+        league_id: leagueId,
+        season: newTeam.season || "2026-2027",
+        is_current: true,
+      }
+    );
+  } else {
     savedRelation = await base44.entities.TeamLeague.create({
       team_id: savedTeam.id,
       league_id: leagueId,
@@ -1746,6 +1770,7 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
       is_current: true,
     });
   }
+}
 
   setTeams((currentTeams) => {
   const updatedTeam = {
@@ -1797,8 +1822,10 @@ setActiveFilter("countries");
       team={selectedTeam}
       onClose={() => setSelectedTeam(null)}
       onEdit={(team) => {
-        setEditingTeam(team);
-      }}
+  setEditingTeam(team);
+  setSelectedTeam(null);
+  setAddModalOpen(true);
+}}
     />
   );
 }
@@ -1896,7 +1923,10 @@ setActiveFilter("countries");
     setForm={setForm}
     countries={countries}
     leagues={leagues}
-    onClose={() => setAddModalOpen(false)}
+    onClose={() => {
+  setAddModalOpen(false);
+  setEditingTeam(null);
+}}
     onSubmit={handleAddTeam}
   />
 )}
