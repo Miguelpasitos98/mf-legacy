@@ -900,7 +900,17 @@ function ImportTeamJsonModal({ onClose, onImport }) {
 
 
 
-function TeamDetail({ team, onClose, onEdit }) {
+function TeamDetail({
+  team,
+  onClose,
+  onEdit,
+  form,
+  setForm,
+  countries,
+  leagues,
+  onCloseEdit,
+  onSubmit,
+}) {
   const [editPanelOpen, setEditPanelOpen] = useState(false);
   
   const primaryColor =
