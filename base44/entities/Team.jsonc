@@ -39,6 +39,10 @@
       "type": "string",
       "description": "Color secundario en formato hexadecimal"
     },
+    "kits_overview_url": {
+  "type": "string",
+  "description": "URL de la imagen única con las tres equipaciones del equipo"
+}
     "founded_year": {
       "type": "integer",
       "description": "Año de fundación del equipo"
