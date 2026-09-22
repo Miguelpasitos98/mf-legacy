@@ -44,6 +44,7 @@ const emptyTeamForm = {
   countryId: "",
   countryCode: "",
   countryMapUrl: "",
+  locationMapUrl: "",
   leagueId: "",
   newLeagueName: "",
   season: "2026-2027",
@@ -230,7 +231,6 @@ function AddTeamModal({
   leagues,
   onClose,
   onSubmit,
-  isEditing = false,
 }) {
   const [logoImageError, setLogoImageError] = useState(false);
   const [logoPalette, setLogoPalette] = useState([]);
@@ -270,8 +270,8 @@ function AddTeamModal({
       <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h2 id="add-team-title" className="text-lg font-extrabold text-slate-900">{isEditing ? "Edit team" : "Add team"}</h2>
-            <p className="mt-1 text-xs text-slate-500">{isEditing ? "Update the club profile." : "Create a complete club profile manually."}</p>
+            <h2 id="add-team-title" className="text-lg font-extrabold text-slate-900">Add team</h2>
+            <p className="mt-1 text-xs text-slate-500">Create a complete club profile manually.</p>
           </div>
           <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Close modal">
             <X size={18} />
@@ -365,6 +365,17 @@ function AddTeamModal({
               )}
               {selectField("continent", "Continent", ["Europe", "South America", "North America", "Asia", "Africa", "Oceania"])}
               {textField("city", "City", "e.g. Madrid")}
+              <div className="md:col-span-2">
+                <FormField label="Location graphic URL" hint="URL del SVG o PNG con el contorno del país y la ubicación de la ciudad.">
+                  <input
+                    type="url"
+                    value={form.locationMapUrl}
+                    onChange={(event) => updateField("locationMapUrl", event.target.value)}
+                    placeholder="https://.../italy-turin.svg"
+                    className={inputClassName}
+                  />
+                </FormField>
+              </div>
               {textField("foundedYear", "Founded year", "1902", { type: "number", min: 1800, max: 2100 })}
               <div className="md:col-span-2">
                 <FormField label="Logo URL" hint="Puedes pegar una URL completa o una dirección como fotmob.com/image_resources/logo/teamlogo/8633_large.png">
@@ -565,7 +576,7 @@ function AddTeamModal({
             <button type="button" onClick={onClose} className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Cancel</button>
             <button type="submit" className="flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-xs font-semibold text-white transition hover:bg-[#002477]">
               <Plus size={15} />
-              {isEditing ? "Save changes" : "Add team"}
+              Add team
             </button>
           </div>
         </form>
@@ -672,6 +683,7 @@ function mapTeamToForm(team) {
     countryId: team.country_id || team.countryId || "",
     countryCode: team.country_code || team.countryCode || "",
     countryMapUrl: team.country_map_url || team.countryMapUrl || "",
+    locationMapUrl: team.location_map_url || team.locationMapUrl || "",
 
     leagueId: team.league_id || team.leagueId || "",
     newLeagueName: "",
@@ -913,12 +925,6 @@ function TeamDetail({
   onSubmit,
 }) {
   const [editPanelOpen, setEditPanelOpen] = useState(false);
-
-  const handleEditSubmit = async (...args) => {
-    await onSubmit(...args);
-    setEditPanelOpen(false);
-    onCloseEdit();
-  };
   
   const primaryColor =
     team.primaryColor ||
@@ -972,8 +978,10 @@ const kitHomeUrl =
   team.kits?.kit1?.photo_url ||
   "";
 
-  // Mapa del país
-  const countryMapUrl =
+  // Gráfico geográfico de ubicación
+  const locationMapUrl =
+    team.location_map_url ||
+    team.locationMapUrl ||
     team.country_map_url ||
     team.countryMapUrl ||
     "";
@@ -1008,23 +1016,13 @@ const kitHomeUrl =
       {/* CONTENEDOR PRINCIPAL */}
       <div className="relative z-10">
         <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl">
-          {/* MARCA DE AGUA DEL ESCUDO */}
-          {team.logo && (
+          {/* GRÁFICO GEOGRÁFICO DE UBICACIÓN */}
+          {locationMapUrl && (
             <img
-              src={team.logo}
+              src={locationMapUrl}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute -right-32 top-1/2 z-0 h-[520px] w-[520px] -translate-y-1/2 object-contain opacity-[0.08] grayscale md:h-[760px] md:w-[760px]"
-            />
-          )}
-
-          {/* MAPA DEL PAÍS */}
-          {countryMapUrl && (
-            <img
-              src={countryMapUrl}
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 right-0 z-0 w-[38%] max-w-[420px] opacity-[0.09] grayscale"
+              className="pointer-events-none absolute bottom-6 right-6 z-0 w-[30%] max-w-[300px] opacity-60 grayscale"
             />
           )}
 
@@ -1290,8 +1288,7 @@ const kitHomeUrl =
                 setEditPanelOpen(false);
                 onCloseEdit();
               }}
-              onSubmit={handleEditSubmit}
-              isEditing
+              onSubmit={onSubmit}
             />
           )}
         </div>
@@ -1557,6 +1554,7 @@ export default function Teams() {
       countryId: form.countryId.trim(),
       countryCode: form.countryCode.trim().toUpperCase(),
       countryMapUrl: form.countryMapUrl.trim(),
+      locationMapUrl: form.locationMapUrl.trim(),
       leagueId: form.leagueId.trim(),
       newLeagueName: form.newLeagueName.trim(),
       season: form.season.trim(),
@@ -1702,9 +1700,8 @@ setCountries((currentCountries) => {
         .replace(/[^A-Z0-9]/g, "")
         .slice(0, 12) || `TEAM${Date.now()}`;
 
-      const editingTeamId = editingTeam?.id || editingTeam?._id;
-      const savedTeam = editingTeamId
-  ? await base44.entities.Team.update(editingTeamId, {
+      const savedTeam = editingTeam
+  ? await base44.entities.Team.update(editingTeam.id, {
     name: newTeam.name,
     short_name: newTeam.shortName,
     code: generatedCode,
@@ -1712,24 +1709,12 @@ setCountries((currentCountries) => {
     country_id: countryId,
     city: newTeam.city,
     logo: newTeam.logo,
-country_map_url: newTeam.countryMapUrl,
-      country_code: newTeam.countryCode,
-      league_id: leagueId || null,
-      season: newTeam.season,
-      primary_color: newTeam.primaryColor,
+location_map_url: newTeam.locationMapUrl,
+primary_color: newTeam.primaryColor,
 secondary_color: newTeam.secondaryColor,
 kit1_photo_url: newTeam.kit1PhotoUrl,
 kit2_photo_url: newTeam.kit2PhotoUrl,
 kit3_photo_url: newTeam.kit3PhotoUrl,
-    kit1_shop_url: newTeam.kit1ShopUrl,
-    kit1_badge_bg: newTeam.kit1BadgeBg,
-    kit1_badge_text: newTeam.kit1BadgeText,
-    kit2_shop_url: newTeam.kit2ShopUrl,
-    kit2_badge_bg: newTeam.kit2BadgeBg,
-    kit2_badge_text: newTeam.kit2BadgeText,
-    kit3_shop_url: newTeam.kit3ShopUrl,
-    kit3_badge_bg: newTeam.kit3BadgeBg,
-    kit3_badge_text: newTeam.kit3BadgeText,
     founded_year: newTeam.foundedYear,
     stadium_id: newTeam.stadiumId,
     stadium: newTeam.stadium,
@@ -1761,7 +1746,7 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
       country_id: countryId,
       city: newTeam.city,
       logo: newTeam.logo,
-      country_map_url: newTeam.countryMapUrl,
+      location_map_url: newTeam.locationMapUrl,
       primary_color: newTeam.primaryColor,
       secondary_color: newTeam.secondaryColor,
       kit1_photo_url: newTeam.kit1PhotoUrl,
@@ -1836,7 +1821,8 @@ if (leagueId) {
   }
 }
 
-  const teamAfterSave = {
+  setTeams((currentTeams) => {
+  const updatedTeam = {
     ...newTeam,
     id: savedTeam.id,
     competition: selectedLeague?.name || "Without competition",
@@ -1844,19 +1830,14 @@ if (leagueId) {
     season: savedRelation?.season || newTeam.season || "",
   };
 
-  setTeams((currentTeams) => {
-    if (editingTeamId) {
-      return currentTeams.map((team) =>
-        String(team.id) === String(editingTeamId) ? teamAfterSave : team
-      );
-    }
-
-    return [...currentTeams, teamAfterSave];
-  });
-
-  if (editingTeamId) {
-    setSelectedTeam(teamAfterSave);
+  if (editingTeam) {
+    return currentTeams.map((team) =>
+      team.id === editingTeam.id ? updatedTeam : team
+    );
   }
+
+  return [...currentTeams, updatedTeam];
+});
 
   setForm(emptyTeamForm);
 setEditingTeam(null);
@@ -2000,7 +1981,6 @@ setActiveFilter("countries");
   setEditingTeam(null);
 }}
     onSubmit={handleAddTeam}
-     isEditing={Boolean(editingTeam?.id || editingTeam?._id)}
   />
 )}
       {importJsonModalOpen && <ImportTeamJsonModal onClose={() => setImportJsonModalOpen(false)} onImport={handleImportJson} />}
