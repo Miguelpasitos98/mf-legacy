@@ -1304,24 +1304,6 @@ const kitsOverviewUrl =
                 </div>
               </div>
 
-{/* IMAGEN PRINCIPAL: TRES EQUIPACIONES EN UNA ÚNICA IMAGEN */}
-{kitsOverviewUrl || kitHomeUrl ? (
-  <div className="relative z-20 flex min-h-[520px] w-full items-center justify-center md:min-h-[700px]">
-    <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-3xl md:h-[520px] md:w-[520px]" />
-    <img
-      src={kitsOverviewUrl || kitHomeUrl}
-      alt={kitsOverviewUrl ? `${teamName} tres equipaciones` : `${teamName} camiseta local`}
-      className="relative z-10 mx-auto h-auto max-h-[520px] w-auto max-w-[100%] object-contain drop-shadow-[0_30px_35px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-[1.04] md:max-h-[700px] md:max-w-[850px]"
-    />
-  </div>
-) : (
-  <div className="relative z-20 flex min-h-[520px] w-full items-center justify-center md:min-h-[700px]">
-    <p className="text-center text-xs uppercase tracking-[0.3em] text-white/60">
-      Añade la imagen de las tres equipaciones
-    </p>
-  </div>
-)}
-
               {/* IDENTIDAD DEL CLUB */}
               <div className="relative z-20 mt-5 text-center md:mt-2">
                 <p className="team-section-label text-[10px] text-white/60">
@@ -1405,13 +1387,31 @@ const kitsOverviewUrl =
           data-scroll-section
           className="mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
         >
-          <div className="mx-auto flex min-h-[80vh] max-w-5xl flex-col justify-center">
-            <p className="team-section-label text-xs uppercase tracking-[0.3em] text-white/70">MF LEGACY · CLUB HISTORY</p>
-            <h2 className="mt-4 text-5xl font-black uppercase text-white md:text-8xl">History</h2>
-            <div className="mt-10 max-w-3xl border-l-2 border-white/30 pl-5">
-              <p className="text-sm leading-7 text-white/80 md:text-base">
-                {team.history || "Añade la historia del club desde Team profile para mostrarla aquí."}
-              </p>
+          <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 md:grid-cols-[1fr_1fr]">
+            <div>
+              <p className="team-section-label text-xs uppercase tracking-[0.3em] text-white/70">MF LEGACY · CLUB HISTORY</p>
+              <h2 className="mt-4 text-5xl font-black uppercase text-white md:text-8xl">History</h2>
+              <div className="mt-10 max-w-3xl border-l-2 border-white/30 pl-5">
+                <p className="text-sm leading-7 text-white/80 md:text-base">
+                  {team.history || "Añade la historia del club desde Team profile para mostrarla aquí."}
+                </p>
+              </div>
+            </div>
+            <div className="relative flex min-h-[360px] items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/10 p-5 md:min-h-[520px]">
+              {kitsOverviewUrl || kitHomeUrl ? (
+                <>
+                  <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-3xl md:h-[420px] md:w-[420px]" />
+                  <img
+                    src={kitsOverviewUrl || kitHomeUrl}
+                    alt={kitsOverviewUrl ? `${teamName} tres equipaciones` : `${teamName} camiseta local`}
+                    className="relative z-10 mx-auto h-auto max-h-[460px] w-full object-contain drop-shadow-[0_25px_30px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-[1.04]"
+                  />
+                </>
+              ) : (
+                <p className="text-center text-xs uppercase tracking-[0.3em] text-white/60">
+                  Añade la imagen de las tres equipaciones
+                </p>
+              )}
             </div>
           </div>
         </section>
