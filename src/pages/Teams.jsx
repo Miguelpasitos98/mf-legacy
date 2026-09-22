@@ -913,6 +913,12 @@ function TeamDetail({
   onSubmit,
 }) {
   const [editPanelOpen, setEditPanelOpen] = useState(false);
+
+  const handleEditSubmit = async (...args) => {
+    await onSubmit(...args);
+    setEditPanelOpen(false);
+    onCloseEdit();
+  };
   
   const primaryColor =
     team.primaryColor ||
@@ -1284,7 +1290,7 @@ const kitHomeUrl =
                 setEditPanelOpen(false);
                 onCloseEdit();
               }}
-              onSubmit={onSubmit}
+              onSubmit={handleEditSubmit}
               isEditing
             />
           )}
