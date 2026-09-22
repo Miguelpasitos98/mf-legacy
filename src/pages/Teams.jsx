@@ -1449,6 +1449,7 @@ const kitsOverviewUrl =
               <span className="mt-2 text-[8px] uppercase tracking-[0.25em] text-white/45 transition-colors duration-300 group-hover:text-white/80">
                 Back to identity ←
               </span>
+            </span>
 
             <span className="flex h-16 w-1 flex-col">
               <div
