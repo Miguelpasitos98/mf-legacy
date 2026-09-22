@@ -829,6 +829,8 @@ function ImportTeamJsonModal({ onClose, onImport }) {
 
 
 function TeamDetail({ team, onClose }) {
+  const [editPanelOpen, setEditPanelOpen] = useState(false);
+  
   const primaryColor =
     team.primaryColor ||
     team.primary_color ||
@@ -947,9 +949,13 @@ const kitHomeUrl =
               ← Volver a equipos
             </button>
 
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/75">
-              Team profile
-            </span>
+            <button
+  type="button"
+  onClick={() => setEditPanelOpen(true)}
+  className="cursor-pointer rounded-sm text-[10px] font-bold uppercase tracking-[0.3em] text-white/75 transition hover:text-white focus:outline-none focus:ring-1 focus:ring-white/60"
+>
+  Team profile
+</button>
           </div>
 
           {/* COMPOSICIÓN PRINCIPAL */}
