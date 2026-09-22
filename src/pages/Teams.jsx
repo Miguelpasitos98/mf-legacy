@@ -1742,7 +1742,17 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
 if (leagueId) {
   const existingRelations = await base44.entities.TeamLeague.list();
 
-  const currentRelation = getList(existingRelations).find((relation) => {
+  const currentRelation = (
+  Array.isArray(existingRelations)
+    ? existingRelations
+    : Array.isArray(existingRelations?.data)
+      ? existingRelations.data
+      : Array.isArray(existingRelations?.items)
+        ? existingRelations.items
+        : Array.isArray(existingRelations?.results)
+          ? existingRelations.results
+          : []
+).find((relation) => {
     const relationTeamId = relation.team_id || relation.teamId;
     const isCurrent = relation.is_current ?? relation.isCurrent ?? true;
 
