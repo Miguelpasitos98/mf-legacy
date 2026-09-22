@@ -985,8 +985,13 @@ function TeamDetail({
 
     setIsPageTransitioning(true);
 
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = targetSection.getBoundingClientRect();
+    const targetTop =
+      container.scrollTop + (targetRect.top - containerRect.top);
+
     container.scrollTo({
-      top: targetSection.offsetTop,
+      top: targetTop,
       behavior: "smooth",
     });
 
@@ -1070,9 +1075,11 @@ const kitsOverviewUrl =
   return (
     <div
       ref={detailScrollRef}
-      className="relative h-[calc(100vh-0px)] overflow-y-hidden overscroll-none p-3 sm:p-4 md:p-6"
+      className="relative h-[calc(100vh-0px)] overflow-y-auto overscroll-none p-3 sm:p-4 md:p-6 [&::-webkit-scrollbar]:hidden"
       style={{
         backgroundColor: primaryColor,
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
       }}
     >
       {/* FONDO SECUNDARIO DIAGONAL */}
@@ -1442,7 +1449,6 @@ const kitsOverviewUrl =
               <span className="mt-2 text-[8px] uppercase tracking-[0.25em] text-white/45 transition-colors duration-300 group-hover:text-white/80">
                 Back to identity ←
               </span>
-            </span>
 
             <span className="flex h-16 w-1 flex-col">
               <div
