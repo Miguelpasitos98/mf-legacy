@@ -1022,7 +1022,7 @@ const kitHomeUrl =
               src={locationMapUrl}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-2 right-4 z-0 h-[86%] w-auto max-w-[68%] object-contain opacity-20 grayscale"
+              className="pointer-events-none absolute bottom-10 right-4 z-0 h-[86%] w-auto max-w-[68%] object-contain opacity-20 grayscale"
             />
           )}
 
