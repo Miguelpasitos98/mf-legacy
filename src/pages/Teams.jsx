@@ -1106,8 +1106,12 @@ const kitHomeUrl =
                 </p>
 
                 {/* NOMBRE PRINCIPAL */}
-<h1 className="team-display-title max-w-none whitespace-nowrap text-5xl text-white sm:text-7xl md:text-[8rem]">
-  {displayName}
+<h1 className="team-display-title max-w-none text-5xl text-white sm:text-7xl md:text-[8rem]">
+  {displayName.split(" ").map((word, index) => (
+    <span key={index} className="block">
+      {word}
+    </span>
+  ))}
 </h1>
 
                 <p className="team-section-label mt-7 text-[9px] text-white/65 sm:text-xs">
