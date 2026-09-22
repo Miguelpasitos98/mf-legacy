@@ -1291,14 +1291,25 @@ const kitsOverviewUrl =
 
               {/* CAMISETA PRINCIPAL */}
               {kitHomeUrl && (
-                <div className="relative z-10 flex w-full items-center justify-center px-4 py-6 md:absolute md:left-1/2 md:top-1/2 md:w-[68%] md:-translate-x-1/2 md:-translate-y-1/2 md:px-0">
+                <div className="relative z-10 flex w-full items-center justify-center px-8 py-6 md:absolute md:left-1/2 md:top-1/2 md:w-[52%] md:-translate-x-1/2 md:-translate-y-1/2 md:px-0">
                   <img
-  src={kitHomeUrl}
-  alt={`${teamName} primera equipación`}
-  className="max-h-[520px] w-full max-w-[520px] object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-105 sm:max-h-[560px] sm:max-w-[560px] md:max-h-[650px] md:max-w-[620px]"
-/>
+                    src={kitHomeUrl}
+                    alt={`${teamName} primera equipación`}
+                    className="max-h-[340px] w-full max-w-[330px] object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-105 sm:max-h-[400px] md:max-h-[470px]"
+                  />
                 </div>
               )}
+
+              {/* IDENTIDAD DEL CLUB */}
+              <div className="relative z-20 mt-5 text-center md:mt-2">
+                <p className="team-section-label text-[10px] text-white/60">
+                  {shortName || city || "Football Club"}
+                </p>
+
+                <h2 className="mt-3 font-display text-xl font-bold uppercase tracking-[0.25em] text-white sm:text-2xl">
+                  {city || country || "Legacy"}
+                </h2>
+              </div>
 
               {/* NAVEGACIÓN A LA SIGUIENTE PÁGINA */}
               <button
@@ -1384,7 +1395,7 @@ const kitsOverviewUrl =
         {/* SECCIÓN 2: HISTORIA DEL CLUB */}
         <section
           data-scroll-section
-          className="mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
+          className="relative mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
         >
           <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 md:grid-cols-[1fr_1fr]">
             <div>
@@ -1440,7 +1451,7 @@ const kitsOverviewUrl =
         {/* SECCIÓN 3: ESTADIO Y PERSONAL */}
         <section
           data-scroll-section
-          className="mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
+          className="relative mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
         >
           <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 md:grid-cols-2">
             <div>
