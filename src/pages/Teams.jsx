@@ -1016,14 +1016,25 @@ const kitHomeUrl =
       {/* CONTENEDOR PRINCIPAL */}
       <div className="relative z-10">
         <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl">
-          {/* GRÁFICO GEOGRÁFICO DE UBICACIÓN */}
+          {/* GRÁFICO GEOGRÁFICO DE UBICACIÓN — DOBLE CAPA */}
           {locationMapUrl && (
-            <img
-              src={locationMapUrl}
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none absolute bottom-10 right-4 z-0 h-[86%] w-auto max-w-[68%] object-contain opacity-20 grayscale"
-            />
+            <>
+              {/* Capa inferior: mapa atenuado */}
+              <img
+                src={locationMapUrl}
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-10 right-4 z-0 h-[86%] w-auto max-w-[68%] object-contain opacity-20 grayscale"
+              />
+
+              {/* Capa superior: misma imagen sin opacidad para recuperar el escudo */}
+              <img
+                src={locationMapUrl}
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-10 right-4 z-[1] h-[86%] w-auto max-w-[68%] object-contain grayscale"
+              />
+            </>
           )}
 
           {/* CABECERA INTEGRADA */}
