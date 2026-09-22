@@ -1271,7 +1271,21 @@ const kitHomeUrl =
                 backgroundColor: secondaryColor,
               }}
             />
-          </div>
+                    </div>
+
+          {editPanelOpen && (
+            <AddTeamModal
+              form={form}
+              setForm={setForm}
+              countries={countries}
+              leagues={leagues}
+              onClose={() => {
+                setEditPanelOpen(false);
+                onCloseEdit();
+              }}
+              onSubmit={onSubmit}
+            />
+          )}
         </div>
       </div>
     </div>
