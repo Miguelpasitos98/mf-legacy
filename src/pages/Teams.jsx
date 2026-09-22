@@ -1306,6 +1306,12 @@ export default function Teams() {
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [editingTeam, setEditingTeam] = useState(null);
 
+  const handleOpenAddTeam = () => {
+    setEditingTeam(null);
+    setForm({ ...emptyTeamForm });
+    setAddModalOpen(true);
+  };
+
   useEffect(() => {
   if (editingTeam) {
     setForm(mapTeamToForm(editingTeam));
@@ -1907,7 +1913,8 @@ setActiveFilter("countries");
             <FileJson size={17} strokeWidth={2} />
           </button>
 
-<button type="button" onClick={() => { setForm(emptyTeamForm); setEditingTeam(null); setAddModalOpen(true); }} className="mt-5 rounded-xl bg-[#003399] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#002477]">Add first team</button>            <Plus size={18} strokeWidth={2} />
+          <button type="button" onClick={handleOpenAddTeam} className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003399] text-white transition hover:bg-[#002477]" aria-label="Add team" title="Add team">
+            <Plus size={18} strokeWidth={2} />
           </button>
         </div>
       </div>
@@ -1953,7 +1960,7 @@ setActiveFilter("countries");
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-50"><CircleAlert size={22} className="text-slate-400" /></div>
           <h2 className="mt-4 text-base font-bold text-slate-800">No teams found</h2>
           <p className="mt-2 text-sm text-slate-500">Add your first team using the plus button.</p>
-          <button type="button" onClick={() => setAddModalOpen(true)} className="mt-5 rounded-xl bg-[#003399] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#002477]">Add first team</button>
+          <button type="button" onClick={handleOpenAddTeam} className="mt-5 rounded-xl bg-[#003399] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#002477]">Add first team</button>
         </div>
       )}
 
