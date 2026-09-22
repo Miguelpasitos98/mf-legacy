@@ -1907,8 +1907,7 @@ setActiveFilter("countries");
             <FileJson size={17} strokeWidth={2} />
           </button>
 
-          <button type="button" onClick={() => setAddModalOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003399] text-white transition hover:bg-[#002477]" aria-label="Add team" title="Add team">
-            <Plus size={18} strokeWidth={2} />
+<button type="button" onClick={() => { setForm(emptyTeamForm); setEditingTeam(null); setAddModalOpen(true); }} className="mt-5 rounded-xl bg-[#003399] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#002477]">Add first team</button>            <Plus size={18} strokeWidth={2} />
           </button>
         </div>
       </div>
