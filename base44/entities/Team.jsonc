@@ -19,9 +19,13 @@
       "type": "string",
       "description": "Ciudad del equipo"
     },
-    "location_map_url": {
-      "type": "string",
-      "description": "URL de la imagen geográfica del país con la ubicación de la ciudad del equipo"
+    "country_map_url": {
+  "type": "string",
+  "description": "URL de la imagen del contorno del país"
+},
+"country_team_map_url": {
+  "type": "string",
+  "description": "URL de la imagen del contorno del país con el escudo del equipo situado en su ciudad"
 },
     "logo": {
       "type": "string",
