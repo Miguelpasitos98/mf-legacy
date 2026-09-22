@@ -1038,7 +1038,7 @@ const kitHomeUrl =
               src={countryMapUrl}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-[150px] right-4 z-0 h-[70%] w-auto max-w-[55%] object-contain opacity-25 grayscale"
+              className="pointer-events-none absolute bottom-[150px] right-4 z-0 h-[70%] w-auto max-w-[55%] object-contain opacity-35 grayscale"
             />
           )}
           {countryTeamMapUrl && (
