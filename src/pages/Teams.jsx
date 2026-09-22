@@ -1384,7 +1384,7 @@ const kitsOverviewUrl =
         {/* SECCIÓN 2: HISTORIA DEL CLUB */}
         <section
           data-scroll-section
-          className="mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
+          className="relative mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
         >
           <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 md:grid-cols-[1fr_1fr]">
             <div>
@@ -1421,18 +1421,43 @@ const kitsOverviewUrl =
             disabled={isPageTransitioning}
             aria-label="Volver a la página principal"
             className={`group absolute bottom-8 right-6 flex items-center gap-3 text-right transition-all duration-500 sm:right-10 md:right-12 ${
-              isPageTransitioning ? "translate-x-2 opacity-50" : "hover:-translate-x-1"
+              isPageTransitioning
+                ? "translate-x-2 opacity-50"
+                : "hover:-translate-x-1"
             }`}
           >
             <span className="flex flex-col">
-              <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">Tradition</span>
-              <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">Identity</span>
-              <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">Legacy</span>
-              <span className="mt-2 text-[8px] uppercase tracking-[0.25em] text-white/45 transition-colors duration-300 group-hover:text-white/80">Back to identity ←</span>
+              <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
+                Tradition
+              </span>
+
+              <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
+                Identity
+              </span>
+
+              <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
+                Legacy
+              </span>
+
+              <span className="mt-2 text-[8px] uppercase tracking-[0.25em] text-white/45 transition-colors duration-300 group-hover:text-white/80">
+                Back to identity ←
+              </span>
             </span>
+
             <span className="flex h-16 w-1 flex-col">
-              <div className="h-1/2" style={{ backgroundColor: primaryColor }} />
-              <div className="h-1/2" style={{ backgroundColor: secondaryColor }} />
+              <div
+                className="h-1/2"
+                style={{
+                  backgroundColor: primaryColor,
+                }}
+              />
+
+              <div
+                className="h-1/2"
+                style={{
+                  backgroundColor: secondaryColor,
+                }}
+              />
             </span>
           </button>
         </section>
