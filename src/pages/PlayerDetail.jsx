@@ -261,7 +261,7 @@ export default function PlayerDetail({ player, team, onBack }) {
                 drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
                 lg:absolute
                 lg:left-1/2
-                lg:bottom-0
+                lg:bottom-[-120px]
                 lg:h-[1100px]
                 lg:w-auto
                 lg:max-w-none
