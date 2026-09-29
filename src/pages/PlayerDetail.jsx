@@ -55,7 +55,7 @@ export default function PlayerDetail({ player, team, onBack }) {
   const lastName = rest.join(" ");
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#eef1f5] text-slate-900">
+    <main className="relative h-screen overflow-hidden bg-[#eef1f5] text-slate-900">
       <div className="absolute inset-0 bg-[linear-gradient(110deg,#eef1f5_0%,#eef1f5_53%,#dfe4ea_53%,#dfe4ea_100%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
 
@@ -82,12 +82,12 @@ export default function PlayerDetail({ player, team, onBack }) {
         </button>
       </header>
 
-      <section className="relative z-10 grid min-h-[calc(100vh-76px)] grid-cols-1 items-center gap-4 px-6 pb-10 pt-2 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20">
+      <section className="relative z-10 grid h-[calc(100vh-76px)] grid-cols-1 items-center gap-4 overflow-visible px-6 pt-2 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20">
         <div className="pointer-events-none absolute bottom-[2%] left-[3%] select-none whitespace-nowrap text-[clamp(5rem,14vw,15rem)] font-black uppercase leading-[0.72] tracking-[-0.09em] text-slate-900/[0.055]">
           {playerName}
         </div>
 
-        <div className="relative z-20 flex min-h-[460px] flex-col justify-center py-8 lg:min-h-[560px]">
+        <div className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0">
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.28em] text-slate-400">
             Player profile
           </p>
@@ -141,7 +141,7 @@ export default function PlayerDetail({ player, team, onBack }) {
           </div>
         </div>
 
-        <div className="relative z-20 flex min-h-[500px] items-center justify-center lg:min-h-[560px]">
+        <div className="relative z-20 flex h-[calc(100vh-76px)] min-h-0 items-end justify-center overflow-visible">
           <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[clamp(12rem,25vw,24rem)] font-black leading-none tracking-[-0.1em] text-[#003399]/[0.06]">
             {age ?? ""}
           </div>
@@ -150,7 +150,7 @@ export default function PlayerDetail({ player, team, onBack }) {
             <img
               src={photoUrl}
               alt={playerName}
-              className="relative z-10 max-h-[620px] w-full max-w-[520px] object-contain object-bottom drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]"
+              className="relative z-10 h-full w-auto max-w-none object-contain object-bottom drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)] lg:absolute lg:bottom-0 lg:left-1/2 lg:h-[calc(100vh-76px)] lg:w-auto lg:max-w-none lg:-translate-x-1/2"
             />
           ) : (
             <div className="relative z-10 flex h-[420px] w-[320px] items-center justify-center rounded-[2rem] border border-slate-300 bg-white/60 text-slate-300">
@@ -159,7 +159,7 @@ export default function PlayerDetail({ player, team, onBack }) {
           )}
         </div>
 
-        <aside className="relative z-20 flex min-h-[460px] flex-col justify-center py-8 lg:min-h-[560px]">
+        <aside className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0">
           <div className="rounded-2xl border border-white/70 bg-white/70 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.07)] backdrop-blur-sm">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
               Current club
