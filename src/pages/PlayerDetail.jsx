@@ -55,11 +55,11 @@ export default function PlayerDetail({ player, team, onBack }) {
   const lastName = rest.join(" ");
 
   return (
-    <main className="relative h-screen overflow-hidden bg-[#eef1f5] text-slate-900">
+    <main className="relative h-full min-h-0 overflow-hidden bg-[#eef1f5] text-slate-900">
       <div className="absolute inset-0 bg-[linear-gradient(110deg,#eef1f5_0%,#eef1f5_53%,#dfe4ea_53%,#dfe4ea_100%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
 
-      <header className="relative z-20 flex items-center justify-between px-6 py-5 md:px-10 lg:px-14">
+      <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-6 py-5 md:px-10 lg:px-14">
         <button
           type="button"
           onClick={onBack}
@@ -82,7 +82,7 @@ export default function PlayerDetail({ player, team, onBack }) {
         </button>
       </header>
 
-      <section className="relative z-10 grid h-[calc(100vh-76px)] grid-cols-1 items-center gap-4 overflow-visible px-6 pt-2 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20">
+      <section className="relative z-10 grid h-full min-h-0 grid-cols-1 items-center gap-4 overflow-visible px-6 pb-2 pt-20 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20">
         <div className="pointer-events-none absolute bottom-[2%] left-[3%] select-none whitespace-nowrap text-[clamp(5rem,14vw,15rem)] font-black uppercase leading-[0.72] tracking-[-0.09em] text-slate-900/[0.055]">
           {playerName}
         </div>
@@ -141,7 +141,7 @@ export default function PlayerDetail({ player, team, onBack }) {
           </div>
         </div>
 
-        <div className="relative z-20 flex h-[calc(100vh-76px)] min-h-0 items-end justify-center overflow-visible">
+        <div className="relative z-20 flex h-full min-h-0 items-end justify-center overflow-visible">
           <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[clamp(12rem,25vw,24rem)] font-black leading-none tracking-[-0.1em] text-[#003399]/[0.06]">
             {age ?? ""}
           </div>
@@ -150,7 +150,7 @@ export default function PlayerDetail({ player, team, onBack }) {
             <img
               src={photoUrl}
               alt={playerName}
-              className="relative z-10 h-full w-auto max-w-none object-contain object-bottom drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)] lg:absolute lg:bottom-0 lg:left-1/2 lg:h-[calc(100vh-76px)] lg:w-auto lg:max-w-none lg:-translate-x-1/2"
+              className="relative z-10 h-full w-auto max-w-none object-contain object-bottom drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)] lg:absolute lg:bottom-0 lg:left-1/2 lg:h-full lg:w-auto lg:max-w-none lg:-translate-x-1/2"
             />
           ) : (
             <div className="relative z-10 flex h-[420px] w-[320px] items-center justify-center rounded-[2rem] border border-slate-300 bg-white/60 text-slate-300">
