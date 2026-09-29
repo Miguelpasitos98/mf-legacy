@@ -1,0 +1,18 @@
+{
+  "name": {
+    "type": "string",
+    "description": "Nombre completo del jugador"
+  },
+  "date_of_birth": {
+    "type": "string",
+    "description": "Fecha de nacimiento del jugador"
+  },
+  "team_id": {
+    "type": "string",
+    "description": "ID del club asociado al jugador"
+  },
+  "photo_url": {
+    "type": "string",
+    "description": "URL de la fotografía del jugador"
+  }
+}
