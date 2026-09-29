@@ -214,12 +214,25 @@ export default function Players() {
     setErrorMessage("");
 
     try {
-      await base44.entities.Player.create({
-        name: form.name.trim(),
-        date_of_birth: form.dateOfBirth || "",
-        team_id: form.teamId || "",
-        photo_url: normalizeImageUrl(form.photoUrl),
-      });
+      const playerData = {
+  name: form.name.trim(),
+};
+
+if (form.dateOfBirth) {
+  playerData.date_of_birth = form.dateOfBirth;
+}
+
+if (form.teamId) {
+  playerData.team_id = form.teamId;
+}
+
+const photoUrl = normalizeImageUrl(form.photoUrl);
+
+if (photoUrl) {
+  playerData.photo_url = photoUrl;
+}
+
+await base44.entities.Player.create(playerData);
 
       setAddModalOpen(false);
       setForm({ ...emptyPlayerForm });
