@@ -16,18 +16,18 @@ export default function Layout() {
 
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center"
+      className="min-h-screen w-full flex items-center justify-center overflow-hidden"
       style={{ backgroundColor: "#D1D3D9" }}
     >
       <div
-        className="relative w-[96vw] h-[82vh] flex overflow-hidden rounded-[20px]"
+        className="relative w-[96vw] h-[82vh] flex overflow-visible rounded-[20px]"
         style={{
           backgroundColor: "#E8E9EC",
           boxShadow:
             "0 24px 70px -20px rgba(20,30,60,0.28), 0 8px 24px -12px rgba(20,30,60,0.18)",
         }}
       >
-        <div className="relative z-10 flex h-full w-full">
+        <div className="relative z-10 flex h-full w-full overflow-visible">
           {sidebarVisible &&
             !location.pathname.startsWith("/teams") && (
               <Sidebar
@@ -39,10 +39,10 @@ export default function Layout() {
               />
             )}
 
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-visible">
             <TopNavbar />
 
-            <main className="flex-1 overflow-auto">
+            <main className="flex-1 min-h-0 overflow-visible">
               <Outlet
                 context={{
                   setTeamTheme,
