@@ -150,7 +150,7 @@ export default function PlayerDetail({ player, team, onBack }) {
             <img
               src={photoUrl}
               alt={playerName}
-              className="relative z-10 h-full w-auto max-w-none object-contain object-bottom drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)] lg:absolute lg:bottom-0 lg:left-1/2 lg:h-full lg:w-auto lg:max-w-none lg:-translate-x-1/2"
+              className="relative z-10 h-full w-auto max-w-none object-contain object-bottom drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)] lg:absolute lg:bottom-[-150px] lg:left-1/2 lg:h-[calc(100%+150px)] lg:w-auto lg:max-w-none lg:-translate-x-1/2"
             />
           ) : (
             <div className="relative z-10 flex h-[420px] w-[320px] items-center justify-center rounded-[2rem] border border-slate-300 bg-white/60 text-slate-300">
