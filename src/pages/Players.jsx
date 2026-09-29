@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import { Search, Plus, X, Users, CalendarDays, Building2 } from "lucide-react";
-import PlayerDetail from "@/components/PlayerDetail";
+import PlayersDetail from "@/pages/PlayersDetail";
 
 import { base44 } from "@/api/base44Client";
 
@@ -242,7 +242,7 @@ export default function Players() {
 
   if (selectedPlayer) {
     return (
-      <PlayerDetail
+      <PlayersDetail
         player={selectedPlayer}
         team={teamById[selectedPlayer.teamId]}
         onBack={() => setSelectedPlayer(null)}
