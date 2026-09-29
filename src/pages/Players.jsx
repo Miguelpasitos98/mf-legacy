@@ -214,34 +214,45 @@ export default function Players() {
     setErrorMessage("");
 
     try {
+      // Only send fields that contain a value.
+      // This keeps optional Base44 fields out of the payload when empty.
       const playerData = {
-  name: form.name.trim(),
-};
+        name: form.name.trim(),
+      };
 
-if (form.dateOfBirth) {
-  playerData.date_of_birth = form.dateOfBirth;
-}
+      if (form.dateOfBirth) {
+        playerData.date_of_birth = form.dateOfBirth;
+      }
 
-if (form.teamId) {
-  playerData.team_id = form.teamId;
-}
+      if (form.teamId) {
+        playerData.team_id = String(form.teamId);
+      }
 
-const photoUrl = normalizeImageUrl(form.photoUrl);
+      const photoUrl = normalizeImageUrl(form.photoUrl);
 
-if (photoUrl) {
-  playerData.photo_url = photoUrl;
-}
+      if (photoUrl) {
+        playerData.photo_url = photoUrl;
+      }
 
-await base44.entities.Player.create(playerData);
+      console.log("Creating player:", playerData);
+
+      await base44.entities.Player.create(playerData);
 
       setAddModalOpen(false);
       setForm({ ...emptyPlayerForm });
       await loadData();
     } catch (error) {
       console.error("Error creating player:", error);
-      setErrorMessage(
-        "No se ha podido crear el jugador. Revisa los campos de la entidad Player."
-      );
+
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.data?.message ||
+        error?.data?.error ||
+        error?.message ||
+        "Error desconocido al crear el jugador.";
+
+      setErrorMessage(`No se ha podido crear el jugador: ${message}`);
     } finally {
       setIsSaving(false);
     }
