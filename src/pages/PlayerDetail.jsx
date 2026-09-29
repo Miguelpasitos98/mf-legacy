@@ -259,7 +259,7 @@ export default function PlayerDetail({ player, team, onBack }) {
                 lg:absolute
                 lg:bottom-[-80px]
                 lg:left-1/2
-                lg:h-[900px]
+                lg:h-[1100px]
                 lg:w-auto
                 lg:max-w-none
                 lg:-translate-x-1/2
