@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import { Search, Plus, X, Users, CalendarDays, Building2 } from "lucide-react";
-import PlayersDetail from "@/pages/PlayersDetail";
+import PlayersDetail from "@/pages/PlayerDetail";
 
 import { base44 } from "@/api/base44Client";
 
