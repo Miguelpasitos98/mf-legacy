@@ -1,4 +1,3 @@
-
 import React from "react";
 import { ChevronDown } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -17,6 +16,10 @@ export default function TopNavbar() {
     { label: "COUNTRIES", path: "/countries" },
   ];
 
+  const handleNavigation = (path) => {
+    navigate(path);
+  };
+
   return (
     <header className="relative flex h-16 shrink-0 items-center justify-center border-b border-black/5 bg-white">
       {/* Navegación principal de fútbol */}
@@ -25,13 +28,17 @@ export default function TopNavbar() {
           const isActive =
             location.pathname === item.path ||
             (item.path === "/countries" &&
-              location.pathname.startsWith("/countries/"));
+              location.pathname.startsWith("/countries/")) ||
+            (item.path === "/teams" &&
+              location.pathname.startsWith("/teams/")) ||
+            (item.path === "/players" &&
+              location.pathname.startsWith("/players"));
 
           return (
             <button
               key={item.label}
               type="button"
-              onClick={() => navigate(item.path)}
+              onClick={() => handleNavigation(item.path)}
               className={`
                 font-heading
                 text-[13px]
