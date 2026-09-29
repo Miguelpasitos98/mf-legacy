@@ -1,67 +1,22 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React from "react";
+import {
+  ArrowLeft,
+  Menu,
+  CalendarDays,
+  Building2,
+  UserRound,
+} from "lucide-react";
 
-import { Search, Plus, X, Users, CalendarDays, Building2 } from "lucide-react";
+function normalizeImageUrl(value) {
+  if (!value) return "";
+  const url = String(value).trim();
+  if (!url) return "";
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  if (url.startsWith("//")) return `https:${url}`;
+  return `https://${url}`;
+}
 
-import { base44 } from "@/api/base44Client";
-
-const inputClassName =
-  "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
-
-const emptyPlayerForm = {
-  name: "",
-  dateOfBirth: "",
-  teamId: "",
-  photoUrl: "",
-};
-
-const getList = (result) => {
-  if (Array.isArray(result)) return result;
-  if (Array.isArray(result?.data)) return result.data;
-  if (Array.isArray(result?.items)) return result.items;
-  if (Array.isArray(result?.results)) return result.results;
-  return [];
-};
-
-const normalizeImageUrl = (value) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) return "";
-  if (trimmed.startsWith("//")) return `https:${trimmed}`;
-  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-};
-
-const normalizePlayer = (player) => ({
-  ...player,
-  id: player?.id || player?._id || player?.data?.id || "",
-  name: player?.name || player?.full_name || player?.fullName || "",
-  dateOfBirth:
-    player?.date_of_birth ||
-    player?.dateOfBirth ||
-    player?.birth_date ||
-    player?.birthDate ||
-    "",
-  teamId:
-    player?.team_id ||
-    player?.teamId ||
-    player?.club_id ||
-    player?.clubId ||
-    "",
-  photoUrl:
-    player?.photo_url ||
-    player?.photoUrl ||
-    player?.image_url ||
-    player?.imageUrl ||
-    "",
-});
-
-const normalizeTeam = (team) => ({
-  ...team,
-  id: team?.id || team?._id || team?.data?.id || "",
-  name: team?.name || "",
-  logo: team?.logo || team?.logo_url || team?.logoUrl || "",
-});
-
-const formatDate = (value) => {
+function formatDate(value) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -70,462 +25,178 @@ const formatDate = (value) => {
     month: "2-digit",
     year: "numeric",
   }).format(date);
-};
+}
 
-function PlayerCard({ player, team }) {
-  const photoUrl = normalizeImageUrl(player.photoUrl);
-  const teamLogo = normalizeImageUrl(team?.logo);
+function calculateAge(value) {
+  if (!value) return null;
+  const birth = new Date(value);
+  if (Number.isNaN(birth.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const month = today.getMonth() - birth.getMonth();
+
+  if (month < 0 || (month === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
+}
+
+export default function PlayerDetail({ player, team, onBack }) {
+  const playerName = player?.name || "Unnamed player";
+  const photoUrl = normalizeImageUrl(player?.photoUrl || player?.photo_url);
+  const teamLogo = normalizeImageUrl(team?.logo || team?.logo_url);
+  const teamName = team?.name || "No club associated";
+  const dateOfBirth = player?.dateOfBirth || player?.date_of_birth || "";
+  const age = calculateAge(dateOfBirth);
+
+  const [firstName, ...rest] = playerName.split(" ");
+  const lastName = rest.join(" ");
 
   return (
-    <article className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
-      <div className="flex items-center gap-4">
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+    <main className="relative min-h-screen overflow-hidden bg-[#eef1f5] text-slate-900">
+      <div className="absolute inset-0 bg-[linear-gradient(110deg,#eef1f5_0%,#eef1f5_53%,#dfe4ea_53%,#dfe4ea_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
+
+      <header className="relative z-20 flex items-center justify-between px-6 py-5 md:px-10 lg:px-14">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 transition hover:text-[#003399]"
+        >
+          <ArrowLeft size={16} />
+          Back to players
+        </button>
+
+        <div className="text-xs font-black tracking-[0.2em] text-slate-500">
+          MF LEGACY
+        </div>
+
+        <button
+          type="button"
+          className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500"
+          aria-label="Open player menu"
+        >
+          MENU <Menu size={16} />
+        </button>
+      </header>
+
+      <section className="relative z-10 grid min-h-[calc(100vh-76px)] grid-cols-1 items-center gap-4 px-6 pb-10 pt-2 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20">
+        <div className="pointer-events-none absolute bottom-[2%] left-[3%] select-none whitespace-nowrap text-[clamp(5rem,14vw,15rem)] font-black uppercase leading-[0.72] tracking-[-0.09em] text-slate-900/[0.055]">
+          {playerName}
+        </div>
+
+        <div className="relative z-20 flex min-h-[460px] flex-col justify-center py-8 lg:min-h-[560px]">
+          <p className="mb-4 text-xs font-bold uppercase tracking-[0.28em] text-slate-400">
+            Player profile
+          </p>
+
+          <h1 className="max-w-xl text-6xl font-black uppercase leading-[0.82] tracking-[-0.065em] text-slate-950 md:text-7xl xl:text-8xl">
+            <span className="block">{firstName}</span>
+            {lastName && <span className="block">{lastName}</span>}
+          </h1>
+
+          <div className="mt-7 h-px w-24 bg-[#003399]" />
+
+          <div className="mt-7 space-y-4 text-sm">
+            <div className="flex items-center gap-3 text-slate-600">
+              {teamLogo ? (
+                <img src={teamLogo} alt="" className="h-6 w-6 object-contain" />
+              ) : (
+                <Building2 size={17} />
+              )}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Club
+                </p>
+                <p className="font-bold text-slate-900">{teamName}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 text-slate-600">
+              <CalendarDays size={18} />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Date of birth
+                </p>
+                <p className="font-bold text-slate-900">
+                  {formatDate(dateOfBirth)}
+                  {age !== null ? ` · ${age} years` : ""}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 text-slate-600">
+              <UserRound size={18} />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Player ID
+                </p>
+                <p className="max-w-[220px] truncate font-mono text-xs font-semibold text-slate-700">
+                  {player?.id || "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-20 flex min-h-[500px] items-center justify-center lg:min-h-[560px]">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[clamp(12rem,25vw,24rem)] font-black leading-none tracking-[-0.1em] text-[#003399]/[0.06]">
+            {age ?? ""}
+          </div>
+
           {photoUrl ? (
             <img
               src={photoUrl}
-              alt={player.name || "Player"}
-              className="h-full w-full object-cover object-top"
-              onError={(event) => {
-                event.currentTarget.style.display = "none";
-              }}
+              alt={playerName}
+              className="relative z-10 max-h-[620px] w-full max-w-[520px] object-contain object-bottom drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-slate-300">
-              <Users size={28} strokeWidth={1.6} />
+            <div className="relative z-10 flex h-[420px] w-[320px] items-center justify-center rounded-[2rem] border border-slate-300 bg-white/60 text-slate-300">
+              <UsersPlaceholder />
             </div>
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-extrabold text-slate-900">
-            {player.name || "Unnamed player"}
-          </h3>
+        <aside className="relative z-20 flex min-h-[460px] flex-col justify-center py-8 lg:min-h-[560px]">
+          <div className="rounded-2xl border border-white/70 bg-white/70 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.07)] backdrop-blur-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+              Current club
+            </p>
 
-          <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-            <CalendarDays size={14} strokeWidth={1.8} />
-            <span>{formatDate(player.dateOfBirth)}</span>
-          </div>
+            <div className="mt-5 flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-slate-50">
+                {teamLogo ? (
+                  <img src={teamLogo} alt="" className="h-12 w-12 object-contain" />
+                ) : (
+                  <Building2 size={25} className="text-slate-300" />
+                )}
+              </div>
 
-          <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-slate-500">
-            {teamLogo ? (
-              <img
-                src={teamLogo}
-                alt=""
-                className="h-4 w-4 shrink-0 object-contain"
-              />
-            ) : (
-              <Building2 size={14} strokeWidth={1.8} />
-            )}
-            <span className="truncate">
-              {team?.name || "No club associated"}
-            </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black uppercase tracking-tight text-slate-900">
+                  {teamName}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
+                  Official club
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </article>
+        </aside>
+      </section>
+    </main>
   );
 }
 
-export default function Players() {
-  const [players, setPlayers] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [form, setForm] = useState({ ...emptyPlayerForm });
-  const [isSaving, setIsSaving] = useState(false);
-
-  const loadData = async () => {
-    setIsLoading(true);
-    setErrorMessage("");
-
-    try {
-      const [playersResult, teamsResult] = await Promise.all([
-        base44.entities.Player.list(),
-        base44.entities.Team.list(),
-      ]);
-
-      const loadedPlayers = getList(playersResult)
-        .map(normalizePlayer)
-        .filter((player) => player.id || player.name);
-
-      const loadedTeams = getList(teamsResult)
-        .map(normalizeTeam)
-        .filter((team) => team.id && team.name)
-        .sort((a, b) =>
-          a.name.localeCompare(b.name, "es", { sensitivity: "base" })
-        );
-
-      setPlayers(loadedPlayers);
-      setTeams(loadedTeams);
-    } catch (error) {
-      console.error("Error loading players:", error);
-      setErrorMessage(
-        "No se han podido cargar los jugadores. Comprueba que la entidad Player existe en Base44."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const teamById = useMemo(() => {
-    return teams.reduce((map, team) => {
-      map[team.id] = team;
-      return map;
-    }, {});
-  }, [teams]);
-
-  const filteredPlayers = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return players
-      .filter((player) => {
-        if (!query) return true;
-        const team = teamById[player.teamId];
-        return (
-          (player.name || "").toLowerCase().includes(query) ||
-          (team?.name || "").toLowerCase().includes(query)
-        );
-      })
-      .sort((a, b) =>
-        (a.name || "").localeCompare(b.name || "", "es", {
-          sensitivity: "base",
-        })
-      );
-  }, [players, search, teamById]);
-
-  const handleOpenAddPlayer = () => {
-    setForm({ ...emptyPlayerForm });
-    setAddModalOpen(true);
-  };
-
-  const handleSavePlayer = async (event) => {
-    event.preventDefault();
-
-    if (!form.name.trim()) return;
-
-    setIsSaving(true);
-    setErrorMessage("");
-
-    try {
-      // Only send fields that contain a value.
-      // This keeps optional Base44 fields out of the payload when empty.
-      const playerData = {
-        name: form.name.trim(),
-      };
-
-      if (form.dateOfBirth) {
-        playerData.date_of_birth = form.dateOfBirth;
-      }
-
-      if (form.teamId) {
-        playerData.team_id = String(form.teamId);
-      }
-
-      const photoUrl = normalizeImageUrl(form.photoUrl);
-
-      if (photoUrl) {
-        playerData.photo_url = photoUrl;
-      }
-
-      console.log("Creating player:", playerData);
-
-      await base44.entities.Player.create(playerData);
-
-      setAddModalOpen(false);
-      setForm({ ...emptyPlayerForm });
-      await loadData();
-    } catch (error) {
-      console.error("Error creating player:", error);
-
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.data?.message ||
-        error?.data?.error ||
-        error?.message ||
-        "Error desconocido al crear el jugador.";
-
-      setErrorMessage(`No se ha podido crear el jugador: ${message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
+function UsersPlaceholder() {
   return (
-    <div className="relative h-[calc(100vh-0px)] overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
-      <div className="mx-auto max-w-[1800px]">
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-              MF LEGACY
-            </p>
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
-              Players
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Explore and manage the player database.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {searchOpen && (
-              <div className="w-[220px] sm:w-[280px]">
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search players..."
-                  autoFocus
-                  className={inputClassName}
-                />
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                setSearchOpen((open) => !open);
-                if (searchOpen) setSearch("");
-              }}
-              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
-                searchOpen
-                  ? "border-[#003399] bg-[#003399] text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-              }`}
-              aria-label="Search players"
-              title="Search players"
-            >
-              {searchOpen ? <X size={17} /> : <Search size={17} />}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleOpenAddPlayer}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003399] text-white transition hover:bg-[#002477]"
-              aria-label="Add player"
-              title="Add player"
-            >
-              <Plus size={18} />
-            </button>
-          </div>
-        </div>
-
-        {errorMessage && (
-          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
-          </div>
-        )}
-
-        <div className="mb-5 flex items-center justify-between">
-          <div className="text-xs font-medium text-slate-400">
-            {isLoading
-              ? "Loading players..."
-              : `${filteredPlayers.length} ${
-                  filteredPlayers.length === 1 ? "player" : "players"
-                }`}
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-[106px] animate-pulse rounded-2xl border border-slate-200 bg-white"
-              />
-            ))}
-          </div>
-        ) : filteredPlayers.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {filteredPlayers.map((player) => (
-              <PlayerCard
-                key={player.id || `${player.name}-${player.dateOfBirth}`}
-                player={player}
-                team={teamById[player.teamId]}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-300">
-              <Users size={24} />
-            </div>
-
-            <h2 className="mt-4 text-sm font-extrabold text-slate-900">
-              {search ? "No players found" : "No players created yet"}
-            </h2>
-
-            <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-              {search
-                ? "Try another player or club name."
-                : "Create your first player using the + button."}
-            </p>
-
-            {!search && (
-              <button
-                type="button"
-                onClick={handleOpenAddPlayer}
-                className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477]"
-              >
-                <Plus size={16} />
-                Add player
-              </button>
-            )}
-          </div>
-        )}
-
-        {addModalOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) {
-                setAddModalOpen(false);
-              }
-            }}
-          >
-            <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                <div>
-                  <h2 className="text-base font-extrabold text-slate-900">
-                    Add player
-                  </h2>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Create a new player in the database.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setAddModalOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50"
-                  aria-label="Close"
-                >
-                  <X size={17} />
-                </button>
-              </div>
-
-              <form onSubmit={handleSavePlayer} className="space-y-5 p-5">
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Player name
-                  </label>
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
-                    }
-                    placeholder="e.g. Jude Bellingham"
-                    className={inputClassName}
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                      Date of birth
-                    </label>
-                    <input
-                      type="date"
-                      value={form.dateOfBirth}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          dateOfBirth: event.target.value,
-                        }))
-                      }
-                      className={inputClassName}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                      Associated club
-                    </label>
-                    <select
-                      value={form.teamId}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          teamId: event.target.value,
-                        }))
-                      }
-                      className={inputClassName}
-                    >
-                      <option value="">No club</option>
-                      {teams.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {team.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Player photo URL
-                  </label>
-                  <input
-                    type="url"
-                    value={form.photoUrl}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        photoUrl: event.target.value,
-                      }))
-                    }
-                    placeholder="https://..."
-                    className={inputClassName}
-                  />
-                </div>
-
-                {form.photoUrl && (
-                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <img
-                      src={normalizeImageUrl(form.photoUrl)}
-                      alt=""
-                      className="h-16 w-16 rounded-lg object-cover object-top"
-                    />
-                    <div className="text-xs text-slate-500">
-                      Preview of the player photo.
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setAddModalOpen(false)}
-                    className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={isSaving || !form.name.trim()}
-                    className="h-10 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isSaving ? "Saving..." : "Create player"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
+    <div className="flex flex-col items-center gap-3 text-center">
+      <UserRound size={52} strokeWidth={1.2} />
+      <span className="text-[10px] font-bold uppercase tracking-[0.18em]">
+        Add player photo
+      </span>
     </div>
   );
 }
