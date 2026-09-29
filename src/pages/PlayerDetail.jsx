@@ -243,33 +243,24 @@ export default function PlayerDetail({ player, team, onBack }) {
           {/* PLAYER */}
 
           {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt={playerName}
-              className="
-                relative
-                z-20
-                h-full
-                w-auto
-                max-w-none
-                object-contain
-                object-bottom
-                drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
-
-                className="
-  relative z-20
-  w-auto max-w-none
-  object-contain object-bottom
-  drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
-  lg:absolute
-  lg:left-1/2
-  lg:bottom-0
-  lg:h-[1100px]
-  lg:w-auto
-  lg:max-w-none
-  lg:-translate-x-1/2
-"
-            />
+  <img
+    src={photoUrl}
+    alt={playerName}
+    className="
+      relative z-20
+      w-auto max-w-none
+      object-contain object-bottom
+      drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
+      lg:absolute
+      lg:left-1/2
+      lg:bottom-[-80px]
+      lg:h-[1100px]
+      lg:w-auto
+      lg:max-w-none
+      lg:-translate-x-1/2
+    "
+  />
+) : (
           ) : (
             <div className="relative z-20 flex h-[420px] w-[320px] items-center justify-center rounded-[2rem] border border-slate-300 bg-white/60 text-slate-300">
               <UsersPlaceholder />
