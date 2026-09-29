@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import { Search, Plus, X, Users, CalendarDays, Building2 } from "lucide-react";
+import PlayerDetail from "@/components/PlayerDetail";
 
 import { base44 } from "@/api/base44Client";
 
@@ -72,12 +73,16 @@ const formatDate = (value) => {
   }).format(date);
 };
 
-function PlayerCard({ player, team }) {
+function PlayerCard({ player, team, onClick }) {
   const photoUrl = normalizeImageUrl(player.photoUrl);
   const teamLogo = normalizeImageUrl(team?.logo);
 
   return (
-    <article className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
+    <button
+      type="button"
+      onClick={onClick}
+      className="group w-full rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]"
+    >
       <div className="flex items-center gap-4">
         <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
           {photoUrl ? (
@@ -122,7 +127,7 @@ function PlayerCard({ player, team }) {
           </div>
         </div>
       </div>
-    </article>
+    </button>
   );
 }
 
@@ -136,6 +141,7 @@ export default function Players() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [form, setForm] = useState({ ...emptyPlayerForm });
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -214,49 +220,35 @@ export default function Players() {
     setErrorMessage("");
 
     try {
-      // Only send fields that contain a value.
-      // This keeps optional Base44 fields out of the payload when empty.
-      const playerData = {
+      await base44.entities.Player.create({
         name: form.name.trim(),
-      };
-
-      if (form.dateOfBirth) {
-        playerData.date_of_birth = form.dateOfBirth;
-      }
-
-      if (form.teamId) {
-        playerData.team_id = String(form.teamId);
-      }
-
-      const photoUrl = normalizeImageUrl(form.photoUrl);
-
-      if (photoUrl) {
-        playerData.photo_url = photoUrl;
-      }
-
-      console.log("Creating player:", playerData);
-
-      await base44.entities.Player.create(playerData);
+        date_of_birth: form.dateOfBirth || "",
+        team_id: form.teamId || "",
+        photo_url: normalizeImageUrl(form.photoUrl),
+      });
 
       setAddModalOpen(false);
       setForm({ ...emptyPlayerForm });
       await loadData();
     } catch (error) {
       console.error("Error creating player:", error);
-
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.data?.message ||
-        error?.data?.error ||
-        error?.message ||
-        "Error desconocido al crear el jugador.";
-
-      setErrorMessage(`No se ha podido crear el jugador: ${message}`);
+      setErrorMessage(
+        "No se ha podido crear el jugador. Revisa los campos de la entidad Player."
+      );
     } finally {
       setIsSaving(false);
     }
   };
+
+  if (selectedPlayer) {
+    return (
+      <PlayerDetail
+        player={selectedPlayer}
+        team={teamById[selectedPlayer.teamId]}
+        onBack={() => setSelectedPlayer(null)}
+      />
+    );
+  }
 
   return (
     <div className="relative h-[calc(100vh-0px)] overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
@@ -349,6 +341,7 @@ export default function Players() {
                 key={player.id || `${player.name}-${player.dateOfBirth}`}
                 player={player}
                 team={teamById[player.teamId]}
+                onClick={() => setSelectedPlayer(player)}
               />
             ))}
           </div>
