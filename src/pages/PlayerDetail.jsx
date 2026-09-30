@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   CalendarDays,
@@ -725,30 +726,35 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           </div>
 
           {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt={playerName}
-              className="
-                fixed
-                bottom-0
-                left-1/2
-                z-[60]
-                w-auto
-                max-w-none
-                -translate-x-1/2
-                object-contain
-                object-bottom
-                drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
+            typeof document !== "undefined"
+              ? createPortal(
+                  <img
+                    src={photoUrl}
+                    alt={playerName}
+                    className="
+                      fixed
+                      bottom-0
+                      left-1/2
+                      z-[60]
+                      w-auto
+                      max-w-none
+                      -translate-x-1/2
+                      object-contain
+                      object-bottom
+                      drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
 
-                h-[72vh]
+                      h-[72vh]
 
-                sm:h-[76vh]
+                      sm:h-[76vh]
 
-                md:h-[80vh]
+                      md:h-[80vh]
 
-                lg:h-[88vh]
-              "
-            />
+                      lg:h-[88vh]
+                    "
+                  />,
+                  document.body
+                )
+              : null
           ) : (
             <div className="relative z-10 flex h-[420px] w-[320px] items-center justify-center rounded-[2rem] border border-slate-300 bg-white/60 text-slate-300">
               <UsersPlaceholder />
