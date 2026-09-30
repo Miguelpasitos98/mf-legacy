@@ -231,6 +231,7 @@ function PlayerCard({
       className="group w-full rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]"
     >
       <div className="flex items-center gap-4">
+
         <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
           {photoUrl ? (
             <img
@@ -249,15 +250,19 @@ function PlayerCard({
         </div>
 
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-extrabold text-slate-900">
+
+          {/* PLAYER NAME */}
+          <h3 className="player-display-title truncate text-sm">
             {player.name || "Unnamed player"}
           </h3>
 
+          {/* DATE OF BIRTH */}
           <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
             <CalendarDays size={14} strokeWidth={1.8} />
             <span>{formatDate(player.dateOfBirth)}</span>
           </div>
 
+          {/* CLUB */}
           <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-slate-500">
             {teamLogo ? (
               <img
@@ -274,6 +279,7 @@ function PlayerCard({
             </span>
           </div>
 
+          {/* COUNTRY */}
           {country?.name && (
             <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-slate-400">
               <Globe2 size={14} strokeWidth={1.8} />
@@ -480,13 +486,7 @@ export default function Players() {
       let teamId = form.teamId || "";
       let countryId = form.countryId || "";
 
-      /*
-       * Si el usuario ha seleccionado:
-       *
-       * + Crear nuevo club
-       *
-       * creamos primero el Team.
-       */
+      /* CREATE NEW TEAM */
       if (teamId === NEW_TEAM_VALUE) {
         const newTeamName = form.newTeamName.trim();
 
@@ -501,9 +501,6 @@ export default function Players() {
             normalizedNewTeamName
         );
 
-        /*
-         * Evitamos duplicar un club que ya exista.
-         */
         if (existingTeam?.id) {
           teamId = existingTeam.id;
         } else {
@@ -517,14 +514,10 @@ export default function Players() {
           const createdTeam =
             await base44.entities.Team.create({
               name: newTeamName,
-
               short_name: generatedShortName,
-
               country_id:
                 form.countryId || "",
-
               continent: "Europe",
-
               is_active: true,
             });
 
@@ -547,12 +540,11 @@ export default function Players() {
         }
       }
 
-      /*
-       * Si el usuario ha seleccionado New en Country,
-       * creamos primero el país.
-       */
+      /* CREATE NEW COUNTRY */
       if (countryId === NEW_COUNTRY_VALUE) {
-        const newCountryName = form.newCountryName.trim();
+        const newCountryName =
+          form.newCountryName.trim();
+
         const normalizedNewCountryName =
           newCountryName.toLowerCase();
 
@@ -604,29 +596,17 @@ export default function Players() {
         }
       }
 
-      /*
-       * Creamos el jugador.
-       */
+      /* CREATE PLAYER */
       await base44.entities.Player.create({
         name: form.name.trim(),
 
-        /*
-         * Guardamos exactamente el formato que
-         * introduce el usuario:
-         *
-         * 28/09/1998
-         */
         date_of_birth:
-  normalizeDateOfBirth(form.dateOfBirth),
+          normalizeDateOfBirth(
+            form.dateOfBirth
+          ),
 
-        /*
-         * ID real del Team.
-         */
         team_id: teamId,
 
-        /*
-         * ID real del Country.
-         */
         country_id:
           countryId || "",
 
@@ -661,14 +641,25 @@ export default function Players() {
     }
   };
 
+  /*
+   * =========================================================
+   * PLAYER DETAIL
+   * =========================================================
+   *
+   * Cuando selectedPlayer tiene valor, dejamos la lista
+   * y mostramos directamente PlayerDetail.
+   *
+   * =========================================================
+   */
+
   if (selectedPlayer) {
     return (
       <PlayersDetail
         player={selectedPlayer}
         team={teamById[selectedPlayer.teamId]}
-        onBack={() =>
-          setSelectedPlayer(null)
-        }
+        onBack={() => {
+          setSelectedPlayer(null);
+        }}
       />
     );
   }
@@ -802,11 +793,14 @@ export default function Players() {
                       player.countryId
                     ]
                   }
-                  onClick={() =>
-                    setSelectedPlayer(
+                  onClick={() => {
+                    console.log(
+                      "PLAYER CLICKED:",
                       player
-                    )
-                  }
+                    );
+
+                    setSelectedPlayer(player);
+                  }}
                 />
               )
             )}
@@ -816,6 +810,7 @@ export default function Players() {
 
           /* EMPTY STATE */
           <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center">
+
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-300">
               <Users size={24} />
             </div>
@@ -844,6 +839,7 @@ export default function Players() {
                 Add player
               </button>
             )}
+
           </div>
         )}
 
@@ -1014,6 +1010,7 @@ export default function Players() {
                   {form.countryId ===
                     NEW_COUNTRY_VALUE && (
                     <div className="mt-3 rounded-xl border border-[#003399]/15 bg-[#003399]/[0.035] p-4">
+
                       <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                         New country
                       </label>
@@ -1112,6 +1109,7 @@ export default function Players() {
                 {form.teamId ===
                   NEW_TEAM_VALUE && (
                   <div className="rounded-xl border border-[#003399]/15 bg-[#003399]/[0.035] p-4">
+
                     <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                       New club
                     </label>
@@ -1126,9 +1124,7 @@ export default function Players() {
                           (current) => ({
                             ...current,
                             newTeamName:
-                              event
-                                .target
-                                .value,
+                              event.target.value,
                           })
                         )
                       }
@@ -1141,15 +1137,12 @@ export default function Players() {
 
                     <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
                       The club will be
-                      created
-                      automatically
-                      when you save
-                      the player.
-                      The selected
-                      country will be
-                      assigned to the
-                      new club.
+                      created automatically
+                      when you save the player.
+                      The selected country will be
+                      assigned to the new club.
                     </p>
+
                   </div>
                 )}
 
@@ -1184,6 +1177,7 @@ export default function Players() {
                 {/* PHOTO PREVIEW */}
                 {form.photoUrl && (
                   <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+
                     <img
                       src={normalizeImageUrl(
                         form.photoUrl
@@ -1197,14 +1191,15 @@ export default function Players() {
                     />
 
                     <div className="text-xs text-slate-500">
-                      Preview of the
-                      player photo.
+                      Preview of the player photo.
                     </div>
+
                   </div>
                 )}
 
                 {/* ACTIONS */}
                 <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+
                   <button
                     type="button"
                     onClick={
@@ -1234,6 +1229,7 @@ export default function Players() {
                       ? "Saving..."
                       : "Create player"}
                   </button>
+
                 </div>
               </form>
             </div>
