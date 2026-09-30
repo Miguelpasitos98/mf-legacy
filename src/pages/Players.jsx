@@ -138,6 +138,12 @@ const normalizeCountry = (country) => ({
     country?.code ||
     country?.country_code ||
     "",
+
+  flag:
+    country?.flag ||
+    country?.flag_url ||
+    country?.flagUrl ||
+    "",
 });
 
 const normalizeDateOfBirth = (value) => {
@@ -216,6 +222,136 @@ const isValidDateOfBirth = (value) => {
   return true;
 };
 
+const normalizeCountryLabel = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const COUNTRY_NAME_TO_ISO2 = (() => {
+  const map = {};
+
+  try {
+    const spanishNames = new Intl.DisplayNames(["es"], {
+      type: "region",
+    });
+
+    const englishNames = new Intl.DisplayNames(["en"], {
+      type: "region",
+    });
+
+    for (let first = 65; first <= 90; first += 1) {
+      for (let second = 65; second <= 90; second += 1) {
+        const iso2 = String.fromCharCode(first, second);
+
+        const spanishName = normalizeCountryLabel(
+          spanishNames.of(iso2)
+        );
+
+        const englishName = normalizeCountryLabel(
+          englishNames.of(iso2)
+        );
+
+        if (spanishName && spanishName !== iso2.toLowerCase()) {
+          map[spanishName] = iso2;
+        }
+
+        if (englishName && englishName !== iso2.toLowerCase()) {
+          map[englishName] = iso2;
+        }
+      }
+    }
+  } catch {
+    return {};
+  }
+
+  return map;
+})();
+
+const alpha3ToAlpha2 = {
+  ARG: "AR",
+  BRA: "BR",
+  FRA: "FR",
+  NOR: "NO",
+};
+
+const getCountryIso2 = (country) => {
+  const code = String(country?.code || "").trim().toUpperCase();
+
+  if (/^[A-Z]{2}$/.test(code)) {
+    return code;
+  }
+
+  if (/^[A-Z]{3}$/.test(code) && alpha3ToAlpha2[code]) {
+    return alpha3ToAlpha2[code];
+  }
+
+  return (
+    COUNTRY_NAME_TO_ISO2[
+      normalizeCountryLabel(country?.name)
+    ] || ""
+  );
+};
+
+const getCountryFlag = (country) => {
+  const storedFlag = String(country?.flag || "").trim();
+
+  if (storedFlag) {
+    return storedFlag;
+  }
+
+  const iso2 = getCountryIso2(country);
+
+  if (!iso2) {
+    return "";
+  }
+
+  return [...iso2]
+    .map((letter) =>
+      String.fromCodePoint(
+        letter.charCodeAt(0) + 127397
+      )
+    )
+    .join("");
+};
+
+function CountryFlag({ country, size = "text-sm" }) {
+  const flag = getCountryFlag(country);
+
+  if (!flag) {
+    return (
+      <Globe2
+        size={14}
+        strokeWidth={1.8}
+        className="shrink-0 text-slate-300"
+      />
+    );
+  }
+
+  const isImage =
+    /^(https?:|data:|blob:|\/\/)/i.test(flag);
+
+  if (isImage) {
+    return (
+      <img
+        src={normalizeImageUrl(flag)}
+        alt=""
+        className="h-4 w-4 shrink-0 object-contain"
+      />
+    );
+  }
+
+  return (
+    <span
+      className={`shrink-0 leading-none ${size}`}
+      aria-hidden="true"
+    >
+      {flag}
+    </span>
+  );
+}
+
 function PlayerCard({
   player,
   team,
@@ -283,7 +419,7 @@ function PlayerCard({
           {/* COUNTRY */}
           {country?.name && (
             <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-slate-400">
-              <Globe2 size={14} strokeWidth={1.8} />
+              <CountryFlag country={country} />
 
               <span className="truncate">
                 {country.name}
@@ -302,6 +438,7 @@ function GroupHeader({
   name,
   logo,
   code,
+  country,
   count,
 }) {
   const normalizedLogo = normalizeImageUrl(logo);
@@ -319,7 +456,7 @@ function GroupHeader({
           ) : type === "team" ? (
             <Building2 size={18} className="text-slate-400" />
           ) : (
-            <Globe2 size={18} className="text-slate-400" />
+            <CountryFlag country={country} size="text-lg" />
           )}
         </div>
 
@@ -983,6 +1120,7 @@ export default function Players() {
                         code={
                           group.country?.code
                         }
+                        country={group.country}
                         count={group.players.length}
                       />
 
