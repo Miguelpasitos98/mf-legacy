@@ -1,4 +1,3 @@
-
 {
   "properties": {
     "name": {
@@ -23,7 +22,7 @@
     },
     "flag": {
       "type": "string",
-      "description": "Emoji o URL de la bandera"
+      "description": "URL de la imagen de la bandera del país"
     },
     "is_active": {
       "type": "boolean",
