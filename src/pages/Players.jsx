@@ -625,6 +625,7 @@ function PlayerCard({
   country,
   onClick,
   compact = false,
+  hideTeam = false,
 }) {
   const photoUrl = normalizeImageUrl(
     player.cardPhotoUrl || player.photoUrl
@@ -652,7 +653,7 @@ function PlayerCard({
       type="button"
       onClick={onClick}
       className={`group w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] ${
-        compact ? "max-w-[185px]" : ""
+        compact ? "max-w-[230px]" : ""
       }`}
     >
       {/* PHOTO */}
@@ -756,26 +757,28 @@ function PlayerCard({
         </div>
 
         {/* CLUB */}
-        <div className={`${compact ? "mt-2" : "mt-3"} flex min-w-0 items-center gap-2 text-xs text-slate-400`}>
-          {teamLogo ? (
-            <img
-              src={teamLogo}
-              alt=""
-              className="h-4 w-4 shrink-0 object-contain"
-              loading="lazy"
-            />
-          ) : (
-            <Building2
-              size={14}
-              strokeWidth={1.7}
-              className="shrink-0"
-            />
-          )}
+        {!hideTeam && (
+          <div className={`${compact ? "mt-2" : "mt-3"} flex min-w-0 items-center gap-2 text-xs text-slate-400`}>
+            {teamLogo ? (
+              <img
+                src={teamLogo}
+                alt=""
+                className="h-4 w-4 shrink-0 object-contain"
+                loading="lazy"
+              />
+            ) : (
+              <Building2
+                size={14}
+                strokeWidth={1.7}
+                className="shrink-0"
+              />
+            )}
 
-          <span className="truncate">
-            {team?.name || "No club associated"}
-          </span>
-        </div>
+            <span className="truncate">
+              {team?.name || "No club associated"}
+            </span>
+          </div>
+        )}
       </div>
     </button>
   );
@@ -1478,7 +1481,7 @@ export default function Players() {
                         count={group.players.length}
                       />
 
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-x-4 gap-y-4">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
                         {group.players.map(
                           (player) => (
                             <PlayerCard
@@ -1494,6 +1497,7 @@ export default function Players() {
                                 countryById[player.countryId]
                               }
                               compact
+                              hideTeam
                               onClick={() => {
                                 console.log(
                                   "PLAYER CLICKED:",
@@ -1530,7 +1534,7 @@ export default function Players() {
                         count={group.players.length}
                       />
 
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-x-4 gap-y-4">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
                         {group.players.map(
                           (player) => (
                             <PlayerCard
