@@ -9,6 +9,7 @@ import {
   Globe2,
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
+import { useLocation, useSearchParams } from "react-router-dom";
 
 import { base44 } from "@/api/base44Client";
 
@@ -352,8 +353,6 @@ export default function Players() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  const [viewMode, setViewMode] = useState("all");
-
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   const [form, setForm] = useState({
@@ -363,6 +362,15 @@ export default function Players() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const rawViewMode = searchParams.get("view");
+  const viewMode =
+    rawViewMode === "teams" || rawViewMode === "countries"
+      ? rawViewMode
+      : "all";
 
   const loadData = async () => {
     setIsLoading(true);
@@ -418,6 +426,16 @@ export default function Players() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (location.state?.mfPlayerViewChange) {
+      setSelectedPlayer(null);
+    }
+  }, [location.key, location.state]);
+
+  useEffect(() => {
+    setSelectedPlayer(null);
+  }, [viewMode]);
 
   const teamById = useMemo(() => {
     return teams.reduce((map, team) => {
@@ -773,21 +791,7 @@ export default function Players() {
       <div className="mx-auto max-w-[1800px]">
 
         {/* HEADER */}
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-              MF LEGACY
-            </p>
-
-            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
-              Players
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Explore and manage the player database.
-            </p>
-          </div>
-
+        <div className="mb-4 flex items-center justify-end">
           <div className="flex items-center gap-2">
 
             {/* SEARCH */}
@@ -853,7 +857,7 @@ export default function Players() {
         )}
 
         {/* COUNTER */}
-        <div className="mb-5 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <div className="text-xs font-medium text-slate-400">
             {isLoading
               ? "Loading players..."
@@ -862,47 +866,6 @@ export default function Players() {
                     ? "player"
                     : "players"
                 }`}
-          </div>
-        </div>
-
-        {/* VIEW SWITCHER */}
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode("all")}
-              className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
-                viewMode === "all"
-                  ? "bg-[#003399] text-white"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-              }`}
-            >
-              All players
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setViewMode("teams")}
-              className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
-                viewMode === "teams"
-                  ? "bg-[#003399] text-white"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-              }`}
-            >
-              By teams
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setViewMode("countries")}
-              className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
-                viewMode === "countries"
-                  ? "bg-[#003399] text-white"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-              }`}
-            >
-              By countries
-            </button>
           </div>
         </div>
 
