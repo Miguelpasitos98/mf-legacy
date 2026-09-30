@@ -93,13 +93,18 @@ export default function PlayerDetail({ player, team, onBack }) {
   return (
     <main className="relative h-full min-h-0 overflow-visible bg-[#eef1f5] text-slate-900">
 
-      {/* BACKGROUND */}
+      {/* =========================================================
+          BACKGROUND
+          ========================================================= */}
 
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,#eef1f5_0%,#eef1f5_53%,#dfe4ea_53%,#dfe4ea_100%)]" />
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
 
-      {/* HEADER */}
+
+      {/* =========================================================
+          HEADER
+          ========================================================= */}
 
       <header className="absolute inset-x-0 top-0 z-50 flex items-center justify-between px-6 py-5 md:px-10 lg:px-14">
 
@@ -127,17 +132,26 @@ export default function PlayerDetail({ player, team, onBack }) {
 
       </header>
 
-      {/* MAIN PLAYER AREA */}
+
+      {/* =========================================================
+          MAIN PLAYER AREA
+          ========================================================= */}
 
       <section className="relative z-10 grid h-full min-h-0 grid-cols-1 items-center gap-4 overflow-visible px-6 pb-0 pt-20 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20">
 
-        {/* GIANT BACKGROUND PLAYER NAME */}
+
+        {/* =======================================================
+            GIANT BACKGROUND PLAYER NAME
+            ======================================================= */}
 
         <div className="pointer-events-none absolute bottom-[-10px] left-[3%] z-0 select-none whitespace-nowrap text-[clamp(5rem,14vw,15rem)] font-black uppercase leading-[0.72] tracking-[-0.09em] text-slate-900/[0.055]">
           {playerName}
         </div>
 
-        {/* LEFT — PLAYER INFORMATION */}
+
+        {/* =======================================================
+            LEFT — PLAYER INFORMATION
+            ======================================================= */}
 
         <div className="relative z-30 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0">
 
@@ -145,7 +159,10 @@ export default function PlayerDetail({ player, team, onBack }) {
             Player profile
           </p>
 
-          <h1 className="max-w-xl text-6xl font-black uppercase leading-[0.82] tracking-[-0.065em] text-slate-950 md:text-7xl xl:text-8xl">
+
+          {/* PLAYER NAME */}
+
+          <h1 className="max-w-xl text-6xl font-black uppercase leading-[0.86] tracking-[-0.045em] text-[#0C1321] md:text-7xl xl:text-8xl">
 
             <span className="block">
               {firstName}
@@ -159,9 +176,12 @@ export default function PlayerDetail({ player, team, onBack }) {
 
           </h1>
 
+
           <div className="mt-7 h-px w-24 bg-[#003399]" />
 
+
           <div className="mt-7 space-y-4 text-sm">
+
 
             {/* CLUB */}
 
@@ -191,6 +211,7 @@ export default function PlayerDetail({ player, team, onBack }) {
 
             </div>
 
+
             {/* DATE OF BIRTH */}
 
             <div className="flex items-center gap-3 text-slate-600">
@@ -213,6 +234,7 @@ export default function PlayerDetail({ player, team, onBack }) {
               </div>
 
             </div>
+
 
             {/* PLAYER ID */}
 
@@ -238,9 +260,13 @@ export default function PlayerDetail({ player, team, onBack }) {
 
         </div>
 
-        {/* CENTER — PLAYER IMAGE */}
+
+        {/* =======================================================
+            CENTER — PLAYER IMAGE
+            ======================================================= */}
 
         <div className="relative z-20 flex h-full min-h-0 items-end justify-center overflow-visible">
+
 
           {/* AGE WATERMARK */}
 
@@ -248,24 +274,40 @@ export default function PlayerDetail({ player, team, onBack }) {
             {age ?? ""}
           </div>
 
-          {/* PLAYER */}
+
+          {/* =====================================================
+              PLAYER IMAGE
+
+              IMPORTANTE:
+              - fixed = referencia a la ventana completa
+              - bottom-0 = pies en el fondo de la pantalla
+              - z-40 = por encima del contenido
+              - no depende del rectángulo del layout
+              ===================================================== */}
 
           {photoUrl ? (
             <img
               src={photoUrl}
               alt={playerName}
               className="
-                relative z-20
-                w-auto max-w-none
-                object-contain object-bottom
+                fixed
+                bottom-0
+                left-1/2
+                z-40
+                w-auto
+                max-w-none
+                -translate-x-1/2
+                object-contain
+                object-bottom
                 drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
-                lg:absolute
-                lg:left-1/2
-                lg:bottom-[-120px]
-                lg:h-[1100px]
-                lg:w-auto
-                lg:max-w-none
-                lg:-translate-x-1/2
+
+                h-[72vh]
+
+                sm:h-[76vh]
+
+                md:h-[80vh]
+
+                lg:h-[88vh]
               "
             />
           ) : (
@@ -276,7 +318,10 @@ export default function PlayerDetail({ player, team, onBack }) {
 
         </div>
 
-        {/* RIGHT — CURRENT CLUB */}
+
+        {/* =======================================================
+            RIGHT — CURRENT CLUB
+            ======================================================= */}
 
         <aside className="relative z-30 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0">
 
@@ -285,6 +330,7 @@ export default function PlayerDetail({ player, team, onBack }) {
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
               Current club
             </p>
+
 
             <div className="mt-5 flex items-center gap-4">
 
@@ -304,6 +350,7 @@ export default function PlayerDetail({ player, team, onBack }) {
                 )}
 
               </div>
+
 
               <div className="min-w-0">
 
@@ -328,6 +375,11 @@ export default function PlayerDetail({ player, team, onBack }) {
     </main>
   );
 }
+
+
+/* =========================================================
+   PLACEHOLDER
+   ========================================================= */
 
 function UsersPlaceholder() {
   return (
