@@ -83,6 +83,10 @@
         }
       },
       "description": "Valoración del jugador en cada posición del campo"
+    },
+    "description": {
+      "type": "string",
+      "description": "Perfil o descripción del jugador"
     }
   },
   "required": ["name"]
