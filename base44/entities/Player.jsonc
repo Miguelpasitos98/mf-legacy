@@ -20,7 +20,11 @@
     },
     "photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del jugador"
+      "description": "URL de la fotografía del jugador para el perfil individual"
+    },
+    "card_photo_url": {
+      "type": "string",
+      "description": "URL de la fotografía del jugador utilizada en las tarjetas del listado de jugadores"
     },
     "ca": {
       "type": "number",
