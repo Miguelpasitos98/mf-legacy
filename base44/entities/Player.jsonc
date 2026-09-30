@@ -8,19 +8,20 @@
     },
     "date_of_birth": {
       "type": "string",
-      "format": "date",
-      "description": "Fecha de nacimiento del jugador"
+      "description": "Fecha de nacimiento en formato DD/MM/YYYY"
     },
     "team_id": {
       "type": "string",
       "description": "ID del club asociado al jugador"
+    },
+    "country_id": {
+      "type": "string",
+      "description": "ID del país asociado al jugador"
     },
     "photo_url": {
       "type": "string",
       "description": "URL de la fotografía del jugador"
     }
   },
-  "required": [
-    "name"
-  ]
+  "required": ["name"]
 }
