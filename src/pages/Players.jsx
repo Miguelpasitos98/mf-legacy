@@ -16,12 +16,75 @@ import { base44 } from "@/api/base44Client";
 const inputClassName =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
 
+const POSITION_RATING_GROUPS = [
+  {
+    title: "Delantero",
+    positions: [
+      ["DC", "DC"],
+    ],
+  },
+  {
+    title: "Extremo",
+    positions: [
+      ["EI", "EI"],
+      ["ED", "ED"],
+    ],
+  },
+  {
+    title: "Centrocampista",
+    positions: [
+      ["CAM", "CAM"],
+      ["CM", "CM"],
+      ["CDM", "CDM"],
+    ],
+  },
+  {
+    title: "Central",
+    positions: [
+      ["DFC", "DFC"],
+    ],
+  },
+  {
+    title: "Lateral",
+    positions: [
+      ["LD", "LD"],
+      ["LI", "LI"],
+      ["CRD", "CRD"],
+      ["CRI", "CRI"],
+    ],
+  },
+  {
+    title: "Portero",
+    positions: [
+      ["GK", "GK"],
+    ],
+  },
+];
+
+const POSITION_RATING_DEFAULTS = {
+  GK: "0",
+  DFC: "0",
+  LD: "0",
+  LI: "0",
+  CRD: "0",
+  CRI: "0",
+  CDM: "0",
+  CM: "0",
+  CAM: "0",
+  EI: "0",
+  ED: "0",
+  DC: "0",
+};
+
 const emptyPlayerForm = {
   name: "",
   dateOfBirth: "",
   teamId: "",
   countryId: "",
   photoUrl: "",
+  ca: "",
+  cp: "",
+  positionRatings: { ...POSITION_RATING_DEFAULTS },
   newTeamName: "",
   newCountryName: "",
   newCountryContinent: "Europe",
@@ -94,6 +157,15 @@ const normalizePlayer = (player) => ({
     player?.image_url ||
     player?.imageUrl ||
     "",
+
+  ca: player?.ca ?? "",
+
+  cp: player?.cp ?? "",
+
+  positionRatings: {
+    ...POSITION_RATING_DEFAULTS,
+    ...(player?.position_ratings || {}),
+  },
 });
 
 const normalizeTeam = (team) => ({
@@ -137,12 +209,6 @@ const normalizeCountry = (country) => ({
   code:
     country?.code ||
     country?.country_code ||
-    "",
-
-  flag:
-    country?.flag ||
-    country?.flag_url ||
-    country?.flagUrl ||
     "",
 });
 
@@ -222,136 +288,6 @@ const isValidDateOfBirth = (value) => {
   return true;
 };
 
-const normalizeCountryLabel = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-
-const COUNTRY_NAME_TO_ISO2 = (() => {
-  const map = {};
-
-  try {
-    const spanishNames = new Intl.DisplayNames(["es"], {
-      type: "region",
-    });
-
-    const englishNames = new Intl.DisplayNames(["en"], {
-      type: "region",
-    });
-
-    for (let first = 65; first <= 90; first += 1) {
-      for (let second = 65; second <= 90; second += 1) {
-        const iso2 = String.fromCharCode(first, second);
-
-        const spanishName = normalizeCountryLabel(
-          spanishNames.of(iso2)
-        );
-
-        const englishName = normalizeCountryLabel(
-          englishNames.of(iso2)
-        );
-
-        if (spanishName && spanishName !== iso2.toLowerCase()) {
-          map[spanishName] = iso2;
-        }
-
-        if (englishName && englishName !== iso2.toLowerCase()) {
-          map[englishName] = iso2;
-        }
-      }
-    }
-  } catch {
-    return {};
-  }
-
-  return map;
-})();
-
-const alpha3ToAlpha2 = {
-  ARG: "AR",
-  BRA: "BR",
-  FRA: "FR",
-  NOR: "NO",
-};
-
-const getCountryIso2 = (country) => {
-  const code = String(country?.code || "").trim().toUpperCase();
-
-  if (/^[A-Z]{2}$/.test(code)) {
-    return code;
-  }
-
-  if (/^[A-Z]{3}$/.test(code) && alpha3ToAlpha2[code]) {
-    return alpha3ToAlpha2[code];
-  }
-
-  return (
-    COUNTRY_NAME_TO_ISO2[
-      normalizeCountryLabel(country?.name)
-    ] || ""
-  );
-};
-
-const getCountryFlag = (country) => {
-  const storedFlag = String(country?.flag || "").trim();
-
-  if (storedFlag) {
-    return storedFlag;
-  }
-
-  const iso2 = getCountryIso2(country);
-
-  if (!iso2) {
-    return "";
-  }
-
-  return [...iso2]
-    .map((letter) =>
-      String.fromCodePoint(
-        letter.charCodeAt(0) + 127397
-      )
-    )
-    .join("");
-};
-
-function CountryFlag({ country, size = "text-sm" }) {
-  const flag = getCountryFlag(country);
-
-  if (!flag) {
-    return (
-      <Globe2
-        size={14}
-        strokeWidth={1.8}
-        className="shrink-0 text-slate-300"
-      />
-    );
-  }
-
-  const isImage =
-    /^(https?:|data:|blob:|\/\/)/i.test(flag);
-
-  if (isImage) {
-    return (
-      <img
-        src={normalizeImageUrl(flag)}
-        alt=""
-        className="h-4 w-4 shrink-0 object-contain"
-      />
-    );
-  }
-
-  return (
-    <span
-      className={`shrink-0 leading-none ${size}`}
-      aria-hidden="true"
-    >
-      {flag}
-    </span>
-  );
-}
-
 function PlayerCard({
   player,
   team,
@@ -419,7 +355,7 @@ function PlayerCard({
           {/* COUNTRY */}
           {country?.name && (
             <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-slate-400">
-              <CountryFlag country={country} />
+              <Globe2 size={14} strokeWidth={1.8} />
 
               <span className="truncate">
                 {country.name}
@@ -438,7 +374,6 @@ function GroupHeader({
   name,
   logo,
   code,
-  country,
   count,
 }) {
   const normalizedLogo = normalizeImageUrl(logo);
@@ -456,7 +391,7 @@ function GroupHeader({
           ) : type === "team" ? (
             <Building2 size={18} className="text-slate-400" />
           ) : (
-            <CountryFlag country={country} size="text-lg" />
+            <Globe2 size={18} className="text-slate-400" />
           )}
         </div>
 
@@ -738,6 +673,42 @@ export default function Players() {
       return;
     }
 
+    if (form.ca === "" || form.ca == null || Number(form.ca) < 0 || Number(form.ca) > 200) {
+      setErrorMessage(
+        "El CA debe estar entre 0 y 200."
+      );
+      return;
+    }
+
+    if (form.cp === "" || form.cp == null || Number(form.cp) < 0 || Number(form.cp) > 200) {
+      setErrorMessage(
+        "El CP debe estar entre 0 y 200."
+      );
+      return;
+    }
+
+    const positionRatings = Object.entries(form.positionRatings).reduce(
+      (result, [code, value]) => {
+        const numericValue = Number(value);
+        result[code] = Number.isFinite(numericValue)
+          ? numericValue
+          : 0;
+        return result;
+      },
+      {}
+    );
+
+    const invalidPositionRating = Object.values(positionRatings).some(
+      (value) => value < 0 || value > 20
+    );
+
+    if (invalidPositionRating) {
+      setErrorMessage(
+        "Las valoraciones de posición deben estar entre 0 y 20."
+      );
+      return;
+    }
+
     setIsSaving(true);
     setErrorMessage("");
 
@@ -871,6 +842,12 @@ export default function Players() {
 
         photo_url:
           normalizeImageUrl(form.photoUrl),
+
+        ca: Number(form.ca),
+
+        cp: Number(form.cp),
+
+        position_ratings: positionRatings,
       });
 
       setAddModalOpen(false);
@@ -1120,7 +1097,6 @@ export default function Players() {
                         code={
                           group.country?.code
                         }
-                        country={group.country}
                         count={group.players.length}
                       />
 
@@ -1498,6 +1474,121 @@ export default function Players() {
                   </div>
                 )}
 
+                {/* CA / CP */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Ratings
+                    </label>
+                    <span className="text-[11px] text-slate-400">
+                      CA / CP: 0-200
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                        CA
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={200}
+                        step={1}
+                        value={form.ca}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            ca: event.target.value,
+                          }))
+                        }
+                        placeholder="e.g. 185"
+                        className={inputClassName}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                        CP
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={200}
+                        step={1}
+                        value={form.cp}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            cp: event.target.value,
+                          }))
+                        }
+                        placeholder="e.g. 195"
+                        className={inputClassName}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* POSITION RATINGS */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700">
+                        Position ratings
+                      </label>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        Valora cada posición de 0 a 20. Un jugador puede tener distintas valoraciones.
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                      0-20
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {POSITION_RATING_GROUPS.map((group) => (
+                      <div key={group.title}>
+                        <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                          {group.title}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                          {group.positions.map(([code, label]) => (
+                            <div key={code}>
+                              <label className="mb-1 block text-[11px] font-semibold text-slate-600">
+                                {label}
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                max={20}
+                                step={1}
+                                value={
+                                  form.positionRatings?.[code] ??
+                                  "0"
+                                }
+                                onChange={(event) =>
+                                  setForm((current) => ({
+                                    ...current,
+                                    positionRatings: {
+                                      ...current.positionRatings,
+                                      [code]: event.target.value,
+                                    },
+                                  }))
+                                }
+                                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* PLAYER PHOTO */}
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-700">
@@ -1568,6 +1659,8 @@ export default function Players() {
                     disabled={
                       isSaving ||
                       !form.name.trim() ||
+                      form.ca === "" ||
+                      form.cp === "" ||
                       ((form.teamId ===
                         NEW_TEAM_VALUE &&
                         !form.newTeamName.trim()) ||
