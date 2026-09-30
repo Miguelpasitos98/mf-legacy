@@ -740,13 +740,13 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 object-bottom
                 drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
 
-                h-[72vh]
+                h-[68vh]
 
-                sm:h-[76vh]
+                sm:h-[72vh]
 
-                md:h-[80vh]
+                md:h-[76vh]
 
-                lg:h-[88vh]
+                lg:h-[80vh]
               "
             />
           ) : (
