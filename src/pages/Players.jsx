@@ -840,6 +840,8 @@ export default function Players() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
 
+  const [sortBy, setSortBy] = useState("");
+
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   const [form, setForm] = useState({
@@ -962,20 +964,35 @@ export default function Players() {
             .includes(query)
         );
       })
-      .sort((a, b) =>
-        (a.name || "").localeCompare(
+      .sort((a, b) => {
+        if (sortBy === "ca") {
+          return (
+            Number(b.ca || 0) -
+            Number(a.ca || 0)
+          );
+        }
+
+        if (sortBy === "cp") {
+          return (
+            Number(b.cp || 0) -
+            Number(a.cp || 0)
+          );
+        }
+
+        return (a.name || "").localeCompare(
           b.name || "",
           "es",
           {
             sensitivity: "base",
           }
-        )
-      );
+        );
+      });
   }, [
     players,
     search,
     teamById,
     countryById,
+    sortBy,
   ]);
 
 
@@ -1383,6 +1400,44 @@ export default function Players() {
               ) : (
                 <Search size={17} />
               )}
+            </button>
+
+            {/* TOP CA */}
+            <button
+              type="button"
+              onClick={() =>
+                setSortBy((current) =>
+                  current === "ca" ? "" : "ca"
+                )
+              }
+              className={`flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-extrabold transition ${
+                sortBy === "ca"
+                  ? "border-[#003399] bg-[#003399] text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+              aria-label="Order by CA"
+              title="Order by CA"
+            >
+              Top CA
+            </button>
+
+            {/* TOP CP */}
+            <button
+              type="button"
+              onClick={() =>
+                setSortBy((current) =>
+                  current === "cp" ? "" : "cp"
+                )
+              }
+              className={`flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-extrabold transition ${
+                sortBy === "cp"
+                  ? "border-[#003399] bg-[#003399] text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+              aria-label="Order by CP"
+              title="Order by CP"
+            >
+              Top CP
             </button>
 
             {/* ADD PLAYER */}
