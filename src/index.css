@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -31,10 +31,17 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+
     --font-heading: ui-sans-serif, system-ui, sans-serif;
     --font-body: ui-sans-serif, system-ui, sans-serif;
     --font-display: ui-sans-serif, system-ui, sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    /* Tipografía específica para nombres de jugadores */
+    --font-player: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+      "Liberation Mono", "Courier New", monospace;
+
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -70,18 +77,17 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
-
-
 
 @layer base {
   * {
@@ -93,7 +99,10 @@
   }
 }
 
-/* Tipografías de los perfiles de equipos */
+/* =========================================================
+   TIPOGRAFÍAS DE LOS PERFILES DE EQUIPOS
+   ========================================================= */
+
 @layer components {
   .team-display-title {
     font-family: "Bebas Neue", sans-serif;
@@ -113,5 +122,18 @@
   .team-data-value {
     font-family: "Oswald", sans-serif;
     font-weight: 600;
+  }
+
+  /* =======================================================
+     NOMBRE PRINCIPAL DE LOS JUGADORES
+     ======================================================= */
+
+  .player-display-title {
+    font-family: var(--font-player);
+    font-weight: 900;
+    letter-spacing: -0.045em;
+    line-height: 0.86;
+    text-transform: uppercase;
+    color: #0C1321;
   }
 }
