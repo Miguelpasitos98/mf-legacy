@@ -22,26 +22,25 @@ export default function Layout() {
       style={{ backgroundColor: "#D1D3D9" }}
     >
       <div
-        className="relative w-[96vw] h-[82vh] flex overflow-hidden rounded-[20px]"
+        className="relative w-[96vw] h-[82vh] flex overflow-visible rounded-[20px]"
         style={{
           backgroundColor: "#E8E9EC",
           boxShadow:
             "0 24px 70px -20px rgba(20,30,60,0.28), 0 8px 24px -12px rgba(20,30,60,0.18)",
         }}
       >
-        <div className="relative z-10 flex h-full w-full min-h-0 overflow-hidden">
-          {sidebarVisible &&
-            !isTeamsPage && (
-              <Sidebar
-                open={sidebarOpen}
-                onToggle={() => setSidebarOpen((o) => !o)}
-                backgroundColor={teamTheme.primaryColor}
-                accentColor="#FFFFFF"
-                secondaryColor={teamTheme.secondaryColor}
-              />
-            )}
+        <div className="relative z-10 flex h-full w-full overflow-visible">
+          {sidebarVisible && !isTeamsPage && (
+            <Sidebar
+              open={sidebarOpen}
+              onToggle={() => setSidebarOpen((o) => !o)}
+              backgroundColor={teamTheme.primaryColor}
+              accentColor="#FFFFFF"
+              secondaryColor={teamTheme.secondaryColor}
+            />
+          )}
 
-          <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-visible">
             <TopNavbar />
 
             <main
