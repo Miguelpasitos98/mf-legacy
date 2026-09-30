@@ -51,17 +51,10 @@ export default function Sidebar({
     rawView === "teams" || rawView === "countries" ? rawView : "all";
 
   const handleViewChange = (view) => {
-    navigate(
-      {
-        pathname: "/players",
-        search: view === "all" ? "" : `?view=${view}`,
-      },
-      {
-        state: {
-          mfPlayerViewChange: Date.now(),
-        },
-      }
-    );
+    navigate({
+      pathname: "/players",
+      search: view === "all" ? "" : `?view=${view}`,
+    });
   };
 
   return (
@@ -88,7 +81,13 @@ export default function Sidebar({
       }}
     >
       {open && isPlayersPage && (
-        <nav className="flex flex-1 flex-col gap-2 px-2.5 pb-20 pt-5">
+        <nav
+          className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-4"
+          style={{
+            bottom: "calc(50% + 28px)",
+          }}
+          aria-label="Player views"
+        >
           {VIEW_OPTIONS.map((option) => {
             const isActive = activeView === option.id;
 
@@ -97,20 +96,19 @@ export default function Sidebar({
                 key={option.id}
                 type="button"
                 onClick={() => handleViewChange(option.id)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${
+                className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200 ${
                   isActive
-                    ? "bg-white/[0.14] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
-                    : "text-white/80 hover:bg-white/[0.08] hover:text-white"
+                    ? "bg-white/[0.14] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
+                    : "bg-transparent hover:bg-white/[0.08]"
                 }`}
+                aria-label={option.label}
                 aria-current={isActive ? "page" : undefined}
               >
                 <img
                   src={option.icon}
                   alt=""
-                  className="h-5 w-5 shrink-0 object-contain"
+                  className="h-6 w-6 object-contain"
                 />
-
-                <span className="truncate">{option.label}</span>
               </button>
             );
           })}
@@ -120,11 +118,7 @@ export default function Sidebar({
       <button
         type="button"
         onClick={onToggle}
-        className={`absolute flex items-center justify-center ${
-          open
-            ? "right-3 top-3"
-            : "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-        }`}
+        className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
         style={{
           color: accentColor,
         }}
