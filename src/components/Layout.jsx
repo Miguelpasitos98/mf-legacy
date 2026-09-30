@@ -14,22 +14,24 @@ export default function Layout() {
 
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
+  const isTeamsPage = location.pathname.startsWith("/teams");
+
   return (
     <div
       className="min-h-screen w-full flex items-center justify-center overflow-hidden"
       style={{ backgroundColor: "#D1D3D9" }}
     >
       <div
-        className="relative w-[96vw] h-[82vh] flex overflow-visible rounded-[20px]"
+        className="relative w-[96vw] h-[82vh] flex overflow-hidden rounded-[20px]"
         style={{
           backgroundColor: "#E8E9EC",
           boxShadow:
             "0 24px 70px -20px rgba(20,30,60,0.28), 0 8px 24px -12px rgba(20,30,60,0.18)",
         }}
       >
-        <div className="relative z-10 flex h-full w-full overflow-visible">
+        <div className="relative z-10 flex h-full w-full min-h-0 overflow-hidden">
           {sidebarVisible &&
-            !location.pathname.startsWith("/teams") && (
+            !isTeamsPage && (
               <Sidebar
                 open={sidebarOpen}
                 onToggle={() => setSidebarOpen((o) => !o)}
@@ -39,10 +41,16 @@ export default function Layout() {
               />
             )}
 
-          <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-visible">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
             <TopNavbar />
 
-            <main className="flex-1 min-h-0 overflow-visible">
+            <main
+              className={
+                isTeamsPage
+                  ? "flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
+                  : "flex-1 min-h-0 min-w-0 overflow-visible"
+              }
+            >
               <Outlet
                 context={{
                   setTeamTheme,
