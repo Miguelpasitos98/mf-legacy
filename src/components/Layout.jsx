@@ -22,7 +22,7 @@ export default function Layout() {
       style={{ backgroundColor: "#D1D3D9" }}
     >
       <div
-        className="relative w-[75vw] h-[80vh] flex overflow-visible rounded-[20px]"
+        className="relative w-[95vw] h-[75vh] flex overflow-visible rounded-[20px]"
         style={{
           backgroundColor: "#E8E9EC",
           boxShadow:
