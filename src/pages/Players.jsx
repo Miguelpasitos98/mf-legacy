@@ -13,6 +13,11 @@ import { useLocation, useSearchParams } from "react-router-dom";
 
 import { base44 } from "@/api/base44Client";
 import { PLAYER_DESCRIPTIONS } from "@/lib/playerDescriptions";
+import { computeLegacyTitle } from "@/lib/legacyTitle";
+import {
+  computePlayerDescription,
+  getPrimaryPosition,
+} from "@/lib/playerDescriptionEngine";
 
 const inputClassName =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
@@ -214,6 +219,12 @@ const normalizeCountry = (country) => ({
     country?.code ||
     country?.country_code ||
     "",
+
+  flag:
+    country?.flag ||
+    country?.flag_url ||
+    country?.flagUrl ||
+    "",
 });
 
 const normalizeDateOfBirth = (value) => {
@@ -292,6 +303,76 @@ const isValidDateOfBirth = (value) => {
   return true;
 };
 
+function calculateAge(value) {
+  const trimmed = String(value || "").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  let birthDate = null;
+
+  const ddmmyyyy = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
+    birthDate = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day)
+    );
+  } else {
+    const parsedDate = new Date(trimmed);
+
+    if (!Number.isNaN(parsedDate.getTime())) {
+      birthDate = parsedDate;
+    }
+  }
+
+  if (!birthDate || Number.isNaN(birthDate.getTime())) {
+    return null;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+
+  const hasHadBirthday =
+    today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() &&
+      today.getDate() >= birthDate.getDate());
+
+  if (!hasHadBirthday) {
+    age -= 1;
+  }
+
+  return age >= 0 && age < 120 ? age : null;
+}
+
+function ageCircleColor(age) {
+  if (age == null) return "bg-slate-300";
+  if (age <= 18) return "bg-purple-500";
+  if (age <= 21) return "bg-blue-500";
+  if (age <= 25) return "bg-green-500";
+  if (age <= 29) return "bg-yellow-500";
+  if (age <= 33) return "bg-orange-500";
+  return "bg-red-500";
+}
+
+const POSITION_LABELS = {
+  GK: "GK",
+  DFC: "DFC",
+  LD: "LD",
+  LI: "LI",
+  CRD: "CRD",
+  CRI: "CRI",
+  CDM: "CDM",
+  CM: "CM",
+  CAM: "CAM",
+  EI: "EI",
+  ED: "ED",
+  DC: "DC",
+};
+
 function PlayerCard({
   player,
   team,
@@ -301,77 +382,141 @@ function PlayerCard({
   const photoUrl = normalizeImageUrl(player.photoUrl);
   const teamLogo = normalizeImageUrl(team?.logo);
 
+  const age = calculateAge(player.dateOfBirth);
+  const legacyTitle = computeLegacyTitle({
+    ...player,
+    age: age ?? undefined,
+  });
+  const primaryPosition = getPrimaryPosition(player);
+  const description = computePlayerDescription(player);
+
+  const countryFlagUrl = normalizeImageUrl(country?.flag);
+  const countryCode = String(country?.code || "").trim().toLowerCase();
+
+  const fallbackFlagUrl =
+    !countryFlagUrl && countryCode.length === 2
+      ? `https://flagcdn.com/${countryCode}.svg`
+      : "";
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group w-full rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]"
+      className="group w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)]"
     >
-      <div className="flex items-center gap-4">
-
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt={player.name || "Player"}
-              className="h-full w-full object-cover object-top"
-              onError={(event) => {
-                event.currentTarget.style.display = "none";
-              }}
+      {/* PHOTO */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-50">
+        {photoUrl ? (
+          <img
+            src={photoUrl}
+            alt={player.name || "Player"}
+            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.025]"
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Users
+              size={56}
+              strokeWidth={1.25}
+              className="text-slate-200"
             />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-slate-300">
-              <Users size={28} strokeWidth={1.6} />
-            </div>
+          </div>
+        )}
+      </div>
+
+      {/* INFO */}
+      <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+        {/* NAME + FLAG */}
+        <div className="flex min-w-0 items-center gap-2">
+          {countryFlagUrl || fallbackFlagUrl ? (
+            <img
+              src={countryFlagUrl || fallbackFlagUrl}
+              alt={country?.name || ""}
+              className="h-4 w-6 shrink-0 rounded-[2px] object-cover"
+              loading="lazy"
+            />
+          ) : null}
+
+          <h3 className="player-display-title min-w-0 truncate text-base">
+            {player.name || "Unnamed player"}
+          </h3>
+        </div>
+
+        {/* LEGACY TITLE + CA/CP */}
+        <div className="mt-2 flex min-w-0 items-center gap-1.5 text-xs">
+          <span className="shrink-0 font-semibold text-slate-900">
+            {legacyTitle}
+          </span>
+
+          <span className="shrink-0 text-slate-300">|</span>
+
+          <span className="shrink-0 font-semibold text-slate-500">
+            {player.ca !== "" && player.ca != null
+              ? player.ca
+              : "—"}{" "}
+            /{" "}
+            {player.cp !== "" && player.cp != null
+              ? player.cp
+              : "—"}
+          </span>
+        </div>
+
+        {/* AGE + POSITION + DESCRIPTION */}
+        <div className="mt-2 flex min-w-0 items-center gap-1.5 text-xs">
+          <span
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${ageCircleColor(
+              age
+            )}`}
+          />
+
+          <span className="shrink-0 font-semibold text-slate-700">
+            {age ?? "—"}
+          </span>
+
+          <span className="shrink-0 text-slate-300">|</span>
+
+          <span className="shrink-0 font-semibold text-slate-700">
+            {POSITION_LABELS[primaryPosition] || "—"}
+          </span>
+
+          {description && (
+            <>
+              <span className="shrink-0 text-slate-300">|</span>
+
+              <span className="min-w-0 truncate font-medium text-slate-500">
+                {description}
+              </span>
+            </>
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
-
-          {/* PLAYER NAME */}
-          <h3 className="player-display-title truncate text-sm">
-            {player.name || "Unnamed player"}
-          </h3>
-
-          {/* DATE OF BIRTH */}
-          <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-            <CalendarDays size={14} strokeWidth={1.8} />
-            <span>{formatDate(player.dateOfBirth)}</span>
-          </div>
-
-          {/* CLUB */}
-          <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-slate-500">
-            {teamLogo ? (
-              <img
-                src={teamLogo}
-                alt=""
-                className="h-4 w-4 shrink-0 object-contain"
-              />
-            ) : (
-              <Building2 size={14} strokeWidth={1.8} />
-            )}
-
-            <span className="truncate">
-              {team?.name || "No club associated"}
-            </span>
-          </div>
-
-          {/* COUNTRY */}
-          {country?.name && (
-            <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-slate-400">
-              <Globe2 size={14} strokeWidth={1.8} />
-
-              <span className="truncate">
-                {country.name}
-              </span>
-            </div>
+        {/* CLUB */}
+        <div className="mt-3 flex min-w-0 items-center gap-2 text-xs text-slate-400">
+          {teamLogo ? (
+            <img
+              src={teamLogo}
+              alt=""
+              className="h-4 w-4 shrink-0 object-contain"
+              loading="lazy"
+            />
+          ) : (
+            <Building2
+              size={14}
+              strokeWidth={1.7}
+              className="shrink-0"
+            />
           )}
+
+          <span className="truncate">
+            {team?.name || "No club associated"}
+          </span>
         </div>
       </div>
     </button>
   );
 }
-
 
 function GroupHeader({
   type,
