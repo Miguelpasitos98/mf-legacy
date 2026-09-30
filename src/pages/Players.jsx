@@ -12,6 +12,7 @@ import PlayersDetail from "@/pages/PlayerDetail";
 import { useLocation, useSearchParams } from "react-router-dom";
 
 import { base44 } from "@/api/base44Client";
+import { PLAYER_DESCRIPTIONS } from "@/lib/playerDescriptions";
 
 const inputClassName =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
@@ -85,6 +86,7 @@ const emptyPlayerForm = {
   ca: "",
   cp: "",
   positionRatings: { ...POSITION_RATING_DEFAULTS },
+  description: "",
   newTeamName: "",
   newCountryName: "",
   newCountryContinent: "Europe",
@@ -166,6 +168,8 @@ const normalizePlayer = (player) => ({
     ...POSITION_RATING_DEFAULTS,
     ...(player?.position_ratings || {}),
   },
+
+  description: player?.description || "",
 });
 
 const normalizeTeam = (team) => ({
@@ -848,6 +852,9 @@ export default function Players() {
         cp: Number(form.cp),
 
         position_ratings: positionRatings,
+
+        description:
+          form.description || "",
       });
 
       setAddModalOpen(false);
@@ -1587,6 +1594,49 @@ export default function Players() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* DESCRIPTION */}
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Description
+                    </label>
+                    <span className="text-[11px] text-slate-400">
+                      Selecciona el perfil del jugador
+                    </span>
+                  </div>
+
+                  <select
+                    value={form.description || ""}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        description: event.target.value,
+                      }))
+                    }
+                    className={inputClassName}
+                  >
+                    <option value="">Sin descripción</option>
+
+                    {PLAYER_DESCRIPTIONS.map((group) => (
+                      <optgroup
+                        key={group.group}
+                        label={group.group}
+                      >
+                        {group.options.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    La descripción podrá utilizarse después como perfil
+                    automático basado en edad, CA, CP y posiciones.
+                  </p>
                 </div>
 
                 {/* PLAYER PHOTO */}
