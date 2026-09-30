@@ -295,6 +295,52 @@ function PlayerCard({
   );
 }
 
+
+function GroupHeader({
+  type,
+  name,
+  logo,
+  code,
+  count,
+}) {
+  const normalizedLogo = normalizeImageUrl(logo);
+
+  return (
+    <div className="mb-3 flex items-center justify-between border-b border-slate-200 pb-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white">
+          {normalizedLogo ? (
+            <img
+              src={normalizedLogo}
+              alt=""
+              className="h-7 w-7 object-contain"
+            />
+          ) : type === "team" ? (
+            <Building2 size={18} className="text-slate-400" />
+          ) : (
+            <Globe2 size={18} className="text-slate-400" />
+          )}
+        </div>
+
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-extrabold tracking-tight text-slate-900">
+            {name}
+          </h2>
+          {code && (
+            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+              {code}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        {count} {count === 1 ? "player" : "players"}
+      </div>
+    </div>
+  );
+}
+
 export default function Players() {
   const [players, setPlayers] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -305,6 +351,8 @@ export default function Players() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
+
+  const [viewMode, setViewMode] = useState("all");
 
   const [addModalOpen, setAddModalOpen] = useState(false);
 
@@ -424,6 +472,62 @@ export default function Players() {
     teamById,
     countryById,
   ]);
+
+
+
+  const groupedByTeam = useMemo(() => {
+    const groups = {};
+
+    filteredPlayers.forEach((player) => {
+      const key = player.teamId || "__no_team__";
+
+      if (!groups[key]) {
+        groups[key] = {
+          id: key,
+          team: teamById[player.teamId] || null,
+          players: [],
+        };
+      }
+
+      groups[key].players.push(player);
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      const nameA = a.team?.name || "No club";
+      const nameB = b.team?.name || "No club";
+
+      return nameA.localeCompare(nameB, "es", {
+        sensitivity: "base",
+      });
+    });
+  }, [filteredPlayers, teamById]);
+
+  const groupedByCountry = useMemo(() => {
+    const groups = {};
+
+    filteredPlayers.forEach((player) => {
+      const key = player.countryId || "__no_country__";
+
+      if (!groups[key]) {
+        groups[key] = {
+          id: key,
+          country: countryById[player.countryId] || null,
+          players: [],
+        };
+      }
+
+      groups[key].players.push(player);
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      const nameA = a.country?.name || "No country";
+      const nameB = b.country?.name || "No country";
+
+      return nameA.localeCompare(nameB, "es", {
+        sensitivity: "base",
+      });
+    });
+  }, [filteredPlayers, countryById]);
 
   const handleOpenAddPlayer = () => {
     setForm({
@@ -761,6 +865,47 @@ export default function Players() {
           </div>
         </div>
 
+        {/* VIEW SWITCHER */}
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode("all")}
+              className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
+                viewMode === "all"
+                  ? "bg-[#003399] text-white"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              }`}
+            >
+              All players
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode("teams")}
+              className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
+                viewMode === "teams"
+                  ? "bg-[#003399] text-white"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              }`}
+            >
+              By teams
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode("countries")}
+              className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
+                viewMode === "countries"
+                  ? "bg-[#003399] text-white"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              }`}
+            >
+              By countries
+            </button>
+          </div>
+        </div>
+
         {/* LOADING */}
         {isLoading ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -776,33 +921,139 @@ export default function Players() {
         ) : filteredPlayers.length > 0 ? (
 
           /* PLAYERS */
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {filteredPlayers.map(
-              (player) => (
-                <PlayerCard
-                  key={
-                    player.id ||
-                    `${player.name}-${player.dateOfBirth}`
-                  }
-                  player={player}
-                  team={
-                    teamById[player.teamId]
-                  }
-                  country={
-                    countryById[
-                      player.countryId
-                    ]
-                  }
-                  onClick={() => {
-                    console.log(
-                      "PLAYER CLICKED:",
-                      player
-                    );
+          <div className="space-y-8">
 
-                    setSelectedPlayer(player);
-                  }}
-                />
-              )
+            {/* ALL PLAYERS */}
+            {viewMode === "all" && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {filteredPlayers.map(
+                  (player) => (
+                    <PlayerCard
+                      key={
+                        player.id ||
+                        `${player.name}-${player.dateOfBirth}`
+                      }
+                      player={player}
+                      team={
+                        teamById[player.teamId]
+                      }
+                      country={
+                        countryById[
+                          player.countryId
+                        ]
+                      }
+                      onClick={() => {
+                        console.log(
+                          "PLAYER CLICKED:",
+                          player
+                        );
+
+                        setSelectedPlayer(player);
+                      }}
+                    />
+                  )
+                )}
+              </div>
+            )}
+
+            {/* BY TEAMS */}
+            {viewMode === "teams" && (
+              <div className="space-y-8">
+                {groupedByTeam.map(
+                  (group) => (
+                    <section key={group.id}>
+                      <GroupHeader
+                        type="team"
+                        name={
+                          group.team?.name ||
+                          "No club"
+                        }
+                        logo={group.team?.logo}
+                        count={group.players.length}
+                      />
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                        {group.players.map(
+                          (player) => (
+                            <PlayerCard
+                              key={
+                                player.id ||
+                                `${player.name}-${player.dateOfBirth}`
+                              }
+                              player={player}
+                              team={
+                                teamById[player.teamId]
+                              }
+                              country={
+                                countryById[player.countryId]
+                              }
+                              onClick={() => {
+                                console.log(
+                                  "PLAYER CLICKED:",
+                                  player
+                                );
+
+                                setSelectedPlayer(player);
+                              }}
+                            />
+                          )
+                        )}
+                      </div>
+                    </section>
+                  )
+                )}
+              </div>
+            )}
+
+            {/* BY COUNTRIES */}
+            {viewMode === "countries" && (
+              <div className="space-y-8">
+                {groupedByCountry.map(
+                  (group) => (
+                    <section key={group.id}>
+                      <GroupHeader
+                        type="country"
+                        name={
+                          group.country?.name ||
+                          "No country"
+                        }
+                        code={
+                          group.country?.code
+                        }
+                        count={group.players.length}
+                      />
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                        {group.players.map(
+                          (player) => (
+                            <PlayerCard
+                              key={
+                                player.id ||
+                                `${player.name}-${player.dateOfBirth}`
+                              }
+                              player={player}
+                              team={
+                                teamById[player.teamId]
+                              }
+                              country={
+                                countryById[player.countryId]
+                              }
+                              onClick={() => {
+                                console.log(
+                                  "PLAYER CLICKED:",
+                                  player
+                                );
+
+                                setSelectedPlayer(player);
+                              }}
+                            />
+                          )
+                        )}
+                      </div>
+                    </section>
+                  )
+                )}
+              </div>
             )}
           </div>
 
