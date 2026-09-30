@@ -1294,12 +1294,23 @@ export default function Players() {
   if (selectedPlayer) {
     return (
       <PlayersDetail
-        player={selectedPlayer}
-        team={teamById[selectedPlayer.teamId]}
-        onBack={() => {
-          setSelectedPlayer(null);
-        }}
-      />
+  player={selectedPlayer}
+  team={teamById[selectedPlayer.teamId]}
+  onBack={() => {
+    setSelectedPlayer(null);
+  }}
+  onPlayerUpdated={(updatedPlayer) => {
+    setSelectedPlayer(updatedPlayer);
+
+    setPlayers((currentPlayers) =>
+      currentPlayers.map((player) =>
+        player.id === updatedPlayer.id
+          ? updatedPlayer
+          : player
+      )
+    );
+  }}
+/>
     );
   }
 
