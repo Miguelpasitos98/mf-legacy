@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-import { Search, Plus, X, Users, CalendarDays, Building2 } from "lucide-react";
+import {
+  Search,
+  Plus,
+  X,
+  Users,
+  CalendarDays,
+  Building2,
+  Globe2,
+} from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
 
 import { base44 } from "@/api/base44Client";
@@ -12,8 +19,12 @@ const emptyPlayerForm = {
   name: "",
   dateOfBirth: "",
   teamId: "",
+  countryId: "",
   photoUrl: "",
+  newTeamName: "",
 };
+
+const NEW_TEAM_VALUE = "__new_team__";
 
 const getList = (result) => {
   if (Array.isArray(result)) return result;
@@ -25,28 +36,54 @@ const getList = (result) => {
 
 const normalizeImageUrl = (value) => {
   const trimmed = String(value || "").trim();
+
   if (!trimmed) return "";
-  if (trimmed.startsWith("//")) return `https:${trimmed}`;
-  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
+
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
+  }
+
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) {
+    return trimmed;
+  }
+
   return `https://${trimmed}`;
 };
 
 const normalizePlayer = (player) => ({
   ...player,
-  id: player?.id || player?._id || player?.data?.id || "",
-  name: player?.name || player?.full_name || player?.fullName || "",
+
+  id:
+    player?.id ||
+    player?._id ||
+    player?.data?.id ||
+    "",
+
+  name:
+    player?.name ||
+    player?.full_name ||
+    player?.fullName ||
+    "",
+
   dateOfBirth:
     player?.date_of_birth ||
     player?.dateOfBirth ||
     player?.birth_date ||
     player?.birthDate ||
     "",
+
   teamId:
     player?.team_id ||
     player?.teamId ||
     player?.club_id ||
     player?.clubId ||
     "",
+
+  countryId:
+    player?.country_id ||
+    player?.countryId ||
+    "",
+
   photoUrl:
     player?.photo_url ||
     player?.photoUrl ||
@@ -57,15 +94,64 @@ const normalizePlayer = (player) => ({
 
 const normalizeTeam = (team) => ({
   ...team,
-  id: team?.id || team?._id || team?.data?.id || "",
-  name: team?.name || "",
-  logo: team?.logo || team?.logo_url || team?.logoUrl || "",
+
+  id:
+    team?.id ||
+    team?._id ||
+    team?.data?.id ||
+    "",
+
+  name:
+    team?.name ||
+    "",
+
+  logo:
+    team?.logo ||
+    team?.logo_url ||
+    team?.logoUrl ||
+    "",
+
+  countryId:
+    team?.country_id ||
+    team?.countryId ||
+    "",
+});
+
+const normalizeCountry = (country) => ({
+  ...country,
+
+  id:
+    country?.id ||
+    country?._id ||
+    country?.data?.id ||
+    "",
+
+  name:
+    country?.name ||
+    "",
+
+  code:
+    country?.code ||
+    country?.country_code ||
+    "",
 });
 
 const formatDate = (value) => {
   if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+
+  const stringValue = String(value).trim();
+
+  // Ya está en formato DD/MM/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(stringValue)) {
+    return stringValue;
+  }
+
+  const date = new Date(stringValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return stringValue;
+  }
+
   return new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",
     month: "2-digit",
@@ -73,7 +159,42 @@ const formatDate = (value) => {
   }).format(date);
 };
 
-function PlayerCard({ player, team, onClick }) {
+const isValidDateOfBirth = (value) => {
+  const trimmed = String(value || "").trim();
+
+  if (!trimmed) {
+    return true;
+  }
+
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    return false;
+  }
+
+  const [day, month, year] = trimmed.split("/").map(Number);
+
+  if (month < 1 || month > 12) {
+    return false;
+  }
+
+  if (day < 1 || day > 31) {
+    return false;
+  }
+
+  const date = new Date(year, month - 1, day);
+
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+};
+
+function PlayerCard({
+  player,
+  team,
+  country,
+  onClick,
+}) {
   const photoUrl = normalizeImageUrl(player.photoUrl);
   const teamLogo = normalizeImageUrl(team?.logo);
 
@@ -121,10 +242,21 @@ function PlayerCard({ player, team, onClick }) {
             ) : (
               <Building2 size={14} strokeWidth={1.8} />
             )}
+
             <span className="truncate">
               {team?.name || "No club associated"}
             </span>
           </div>
+
+          {country?.name && (
+            <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-slate-400">
+              <Globe2 size={14} strokeWidth={1.8} />
+
+              <span className="truncate">
+                {country.name}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </button>
@@ -134,13 +266,22 @@ function PlayerCard({ player, team, onClick }) {
 export default function Players() {
   const [players, setPlayers] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [countries, setCountries] = useState([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
+
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [form, setForm] = useState({ ...emptyPlayerForm });
+
+  const [form, setForm] = useState({
+    ...emptyPlayerForm,
+  });
+
   const [isSaving, setIsSaving] = useState(false);
+
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
   const loadData = async () => {
@@ -148,9 +289,14 @@ export default function Players() {
     setErrorMessage("");
 
     try {
-      const [playersResult, teamsResult] = await Promise.all([
+      const [
+        playersResult,
+        teamsResult,
+        countriesResult,
+      ] = await Promise.all([
         base44.entities.Player.list(),
         base44.entities.Team.list(),
+        base44.entities.Country.list(),
       ]);
 
       const loadedPlayers = getList(playersResult)
@@ -161,15 +307,28 @@ export default function Players() {
         .map(normalizeTeam)
         .filter((team) => team.id && team.name)
         .sort((a, b) =>
-          a.name.localeCompare(b.name, "es", { sensitivity: "base" })
+          a.name.localeCompare(b.name, "es", {
+            sensitivity: "base",
+          })
+        );
+
+      const loadedCountries = getList(countriesResult)
+        .map(normalizeCountry)
+        .filter((country) => country.id && country.name)
+        .sort((a, b) =>
+          a.name.localeCompare(b.name, "es", {
+            sensitivity: "base",
+          })
         );
 
       setPlayers(loadedPlayers);
       setTeams(loadedTeams);
+      setCountries(loadedCountries);
     } catch (error) {
       console.error("Error loading players:", error);
+
       setErrorMessage(
-        "No se han podido cargar los jugadores. Comprueba que la entidad Player existe en Base44."
+        "No se han podido cargar los jugadores, equipos o países. Comprueba que las entidades Player, Team y Country existen en Base44."
       );
     } finally {
       setIsLoading(false);
@@ -187,53 +346,221 @@ export default function Players() {
     }, {});
   }, [teams]);
 
+  const countryById = useMemo(() => {
+    return countries.reduce((map, country) => {
+      map[country.id] = country;
+      return map;
+    }, {});
+  }, [countries]);
+
   const filteredPlayers = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return players
       .filter((player) => {
-        if (!query) return true;
+        if (!query) {
+          return true;
+        }
+
         const team = teamById[player.teamId];
+        const country = countryById[player.countryId];
+
         return (
-          (player.name || "").toLowerCase().includes(query) ||
-          (team?.name || "").toLowerCase().includes(query)
+          (player.name || "")
+            .toLowerCase()
+            .includes(query) ||
+          (team?.name || "")
+            .toLowerCase()
+            .includes(query) ||
+          (country?.name || "")
+            .toLowerCase()
+            .includes(query)
         );
       })
       .sort((a, b) =>
-        (a.name || "").localeCompare(b.name || "", "es", {
-          sensitivity: "base",
-        })
+        (a.name || "").localeCompare(
+          b.name || "",
+          "es",
+          {
+            sensitivity: "base",
+          }
+        )
       );
-  }, [players, search, teamById]);
+  }, [
+    players,
+    search,
+    teamById,
+    countryById,
+  ]);
 
   const handleOpenAddPlayer = () => {
-    setForm({ ...emptyPlayerForm });
+    setForm({
+      ...emptyPlayerForm,
+    });
+
     setAddModalOpen(true);
+  };
+
+  const handleCloseAddPlayer = () => {
+    if (isSaving) {
+      return;
+    }
+
+    setAddModalOpen(false);
+
+    setForm({
+      ...emptyPlayerForm,
+    });
   };
 
   const handleSavePlayer = async (event) => {
     event.preventDefault();
 
-    if (!form.name.trim()) return;
+    if (!form.name.trim()) {
+      return;
+    }
+
+    if (!isValidDateOfBirth(form.dateOfBirth)) {
+      setErrorMessage(
+        "La fecha de nacimiento debe tener el formato DD/MM/YYYY. Ejemplo: 28/09/1998."
+      );
+      return;
+    }
+
+    if (
+      form.teamId === NEW_TEAM_VALUE &&
+      !form.newTeamName.trim()
+    ) {
+      setErrorMessage(
+        "Introduce el nombre del nuevo club."
+      );
+      return;
+    }
 
     setIsSaving(true);
     setErrorMessage("");
 
     try {
+      let teamId = form.teamId || "";
+
+      /*
+       * Si el usuario ha seleccionado:
+       *
+       * + Crear nuevo club
+       *
+       * creamos primero el Team.
+       */
+      if (teamId === NEW_TEAM_VALUE) {
+        const newTeamName = form.newTeamName.trim();
+
+        const normalizedNewTeamName =
+          newTeamName.toLowerCase();
+
+        const existingTeam = teams.find(
+          (team) =>
+            String(team.name || "")
+              .trim()
+              .toLowerCase() ===
+            normalizedNewTeamName
+        );
+
+        /*
+         * Evitamos duplicar un club que ya exista.
+         */
+        if (existingTeam?.id) {
+          teamId = existingTeam.id;
+        } else {
+          const generatedShortName =
+            newTeamName
+              .toUpperCase()
+              .replace(/[^A-Z0-9À-ÿ]/g, "")
+              .slice(0, 12) ||
+            `TEAM${Date.now()}`;
+
+          const createdTeam =
+            await base44.entities.Team.create({
+              name: newTeamName,
+
+              short_name: generatedShortName,
+
+              country_id:
+                form.countryId || "",
+
+              continent: "Europe",
+
+              is_active: true,
+            });
+
+          const createdTeamData =
+            createdTeam?.data ||
+            createdTeam;
+
+          teamId =
+            createdTeamData?.id ||
+            createdTeamData?._id ||
+            createdTeam?.id ||
+            createdTeam?._id ||
+            "";
+
+          if (!teamId) {
+            throw new Error(
+              "El club se creó pero Base44 no devolvió su ID."
+            );
+          }
+        }
+      }
+
+      /*
+       * Creamos el jugador.
+       */
       await base44.entities.Player.create({
         name: form.name.trim(),
-        date_of_birth: form.dateOfBirth || "",
-        team_id: form.teamId || "",
-        photo_url: normalizeImageUrl(form.photoUrl),
+
+        /*
+         * Guardamos exactamente el formato que
+         * introduce el usuario:
+         *
+         * 28/09/1998
+         */
+        date_of_birth:
+          form.dateOfBirth.trim(),
+
+        /*
+         * ID real del Team.
+         */
+        team_id: teamId,
+
+        /*
+         * ID real del Country.
+         */
+        country_id:
+          form.countryId || "",
+
+        photo_url:
+          normalizeImageUrl(form.photoUrl),
       });
 
       setAddModalOpen(false);
-      setForm({ ...emptyPlayerForm });
+
+      setForm({
+        ...emptyPlayerForm,
+      });
+
       await loadData();
     } catch (error) {
-      console.error("Error creating player:", error);
+      console.error(
+        "Error creating player:",
+        error
+      );
+
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "No se ha podido crear el jugador.";
+
       setErrorMessage(
-        "No se ha podido crear el jugador. Revisa los campos de la entidad Player."
+        `Error al crear el jugador: ${errorMessage}`
       );
     } finally {
       setIsSaving(false);
@@ -245,7 +572,9 @@ export default function Players() {
       <PlayersDetail
         player={selectedPlayer}
         team={teamById[selectedPlayer.teamId]}
-        onBack={() => setSelectedPlayer(null)}
+        onBack={() =>
+          setSelectedPlayer(null)
+        }
       />
     );
   }
@@ -253,26 +582,34 @@ export default function Players() {
   return (
     <div className="relative h-[calc(100vh-0px)] overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
       <div className="mx-auto max-w-[1800px]">
+
+        {/* HEADER */}
         <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
               MF LEGACY
             </p>
+
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
               Players
             </h1>
+
             <p className="mt-1 text-sm text-slate-500">
               Explore and manage the player database.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
+
+            {/* SEARCH */}
             {searchOpen && (
               <div className="w-[220px] sm:w-[280px]">
                 <input
                   type="text"
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) =>
+                    setSearch(event.target.value)
+                  }
                   placeholder="Search players..."
                   autoFocus
                   className={inputClassName}
@@ -283,8 +620,13 @@ export default function Players() {
             <button
               type="button"
               onClick={() => {
-                setSearchOpen((open) => !open);
-                if (searchOpen) setSearch("");
+                setSearchOpen(
+                  (open) => !open
+                );
+
+                if (searchOpen) {
+                  setSearch("");
+                }
               }}
               className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
                 searchOpen
@@ -294,9 +636,14 @@ export default function Players() {
               aria-label="Search players"
               title="Search players"
             >
-              {searchOpen ? <X size={17} /> : <Search size={17} />}
+              {searchOpen ? (
+                <X size={17} />
+              ) : (
+                <Search size={17} />
+              )}
             </button>
 
+            {/* ADD PLAYER */}
             <button
               type="button"
               onClick={handleOpenAddPlayer}
@@ -309,62 +656,94 @@ export default function Players() {
           </div>
         </div>
 
+        {/* ERROR */}
         {errorMessage && (
           <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errorMessage}
           </div>
         )}
 
+        {/* COUNTER */}
         <div className="mb-5 flex items-center justify-between">
           <div className="text-xs font-medium text-slate-400">
             {isLoading
               ? "Loading players..."
               : `${filteredPlayers.length} ${
-                  filteredPlayers.length === 1 ? "player" : "players"
+                  filteredPlayers.length === 1
+                    ? "player"
+                    : "players"
                 }`}
           </div>
         </div>
 
+        {/* LOADING */}
         {isLoading ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-[106px] animate-pulse rounded-2xl border border-slate-200 bg-white"
-              />
-            ))}
+            {Array.from({ length: 8 }).map(
+              (_, index) => (
+                <div
+                  key={index}
+                  className="h-[106px] animate-pulse rounded-2xl border border-slate-200 bg-white"
+                />
+              )
+            )}
           </div>
         ) : filteredPlayers.length > 0 ? (
+
+          /* PLAYERS */
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {filteredPlayers.map((player) => (
-              <PlayerCard
-                key={player.id || `${player.name}-${player.dateOfBirth}`}
-                player={player}
-                team={teamById[player.teamId]}
-                onClick={() => setSelectedPlayer(player)}
-              />
-            ))}
+            {filteredPlayers.map(
+              (player) => (
+                <PlayerCard
+                  key={
+                    player.id ||
+                    `${player.name}-${player.dateOfBirth}`
+                  }
+                  player={player}
+                  team={
+                    teamById[player.teamId]
+                  }
+                  country={
+                    countryById[
+                      player.countryId
+                    ]
+                  }
+                  onClick={() =>
+                    setSelectedPlayer(
+                      player
+                    )
+                  }
+                />
+              )
+            )}
           </div>
+
         ) : (
+
+          /* EMPTY STATE */
           <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-300">
               <Users size={24} />
             </div>
 
             <h2 className="mt-4 text-sm font-extrabold text-slate-900">
-              {search ? "No players found" : "No players created yet"}
+              {search
+                ? "No players found"
+                : "No players created yet"}
             </h2>
 
             <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
               {search
-                ? "Try another player or club name."
+                ? "Try another player, club or country name."
                 : "Create your first player using the + button."}
             </p>
 
             {!search && (
               <button
                 type="button"
-                onClick={handleOpenAddPlayer}
+                onClick={
+                  handleOpenAddPlayer
+                }
                 className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477]"
               >
                 <Plus size={16} />
@@ -374,21 +753,28 @@ export default function Players() {
           </div>
         )}
 
+        {/* ADD PLAYER MODAL */}
         {addModalOpen && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
             onMouseDown={(event) => {
-              if (event.target === event.currentTarget) {
-                setAddModalOpen(false);
+              if (
+                event.target ===
+                event.currentTarget
+              ) {
+                handleCloseAddPlayer();
               }
             }}
           >
             <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+
+              {/* MODAL HEADER */}
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div>
                   <h2 className="text-base font-extrabold text-slate-900">
                     Add player
                   </h2>
+
                   <p className="mt-0.5 text-xs text-slate-400">
                     Create a new player in the database.
                   </p>
@@ -396,7 +782,9 @@ export default function Players() {
 
                 <button
                   type="button"
-                  onClick={() => setAddModalOpen(false)}
+                  onClick={
+                    handleCloseAddPlayer
+                  }
                   className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50"
                   aria-label="Close"
                 >
@@ -404,114 +792,303 @@ export default function Players() {
                 </button>
               </div>
 
-              <form onSubmit={handleSavePlayer} className="space-y-5 p-5">
+              <form
+                onSubmit={
+                  handleSavePlayer
+                }
+                className="space-y-5 p-5"
+              >
+
+                {/* PLAYER NAME */}
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                     Player name
                   </label>
+
                   <input
                     type="text"
                     value={form.name}
                     onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          name:
+                            event.target
+                              .value,
+                        })
+                      )
                     }
-                    placeholder="e.g. Jude Bellingham"
-                    className={inputClassName}
+                    placeholder="e.g. Neymar Jr"
+                    className={
+                      inputClassName
+                    }
                     required
                   />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                      Date of birth
-                    </label>
-                    <input
-                      type="date"
-                      value={form.dateOfBirth}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          dateOfBirth: event.target.value,
-                        }))
-                      }
-                      className={inputClassName}
-                    />
-                  </div>
+                {/* DATE OF BIRTH */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Date of birth
+                  </label>
 
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                      Associated club
-                    </label>
-                    <select
-                      value={form.teamId}
-                      onChange={(event) =>
-                        setForm((current) => ({
+                  <input
+                    type="text"
+                    value={
+                      form.dateOfBirth
+                    }
+                    onChange={(event) =>
+                      setForm(
+                        (current) => ({
                           ...current,
-                          teamId: event.target.value,
-                        }))
-                      }
-                      className={inputClassName}
-                    >
-                      <option value="">No club</option>
-                      {teams.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {team.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                          dateOfBirth:
+                            event.target
+                              .value,
+                        })
+                      )
+                    }
+                    placeholder="28/09/1998"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className={
+                      inputClassName
+                    }
+                  />
+
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    Format: DD/MM/YYYY
+                  </p>
                 </div>
 
+                {/* COUNTRY */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Country
+                  </label>
+
+                  <select
+                    value={
+                      form.countryId
+                    }
+                    onChange={(event) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          countryId:
+                            event.target
+                              .value,
+                        })
+                      )
+                    }
+                    className={
+                      inputClassName
+                    }
+                  >
+                    <option value="">
+                      Select country
+                    </option>
+
+                    {countries.map(
+                      (country) => (
+                        <option
+                          key={
+                            country.id
+                          }
+                          value={
+                            country.id
+                          }
+                        >
+                          {country.name}
+                          {country.code
+                            ? ` (${country.code})`
+                            : ""}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  {countries.length ===
+                    0 && (
+                    <p className="mt-1.5 text-[11px] text-slate-400">
+                      No countries have
+                      been created yet.
+                    </p>
+                  )}
+                </div>
+
+                {/* CLUB */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Associated club
+                  </label>
+
+                  <select
+                    value={
+                      form.teamId
+                    }
+                    onChange={(event) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          teamId:
+                            event.target
+                              .value,
+                          newTeamName:
+                            "",
+                        })
+                      )
+                    }
+                    className={
+                      inputClassName
+                    }
+                  >
+                    <option value="">
+                      No club
+                    </option>
+
+                    {teams.map(
+                      (team) => (
+                        <option
+                          key={team.id}
+                          value={team.id}
+                        >
+                          {team.name}
+                        </option>
+                      )
+                    )}
+
+                    <option
+                      value={
+                        NEW_TEAM_VALUE
+                      }
+                    >
+                      + Create new club
+                    </option>
+                  </select>
+                </div>
+
+                {/* NEW CLUB */}
+                {form.teamId ===
+                  NEW_TEAM_VALUE && (
+                  <div className="rounded-xl border border-[#003399]/15 bg-[#003399]/[0.035] p-4">
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                      New club
+                    </label>
+
+                    <input
+                      type="text"
+                      value={
+                        form.newTeamName
+                      }
+                      onChange={(event) =>
+                        setForm(
+                          (current) => ({
+                            ...current,
+                            newTeamName:
+                              event
+                                .target
+                                .value,
+                          })
+                        )
+                      }
+                      placeholder="e.g. Santos FC"
+                      className={
+                        inputClassName
+                      }
+                      autoFocus
+                    />
+
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+                      The club will be
+                      created
+                      automatically
+                      when you save
+                      the player.
+                      The selected
+                      country will be
+                      assigned to the
+                      new club.
+                    </p>
+                  </div>
+                )}
+
+                {/* PLAYER PHOTO */}
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                     Player photo URL
                   </label>
+
                   <input
                     type="url"
-                    value={form.photoUrl}
+                    value={
+                      form.photoUrl
+                    }
                     onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        photoUrl: event.target.value,
-                      }))
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          photoUrl:
+                            event.target
+                              .value,
+                        })
+                      )
                     }
                     placeholder="https://..."
-                    className={inputClassName}
+                    className={
+                      inputClassName
+                    }
                   />
                 </div>
 
+                {/* PHOTO PREVIEW */}
                 {form.photoUrl && (
                   <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <img
-                      src={normalizeImageUrl(form.photoUrl)}
+                      src={normalizeImageUrl(
+                        form.photoUrl
+                      )}
                       alt=""
                       className="h-16 w-16 rounded-lg object-cover object-top"
+                      onError={(event) => {
+                        event.currentTarget.style.display =
+                          "none";
+                      }}
                     />
+
                     <div className="text-xs text-slate-500">
-                      Preview of the player photo.
+                      Preview of the
+                      player photo.
                     </div>
                   </div>
                 )}
 
+                {/* ACTIONS */}
                 <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
                   <button
                     type="button"
-                    onClick={() => setAddModalOpen(false)}
-                    className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                    onClick={
+                      handleCloseAddPlayer
+                    }
+                    disabled={isSaving}
+                    className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                   >
                     Cancel
                   </button>
 
                   <button
                     type="submit"
-                    disabled={isSaving || !form.name.trim()}
+                    disabled={
+                      isSaving ||
+                      !form.name.trim() ||
+                      (form.teamId ===
+                        NEW_TEAM_VALUE &&
+                        !form.newTeamName.trim())
+                    }
                     className="h-10 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isSaving ? "Saving..." : "Create player"}
+                    {isSaving
+                      ? "Saving..."
+                      : "Create player"}
                   </button>
                 </div>
               </form>
