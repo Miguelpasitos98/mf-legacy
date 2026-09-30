@@ -328,6 +328,7 @@ const emptyPlayerForm = {
   teamId: "",
   countryId: "",
   photoUrl: "",
+  cardPhotoUrl: "",
   ca: "",
   cp: "",
   positionRatings: { ...POSITION_RATING_DEFAULTS },
@@ -403,6 +404,11 @@ const normalizePlayer = (player) => ({
     player?.photoUrl ||
     player?.image_url ||
     player?.imageUrl ||
+    "",
+
+  cardPhotoUrl:
+    player?.card_photo_url ||
+    player?.cardPhotoUrl ||
     "",
 
   ca: player?.ca ?? "",
@@ -619,7 +625,9 @@ function PlayerCard({
   country,
   onClick,
 }) {
-  const photoUrl = normalizeImageUrl(player.photoUrl);
+  const photoUrl = normalizeImageUrl(
+    player.cardPhotoUrl || player.photoUrl
+  );
   const teamLogo = normalizeImageUrl(team?.logo);
 
   const age = calculateAge(player.dateOfBirth);
@@ -1231,6 +1239,9 @@ export default function Players() {
 
         photo_url:
           normalizeImageUrl(form.photoUrl),
+
+        card_photo_url:
+          normalizeImageUrl(form.cardPhotoUrl),
 
         ca: Number(form.ca),
 
@@ -2052,6 +2063,30 @@ export default function Players() {
                   />
                 </div>
 
+                {/* PLAYER CARD PHOTO */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Player card photo URL
+                  </label>
+
+                  <input
+                    type="url"
+                    value={form.cardPhotoUrl}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        cardPhotoUrl: event.target.value,
+                      }))
+                    }
+                    placeholder="https://..."
+                    className={inputClassName}
+                  />
+
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    Imagen utilizada exclusivamente en las tarjetas del listado de jugadores.
+                  </p>
+                </div>
+
                 {/* PHOTO PREVIEW */}
                 {form.photoUrl && (
                   <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -2072,6 +2107,24 @@ export default function Players() {
                       Preview of the player photo.
                     </div>
 
+                  </div>
+                )}
+
+                {/* CARD PHOTO PREVIEW */}
+                {form.cardPhotoUrl && (
+                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <img
+                      src={normalizeImageUrl(form.cardPhotoUrl)}
+                      alt=""
+                      className="h-16 w-16 rounded-lg object-cover object-top"
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+
+                    <div className="text-xs text-slate-500">
+                      Preview of the player card photo.
+                    </div>
                   </div>
                 )}
 
