@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -7,6 +7,10 @@ import {
   X,
   Save,
   Pencil,
+  Search,
+  ChevronDown,
+  Globe2,
+  Plus,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
@@ -143,6 +147,279 @@ const DESCRIPTION_OPTIONS = [
 const INPUT_CLASS =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
 
+const getCountryFlagUrl = (country) => {
+  const directFlag = normalizeImageUrl(
+    country?.flag || country?.flag_url || country?.flagUrl
+  );
+
+  if (directFlag) return directFlag;
+
+  const code = String(country?.code || "")
+    .trim()
+    .toUpperCase();
+
+  const alpha3ToAlpha2 = {
+    DEU: "de",
+    SAU: "sa",
+    ARG: "ar",
+    BEL: "be",
+    BRA: "br",
+    ESP: "es",
+    FRA: "fr",
+    ENG: "gb",
+    GBR: "gb",
+    ITA: "it",
+    NOR: "no",
+    POL: "pl",
+    POR: "pt",
+  };
+
+  const alpha2 =
+    alpha3ToAlpha2[code] ||
+    (code.length === 2 ? code.toLowerCase() : "");
+
+  return alpha2
+    ? `https://flagcdn.com/${alpha2}.svg`
+    : "";
+};
+
+function SearchableEntitySelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+  searchPlaceholder,
+  kind,
+  emptyOption = null,
+  specialOption = null,
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleOutsideClick = (event) => {
+      if (!wrapperRef.current?.contains(event.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [open]);
+
+  const getLabel = (item) => item?.name || "Unnamed";
+  const getMeta = (item) =>
+    kind === "country"
+      ? item?.code || ""
+      : item?.short_name || "";
+
+  const getImage = (item) =>
+    kind === "country"
+      ? getCountryFlagUrl(item)
+      : normalizeImageUrl(item?.logo);
+
+  const filteredOptions = options.filter((item) => {
+    const searchText = [
+      item?.name,
+      item?.short_name,
+      item?.code,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchText.includes(query.trim().toLowerCase());
+  });
+
+  const selected =
+    options.find((item) => item?.id === value) || null;
+
+  const isEmptySelected =
+    emptyOption && value === emptyOption.value;
+
+  const isSpecialSelected =
+    specialOption && value === specialOption.value;
+
+  const selectValue = (nextValue) => {
+    onChange(nextValue);
+    setOpen(false);
+    setQuery("");
+  };
+
+  const renderVisual = (item) => {
+    if (!item) return null;
+
+    const image = getImage(item);
+
+    return (
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-50">
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            className={
+              kind === "country"
+                ? "h-5 w-7 rounded-[2px] object-cover"
+                : "h-6 w-6 object-contain"
+            }
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+          />
+        ) : kind === "country" ? (
+          <Globe2 size={15} className="text-slate-300" />
+        ) : (
+          <Building2 size={15} className="text-slate-300" />
+        )}
+      </span>
+    );
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((current) => !current);
+          setQuery("");
+        }}
+        className={`${INPUT_CLASS} flex items-center gap-3 text-left`}
+        aria-expanded={open}
+      >
+        {selected ? renderVisual(selected) : (
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50">
+            {kind === "country" ? (
+              <Globe2 size={15} className="text-slate-300" />
+            ) : (
+              <Building2 size={15} className="text-slate-300" />
+            )}
+          </span>
+        )}
+
+        <span className="min-w-0 flex-1 truncate">
+          <span className={selected ? "block text-slate-800" : "block text-slate-400"}>
+            {selected
+              ? getLabel(selected)
+              : isEmptySelected
+                ? emptyOption.label
+                : isSpecialSelected
+                  ? specialOption.label
+                  : placeholder}
+          </span>
+        </span>
+
+        {selected && getMeta(selected) ? (
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+            {getMeta(selected)}
+          </span>
+        ) : null}
+
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-slate-400 transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[80] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
+          <div className="border-b border-slate-100 p-2">
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3">
+              <Search size={15} className="shrink-0 text-slate-400" />
+              <input
+                type="text"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={searchPlaceholder}
+                autoFocus
+                className="h-9 min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+
+          <div className="max-h-64 overflow-y-auto p-1.5">
+            {emptyOption && (
+              <button
+                type="button"
+                onClick={() => selectValue(emptyOption.value)}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition ${
+                  value === emptyOption.value
+                    ? "bg-[#003399]/[0.06] text-[#003399]"
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-50">
+                  {kind === "country" ? (
+                    <Globe2 size={15} className="text-slate-300" />
+                  ) : (
+                    <Building2 size={15} className="text-slate-300" />
+                  )}
+                </span>
+                <span className="font-medium">{emptyOption.label}</span>
+              </button>
+            )}
+
+            {filteredOptions.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => selectValue(item.id)}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${
+                  item.id === value
+                    ? "bg-[#003399]/[0.06]"
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                {renderVisual(item)}
+
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
+                  {getLabel(item)}
+                </span>
+
+                {getMeta(item) ? (
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                    {getMeta(item)}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+
+            {filteredOptions.length === 0 && (
+              <div className="px-3 py-6 text-center text-xs text-slate-400">
+                No results found.
+              </div>
+            )}
+
+            {specialOption && (
+              <button
+                type="button"
+                onClick={() => selectValue(specialOption.value)}
+                className={`mt-1 flex w-full items-center gap-3 rounded-lg border-t border-slate-100 px-3 py-2.5 text-left text-sm font-semibold text-[#003399] transition hover:bg-[#003399]/[0.04] ${
+                  value === specialOption.value
+                    ? "bg-[#003399]/[0.06]"
+                    : ""
+                }`}
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#003399]/[0.08]">
+                  <Plus size={15} />
+                </span>
+                {specialOption.label}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function normalizeImageUrl(value) {
   if (!value) return "";
   const url = String(value).trim();
@@ -179,7 +456,7 @@ function calculateAge(value) {
   return age >= 0 ? age : null;
 }
 
-export default function PlayerDetail({ player, team, onBack, onPlayerUpdated }) {
+export default function PlayerDetail({ player, team, country, teams = [], countries = [], onBack, onPlayerUpdated }) {
   const initialPositionRatings = useMemo(
     () => ({
       GK: 0,
@@ -205,6 +482,8 @@ export default function PlayerDetail({ player, team, onBack, onPlayerUpdated }) 
       dateOfBirth: player?.dateOfBirth || player?.date_of_birth || "",
       photoUrl: player?.photoUrl || player?.photo_url || "",
       cardPhotoUrl: player?.cardPhotoUrl || player?.card_photo_url || "",
+      teamId: player?.teamId || player?.team_id || "",
+      countryId: player?.countryId || player?.country_id || "",
       ca: player?.ca ?? "",
       cp: player?.cp ?? "",
       description: player?.description || "",
@@ -303,6 +582,8 @@ export default function PlayerDetail({ player, team, onBack, onPlayerUpdated }) 
       await base44.entities.Player.update(editablePlayer.id, {
         name: form.name.trim(),
         date_of_birth: form.dateOfBirth.trim(),
+        team_id: form.teamId || "",
+        country_id: form.countryId || "",
         photo_url: normalizeImageUrl(form.photoUrl),
         card_photo_url: normalizeImageUrl(form.cardPhotoUrl),
         ca: numericCA,
@@ -316,6 +597,10 @@ export default function PlayerDetail({ player, team, onBack, onPlayerUpdated }) 
         name: form.name.trim(),
         dateOfBirth: form.dateOfBirth.trim(),
         date_of_birth: form.dateOfBirth.trim(),
+        teamId: form.teamId || "",
+        team_id: form.teamId || "",
+        countryId: form.countryId || "",
+        country_id: form.countryId || "",
         photoUrl: form.photoUrl.trim(),
         photo_url: form.photoUrl.trim(),
         cardPhotoUrl: form.cardPhotoUrl.trim(),
@@ -570,6 +855,54 @@ export default function PlayerDetail({ player, team, onBack, onPlayerUpdated }) 
                   }
                   placeholder="DD/MM/YYYY"
                   className={INPUT_CLASS}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  Country
+                </label>
+
+                <SearchableEntitySelect
+                  value={form.countryId}
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      countryId: value,
+                    }))
+                  }
+                  options={countries}
+                  kind="country"
+                  placeholder="Select country"
+                  searchPlaceholder="Search country..."
+                  emptyOption={{
+                    value: "",
+                    label: "Select country",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  Associated club
+                </label>
+
+                <SearchableEntitySelect
+                  value={form.teamId}
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      teamId: value,
+                    }))
+                  }
+                  options={teams}
+                  kind="team"
+                  placeholder="No club"
+                  searchPlaceholder="Search club..."
+                  emptyOption={{
+                    value: "",
+                    label: "No club",
+                  }}
                 />
               </div>
 
