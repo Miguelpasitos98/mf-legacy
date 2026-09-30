@@ -674,7 +674,7 @@ export default function Players() {
   }
 
   return (
-    <div className="relative h-[calc(100vh-0px)] overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
+    <div className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
       <div className="mx-auto max-w-[1800px]">
 
         {/* HEADER */}
