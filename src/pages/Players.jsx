@@ -1314,6 +1314,9 @@ export default function Players() {
       <PlayersDetail
         player={selectedPlayer}
         team={teamById[selectedPlayer.teamId]}
+        country={countryById[selectedPlayer.countryId]}
+        teams={teams}
+        countries={countries}
         onBack={() => {
           setSelectedPlayer(null);
         }}
