@@ -128,6 +128,57 @@ const normalizeTeamLeague = (relation) => ({
     relation?.is_current !== false,
 });
 
+
+const ISO3_TO_ISO2 = {
+  ESP: "es",
+  DEU: "de",
+  GBR: "gb",
+  ENG: "gb",
+  SAU: "sa",
+  BEL: "be",
+  BRA: "br",
+  ITA: "it",
+  FRA: "fr",
+  PRT: "pt",
+  NLD: "nl",
+  ARG: "ar",
+  URY: "uy",
+  CHL: "cl",
+  COL: "co",
+  MEX: "mx",
+  USA: "us",
+  CAN: "ca",
+  JPN: "jp",
+  KOR: "kr",
+  AUS: "au",
+  MAR: "ma",
+  NGA: "ng",
+  CIV: "ci",
+  SEN: "sn",
+  EGY: "eg",
+};
+
+const getFlagUrl = (country) => {
+  const rawFlag = String(country?.flag || "").trim();
+
+  if (/^(https?:|data:|blob:)/i.test(rawFlag)) {
+    return rawFlag;
+  }
+
+  const rawCode = String(country?.code || "").trim().toUpperCase();
+
+  const iso2 =
+    rawCode.length === 2
+      ? rawCode.toLowerCase()
+      : ISO3_TO_ISO2[rawCode] || "";
+
+  if (!iso2) {
+    return "";
+  }
+
+  return `https://flagcdn.com/w80/${iso2}.png`;
+};
+
 const normalizeImageUrl = (value) => {
   const trimmed = String(value || "").trim();
 
@@ -518,8 +569,18 @@ export default function Countries() {
 
           <div className="mb-8 flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 items-center gap-5">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[#F1F5F9] text-5xl">
-                {selectedCountry.flag || "🏳️"}
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F1F5F9]">
+                {getFlagUrl(selectedCountry) ? (
+                  <img
+                    src={getFlagUrl(selectedCountry)}
+                    alt={`Bandera de ${selectedCountry.name}`}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-4xl">
+                    {selectedCountry.flag || "🏳️"}
+                  </span>
+                )}
               </div>
 
               <div className="min-w-0">
@@ -749,8 +810,18 @@ export default function Countries() {
                   }
                   className="group flex items-center gap-4 rounded-2xl border border-white/70 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
                 >
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#F1F5F9] text-4xl">
-                    {country.flag || "🏳️"}
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F1F5F9]">
+                    {getFlagUrl(country) ? (
+                      <img
+                        src={getFlagUrl(country)}
+                        alt={`Bandera de ${country.name}`}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-4xl">
+                        {country.flag || "🏳️"}
+                      </span>
+                    )}
                   </div>
 
                   <div className="min-w-0 flex-1">
