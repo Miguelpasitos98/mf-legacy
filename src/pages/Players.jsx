@@ -22,9 +22,12 @@ const emptyPlayerForm = {
   countryId: "",
   photoUrl: "",
   newTeamName: "",
+  newCountryName: "",
+  newCountryContinent: "Europe",
 };
 
 const NEW_TEAM_VALUE = "__new_team__";
+const NEW_COUNTRY_VALUE = "__new_country__";
 
 const getList = (result) => {
   if (Array.isArray(result)) return result;
@@ -460,11 +463,22 @@ export default function Players() {
       return;
     }
 
+    if (
+      form.countryId === NEW_COUNTRY_VALUE &&
+      !form.newCountryName.trim()
+    ) {
+      setErrorMessage(
+        "Introduce el nombre del nuevo país."
+      );
+      return;
+    }
+
     setIsSaving(true);
     setErrorMessage("");
 
     try {
       let teamId = form.teamId || "";
+      let countryId = form.countryId || "";
 
       /*
        * Si el usuario ha seleccionado:
@@ -534,6 +548,63 @@ export default function Players() {
       }
 
       /*
+       * Si el usuario ha seleccionado New en Country,
+       * creamos primero el país.
+       */
+      if (countryId === NEW_COUNTRY_VALUE) {
+        const newCountryName = form.newCountryName.trim();
+        const normalizedNewCountryName =
+          newCountryName.toLowerCase();
+
+        const existingCountry = countries.find(
+          (country) =>
+            String(country.name || "")
+              .trim()
+              .toLowerCase() ===
+            normalizedNewCountryName
+        );
+
+        if (existingCountry?.id) {
+          countryId = existingCountry.id;
+        } else {
+          const generatedCountryCode =
+            newCountryName
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toUpperCase()
+              .replace(/[^A-Z]/g, "")
+              .slice(0, 3)
+              .padEnd(3, "X");
+
+          const createdCountry =
+            await base44.entities.Country.create({
+              name: newCountryName,
+              code: generatedCountryCode,
+              continent: form.newCountryContinent,
+              flag: "",
+              is_active: true,
+            });
+
+          const createdCountryData =
+            createdCountry?.data ||
+            createdCountry;
+
+          countryId =
+            createdCountryData?.id ||
+            createdCountryData?._id ||
+            createdCountry?.id ||
+            createdCountry?._id ||
+            "";
+
+          if (!countryId) {
+            throw new Error(
+              "El país se creó pero Base44 no devolvió su ID."
+            );
+          }
+        }
+      }
+
+      /*
        * Creamos el jugador.
        */
       await base44.entities.Player.create({
@@ -557,7 +628,7 @@ export default function Players() {
          * ID real del Country.
          */
         country_id:
-          form.countryId || "",
+          countryId || "",
 
         photo_url:
           normalizeImageUrl(form.photoUrl),
@@ -900,6 +971,8 @@ export default function Players() {
                           countryId:
                             event.target
                               .value,
+                          newCountryName:
+                            "",
                         })
                       )
                     }
@@ -928,7 +1001,52 @@ export default function Players() {
                         </option>
                       )
                     )}
+
+                    <option
+                      value={
+                        NEW_COUNTRY_VALUE
+                      }
+                    >
+                      New
+                    </option>
                   </select>
+
+                  {form.countryId ===
+                    NEW_COUNTRY_VALUE && (
+                    <div className="mt-3 rounded-xl border border-[#003399]/15 bg-[#003399]/[0.035] p-4">
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        New country
+                      </label>
+
+                      <input
+                        type="text"
+                        value={
+                          form.newCountryName
+                        }
+                        onChange={(event) =>
+                          setForm(
+                            (current) => ({
+                              ...current,
+                              newCountryName:
+                                event.target.value,
+                            })
+                          )
+                        }
+                        placeholder="e.g. Argentina"
+                        className={
+                          inputClassName
+                        }
+                        autoFocus
+                      />
+
+                      <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+                        The country will be created
+                        automatically when you save
+                        the player. Its 3-letter code
+                        will be generated automatically.
+                      </p>
+                    </div>
+                  )}
 
                   {countries.length ===
                     0 && (
@@ -1103,9 +1221,12 @@ export default function Players() {
                     disabled={
                       isSaving ||
                       !form.name.trim() ||
-                      (form.teamId ===
+                      ((form.teamId ===
                         NEW_TEAM_VALUE &&
-                        !form.newTeamName.trim())
+                        !form.newTeamName.trim()) ||
+                      (form.countryId ===
+                        NEW_COUNTRY_VALUE &&
+                        !form.newCountryName.trim()))
                     }
                     className="h-10 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
                   >
