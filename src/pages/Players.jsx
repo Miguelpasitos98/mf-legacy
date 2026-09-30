@@ -7,9 +7,6 @@ import {
   CalendarDays,
   Building2,
   Globe2,
-  SlidersHorizontal,
-  ArrowUpDown,
-  RotateCcw,
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
 import { useLocation, useSearchParams } from "react-router-dom";
@@ -684,18 +681,6 @@ export default function Players() {
   const filteredPlayers = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    const matchesPosition = (player) => {
-      if (positionFilter === "all") {
-        return true;
-      }
-
-      const rating = Number(
-        player?.positionRatings?.[positionFilter] ?? 0
-      );
-
-      return Number.isFinite(rating) && rating > 0;
-    };
-
     const matchesSearch = (player) => {
       if (!query) {
         return true;
@@ -717,6 +702,18 @@ export default function Players() {
       );
     };
 
+    const matchesPosition = (player) => {
+      if (positionFilter === "all") {
+        return true;
+      }
+
+      const rating = Number(
+        player?.positionRatings?.[positionFilter] ?? 0
+      );
+
+      return Number.isFinite(rating) && rating > 0;
+    };
+
     const filtered = players.filter((player) => {
       const matchesTeam =
         teamFilter === "all" ||
@@ -736,57 +733,37 @@ export default function Players() {
 
     return [...filtered].sort((a, b) => {
       if (sortBy === "ca_desc") {
-        return (
-          Number(b.ca || 0) -
-          Number(a.ca || 0)
-        );
+        return Number(b.ca || 0) - Number(a.ca || 0);
       }
 
       if (sortBy === "ca_asc") {
-        return (
-          Number(a.ca || 0) -
-          Number(b.ca || 0)
-        );
+        return Number(a.ca || 0) - Number(b.ca || 0);
       }
 
       if (sortBy === "cp_desc") {
-        return (
-          Number(b.cp || 0) -
-          Number(a.cp || 0)
-        );
+        return Number(b.cp || 0) - Number(a.cp || 0);
       }
 
       if (sortBy === "cp_asc") {
-        return (
-          Number(a.cp || 0) -
-          Number(b.cp || 0)
-        );
+        return Number(a.cp || 0) - Number(b.cp || 0);
       }
 
       if (sortBy === "age_asc") {
-        const ageA =
-          calculateAge(a.dateOfBirth) ?? 999;
-        const ageB =
-          calculateAge(b.dateOfBirth) ?? 999;
-
+        const ageA = calculateAge(a.dateOfBirth) ?? 999;
+        const ageB = calculateAge(b.dateOfBirth) ?? 999;
         return ageA - ageB;
       }
 
       if (sortBy === "age_desc") {
-        const ageA =
-          calculateAge(a.dateOfBirth) ?? -1;
-        const ageB =
-          calculateAge(b.dateOfBirth) ?? -1;
-
+        const ageA = calculateAge(a.dateOfBirth) ?? -1;
+        const ageB = calculateAge(b.dateOfBirth) ?? -1;
         return ageB - ageA;
       }
 
       return (a.name || "").localeCompare(
         b.name || "",
         "es",
-        {
-          sensitivity: "base",
-        }
+        { sensitivity: "base" }
       );
     });
   }, [
@@ -813,7 +790,6 @@ export default function Players() {
     setCountryFilter("all");
     setSortBy("name");
   };
-
 
 
   const groupedByTeam = useMemo(() => {
@@ -1207,10 +1183,8 @@ export default function Players() {
             {/* FILTERS */}
             <button
               type="button"
-              onClick={() =>
-                setFiltersOpen((open) => !open)
-              }
-              className={`relative flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+              onClick={() => setFiltersOpen((open) => !open)}
+              className={`relative h-10 rounded-xl border px-3 text-xs font-semibold transition ${
                 filtersOpen || activeFilterCount > 0
                   ? "border-[#003399] bg-[#003399] text-white"
                   : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
@@ -1218,13 +1192,8 @@ export default function Players() {
               aria-label="Player filters"
               title="Player filters"
             >
-              <SlidersHorizontal size={17} />
-
-              {activeFilterCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[9px] font-extrabold text-[#003399] shadow">
-                  {activeFilterCount}
-                </span>
-              )}
+              Filters
+              {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
             </button>
 
             {/* ADD PLAYER */}
@@ -1243,18 +1212,11 @@ export default function Players() {
         {/* FILTER PANEL */}
         {filtersOpen && (
           <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal
-                    size={15}
-                    className="text-[#003399]"
-                  />
-                  <h2 className="text-sm font-extrabold text-slate-900">
-                    Player filters
-                  </h2>
-                </div>
-
+                <h2 className="text-sm font-extrabold text-slate-900">
+                  Player filters
+                </h2>
                 <p className="mt-1 text-xs text-slate-400">
                   Filter and sort the player database.
                 </p>
@@ -1263,152 +1225,87 @@ export default function Players() {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
+                className="h-9 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
               >
-                <RotateCcw size={14} />
                 Reset
               </button>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {/* POSITION */}
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                   Position
                 </label>
-
                 <select
                   value={positionFilter}
-                  onChange={(event) =>
-                    setPositionFilter(
-                      event.target.value
-                    )
-                  }
+                  onChange={(event) => setPositionFilter(event.target.value)}
                   className={inputClassName}
                 >
-                  <option value="all">
-                    All positions
-                  </option>
-
-                  {POSITION_RATING_GROUPS.map(
-                    (group) => (
-                      <optgroup
-                        key={group.title}
-                        label={group.title}
-                      >
-                        {group.positions.map(
-                          ([code, label]) => (
-                            <option
-                              key={code}
-                              value={code}
-                            >
-                              {label}
-                            </option>
-                          )
-                        )}
-                      </optgroup>
-                    )
-                  )}
+                  <option value="all">All positions</option>
+                  {POSITION_RATING_GROUPS.map((group) => (
+                    <optgroup key={group.title} label={group.title}>
+                      {group.positions.map(([code, label]) => (
+                        <option key={code} value={code}>
+                          {label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
 
-              {/* TEAM */}
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                   Team
                 </label>
-
                 <select
                   value={teamFilter}
-                  onChange={(event) =>
-                    setTeamFilter(
-                      event.target.value
-                    )
-                  }
+                  onChange={(event) => setTeamFilter(event.target.value)}
                   className={inputClassName}
                 >
-                  <option value="all">
-                    All teams
-                  </option>
-
+                  <option value="all">All teams</option>
                   {teams.map((team) => (
-                    <option
-                      key={team.id}
-                      value={team.id}
-                    >
+                    <option key={team.id} value={team.id}>
                       {team.name}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* COUNTRY */}
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                   Country
                 </label>
-
                 <select
                   value={countryFilter}
-                  onChange={(event) =>
-                    setCountryFilter(
-                      event.target.value
-                    )
-                  }
+                  onChange={(event) => setCountryFilter(event.target.value)}
                   className={inputClassName}
                 >
-                  <option value="all">
-                    All countries
-                  </option>
-
+                  <option value="all">All countries</option>
                   {countries.map((country) => (
-                    <option
-                      key={country.id}
-                      value={country.id}
-                    >
+                    <option key={country.id} value={country.id}>
                       {country.name}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* SORT */}
               <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                  <ArrowUpDown size={13} />
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                   Sort by
                 </label>
-
                 <select
                   value={sortBy}
-                  onChange={(event) =>
-                    setSortBy(
-                      event.target.value
-                    )
-                  }
+                  onChange={(event) => setSortBy(event.target.value)}
                   className={inputClassName}
                 >
-                  <option value="name">
-                    Name A-Z
-                  </option>
-                  <option value="ca_desc">
-                    CA highest
-                  </option>
-                  <option value="ca_asc">
-                    CA lowest
-                  </option>
-                  <option value="cp_desc">
-                    CP highest
-                  </option>
-                  <option value="cp_asc">
-                    CP lowest
-                  </option>
-                  <option value="age_asc">
-                    Youngest
-                  </option>
-                  <option value="age_desc">
-                    Oldest
-                  </option>
+                  <option value="name">Name A-Z</option>
+                  <option value="ca_desc">CA highest</option>
+                  <option value="ca_asc">CA lowest</option>
+                  <option value="cp_desc">CP highest</option>
+                  <option value="cp_asc">CP lowest</option>
+                  <option value="age_asc">Youngest</option>
+                  <option value="age_desc">Oldest</option>
                 </select>
               </div>
             </div>
@@ -1442,7 +1339,7 @@ export default function Players() {
               (_, index) => (
                 <div
                   key={index}
-                  className="h-[360px] animate-pulse rounded-2xl border border-slate-200 bg-white"
+                  className="h-[106px] animate-pulse rounded-2xl border border-slate-200 bg-white"
                 />
               )
             )}
