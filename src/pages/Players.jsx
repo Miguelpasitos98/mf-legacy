@@ -12,12 +12,252 @@ import PlayersDetail from "@/pages/PlayerDetail";
 import { useLocation, useSearchParams } from "react-router-dom";
 
 import { base44 } from "@/api/base44Client";
-import { PLAYER_DESCRIPTIONS } from "@/lib/playerDescriptions";
-import { computeLegacyTitle } from "@/lib/legacyTitle";
-import {
-  computePlayerDescription,
-  getPrimaryPosition,
-} from "@/lib/playerDescriptionEngine";
+
+
+
+const PLAYER_DESCRIPTIONS = [
+  {
+    group: "Goalkeepers",
+    options: [
+      "🧤 Traditional Goalkeeper",
+      "🕹️ Modern Goalkeeper",
+      "🧱 Positional Goalkeeper",
+      "🚀 Sweeper Distributor",
+      "🪟 Sweeper Keeper",
+      "🪞 Penalty Specialist",
+      "🔁 Reliable Backup Keeper",
+    ],
+  },
+  {
+    group: "Centre-Backs",
+    options: [
+      "🧱 The Sweeper",
+      "🧠 Ball-Playing Defender",
+      "🦍 Physical Dominator",
+      "🛡️ Aggressive Front-Foot Defender",
+      "🧲 Libero Defender",
+      "📐 Tactical Defender",
+      "👑 Defensive Leader",
+      "🧬 Hybrid Defender",
+    ],
+  },
+  {
+    group: "Full-Backs / Wing-Backs",
+    options: [
+      "🚪 Defensive Full-Back",
+      "🛞 Overlapping Wing-Back",
+      "🌀 Complete Full-Back",
+      "🧩 Versatile Full-Back",
+      "🪫 Defensive Wing-Back",
+      "⚡ Explosive Full-Back",
+      "🪙 Technical Full-Back",
+      "🏗️ Inverted Full-Back",
+    ],
+  },
+  {
+    group: "Central Midfielders",
+    options: [
+      "⚓ The Anchorman",
+      "💥 The Destroyer",
+      "🧭 Regista",
+      "🔄 Box-to-Box Controller",
+      "🧠 Advanced Playmaker",
+      "📡 Deep-Lying Playmaker",
+      "🧯 Firefighter Midfielder",
+      "🧮 Methodical Midfielder",
+      "🛠️ Workhorse Midfielder",
+    ],
+  },
+  {
+    group: "Attacking Midfielders",
+    options: [
+      "🎨 The Architect",
+      "🎩 Space Creator",
+      "🧃 The Classic 10",
+      "🔁 The Connector",
+      "🧱 Physical Playmaker",
+      "🪛 Pressing Midfielder",
+      "🎬 Late Runner",
+      "🧲 Gravitational Playmaker",
+      "🛠️ Physical Creator",
+    ],
+  },
+  {
+    group: "Wingers",
+    options: [
+      "⚡ Line Breaker",
+      "🔁 Wide Connector",
+      "🧨 Inside Finisher",
+      "🛼 Wide Ball Carrier",
+      "🪄 Creative Winger",
+      "🌪️ Chaotic Winger",
+      "🧤 Defensive Winger",
+      "📦 Functional Winger",
+      "🎯 Wide Forward",
+    ],
+  },
+  {
+    group: "Strikers",
+    options: [
+      "🎯 Clinical Finisher",
+      "🐍 Dynamic Threat",
+      "🦍 Target Man",
+      "🔁 Second Striker",
+      "🌀 Space Creator",
+      "🧃 Space Attacker",
+      "🔫 Goal Hunter",
+      "🧠 Intelligent Forward",
+      "🚀 Breakaway Forward",
+      "🧊 Ice-Cold Finisher",
+    ],
+  },
+  {
+    group: "Special Roles",
+    options: [
+      "🧩 Utility Player",
+      "👑 Tactical Leader",
+      "🔋 Super Sub",
+      "🎮 Free Spirit",
+      "🧠 Hidden Genius",
+      "🎭 Classic Enganche",
+      "🎢 Inconsistent Talent",
+      "🪶 Elegant Technician",
+      "🪨 Rock-Solid Player",
+      "🧪 Tactical Experiment",
+      "🧳 Journeyman",
+      "🫥 The Invisible One",
+    ],
+  },
+];
+
+const getPrimaryPosition = (player) => {
+  const ratings = player?.positionRatings || player?.position_ratings || {};
+  return Object.entries(ratings)
+    .map(([code, value]) => ({ code, rating: Number(value) }))
+    .filter(({ rating }) => Number.isFinite(rating) && rating > 0)
+    .sort((a, b) => b.rating - a.rating || a.code.localeCompare(b.code))[0]?.code || "";
+};
+
+const computePlayerDescription = (player) => player?.description || "";
+
+const SPECIAL_LEGACY_TITLES = {
+  "Kylian Mbappé": "🐢 La Tortuga",
+  "Neymar Jr": "🪄 O Magico",
+  "Cristiano Ronaldo": "🐞 El Bicho",
+  "Erling Haaland": "🤖 The Cyborg",
+  "Luis Suárez": "🔫 El Pistolero",
+  "Pedri": "🪄 El Mago",
+  "Antoine Griezman": "👑 El Principito",
+  "Lionel Messi": "🛐 D10S",
+  "Thibaut Courtois": "🧱 The Belgian Wall",
+  "Frenkie de Jong": "🎩 El Filósofo",
+  "Paulo Dybala": "💎 La Joya",
+  "José Morales": "🪖 Comandante Morales",
+  "Ferran Torres": "🦈 El Tiburón",
+  "Franco Vázquez": "😶 Mudo Vázquez",
+  "Julián Álvarez": "🕷️ La Araña",
+  "Cole Palmer": "🧊 Cold Palmer",
+  "Claude Beacons": "🔥 Torch",
+  "Jordan Greenway": "🟩 Janus",
+  "Ousmane Dembélé": "🦟 Mosquito",
+};
+
+function computeLegacyTitle(player) {
+  const name = String(player?.name || "").trim();
+  if (SPECIAL_LEGACY_TITLES[name]) return SPECIAL_LEGACY_TITLES[name];
+
+  const ca = Number(player?.ca);
+  const cp = Number(player?.cp);
+  const age = Number(player?.age);
+  if (!Number.isFinite(ca) || !Number.isFinite(cp) || !Number.isFinite(age)) {
+    return "⚠️ Perfil indefinido";
+  }
+
+  if (cp >= 195) {
+    if (age <= 21) return "🪄 Heredero al trono";
+    if (cp >= 192) {
+      if (ca <= 191) return "🔱 Trono Dorado";
+      if (ca > 191) return "👑 Rey absoluto";
+    }
+  }
+
+  if (cp > 180) {
+    if (age <= 21) {
+      if (ca >= 160) return "🌠 Talento Generacional";
+      if (ca < 160) return "⭐ Future Star";
+    }
+    if (age <= 25) {
+      if (ca >= 175) return "🛰️ Élite Consolidada";
+      if (ca < 180) return "🧬 Generación Alfa";
+    }
+    if (age < 30) {
+      if (ca > 188) return "👑 Referente Mundial Absoluto";
+      if (ca >= 185) return "📅 Marcador de Época";
+      if (ca > 180) return "⚔️ Aspirante al Trono";
+      if (ca <= 175) return "🕯️ Vestigio de grandeza";
+      if (ca < 185) return "🏛️ Herencia de una generación";
+      if (ca <= 188) return "🥋 Fenómeno Generacional";
+    }
+    if (age >= 30) return "🧠 Leyenda en Activo";
+    return "❌ Sin margen competitivo";
+  }
+
+  if (cp > 170) {
+    if (age <= 21) {
+      if (ca >= 150) return "💫 Promesa Élite";
+      if (ca < 150) return "🔮 Potencial Especial";
+    }
+    if (age <= 25) {
+      if (ca >= 165) return "💥 Prodigio Generacional";
+      if (ca < 170) return "🪙 Generación Beta";
+    }
+    if (age < 30) {
+      if (ca >= 180) return "🎯 Titular de Élite";
+      if (ca > 175) return "🗿 Estatura de élite";
+      if (ca >= 170) return "🧿 Alta cuna futbolística";
+      if (ca < 170) return "🦉 Maestro del Juego";
+      if (ca < 175) return "⚙️ Pilar de Élite";
+      if (ca <= 180) return "🧩 Elemento Crucial";
+    }
+    if (age >= 30) return "🧓 Estrella Veterana";
+    return "❌ Sin margen competitivo";
+  }
+
+  if (cp >= 165) {
+    if (age <= 21) {
+      if (ca >= 140) return "🌟 Promesa Diferencial";
+      if (ca < 140) return "⚡ Proyección de Estrella";
+    }
+    if (age <= 25) {
+      if (ca >= 160) return "🦅 Referencia Generacional";
+      if (ca < 160) return "🔥 Forjador del futuro";
+    }
+    if (age < 30) {
+      if (ca >= 160) return "📏 Estándar de Élite";
+      if (ca < 160) return "🥷 Élite Silenciosa";
+    }
+    if (age >= 30) return "🦅 Último emperador";
+    return "❌ Sin margen competitivo";
+  }
+
+  if (cp < 165) {
+    if (age <= 21) {
+      if (ca >= 130) return "🌱 Promesa Proyectable";
+      if (ca < 130) return "🎯 Jugador a Observar";
+    }
+    if (age <= 25) {
+      if (ca >= 150) return "🧃 Talento a Seguir";
+      if (ca < 150) return "🔬 Potencial Real";
+    }
+    if (age < 30) {
+      if (ca >= 150) return "🧱 Perfil Competitivo";
+      if (ca < 150) return "🧩 Jugador de Buen Nivel";
+    }
+    if (age >= 30) return "🧓 Veterano Competitivo";
+    return "❌ Sin margen competitivo";
+  }
+  return "⚠️ Perfil indefinido";
+}
 
 const inputClassName =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
