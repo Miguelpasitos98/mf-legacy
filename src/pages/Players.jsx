@@ -546,7 +546,7 @@ export default function Players() {
          * 28/09/1998
          */
         date_of_birth:
-          form.dateOfBirth.trim(),
+  normalizeDateOfBirth(form.dateOfBirth),
 
         /*
          * ID real del Team.
@@ -870,7 +870,7 @@ export default function Players() {
                         })
                       )
                     }
-                    placeholder="28/09/1998"
+                    placeholder="5/2/1999 o 05/02/1999"
                     inputMode="numeric"
                     maxLength={10}
                     className={
