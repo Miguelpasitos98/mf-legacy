@@ -6,7 +6,7 @@ export default function Sidebar({
   open,
   visible = true,
   onToggle,
-  backgroundColor = "#003399",
+  backgroundColor = "#133885",
   accentColor = "#FFFFFF",
   secondaryColor = "#FFFFFF",
 }) {
