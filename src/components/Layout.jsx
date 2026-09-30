@@ -21,48 +21,54 @@ export default function Layout() {
       className="min-h-screen w-full flex items-center justify-center overflow-hidden"
       style={{ backgroundColor: "#D1D3D9" }}
     >
+      {/* MARCO EXTERIOR */}
       <div
-        className="relative w-[95vw] h-[75vh] flex overflow-visible rounded-[20px]"
+        className="relative w-[95vw] h-[75vh] rounded-[20px] overflow-hidden"
         style={{
-          backgroundColor: "#E8E9EC",
           boxShadow:
             "0 24px 70px -20px rgba(20,30,60,0.28), 0 8px 24px -12px rgba(20,30,60,0.18)",
         }}
       >
-        <div className="relative z-10 flex h-full w-full overflow-visible">
-          {sidebarVisible && !isTeamsPage && (
-            <Sidebar
-              open={sidebarOpen}
-              onToggle={() => setSidebarOpen((o) => !o)}
-              backgroundColor={teamTheme.primaryColor}
-              accentColor="#FFFFFF"
-              secondaryColor={teamTheme.secondaryColor}
-            />
-          )}
-
-          <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-visible">
-            
-            {/* TOP NAVBAR - SIEMPRE POR ENCIMA DEL CONTENIDO */}
-            <div className="relative z-[100] shrink-0">
-              <TopNavbar />
-            </div>
-
-            {/* CONTENIDO DE LA PÁGINA */}
-            <main
-              className={
-                isTeamsPage
-                  ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
-                  : "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
-              }
-            >
-              <Outlet
-                context={{
-                  setTeamTheme,
-                  setSidebarVisible,
-                }}
+        {/* CONTENIDO INTERIOR */}
+        <div
+          className="relative flex h-full w-full overflow-visible"
+          style={{
+            backgroundColor: "#E8E9EC",
+          }}
+        >
+          <div className="relative z-10 flex h-full w-full overflow-visible">
+            {sidebarVisible && !isTeamsPage && (
+              <Sidebar
+                open={sidebarOpen}
+                onToggle={() => setSidebarOpen((o) => !o)}
+                backgroundColor={teamTheme.primaryColor}
+                accentColor="#FFFFFF"
+                secondaryColor={teamTheme.secondaryColor}
               />
-            </main>
+            )}
 
+            <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-visible">
+              {/* TOP NAVBAR */}
+              <div className="relative z-[100] shrink-0">
+                <TopNavbar />
+              </div>
+
+              {/* CONTENIDO */}
+              <main
+                className={
+                  isTeamsPage
+                    ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
+                    : "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
+                }
+              >
+                <Outlet
+                  context={{
+                    setTeamTheme,
+                    setSidebarVisible,
+                  }}
+                />
+              </main>
+            </div>
           </div>
         </div>
       </div>
