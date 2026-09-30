@@ -351,7 +351,7 @@ export default function PlayerDetail({ player, team, onBack, onPlayerUpdated }) 
   };
 
   return (
-    <main className="relative h-full min-h-0 overflow-hidden bg-[#eef1f5] text-slate-900">
+    <main className="relative h-full min-h-0 overflow-visible bg-[#eef1f5] text-slate-900">
       <div className="absolute inset-0 bg-[linear-gradient(110deg,#eef1f5_0%,#eef1f5_53%,#dfe4ea_53%,#dfe4ea_100%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
 
@@ -443,7 +443,26 @@ export default function PlayerDetail({ player, team, onBack, onPlayerUpdated }) 
             <img
               src={photoUrl}
               alt={playerName}
-              className="relative z-10 h-full w-auto max-w-none object-contain object-bottom drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)] lg:absolute lg:bottom-[-150px] lg:left-1/2 lg:h-[calc(100%+150px)] lg:w-auto lg:max-w-none lg:-translate-x-1/2"
+              className="
+                fixed
+                bottom-0
+                left-1/2
+                z-40
+                w-auto
+                max-w-none
+                -translate-x-1/2
+                object-contain
+                object-bottom
+                drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
+
+                h-[72vh]
+
+                sm:h-[76vh]
+
+                md:h-[80vh]
+
+                lg:h-[88vh]
+              "
             />
           ) : (
             <div className="relative z-10 flex h-[420px] w-[320px] items-center justify-center rounded-[2rem] border border-slate-300 bg-white/60 text-slate-300">
