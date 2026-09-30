@@ -21,6 +21,21 @@
     "photo_url": {
       "type": "string",
       "description": "URL de la fotografía del jugador"
+    },
+    "ca": {
+      "type": "number",
+      "description": "Current Ability (CA) del jugador"
+    },
+    "cp": {
+      "type": "number",
+      "description": "Potential Ability (CP) del jugador"
+    },
+    "positions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Una o varias posiciones del jugador. Valores válidos: GK, DFC, LD, LI, CRD, CRI, CDM, CM, CAM, EI, ED, DC"
     }
   },
   "required": ["name"]
