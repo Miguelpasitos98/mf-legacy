@@ -736,6 +736,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                       bottom-0
                       left-1/2
                       z-[60]
+                      pointer-events-none
                       w-auto
                       max-w-none
                       -translate-x-1/2
