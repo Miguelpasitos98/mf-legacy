@@ -30,12 +30,59 @@
       "type": "number",
       "description": "Potential Ability (CP) del jugador"
     },
-    "positions": {
-      "type": "array",
-      "items": {
-        "type": "string"
+    "position_ratings": {
+      "type": "object",
+      "properties": {
+        "GK": {
+          "type": "number",
+          "description": "Valoración como portero (0-20)"
+        },
+        "DFC": {
+          "type": "number",
+          "description": "Valoración como defensa central (0-20)"
+        },
+        "LD": {
+          "type": "number",
+          "description": "Valoración como lateral derecho (0-20)"
+        },
+        "LI": {
+          "type": "number",
+          "description": "Valoración como lateral izquierdo (0-20)"
+        },
+        "CRD": {
+          "type": "number",
+          "description": "Valoración como carrilero derecho (0-20)"
+        },
+        "CRI": {
+          "type": "number",
+          "description": "Valoración como carrilero izquierdo (0-20)"
+        },
+        "CDM": {
+          "type": "number",
+          "description": "Valoración como mediocentro defensivo (0-20)"
+        },
+        "CM": {
+          "type": "number",
+          "description": "Valoración como mediocentro (0-20)"
+        },
+        "CAM": {
+          "type": "number",
+          "description": "Valoración como mediapunta (0-20)"
+        },
+        "EI": {
+          "type": "number",
+          "description": "Valoración como extremo izquierdo (0-20)"
+        },
+        "ED": {
+          "type": "number",
+          "description": "Valoración como extremo derecho (0-20)"
+        },
+        "DC": {
+          "type": "number",
+          "description": "Valoración como delantero centro (0-20)"
+        }
       },
-      "description": "Una o varias posiciones del jugador. Valores válidos: GK, DFC, LD, LI, CRD, CRI, CDM, CM, CAM, EI, ED, DC"
+      "description": "Valoración del jugador en cada posición del campo"
     }
   },
   "required": ["name"]
