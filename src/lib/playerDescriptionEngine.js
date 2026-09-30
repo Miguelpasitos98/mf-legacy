@@ -1,108 +1,136 @@
 import { PLAYER_DESCRIPTIONS } from "@/lib/playerDescriptions";
 
-const POSITION_GROUPS = {
-  goalkeepers: ["GK"],
+export const POSITION_GROUPS = {
+  goalkeepers: {
+    title: "Goalkeepers",
+    positions: ["GK"],
+  },
 
-  centreBacks: ["DFC"],
+  centreBacks: {
+    title: "Centre-Backs",
+    positions: ["DFC"],
+  },
 
-  fullBacks: ["LD", "LI", "CRD", "CRI"],
+  fullBacks: {
+    title: "Full-Backs / Wing-Backs",
+    positions: ["LD", "LI", "CRD", "CRI"],
+  },
 
-  centralMidfielders: ["CDM", "CM"],
+  centralMidfielders: {
+    title: "Central Midfielders",
+    positions: ["CDM", "CM"],
+  },
 
-  attackingMidfielders: ["CAM"],
+  attackingMidfielders: {
+    title: "Attacking Midfielders",
+    positions: ["CAM"],
+  },
 
-  wingers: ["EI", "ED"],
+  wingers: {
+    title: "Wingers",
+    positions: ["EI", "ED"],
+  },
 
-  strikers: ["DC"],
+  strikers: {
+    title: "Strikers",
+    positions: ["DC"],
+  },
 };
 
-const getPositionGroup = (positions = []) => {
-  const normalizedPositions = Array.isArray(positions)
-    ? positions.map((position) =>
-        String(position || "").trim().toUpperCase()
-      )
-    : [];
+const POSITION_GROUP_ORDER = [
+  "goalkeepers",
+  "centreBacks",
+  "fullBacks",
+  "centralMidfielders",
+  "attackingMidfielders",
+  "wingers",
+  "strikers",
+];
 
-  if (normalizedPositions.some((position) =>
-    POSITION_GROUPS.goalkeepers.includes(position)
-  )) {
-    return "Goalkeepers";
-  }
+export const getRatedPositions = (player) => {
+  const ratings = player?.position_ratings || {};
 
-  if (normalizedPositions.some((position) =>
-    POSITION_GROUPS.centreBacks.includes(position)
-  )) {
-    return "Centre-Backs";
-  }
+  return Object.entries(ratings)
+    .map(([code, value]) => ({
+      code,
+      rating: Number(value),
+    }))
+    .filter(
+      ({ rating }) =>
+        Number.isFinite(rating) &&
+        rating > 0
+    )
+    .sort((a, b) => {
+      if (b.rating !== a.rating) {
+        return b.rating - a.rating;
+      }
 
-  if (normalizedPositions.some((position) =>
-    POSITION_GROUPS.fullBacks.includes(position)
-  )) {
-    return "Full-Backs / Wing-Backs";
-  }
-
-  if (normalizedPositions.some((position) =>
-    POSITION_GROUPS.centralMidfielders.includes(position)
-  )) {
-    return "Central Midfielders";
-  }
-
-  if (normalizedPositions.some((position) =>
-    POSITION_GROUPS.attackingMidfielders.includes(position)
-  )) {
-    return "Attacking Midfielders";
-  }
-
-  if (normalizedPositions.some((position) =>
-    POSITION_GROUPS.wingers.includes(position)
-  )) {
-    return "Wingers";
-  }
-
-  if (normalizedPositions.some((position) =>
-    POSITION_GROUPS.strikers.includes(position)
-  )) {
-    return "Strikers";
-  }
-
-  return "Special Roles";
+      return a.code.localeCompare(b.code);
+    });
 };
 
-const getDescriptionsForGroup = (group) => {
-  const foundGroup = PLAYER_DESCRIPTIONS.find(
-    (item) => item.group === group
-  );
+export const getPrimaryPosition = (player) => {
+  const ratedPositions = getRatedPositions(player);
 
-  return foundGroup?.options || [];
+  return ratedPositions[0]?.code || "";
 };
 
-export const getPlayerDescriptionGroup = (player) => {
-  return getPositionGroup(player?.positions);
+export const getPositionGroupKey = (positionCode) => {
+  for (const groupKey of POSITION_GROUP_ORDER) {
+    const group = POSITION_GROUPS[groupKey];
+
+    if (group.positions.includes(positionCode)) {
+      return groupKey;
+    }
+  }
+
+  return null;
+};
+
+export const getPositionGroup = (player) => {
+  const primaryPosition = getPrimaryPosition(player);
+
+  if (!primaryPosition) {
+    return "Special Roles";
+  }
+
+  const groupKey = getPositionGroupKey(primaryPosition);
+
+  if (!groupKey) {
+    return "Special Roles";
+  }
+
+  return POSITION_GROUPS[groupKey].title;
 };
 
 export const getAvailablePlayerDescriptions = (player) => {
-  const group = getPositionGroup(player?.positions);
+  const groupTitle = getPositionGroup(player);
 
-  return getDescriptionsForGroup(group);
+  const group = PLAYER_DESCRIPTIONS.find(
+    (item) => item.group === groupTitle
+  );
+
+  return group?.options || [];
 };
 
 export const computePlayerDescription = (player) => {
-  // Si el jugador ya tiene una descripción guardada,
-  // respetamos ese valor.
+  /*
+   * Todavía no hacemos aquí la asignación automática
+   * mediante CA + CP + edad.
+   *
+   * Primero dejamos preparada la relación:
+   *
+   * position_ratings
+   *        ↓
+   * posición principal
+   *        ↓
+   * grupo de posición
+   *        ↓
+   * descripciones disponibles
+   */
+
   if (player?.description) {
     return player.description;
-  }
-
-  // Determinamos el grupo de descripción según sus posiciones.
-  const group = getPositionGroup(player?.positions);
-
-  // Obtenemos las descripciones válidas para ese grupo.
-  const availableDescriptions = getDescriptionsForGroup(group);
-
-  // Todavía no elegimos automáticamente una descripción
-  // porque las reglas CA + CP + edad aún no están definidas.
-  if (availableDescriptions.length === 0) {
-    return "";
   }
 
   return "";
