@@ -136,14 +136,51 @@ const normalizeCountry = (country) => ({
     "",
 });
 
+const normalizeDateOfBirth = (value) => {
+  const trimmed = String(value || "").trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (!match) {
+    return trimmed;
+  }
+
+  const [, dayValue, monthValue, yearValue] = match;
+
+  const day = Number(dayValue);
+  const month = Number(monthValue);
+  const year = Number(yearValue);
+
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return trimmed;
+  }
+
+  return [
+    String(day).padStart(2, "0"),
+    String(month).padStart(2, "0"),
+    String(year),
+  ].join("/");
+};
+
 const formatDate = (value) => {
   if (!value) return "—";
 
   const stringValue = String(value).trim();
 
-  // Ya está en formato DD/MM/YYYY
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(stringValue)) {
-    return stringValue;
+  const normalizedDate = normalizeDateOfBirth(stringValue);
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalizedDate)) {
+    return normalizedDate;
   }
 
   const date = new Date(stringValue);
@@ -166,27 +203,13 @@ const isValidDateOfBirth = (value) => {
     return true;
   }
 
-  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+  const normalizedDate = normalizeDateOfBirth(trimmed);
+
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(normalizedDate)) {
     return false;
   }
 
-  const [day, month, year] = trimmed.split("/").map(Number);
-
-  if (month < 1 || month > 12) {
-    return false;
-  }
-
-  if (day < 1 || day > 31) {
-    return false;
-  }
-
-  const date = new Date(year, month - 1, day);
-
-  return (
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 &&
-    date.getDate() === day
-  );
+  return true;
 };
 
 function PlayerCard({
