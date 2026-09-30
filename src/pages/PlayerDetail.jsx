@@ -732,7 +732,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 fixed
                 bottom-0
                 left-1/2
-                z-40
+                z-[60]
                 w-auto
                 max-w-none
                 -translate-x-1/2
@@ -740,13 +740,13 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 object-bottom
                 drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
 
-                h-[68vh]
+                h-[72vh]
 
-                sm:h-[72vh]
+                sm:h-[76vh]
 
-                md:h-[76vh]
+                md:h-[80vh]
 
-                lg:h-[80vh]
+                lg:h-[88vh]
               "
             />
           ) : (
