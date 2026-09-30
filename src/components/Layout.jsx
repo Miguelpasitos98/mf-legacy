@@ -16,6 +16,11 @@ export default function Layout() {
 
   const isTeamsPage = location.pathname.startsWith("/teams");
 
+  // SECCIÓN EXCLUSIVA PARA PERFILES DE JUGADORES
+  const isPlayerProfile =
+    location.pathname.startsWith("/players/") ||
+    location.pathname.startsWith("/player/");
+
   return (
     <div
       className="min-h-screen w-full flex items-center justify-center overflow-hidden"
@@ -49,7 +54,7 @@ export default function Layout() {
 
             <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-visible">
               {/* TOP NAVBAR */}
-              <div className="relative z-20 shrink-0">
+              <div className="relative z-[100] shrink-0">
                 <TopNavbar />
               </div>
 
@@ -57,16 +62,37 @@ export default function Layout() {
               <main
                 className={
                   isTeamsPage
-                    ? "relative z-auto flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
-                    : "relative z-auto flex-1 min-h-0 min-w-0 overflow-visible"
+                    ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
+                    : "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
                 }
               >
-                <Outlet
-                  context={{
-                    setTeamTheme,
-                    setSidebarVisible,
-                  }}
-                />
+                {isPlayerProfile ? (
+                  /* =====================================================
+                     SECCIÓN EXCLUSIVA PARA PERFILES DE JUGADORES
+                     El perfil ocupa todo el espacio disponible debajo
+                     del TopNavbar y puede llegar hasta el fondo.
+                     ===================================================== */
+                  <section className="relative h-full w-full overflow-hidden">
+                    <div className="relative h-full w-full">
+                      <Outlet
+                        context={{
+                          setTeamTheme,
+                          setSidebarVisible,
+                        }}
+                      />
+                    </div>
+                  </section>
+                ) : (
+                  /* =====================================================
+                     RESTO DE PÁGINAS
+                     ===================================================== */
+                  <Outlet
+                    context={{
+                      setTeamTheme,
+                      setSidebarVisible,
+                    }}
+                  />
+                )}
               </main>
             </div>
           </div>
