@@ -1294,23 +1294,12 @@ export default function Players() {
   if (selectedPlayer) {
     return (
       <PlayersDetail
-  player={selectedPlayer}
-  team={teamById[selectedPlayer.teamId]}
-  onBack={() => {
-    setSelectedPlayer(null);
-  }}
-  onPlayerUpdated={(updatedPlayer) => {
-    setSelectedPlayer(updatedPlayer);
-
-    setPlayers((currentPlayers) =>
-      currentPlayers.map((player) =>
-        player.id === updatedPlayer.id
-          ? updatedPlayer
-          : player
-      )
-    );
-  }}
-/>
+        player={selectedPlayer}
+        team={teamById[selectedPlayer.teamId]}
+        onBack={() => {
+          setSelectedPlayer(null);
+        }}
+      />
     );
   }
 
@@ -1588,7 +1577,7 @@ export default function Players() {
         {/* ADD PLAYER MODAL */}
         {addModalOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
+            className="fixed inset-x-0 bottom-0 top-[56px] z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
             onMouseDown={(event) => {
               if (
                 event.target ===
@@ -1598,7 +1587,7 @@ export default function Players() {
               }
             }}
           >
-            <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="max-h-[calc(100vh-72px)] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
 
               {/* MODAL HEADER */}
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
