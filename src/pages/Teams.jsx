@@ -1383,7 +1383,12 @@ const kitsOverviewUrl =
                 setEditPanelOpen(false);
                 onCloseEdit();
               }}
-              onSubmit={onSubmit}
+              onSubmit={async (event) => {
+                const saved = await onSubmit(event);
+                if (saved) {
+                  setEditPanelOpen(false);
+                }
+              }}
             />
           )}
         </div>
@@ -1761,6 +1766,8 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
   const handleAddTeam = async (event) => {
     event.preventDefault();
 
+    const wasEditing = Boolean(editingTeam);
+
     const newTeam = {
       id: `manual-${Date.now()}`,
       name: form.name.trim(),
@@ -2042,7 +2049,6 @@ if (leagueId) {
   }
 }
 
-  setTeams((currentTeams) => {
   const updatedTeam = {
     ...newTeam,
     id: savedTeam.id,
@@ -2051,14 +2057,19 @@ if (leagueId) {
     season: savedRelation?.season || newTeam.season || "",
   };
 
-  if (editingTeam) {
-    return currentTeams.map((team) =>
-      team.id === editingTeam.id ? updatedTeam : team
-    );
-  }
+  setTeams((currentTeams) => {
+    if (wasEditing) {
+      return currentTeams.map((team) =>
+        team.id === editingTeam.id ? updatedTeam : team
+      );
+    }
 
-  return [...currentTeams, updatedTeam];
-});
+    return [...currentTeams, updatedTeam];
+  });
+
+  if (wasEditing) {
+    setSelectedTeam(updatedTeam);
+  }
 
   setForm(emptyTeamForm);
 setEditingTeam(null);
@@ -2072,6 +2083,7 @@ setActiveFilter("countries");
     error?.message ||
     (typeof error === "string" ? error : JSON.stringify(error));
   alert(`Error real de Base44:\n\n${errorMessage}`);
+  return false;
 }
   };
 
