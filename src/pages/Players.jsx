@@ -1299,6 +1299,17 @@ export default function Players() {
         onBack={() => {
           setSelectedPlayer(null);
         }}
+        onPlayerUpdated={(updatedPlayer) => {
+          setSelectedPlayer(updatedPlayer);
+
+          setPlayers((currentPlayers) =>
+            currentPlayers.map((currentPlayer) =>
+              currentPlayer.id === updatedPlayer.id
+                ? normalizePlayer(updatedPlayer)
+                : currentPlayer
+            )
+          );
+        }}
       />
     );
   }
