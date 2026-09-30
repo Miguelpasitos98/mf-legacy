@@ -16,19 +16,23 @@ export default function Layout() {
 
   const isTeamsPage = location.pathname.startsWith("/teams");
 
-  // SECCIÓN EXCLUSIVA PARA PERFILES DE JUGADORES
+  // PERFIL INDIVIDUAL DE JUGADOR
   const isPlayerProfile =
     location.pathname.startsWith("/players/") ||
     location.pathname.startsWith("/player/");
 
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center overflow-hidden"
+      className={`min-h-screen w-full flex items-center justify-center ${
+        isPlayerProfile ? "overflow-visible" : "overflow-hidden"
+      }`}
       style={{ backgroundColor: "#D1D3D9" }}
     >
       {/* MARCO EXTERIOR */}
       <div
-        className="relative w-[95vw] h-[75vh] rounded-[20px] overflow-hidden"
+        className={`relative w-[95vw] h-[75vh] rounded-[20px] ${
+          isPlayerProfile ? "overflow-visible" : "overflow-hidden"
+        }`}
         style={{
           boxShadow:
             "0 24px 70px -20px rgba(20,30,60,0.28), 0 8px 24px -12px rgba(20,30,60,0.18)",
@@ -36,12 +40,18 @@ export default function Layout() {
       >
         {/* CONTENIDO INTERIOR */}
         <div
-          className="relative flex h-full w-full overflow-visible"
+          className={`relative flex h-full w-full ${
+            isPlayerProfile ? "overflow-visible" : "overflow-hidden"
+          }`}
           style={{
             backgroundColor: "#E8E9EC",
           }}
         >
-          <div className="relative z-10 flex h-full w-full overflow-visible">
+          <div
+            className={`relative z-10 flex h-full w-full ${
+              isPlayerProfile ? "overflow-visible" : "overflow-hidden"
+            }`}
+          >
             {sidebarVisible && !isTeamsPage && (
               <Sidebar
                 open={sidebarOpen}
@@ -61,38 +71,19 @@ export default function Layout() {
               {/* CONTENIDO */}
               <main
                 className={
-                  isTeamsPage
-                    ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
-                    : "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
+                  isPlayerProfile
+                    ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
+                    : isTeamsPage
+                      ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
+                      : "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
                 }
               >
-                {isPlayerProfile ? (
-                  /* =====================================================
-                     SECCIÓN EXCLUSIVA PARA PERFILES DE JUGADORES
-                     El perfil ocupa todo el espacio disponible debajo
-                     del TopNavbar y puede llegar hasta el fondo.
-                     ===================================================== */
-                  <section className="relative h-full w-full overflow-hidden">
-                    <div className="relative h-full w-full">
-                      <Outlet
-                        context={{
-                          setTeamTheme,
-                          setSidebarVisible,
-                        }}
-                      />
-                    </div>
-                  </section>
-                ) : (
-                  /* =====================================================
-                     RESTO DE PÁGINAS
-                     ===================================================== */
-                  <Outlet
-                    context={{
-                      setTeamTheme,
-                      setSidebarVisible,
-                    }}
-                  />
-                )}
+                <Outlet
+                  context={{
+                    setTeamTheme,
+                    setSidebarVisible,
+                  }}
+                />
               </main>
             </div>
           </div>
