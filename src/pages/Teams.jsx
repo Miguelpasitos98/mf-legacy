@@ -4,6 +4,7 @@ import React, {
   useState,
   useRef,
 } from "react";
+import { createPortal } from "react-dom";
 
 import { useOutletContext } from "react-router-dom";
 
@@ -1080,9 +1081,9 @@ function AddTeamModal({
       );
     };
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-team-title"
@@ -1909,6 +1910,13 @@ function AddTeamModal({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(
+        modalContent,
+        document.body
+      )
+    : null;
 }
 
 
