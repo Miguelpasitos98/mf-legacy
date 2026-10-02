@@ -517,13 +517,13 @@ const getBestPosition = (ratings) => {
   return `${valid[0].code} · ${valid[0].value}/20`;
 };
 
-const PlayerStatCard = ({ label, value, background }) => {
+const PlayerStatCard = ({ label, value, background, grow = 1 }) => {
   const textColor = getContrastTextColor(background);
 
   return (
     <div
-      className="flex h-[190px] min-w-0 flex-1 flex-col justify-between rounded-[16px] border border-black/10 px-6 py-5 shadow-[0_24px_52px_rgba(15,23,42,0.22)]"
-      style={{ backgroundColor: background, color: textColor }}
+      className="flex h-[190px] min-w-0 flex-col justify-between rounded-[16px] border border-black/10 px-6 py-5 shadow-[0_24px_52px_rgba(15,23,42,0.22)]"
+      style={{ backgroundColor: background, color: textColor, flex: grow }}
     >
       <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-80 sm:text-[9px]">
         {label}
@@ -910,16 +910,19 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
               label="Current Ability"
               value={ca}
               background={primaryColor}
+              grow={1}
             />
             <PlayerStatCard
               label="Potential Ability"
               value={cp}
               background={middleColor}
+              grow={1.3333}
             />
             <PlayerStatCard
               label="Best Position"
               value={getBestPosition(positionRatings)}
               background={secondaryColor}
+              grow={1}
             />
           </div>,
           document.body
