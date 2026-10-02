@@ -2990,6 +2990,7 @@ export default function Teams() {
       shortName: league?.short_name || league?.shortName || "",
       countryId: league?.country_id || league?.countryId || "",
       level: league?.level ?? league?.league_level ?? "",
+      reputation: league?.reputation ?? league?.league_reputation ?? 0,
       logo: league?.logo || league?.logo_url || "",
       isActive: league?.is_active ?? league?.isActive ?? true,
     });
@@ -3134,8 +3135,50 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
       groups[groupName].push(team);
     });
 
-    return groups;
-  }, [filteredTeams, activeFilter]);
+    const getCountryReputation = (countryId) => {
+      const countryLeagues = leagues.filter(
+        (league) =>
+          String(league.countryId || "") === String(countryId || "")
+      );
+
+      const levelOneLeagues = countryLeagues.filter(
+        (league) => Number(league.level) === 1
+      );
+
+      if (levelOneLeagues.length === 0) return 0;
+
+      return Math.max(
+        ...levelOneLeagues.map((league) => {
+          const reputation = Number(league.reputation);
+          return Number.isFinite(reputation) ? reputation : 0;
+        })
+      );
+    };
+
+    return Object.fromEntries(
+      Object.entries(groups).sort(([countryA, teamsA], [countryB, teamsB]) => {
+        if (activeFilter !== "countries") {
+          return 0;
+        }
+
+        const countryIdA = teamsA?.[0]?.countryId || "";
+        const countryIdB = teamsB?.[0]?.countryId || "";
+
+        const reputationA = getCountryReputation(countryIdA);
+        const reputationB = getCountryReputation(countryIdB);
+
+        if (reputationA !== reputationB) {
+          return reputationB - reputationA;
+        }
+
+        return String(countryA || "").localeCompare(
+          String(countryB || ""),
+          "es",
+          { sensitivity: "base" }
+        );
+      })
+    );
+  }, [filteredTeams, activeFilter, leagues]);
 
   const handleAddTeam = async (event) => {
     event.preventDefault();
