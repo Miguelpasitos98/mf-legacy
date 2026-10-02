@@ -1454,7 +1454,7 @@ function AddTeamModal({
           <CollapsibleSection
             icon={Globe}
             title="Competition"
-            description="League and current season."
+            description="League and current competition."
             defaultOpen
           >
             <div className="grid gap-4 md:grid-cols-2">
@@ -3018,20 +3018,9 @@ export default function Teams() {
       }
     };
 
-    const loadTeamLeagueRelations = async () => {
-      try {
-        const result = await base44.entities.TeamLeague.list();
-        return getList(result);
-      } catch (error) {
-        console.error("Error loading team-league relations:", error);
-        return [];
-      }
-    };
-
     const loadTeams = async (
   loadedCountries = [],
-  loadedLeagues = [],
-  relations = []
+  loadedLeagues = []
 ) => {
   setIsLoading(true);
 
@@ -3040,21 +3029,11 @@ export default function Teams() {
     const loadedTeams = getList(result);
     console.log("EQUIPOS CARGADOS DESDE BASE44:", loadedTeams);
 
-    const currentRelationsByTeam = new globalThis.Map();
-        relations.forEach((relation) => {
-          const teamId = relation?.team_id || relation?.teamId || "";
-          const isCurrent = relation?.is_current ?? relation?.isCurrent ?? true;
-          if (teamId && isCurrent && !currentRelationsByTeam.has(String(teamId))) currentRelationsByTeam.set(String(teamId), relation);
-        });
-
         const normalizedTeams = loadedTeams.map((team) => {
           const teamId = team.id || team._id || "";
           const teamCountryId = team.country_id || team.countryId || "";
           const country = loadedCountries.find((item) => String(item.id || "") === String(teamCountryId));
-          const relation = currentRelationsByTeam.get(String(teamId));
-          const directLeagueId = team.league_id || team.leagueId || "";
-          const legacyLeagueId = relation?.league_id || relation?.leagueId || "";
-          const leagueId = directLeagueId || legacyLeagueId;
+          const leagueId = team.league_id || team.leagueId || "";
           const league = loadedLeagues.find((item) => String(item.id || "") === String(leagueId));
           return {
             ...team,
@@ -3092,7 +3071,6 @@ export default function Teams() {
             dataSource: team.data_source || team.dataSource || "Manual",
             isActive: team.is_active ?? team.isActive ?? true,
             leagueId,
-            season: relation?.season || "",
             competition: league?.name || "Without competition",
             competitionLogo: league?.logo || "",
             competitionLevel:
@@ -3104,43 +3082,6 @@ export default function Teams() {
 incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
           };
         });
-        const legacyMigrations = loadedTeams
-          .map((team) => {
-            const teamId = team.id || team._id || "";
-            const directLeagueId = team.league_id || team.leagueId || "";
-            const relation = currentRelationsByTeam.get(String(teamId));
-            const legacyLeagueId = relation?.league_id || relation?.leagueId || "";
-
-            if (!teamId || directLeagueId || !legacyLeagueId) {
-              return null;
-            }
-
-            return { teamId, leagueId: legacyLeagueId };
-          })
-          .filter(Boolean);
-
-        if (legacyMigrations.length > 0) {
-          const migrationResults = await Promise.allSettled(
-            legacyMigrations.map(({ teamId, leagueId }) =>
-              base44.entities.Team.update(teamId, {
-                league_id: leagueId,
-              })
-            )
-          );
-
-          const migratedCount = migrationResults.filter(
-            (result) => result.status === "fulfilled"
-          ).length;
-
-          const failedCount = migrationResults.length - migratedCount;
-
-          console.info(
-            `[MF LEGACY] TeamLeague migration: ${migratedCount} team(s) migrated${
-              failedCount > 0 ? `, ${failedCount} failed` : ""
-            }.`
-          );
-        }
-
         if (!cancelled) setTeams(normalizedTeams);
       } catch (error) {
         console.error("Error loading teams:", error);
@@ -3148,8 +3089,11 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
     };
 
     const loadData = async () => {
-      const [loadedCountries, loadedLeagues, relations] = await Promise.all([loadCountries(), loadLeagues(), loadTeamLeagueRelations()]);
-      await loadTeams(loadedCountries, loadedLeagues, relations);
+      const [loadedCountries, loadedLeagues] = await Promise.all([
+        loadCountries(),
+        loadLeagues(),
+      ]);
+      await loadTeams(loadedCountries, loadedLeagues);
     };
 
     loadData();
