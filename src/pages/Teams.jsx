@@ -1088,8 +1088,9 @@ function AddTeamModal({
       aria-modal="true"
       aria-labelledby="add-team-title"
     >
-      <div className="relative z-10 max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
-        <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="relative z-10 max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="max-h-[92vh] overflow-y-auto p-5 md:p-6">
+          <div className="mb-6 flex items-center justify-between gap-4">
           <div>
             <h2
               id="add-team-title"
@@ -1907,6 +1908,7 @@ function AddTeamModal({
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );
