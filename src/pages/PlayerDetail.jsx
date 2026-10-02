@@ -744,13 +744,13 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           {playerName}
         </div>
 
-        <div className="relative z-20 flex min-h-0 flex-col justify-start py-8 pt-14 lg:h-full lg:min-h-0 lg:pt-[120px]">
-          <h1 className="max-w-xl text-6xl font-black uppercase leading-[0.82] tracking-[-0.065em] text-slate-950 md:text-7xl xl:text-8xl">
+        <div className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0 lg:-translate-y-8">
+          <h1 className="max-w-lg text-5xl font-black leading-[0.9] tracking-[-0.045em] text-slate-950 md:text-6xl xl:text-7xl">
             <span className="block">{firstName}</span>
             {lastName && <span className="block">{lastName}</span>}
           </h1>
 
-          <div className="mt-8 space-y-5 text-sm">
+          <div className="mt-6 space-y-4 text-sm">
             <div className="flex items-center gap-3 text-slate-600">
               {teamLogo ? (
                 <img src={teamLogo} alt="" className="h-6 w-6 object-contain" />
