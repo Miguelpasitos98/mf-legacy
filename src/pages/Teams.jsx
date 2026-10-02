@@ -1,5 +1,6 @@
 import React, {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useRef,
@@ -104,9 +105,29 @@ const textareaClassName =
 const normalizeImageUrl = (value) => {
   const trimmed = String(value || "").trim();
   if (!trimmed) return "";
-  if (trimmed.startsWith("//")) return `https:${trimmed}`;
-  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
+
+  let url = trimmed;
+
+  if (url.startsWith("//")) {
+    url = `https:${url}`;
+  } else if (!/^(https?:|data:|blob:)/i.test(url)) {
+    url = `https://${url}`;
+  }
+
+  // GitHub "blob" URLs are HTML pages rather than image resources.
+  // Convert them to raw.githubusercontent.com so <img> can render them.
+  const githubBlobMatch = url.match(
+    /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/i
+  );
+
+  if (githubBlobMatch) {
+    const [, owner, repo, branch, filePath] =
+      githubBlobMatch;
+
+    return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
+  }
+
+  return url;
 };
 
 const rgbToHex = (r, g, b) =>
@@ -816,17 +837,42 @@ function KitColorPicker({
 }
 
 function TeamLogo({ team }) {
-  if (team.logo) {
+  const logoUrl = normalizeImageUrl(
+    team.logo ||
+      team.logo_url ||
+      team.logoUrl
+  );
+
+  const [imageError, setImageError] =
+    useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [logoUrl]);
+
+  if (logoUrl && !imageError) {
     return (
       <div className="flex h-20 w-20 shrink-0 items-center justify-center bg-transparent">
-        <img src={team.logo} alt={`${team.name} logo`} className="h-full w-full object-contain" />
+        <img
+          src={logoUrl}
+          alt={`${team.name} logo`}
+          className="h-full w-full object-contain"
+          loading="lazy"
+          onError={() =>
+            setImageError(true)
+          }
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white">
-      <span className="text-[10px] font-extrabold tracking-tight text-slate-800">{team.shortName || "FC"}</span>
+    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+      <span className="max-w-[90%] px-1 text-center text-[10px] font-extrabold leading-tight tracking-tight text-slate-800">
+        {team.shortName ||
+          team.short_name ||
+          "FC"}
+      </span>
     </div>
   );
 }
@@ -2267,16 +2313,26 @@ function TeamDetail({
   const detailScrollRef = useRef(null);
   const transitionTimeoutRef = useRef(null);
 
-  useEffect(() => {
-    const container = detailScrollRef.current;
+  useLayoutEffect(() => {
+    const container =
+      detailScrollRef.current;
 
     if (!container) return;
 
-    container.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: "auto",
-    });
+    const resetScroll = () => {
+      container.scrollTop = 0;
+      container.scrollLeft = 0;
+    };
+
+    resetScroll();
+
+    const frame = window.requestAnimationFrame(
+      resetScroll
+    );
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
   }, [team?.id]);
 
   useEffect(() => {
