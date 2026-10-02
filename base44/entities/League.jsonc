@@ -16,6 +16,10 @@
       "type": "integer",
       "description": "Nivel de la competición. 1 es la máxima categoría"
     },
+    "reputation": {
+      "type": "integer",
+      "description": "Reputación global de la competición en una escala de 0 a 10000"
+    },
     "logo": {
       "type": "string",
       "description": "URL o identificador del logotipo"
@@ -29,7 +33,8 @@
   "required": [
     "name",
     "country_id",
-    "level"
+    "level",
+    "reputation"
   ],
   "name": "League",
   "type": "object"
