@@ -3200,23 +3200,77 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
     };
 
     if (activeFilter === "reputation") {
-      const sortedReputationTeams = [...filteredTeams].sort((a, b) => {
-        const reputationA = Number(a?.reputation);
-        const reputationB = Number(b?.reputation);
+      const reputationRanges = [
+        { key: "Elite", min: 9000, max: 9500 },
+        { key: "World Class", min: 8750, max: 8999 },
+        { key: "Top", min: 8500, max: 8749 },
+        { key: "Very Strong", min: 8250, max: 8499 },
+        { key: "Strong", min: 8000, max: 8249 },
+        { key: "High", min: 7000, max: 7999 },
+        { key: "Upper Mid", min: 6000, max: 6999 },
+        { key: "Mid", min: 5000, max: 5999 },
+        { key: "Lower Mid", min: 4000, max: 4999 },
+        { key: "Low", min: 3000, max: 3999 },
+        { key: "Very Low", min: 2000, max: 2999 },
+        { key: "Minor", min: 1000, max: 1999 },
+        { key: "Unclassified", min: 0, max: 999 },
+      ];
 
-        const normalizedReputationA = Number.isFinite(reputationA) ? reputationA : 0;
-        const normalizedReputationB = Number.isFinite(reputationB) ? reputationB : 0;
+      const getReputationGroup = (value) => {
+        const reputation = Number(value);
+        const normalizedReputation = Number.isFinite(reputation)
+          ? Math.max(0, reputation)
+          : 0;
 
-        if (normalizedReputationA !== normalizedReputationB) {
-          return normalizedReputationB - normalizedReputationA;
-        }
+        return (
+          reputationRanges.find(
+            (range) =>
+              normalizedReputation >= range.min &&
+              normalizedReputation <= range.max
+          )?.key || "Unclassified"
+        );
+      };
 
-        return (a?.name || "").localeCompare(b?.name || "", "es", {
-          sensitivity: "base",
+      const groupedReputationTeams = reputationRanges.reduce(
+        (result, range) => {
+          result[range.key] = [];
+          return result;
+        },
+        {}
+      );
+
+      filteredTeams.forEach((team) => {
+        const groupName = getReputationGroup(team?.reputation);
+        groupedReputationTeams[groupName].push(team);
+      });
+
+      Object.keys(groupedReputationTeams).forEach((groupName) => {
+        groupedReputationTeams[groupName].sort((a, b) => {
+          const reputationA = Number(a?.reputation);
+          const reputationB = Number(b?.reputation);
+
+          const normalizedReputationA = Number.isFinite(reputationA)
+            ? reputationA
+            : 0;
+          const normalizedReputationB = Number.isFinite(reputationB)
+            ? reputationB
+            : 0;
+
+          if (normalizedReputationA !== normalizedReputationB) {
+            return normalizedReputationB - normalizedReputationA;
+          }
+
+          return (a?.name || "").localeCompare(b?.name || "", "es", {
+            sensitivity: "base",
+          });
         });
       });
 
-      return { Reputation: sortedReputationTeams };
+      return Object.fromEntries(
+        Object.entries(groupedReputationTeams).filter(
+          ([, groupTeams]) => groupTeams.length > 0
+        )
+      );
     }
 
     const groups = {};
@@ -3644,7 +3698,7 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
                 >
                   <div className="mb-5 flex items-center justify-between gap-4">
                     <h2 className="text-base font-extrabold text-slate-900">
-                      Reputation
+                      {groupName}
                     </h2>
                     <span className="text-xs font-medium text-slate-400">
                       {groupTeams.length} {groupTeams.length === 1 ? "team" : "teams"}
