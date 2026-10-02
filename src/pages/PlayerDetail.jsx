@@ -712,16 +712,17 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
 
       <div
-        className="pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(4rem,9vw,8rem)] font-bold leading-none tracking-[-0.07em] text-white/90"
+        className="pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(4rem,8vw,7.5rem)] font-bold leading-none tracking-[-0.065em] text-white/90"
         style={{
-          fontFamily: '"Roboto Condensed", "Arial Narrow", "Liberation Sans Narrow", sans-serif',
-          transform: "scaleX(0.82) scaleY(2)",
-          transformOrigin: "center top",
-          WebkitMaskImage: "linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%)",
-          maskImage: "linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%)",
+          fontFamily: '"Oswald", "Arial Narrow", "Roboto Condensed", "Liberation Sans Narrow", sans-serif',
+          fontStretch: "condensed",
+          transform: "scaleX(0.9)",
+          transformOrigin: "center center",
+          WebkitMaskImage: "linear-gradient(to bottom, #000 0%, #000 58%, transparent 100%)",
+          maskImage: "linear-gradient(to bottom, #000 0%, #000 58%, transparent 100%)",
         }}
       >
-        {teamName}
+        {teamName.toUpperCase()}
       </div>
 
       <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-6 py-5 md:px-10 lg:px-14">
