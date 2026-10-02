@@ -2268,6 +2268,18 @@ function TeamDetail({
   const transitionTimeoutRef = useRef(null);
 
   useEffect(() => {
+    const container = detailScrollRef.current;
+
+    if (!container) return;
+
+    container.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "auto",
+    });
+  }, [team?.id]);
+
+  useEffect(() => {
     return () => {
       if (transitionTimeoutRef.current) {
         window.clearTimeout(transitionTimeoutRef.current);
