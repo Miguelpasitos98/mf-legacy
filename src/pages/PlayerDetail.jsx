@@ -712,11 +712,11 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
 
       <div
-        className="pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(4rem,13vw,11.5.5rem)] font-bold leading-none tracking-[-0.065em] text-white"
+        className="pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(7rem,22vw,18rem)] font-bold leading-none tracking-[-0.065em] text-white"
         style={{
           fontFamily: '"League Gothic", sans-serif',
           fontWeight: 400,
-          transform: "scaleX(0.92)",
+          transform: "scaleX(1)",
           transformOrigin: "center center",
           textShadow: "0 0 16px rgba(255,255,255,0.18), 0 0 32px rgba(255,255,255,0.10)",
           WebkitMaskImage: "linear-gradient(to bottom, #000 0%, #000 24%, rgba(0,0,0,0.92) 38%, rgba(0,0,0,0.45) 62%, transparent 88%, transparent 100%)",
