@@ -2322,6 +2322,20 @@ function TeamDetail({
     const resetScroll = () => {
       container.scrollTop = 0;
       container.scrollLeft = 0;
+
+      let parent = container.parentElement;
+
+      while (parent) {
+        parent.scrollTop = 0;
+        parent.scrollLeft = 0;
+        parent = parent.parentElement;
+      }
+
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "auto",
+      });
     };
 
     resetScroll();
@@ -2412,41 +2426,46 @@ function TeamDetail({
     "";
 
 // Imagen de la camiseta
-const kitHomeUrl =
+const kitHomeUrl = normalizeImageUrl(
   team.kit1_photo_url ||
-  team.kit1PhotoUrl ||
-  team.kit_home_url ||
-  team.kitHomeUrl ||
-  team.home_kit_url ||
-  team.homeKitUrl ||
-  team.kit_url ||
-  team.kits?.kit1?.photo_url ||
-  "";
+    team.kit1PhotoUrl ||
+    team.kit_home_url ||
+    team.kitHomeUrl ||
+    team.home_kit_url ||
+    team.homeKitUrl ||
+    team.kit_url ||
+    team.kits?.kit1?.photo_url ||
+    ""
+);
 
-const kitsOverviewUrl =
+const kitsOverviewUrl = normalizeImageUrl(
   team.kits_overview_url ||
-  team.kitsOverviewUrl ||
-  team.kits_image_url ||
-  team.kitsImageUrl ||
-  "";
+    team.kitsOverviewUrl ||
+    team.kits_image_url ||
+    team.kitsImageUrl ||
+    ""
+);
 
   // Gráficos geográficos superpuestos: mapa del país + mapa con el escudo
-  const countryMapUrl =
+  const countryMapUrl = normalizeImageUrl(
     team.country_map_url ||
-    team.countryMapUrl ||
-    "";
+      team.countryMapUrl ||
+      ""
+  );
 
   const countryTeamMapUrl =
-    team.country_team_map_url ||
-    team.countryTeamMapUrl ||
-    "";
+    normalizeImageUrl(
+      team.country_team_map_url ||
+        team.countryTeamMapUrl ||
+        ""
+    );
 
   const displayName = teamName.toUpperCase();
 
   return (
     <div
       ref={detailScrollRef}
-      className="relative h-[calc(100vh-0px)] overflow-y-auto overscroll-none p-3 sm:p-4 md:p-6 [&::-webkit-scrollbar]:hidden"
+      className="relative h-[calc(100vh-4rem)] overflow-y-auto overscroll-none p-3 sm:p-4 md:p-6 [&::-webkit-scrollbar]:hidden"
       style={{
         backgroundColor: primaryColor,
         scrollbarWidth: "none",
