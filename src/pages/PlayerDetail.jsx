@@ -517,21 +517,13 @@ const getBestPosition = (ratings) => {
   return `${valid[0].code} · ${valid[0].value}/20`;
 };
 
-const PlayerStatCard = ({ label, value, background, grow = 1 }) => {
-  const textColor = getContrastTextColor(background);
-
+const PlayerStatCard = ({ background, grow = 1 }) => {
   return (
     <div
-      className="flex h-[190px] min-w-0 flex-col justify-between rounded-[16px] border border-black/10 px-6 py-5 shadow-[0_24px_52px_rgba(15,23,42,0.22)]"
-      style={{ backgroundColor: background, color: textColor, flex: grow }}
-    >
-      <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-80 sm:text-[9px]">
-        {label}
-      </p>
-      <p className="truncate text-[40px] font-black leading-none tracking-[-0.045em] sm:text-[50px]">
-        {value}
-      </p>
-    </div>
+      aria-hidden="true"
+      className="h-[190px] min-w-0 rounded-[16px] border border-black/10 shadow-[0_24px_52px_rgba(15,23,42,0.22)]"
+      style={{ backgroundColor: background, flex: grow }}
+    />
   );
 };
 
@@ -873,44 +865,19 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         );
         const middleColor = darkenHex(primaryColor, 0.48);
 
-        const ca =
-          editablePlayer?.ca ??
-          editablePlayer?.CA ??
-          player?.ca ??
-          player?.CA ??
-          "—";
-        const cp =
-          editablePlayer?.cp ??
-          editablePlayer?.CP ??
-          player?.cp ??
-          player?.CP ??
-          "—";
-        const positionRatings =
-          editablePlayer?.positionRatings ||
-          editablePlayer?.position_ratings ||
-          player?.positionRatings ||
-          player?.position_ratings ||
-          {};
-
         if (typeof document === "undefined") return null;
 
         return createPortal(
           <div className="pointer-events-none fixed bottom-20 left-1/2 z-[80] flex w-[min(1100px,calc(100vw-28px))] -translate-x-1/2 gap-4 sm:bottom-20 sm:gap-5">
             <PlayerStatCard
-              label="Current Ability"
-              value={ca}
               background={primaryColor}
               grow={1}
             />
             <PlayerStatCard
-              label="Potential Ability"
-              value={cp}
               background={middleColor}
               grow={1.65}
             />
             <PlayerStatCard
-              label="Best Position"
-              value={getBestPosition(positionRatings)}
               background={primaryColor}
               grow={1}
             />
