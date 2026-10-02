@@ -1020,7 +1020,7 @@ function PlayerCard({
           ) : null}
 
           <h3
-            className={`player-display-title min-w-0 truncate ${
+            className={`min-w-0 truncate font-bold text-slate-800 transition group-hover:text-[#003399] ${
               compact ? "text-sm" : "text-base"
             }`}
           >
