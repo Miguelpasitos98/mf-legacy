@@ -712,7 +712,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
 
       <div
-        className="pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(4rem,8vw,7.5rem)] font-bold leading-none tracking-[-0.065em] text-white/90"
+        className="pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(4rem,10vw,9rem)] font-bold leading-none tracking-[-0.065em] text-white/90"
         style={{
           fontFamily: '"Bebas Neue", sans-serif',
           fontWeight: 400,
