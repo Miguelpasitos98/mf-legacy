@@ -26,6 +26,7 @@ import {
   ClipboardPaste,
   ChevronDown,
   Pipette,
+  Save,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -51,7 +52,6 @@ const emptyTeamForm = {
   locationMapUrl: "",
   leagueId: "",
   newLeagueName: "",
-  season: "2026-2027",
   continent: "Europe",
   city: "",
   logo: "",
@@ -891,6 +891,7 @@ function AddTeamModal({
   leagues,
   onClose,
   onSubmit,
+  isEditing = false,
 }) {
   const [logoImageError, setLogoImageError] = useState(false);
   const [logoPalette, setLogoPalette] = useState([]);
@@ -1081,7 +1082,7 @@ function AddTeamModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-team-title"
@@ -1093,10 +1094,12 @@ function AddTeamModal({
               id="add-team-title"
               className="text-lg font-extrabold text-slate-900"
             >
-              Add team
+              {isEditing ? "Edit team" : "Add team"}
             </h2>
             <p className="mt-1 text-xs text-slate-500">
-              Create a complete club profile manually.
+              {isEditing
+                ? "Update the team's information."
+                : "Create a complete club profile manually."}
             </p>
           </div>
 
@@ -1453,30 +1456,6 @@ function AddTeamModal({
                       )
                     }
                     placeholder="e.g. LaLiga EA Sports"
-                    className={
-                      inputClassName
-                    }
-                    required
-                  />
-                </FormField>
-              )}
-
-              {(form.leagueId ||
-                form.newLeagueName.trim()) && (
-                <FormField
-                  label="Season *"
-                  hint="Ejemplo: 2026-2027"
-                >
-                  <input
-                    type="text"
-                    value={form.season}
-                    onChange={(event) =>
-                      updateField(
-                        "season",
-                        event.target.value
-                      )
-                    }
-                    placeholder="2026-2027"
                     className={
                       inputClassName
                     }
@@ -1918,8 +1897,12 @@ function AddTeamModal({
               type="submit"
               className="flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-xs font-semibold text-white transition hover:bg-[#002477]"
             >
-              <Plus size={15} />
-              Add team
+              {isEditing ? (
+                <Save size={15} />
+              ) : (
+                <Plus size={15} />
+              )}
+              {isEditing ? "Save changes" : "Add team"}
             </button>
           </div>
         </form>
@@ -2032,7 +2015,6 @@ function mapTeamToForm(team) {
 
     leagueId: team.league_id || team.leagueId || "",
     newLeagueName: "",
-    season: team.season || "",
 
     continent: team.continent || "Europe",
     city: team.city || "",
@@ -2690,6 +2672,7 @@ const kitsOverviewUrl =
               setForm={setForm}
               countries={countries}
               leagues={leagues}
+              isEditing
               onClose={() => {
                 setEditPanelOpen(false);
                 onCloseEdit();
@@ -3091,7 +3074,6 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
       locationMapUrl: form.locationMapUrl.trim(),
       leagueId: form.leagueId.trim(),
       newLeagueName: form.newLeagueName.trim(),
-      season: form.season.trim(),
       continent: form.continent,
       city: form.city.trim(),
       logo: form.logo.trim(),
@@ -3313,59 +3295,79 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
       key_player_photo_url: newTeam.keyPlayerPhotoUrl,
       data_source: newTeam.dataSource,
       is_active: newTeam.isActive,
-    });
+    });  let savedRelation = null;
 
-  let savedRelation = null;
+  const existingRelations =
+    await base44.entities.TeamLeague.list();
 
-if (leagueId) {
-  const existingRelations = await base44.entities.TeamLeague.list();
+  const relationList =
+    Array.isArray(existingRelations)
+      ? existingRelations
+      : Array.isArray(existingRelations?.data)
+        ? existingRelations.data
+        : Array.isArray(existingRelations?.items)
+          ? existingRelations.items
+          : Array.isArray(existingRelations?.results)
+            ? existingRelations.results
+            : [];
 
-  const currentRelation = (
-  Array.isArray(existingRelations)
-    ? existingRelations
-    : Array.isArray(existingRelations?.data)
-      ? existingRelations.data
-      : Array.isArray(existingRelations?.items)
-        ? existingRelations.items
-        : Array.isArray(existingRelations?.results)
-          ? existingRelations.results
-          : []
-).find((relation) => {
-    const relationTeamId = relation.team_id || relation.teamId;
-    const isCurrent = relation.is_current ?? relation.isCurrent ?? true;
+  const currentRelation = relationList.find(
+    (relation) => {
+      const relationTeamId =
+        relation.team_id ||
+        relation.teamId;
 
-    return (
-      editingTeam &&
-      String(relationTeamId) === String(savedTeam.id) &&
-      isCurrent
-    );
-  });
+      const isCurrent =
+        relation.is_current ??
+        relation.isCurrent ??
+        true;
 
-  if (currentRelation) {
-    savedRelation = await base44.entities.TeamLeague.update(
+      return (
+        editingTeam &&
+        String(relationTeamId) ===
+          String(savedTeam.id) &&
+        isCurrent
+      );
+    }
+  );
+
+  if (leagueId) {
+    if (currentRelation) {
+      savedRelation =
+        await base44.entities.TeamLeague.update(
+          currentRelation.id,
+          {
+            league_id: leagueId,
+            is_current: true,
+          }
+        );
+    } else {
+      savedRelation =
+        await base44.entities.TeamLeague.create(
+          {
+            team_id: savedTeam.id,
+            league_id: leagueId,
+            season: "2026-2027",
+            is_current: true,
+          }
+        );
+    }
+  } else if (currentRelation) {
+    await base44.entities.TeamLeague.update(
       currentRelation.id,
       {
-        league_id: leagueId,
-        season: newTeam.season || "2026-2027",
-        is_current: true,
+        is_current: false,
       }
     );
-  } else {
-    savedRelation = await base44.entities.TeamLeague.create({
-      team_id: savedTeam.id,
-      league_id: leagueId,
-      season: newTeam.season || "2026-2027",
-      is_current: true,
-    });
   }
-}
 
   const updatedTeam = {
     ...newTeam,
     id: savedTeam.id,
-    competition: selectedLeague?.name || "Without competition",
+    competition:
+      selectedLeague?.name ||
+      "Without competition",
     leagueId,
-    season: savedRelation?.season || newTeam.season || "",
   };
 
   setTeams((currentTeams) => {
@@ -3428,7 +3430,7 @@ setActiveFilter("countries");
 }
 
   return (
-    <div className="min-h-full bg-[#F6F7F9] p-6 md:p-8">
+    <div className="relative min-h-full bg-[#F6F7F9] p-6 md:p-8">
       <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {navigationFilters.map((filter) => {
@@ -3539,10 +3541,11 @@ setActiveFilter("countries");
     setForm={setForm}
     countries={countries}
     leagues={leagues}
+    isEditing={Boolean(editingTeam)}
     onClose={() => {
-  setAddModalOpen(false);
-  setEditingTeam(null);
-}}
+      setAddModalOpen(false);
+      setEditingTeam(null);
+    }}
     onSubmit={handleAddTeam}
   />
 )}
