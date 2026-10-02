@@ -744,7 +744,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           {playerName}
         </div>
 
-        <div className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0 lg:-translate-y-20">
+        <div className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0 lg:-translate-y-32">
           <h1 className="max-w-lg text-5xl font-black leading-[0.9] tracking-[-0.045em] text-slate-950 md:text-6xl xl:text-7xl">
             <span className="block">{firstName}</span>
             {lastName && <span className="block">{lastName}</span>}
