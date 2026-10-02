@@ -791,16 +791,17 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         </aside>
       </section>
 
-      {editOpen && (
-        <div
-          className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
+      {editOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               closeEditor();
             }
           }}
         >
-          <div className="max-h-[calc(100%_-_32px)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <div className="max-h-[calc(100vh_-_32px)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <h2 className="text-base font-extrabold text-slate-900">
@@ -1085,8 +1086,10 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
               </div>
             </form>
           </div>
-        </div>
-      )}
+            </div>,
+            document.body
+          )
+        : null}
     </main>
   );
 }
