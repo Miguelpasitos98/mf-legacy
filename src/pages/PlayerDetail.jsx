@@ -902,8 +902,10 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           player?.position_ratings ||
           {};
 
-        return (
-          <div className="pointer-events-none absolute bottom-[-42px] left-1/2 z-[70] flex w-[min(760px,calc(100%-28px))] -translate-x-1/2 gap-3 sm:gap-4">
+        if (typeof document === "undefined") return null;
+
+        return createPortal(
+          <div className="pointer-events-none fixed bottom-5 left-1/2 z-[80] flex w-[min(760px,calc(100vw-28px))] -translate-x-1/2 gap-3 sm:bottom-6 sm:gap-4">
             <PlayerStatCard
               label="Current Ability"
               value={ca}
@@ -919,7 +921,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
               value={getBestPosition(positionRatings)}
               background={secondaryColor}
             />
-          </div>
+          </div>,
+          document.body
         );
       })()}
 
