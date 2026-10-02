@@ -3630,11 +3630,21 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
     return levelA - levelB;
   })
   .map(([competitionName, competitionTeams]) => {
-    const sortedTeams = [...(competitionTeams || [])].sort((a, b) =>
-      (a.name || "").localeCompare(b.name || "", "es", {
+    const sortedTeams = [...(competitionTeams || [])].sort((a, b) => {
+      const reputationA = Number(a?.reputation);
+      const reputationB = Number(b?.reputation);
+
+      const normalizedReputationA = Number.isFinite(reputationA) ? reputationA : 0;
+      const normalizedReputationB = Number.isFinite(reputationB) ? reputationB : 0;
+
+      if (normalizedReputationA !== normalizedReputationB) {
+        return normalizedReputationB - normalizedReputationA;
+      }
+
+      return (a.name || "").localeCompare(b.name || "", "es", {
         sensitivity: "base",
-      })
-    );
+      });
+    });
 
     return (
       <div key={competitionName}>
