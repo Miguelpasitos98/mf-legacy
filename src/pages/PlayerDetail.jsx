@@ -522,13 +522,13 @@ const PlayerStatCard = ({ label, value, background }) => {
 
   return (
     <div
-      className="flex min-h-[125px] min-w-0 flex-1 flex-col justify-between rounded-[14px] border border-black/10 px-4 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+      className="flex h-[165px] min-w-0 flex-1 flex-col justify-between rounded-[14px] border border-black/10 px-5 py-4 shadow-[0_22px_48px_rgba(15,23,42,0.20)]"
       style={{ backgroundColor: background, color: textColor }}
     >
       <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-80 sm:text-[9px]">
         {label}
       </p>
-      <p className="truncate text-[30px] font-black leading-none tracking-[-0.04em] sm:text-[38px]">
+      <p className="truncate text-[34px] font-black leading-none tracking-[-0.045em] sm:text-[44px]">
         {value}
       </p>
     </div>
@@ -905,7 +905,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         if (typeof document === "undefined") return null;
 
         return createPortal(
-          <div className="pointer-events-none fixed bottom-5 left-1/2 z-[80] flex w-[min(900px,calc(100vw-28px))] -translate-x-1/2 gap-3 sm:bottom-2 sm:gap-4">
+          <div className="pointer-events-none fixed bottom-1 left-1/2 z-[80] flex w-[min(980px,calc(100vw-28px))] -translate-x-1/2 gap-4 sm:bottom-1 sm:gap-5">
             <PlayerStatCard
               label="Current Ability"
               value={ca}
