@@ -905,7 +905,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         if (typeof document === "undefined") return null;
 
         return createPortal(
-          <div className="pointer-events-none fixed bottom-25 left-1/2 z-[80] flex w-[min(980px,calc(100vw-28px))] -translate-x-1/2 gap-4 sm:bottom-25 sm:gap-5">
+          <div className="pointer-events-none fixed bottom-20 left-1/2 z-[80] flex w-[min(980px,calc(100vw-28px))] -translate-x-1/2 gap-4 sm:bottom-20 sm:gap-5">
             <PlayerStatCard
               label="Current Ability"
               value={ca}
