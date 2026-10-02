@@ -916,7 +916,12 @@ const competitionLogo =
   );
 }
 
-function TeamCard({ team, onOpen }) {
+function TeamCard({ team, onOpen, showReputation = false }) {
+  const reputationValue = Number(team?.reputation);
+  const normalizedReputation = Number.isFinite(reputationValue)
+    ? reputationValue
+    : 0;
+
   return (
     <button
       type="button"
@@ -927,6 +932,11 @@ function TeamCard({ team, onOpen }) {
       <span className="w-full truncate text-[11px] font-bold text-slate-800 transition group-hover:text-[#003399]">
         {team.name}
       </span>
+      {showReputation && (
+        <span className="text-[10px] font-semibold text-slate-400">
+          Reputation: {normalizedReputation}
+        </span>
+      )}
     </button>
   );
 }
@@ -3189,6 +3199,26 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
       );
     };
 
+    if (activeFilter === "reputation") {
+      const sortedReputationTeams = [...filteredTeams].sort((a, b) => {
+        const reputationA = Number(a?.reputation);
+        const reputationB = Number(b?.reputation);
+
+        const normalizedReputationA = Number.isFinite(reputationA) ? reputationA : 0;
+        const normalizedReputationB = Number.isFinite(reputationB) ? reputationB : 0;
+
+        if (normalizedReputationA !== normalizedReputationB) {
+          return normalizedReputationB - normalizedReputationA;
+        }
+
+        return (a?.name || "").localeCompare(b?.name || "", "es", {
+          sensitivity: "base",
+        });
+      });
+
+      return { Reputation: sortedReputationTeams };
+    }
+
     const groups = {};
 
     filteredTeams.forEach((team) => {
@@ -3198,8 +3228,6 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
         groupName = team.country || "Unknown country";
       } else if (activeFilter === "continents") {
         groupName = team.continent || "Unknown continent";
-      } else if (activeFilter === "reputation") {
-        groupName = team.reputation || "Unclassified";
       } else if (activeFilter === "market") {
         groupName = team.market || "Unclassified";
       } else if (activeFilter === "incomplete") {
@@ -3609,26 +3637,6 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
         <div className="space-y-5">
           {Object.entries(groupedTeams).map(([groupName, groupTeams]) => {
             if (activeFilter === "reputation") {
-              const sortedTeams = [...groupTeams].sort((a, b) => {
-                const reputationA = Number(a?.reputation);
-                const reputationB = Number(b?.reputation);
-
-                const normalizedReputationA = Number.isFinite(reputationA)
-                  ? reputationA
-                  : 0;
-                const normalizedReputationB = Number.isFinite(reputationB)
-                  ? reputationB
-                  : 0;
-
-                if (normalizedReputationA !== normalizedReputationB) {
-                  return normalizedReputationB - normalizedReputationA;
-                }
-
-                return (a.name || "").localeCompare(b.name || "", "es", {
-                  sensitivity: "base",
-                });
-              });
-
               return (
                 <section
                   key={groupName}
@@ -3639,15 +3647,16 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
                       Reputation
                     </h2>
                     <span className="text-xs font-medium text-slate-400">
-                      {sortedTeams.length} {sortedTeams.length === 1 ? "team" : "teams"}
+                      {groupTeams.length} {groupTeams.length === 1 ? "team" : "teams"}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6 2xl:grid-cols-6">
-                    {sortedTeams.map((team) => (
+                    {groupTeams.map((team) => (
                       <TeamCard
                         key={team.id}
                         team={team}
+                        showReputation
                         onOpen={() => setSelectedTeam(team)}
                       />
                     ))}
