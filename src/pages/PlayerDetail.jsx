@@ -716,7 +716,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         style={{
           fontFamily: '"League Gothic", sans-serif',
           fontWeight: 400,
-          transform: "scaleX(1)",
+          transform: "scaleX(0.92)",
           transformOrigin: "center center",
           textShadow: "0 0 16px rgba(255,255,255,0.18), 0 0 32px rgba(255,255,255,0.10)",
           WebkitMaskImage: "linear-gradient(to bottom, #000 0%, #000 24%, rgba(0,0,0,0.92) 38%, rgba(0,0,0,0.45) 62%, transparent 88%, transparent 100%)",
