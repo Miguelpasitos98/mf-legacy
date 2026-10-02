@@ -1626,17 +1626,30 @@ function AddTeamModal({
                 }
               )}
 
-              {textField(
-                "market",
-                "Market value (€)",
-                "25.000.001",
-                {
-                  type: "text",
-                  inputMode:
-                    "numeric",
-                  hint: "Introduce el valor total en euros. Ejemplo: 25.000.001",
-                }
-              )}
+              <FormField
+                label="Market value (€)"
+                hint="Introduce el valor en euros. Se guardará y mostrará como 230,975,207 (€)."
+              >
+                <input
+                  type="text"
+                  value={form.market}
+                  onChange={(event) =>
+                    updateField(
+                      "market",
+                      cleanMarketInput(event.target.value)
+                    )
+                  }
+                  onBlur={() =>
+                    updateField(
+                      "market",
+                      formatMarketValue(form.market, "")
+                    )
+                  }
+                  placeholder="230,975,207 (€)"
+                  className={inputClassName}
+                  inputMode="numeric"
+                />
+              </FormField>
             </div>
           </CollapsibleSection>
 
@@ -2000,13 +2013,27 @@ function numericValue(value, fallback = "0") {
   return digits && Number.isFinite(Number(digits)) ? digits : fallback;
 }
 
-function marketValue(value, fallback = "0") {
+function formatMarketValue(value, fallback = "") {
   if (value === null || value === undefined || value === "") return fallback;
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+
   const normalized = String(value).trim();
-  if (!normalized || /^(high|medium|low|elite|unclassified)$/i.test(normalized)) return fallback;
-  const digits = normalized.replace(/[^0-9.-]/g, "");
-  return digits && Number.isFinite(Number(digits)) ? digits : fallback;
+  if (!normalized) return fallback;
+
+  const digits = normalized.replace(/\D/g, "");
+  if (!digits) return fallback;
+
+  const numeric = digits.replace(/^0+(?=\d)/, "");
+  const grouped = numeric.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+  return `${grouped} (€)`;
+}
+
+function cleanMarketInput(value) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return "";
+
+  const numeric = digits.replace(/^0+(?=\d)/, "");
+  return numeric.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 function mapImportedTeamToForm(data) {
@@ -2038,7 +2065,7 @@ function mapImportedTeamToForm(data) {
     stadiumInteriorUrl: importedValue(stadium.interior_url || data.stadium_interior_url),
     stadiumExteriorUrl: importedValue(stadium.exterior_url || data.stadium_exterior_url),
     reputation: numericValue(classification.reputation ?? data.reputation, "0"),
-    market: marketValue(data.market_value ?? data.market, "0"),
+    market: formatMarketValue(data.market_value ?? data.market, ""),
     history: importedValue(data.history),
     coachName: importedValue(staff.coach_name || data.coach_name),
     coachPhotoUrl: importedValue(staff.coach_photo_url || data.coach_photo_url),
@@ -2101,7 +2128,7 @@ function mapTeamToForm(team) {
     stadiumExteriorUrl: team.stadium_exterior_url || team.stadiumExteriorUrl || "",
 
     reputation: team.reputation || "",
-    market: team.market || "",
+    market: formatMarketValue(team.market, ""),
     history: team.history || "",
 
     coachName: team.coach_name || team.coachName || "",
@@ -2413,6 +2440,7 @@ function TeamDetail({
 
   const city = team.city || "";
   const country = team.country || "";
+  const marketDisplay = formatMarketValue(team.market, "");
   const teamName = team.name || "Equipo";
   const shortName = team.shortName || team.short_name || "";
 
@@ -2613,6 +2641,16 @@ const kitsOverviewUrl = normalizeImageUrl(
 
                     <p className="team-data-value mt-2 text-xl text-white">
                       {country || "—"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="team-section-label text-[9px] text-white/55">
+                      Market value
+                    </p>
+
+                    <p className="team-data-value mt-2 text-xl text-white">
+                      {marketDisplay || "—"}
                     </p>
                   </div>
 
@@ -3069,7 +3107,7 @@ export default function Teams() {
             stadiumInteriorUrl: team.stadium_interior_url || team.stadiumInteriorUrl || "",
             stadiumExteriorUrl: team.stadium_exterior_url || team.stadiumExteriorUrl || "",
             reputation: numericValue(team.reputation, "0"),
-            market: marketValue(team.market, "0"),
+            market: formatMarketValue(team.market, ""),
             history: team.history || "",
             coachName: team.coach_name || team.coachName || "",
             coachPhotoUrl: team.coach_photo_url || team.coachPhotoUrl || "",
@@ -3364,7 +3402,7 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
       stadiumInteriorUrl: form.stadiumInteriorUrl.trim(),
       stadiumExteriorUrl: form.stadiumExteriorUrl.trim(),
       reputation: Number(form.reputation || 0),
-      market: Number(form.market || 0),
+      market: formatMarketValue(form.market, ""),
       history: form.history.trim(),
       coachName: form.coachName.trim(),
       coachPhotoUrl: form.coachPhotoUrl.trim(),
