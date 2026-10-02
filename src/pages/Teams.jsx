@@ -192,7 +192,7 @@ function SectionHeader({
   open,
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 items-center gap-2">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
         <Icon size={16} />
       </div>
@@ -852,7 +852,7 @@ function TeamLogo({ team }) {
 
   if (logoUrl && !imageError) {
     return (
-      <div className="flex h-20 w-20 shrink-0 items-center justify-center bg-transparent">
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center bg-transparent">
         <img
           src={logoUrl}
           alt={`${team.name} logo`}
@@ -867,7 +867,7 @@ function TeamLogo({ team }) {
   }
 
   return (
-    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
       <span className="max-w-[90%] px-1 text-center text-[10px] font-extrabold leading-tight tracking-tight text-slate-800">
         {team.shortName ||
           team.short_name ||
@@ -889,9 +889,9 @@ const competitionLogo =
   "";
 
   return (
-    <div className="mb-4 flex items-center justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 p-1">
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 p-1">
   {competitionLogo ? (
     <img
       src={competitionLogo}
@@ -921,10 +921,10 @@ function TeamCard({ team, onOpen }) {
     <button
       type="button"
       onClick={onOpen}
-      className="group flex min-h-[112px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
+      className="group flex min-h-[94px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-2 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
     >
       <TeamLogo team={team} />
-      <span className="w-full truncate text-xs font-bold text-slate-800 transition group-hover:text-[#003399]">
+      <span className="w-full truncate text-[11px] font-bold text-slate-800 transition group-hover:text-[#003399]">
         {team.name}
       </span>
     </button>
@@ -3528,7 +3528,7 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
 }
 
   return (
-    <div className="min-h-full bg-[#F6F7F9] p-6 md:p-8">
+    <div className="min-h-full bg-[#F6F7F9] p-4 md:p-5">
       <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {navigationFilters.map((filter) => {
@@ -3580,12 +3580,12 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
             }, {});
 
             return (
-              <section key={groupName} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,0.02)] md:p-5">
-                <div className="mb-5 flex items-center justify-between gap-4">
+              <section key={groupName} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,0.02)] md:p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
                   <h2 className="text-base font-extrabold text-slate-900">{groupName}</h2>
                   <span className="text-xs font-medium text-slate-400">{groupTeams.length} {groupTeams.length === 1 ? "team" : "teams"}</span>
                 </div>
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {Object.entries(competitions)
   .sort(([, teamsA], [, teamsB]) => {
     const levelA = Number(teamsA?.[0]?.competitionLevel ?? 999);
@@ -3607,7 +3607,7 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
           teams={sortedTeams}
         />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
           {sortedTeams.map((team) => (
             <TeamCard
               key={team.id}
