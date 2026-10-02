@@ -874,14 +874,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           team?.primary_color || team?.primaryColor,
           "#003399"
         );
-        const secondaryColor = normalizeHexColor(
-          team?.secondary_color || team?.secondaryColor,
-          "#0C1321"
-        );
-        const middleColor = darkenHex(
-          mixHexColors(primaryColor, secondaryColor, 0.68),
-          0.16
-        );
+        const middleColor = darkenHex(primaryColor, 0.48);
 
         const ca =
           editablePlayer?.ca ??
@@ -921,7 +914,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
             <PlayerStatCard
               label="Best Position"
               value={getBestPosition(positionRatings)}
-              background={secondaryColor}
+              background={primaryColor}
               grow={1}
             />
           </div>,
