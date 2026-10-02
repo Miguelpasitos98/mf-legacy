@@ -745,7 +745,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         </div>
 
         <div className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0 lg:-translate-y-[184px]">
-          <h1 className="max-w-lg text-5xl font-semibold leading-[0.9] tracking-[-0.045em] text-slate-950 md:text-6xl xl:text-7xl">
+          <h1 className="max-w-lg text-5xl font-bold leading-[0.9] tracking-[-0.045em] text-slate-950 md:text-6xl xl:text-7xl">
             {playerName.split(/\s+/).filter(Boolean).map((word, index) => (
               <span key={`${word}-${index}`} className="block">
                 {word}
