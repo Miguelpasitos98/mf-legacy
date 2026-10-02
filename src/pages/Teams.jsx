@@ -3206,27 +3206,31 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
         { key: "Top", min: 8500, max: 8749 },
         { key: "Very Strong", min: 8250, max: 8499 },
         { key: "Strong", min: 8000, max: 8249 },
-        { key: "High", min: 7000, max: 7999 },
-        { key: "Upper Mid", min: 6000, max: 6999 },
+        { key: "High", min: 7500, max: 7999 },
+        { key: "Competitive", min: 7000, max: 7499 },
+        { key: "Solid", min: 6000, max: 6999 },
         { key: "Mid", min: 5000, max: 5999 },
-        { key: "Lower Mid", min: 4000, max: 4999 },
-        { key: "Low", min: 3000, max: 3999 },
-        { key: "Very Low", min: 2000, max: 2999 },
-        { key: "Minor", min: 1000, max: 1999 },
-        { key: "Unclassified", min: 0, max: 999 },
+        { key: "Low", min: 4000, max: 4999 },
+        { key: "Very Low", min: 3000, max: 3999 },
+        { key: "Minor", min: 0, max: 2999 },
       ];
 
       const getReputationGroup = (value) => {
+        if (value === null || value === undefined || String(value).trim() === "") {
+          return "Unclassified";
+        }
+
         const reputation = Number(value);
-        const normalizedReputation = Number.isFinite(reputation)
-          ? Math.max(0, reputation)
-          : 0;
+
+        if (!Number.isFinite(reputation)) {
+          return "Unclassified";
+        }
 
         return (
           reputationRanges.find(
             (range) =>
-              normalizedReputation >= range.min &&
-              normalizedReputation <= range.max
+              reputation >= range.min &&
+              reputation <= range.max
           )?.key || "Unclassified"
         );
       };
