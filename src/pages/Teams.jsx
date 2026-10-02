@@ -24,6 +24,8 @@ import {
   Database,
   FileJson,
   ClipboardPaste,
+  ChevronDown,
+  Pipette,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -161,16 +163,653 @@ function FormField({ label, children, hint }) {
   );
 }
 
-function SectionHeader({ icon: Icon, title, description }) {
+function SectionHeader({
+  icon: Icon,
+  title,
+  description,
+  open,
+}) {
   return (
-    <div className="mb-4 flex items-start gap-3 border-b border-slate-100 pb-3">
+    <div className="flex min-w-0 items-center gap-3">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
         <Icon size={16} />
       </div>
-      <div>
-        <h3 className="text-sm font-extrabold text-slate-900">{title}</h3>
-        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
+      <div className="min-w-0 flex-1">
+        <h3 className="text-sm font-extrabold text-slate-900">
+          {title}
+        </h3>
+        {description && (
+          <p className="mt-0.5 text-xs text-slate-500">
+            {description}
+          </p>
+        )}
       </div>
+      <ChevronDown
+        size={17}
+        className={`shrink-0 text-slate-400 transition-transform ${
+          open ? "rotate-180" : ""
+        }`}
+      />
+    </div>
+  );
+}
+
+function CollapsibleSection({
+  icon,
+  title,
+  description,
+  defaultOpen = false,
+  children,
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition hover:bg-slate-50 md:px-5"
+        aria-expanded={open}
+      >
+        <SectionHeader
+          icon={icon}
+          title={title}
+          description={description}
+          open={open}
+        />
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-100 px-4 pb-5 pt-5 md:px-5">
+          {children}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function getCountryFlagUrl(country) {
+  const directFlag = normalizeImageUrl(
+    country?.flag ||
+      country?.flag_url ||
+      country?.flagUrl
+  );
+
+  if (directFlag) return directFlag;
+
+  const code = String(country?.code || "")
+    .trim()
+    .toUpperCase();
+
+  const alpha3ToAlpha2 = {
+    DEU: "de",
+    SAU: "sa",
+    ARG: "ar",
+    BEL: "be",
+    BRA: "br",
+    ESP: "es",
+    FRA: "fr",
+    ENG: "gb",
+    GBR: "gb",
+    ITA: "it",
+    NOR: "no",
+    POL: "pl",
+    POR: "pt",
+  };
+
+  const alpha2 =
+    alpha3ToAlpha2[code] ||
+    (code.length === 2
+      ? code.toLowerCase()
+      : "");
+
+  return alpha2
+    ? `https://flagcdn.com/${alpha2}.svg`
+    : "";
+}
+
+function SearchableTeamSelect({
+  value,
+  onChange,
+  options,
+  kind,
+  placeholder,
+  searchPlaceholder,
+  emptyOption,
+  specialOption,
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleOutsideClick = (event) => {
+      if (!wrapperRef.current?.contains(event.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+
+    document.addEventListener(
+      "mousedown",
+      handleOutsideClick
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+    };
+  }, [open]);
+
+  const getLabel = (item) =>
+    item?.name || "Unnamed";
+
+  const getMeta = (item) =>
+    kind === "country"
+      ? item?.code || ""
+      : item?.shortName ||
+        item?.short_name ||
+        "";
+
+  const getImage = (item) => {
+    if (kind === "country") {
+      return getCountryFlagUrl(item);
+    }
+
+    return normalizeImageUrl(
+      item?.logo ||
+        item?.logo_url ||
+        item?.logoUrl
+    );
+  };
+
+  const filteredOptions = options
+    .filter(
+      (item) =>
+        item?.id &&
+        item?.name
+    )
+    .filter((item) => {
+      const searchText = [
+        item?.name,
+        item?.shortName,
+        item?.short_name,
+        item?.code,
+        item?.countryName,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchText.includes(
+        query.trim().toLowerCase()
+      );
+    })
+    .sort((a, b) =>
+      String(a?.name || "").localeCompare(
+        String(b?.name || ""),
+        "es",
+        { sensitivity: "base" }
+      )
+    );
+
+  const selected =
+    options.find(
+      (item) =>
+        String(item?.id) === String(value)
+    ) || null;
+
+  const selectValue = (nextValue) => {
+    onChange(nextValue);
+    setOpen(false);
+    setQuery("");
+  };
+
+  const renderVisual = (item) => {
+    if (!item) return null;
+
+    const image = getImage(item);
+
+    return (
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-50">
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            className={
+              kind === "country"
+                ? "h-5 w-7 rounded-[2px] object-cover"
+                : "h-6 w-6 object-contain"
+            }
+            onError={(event) => {
+              event.currentTarget.style.display =
+                "none";
+            }}
+          />
+        ) : (
+          <span className="text-[10px] font-bold text-slate-300">
+            {kind === "country"
+              ? "•"
+              : "FC"}
+          </span>
+        )}
+      </span>
+    );
+  };
+
+  return (
+    <div
+      ref={wrapperRef}
+      className="relative"
+    >
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((current) => !current);
+          setQuery("");
+        }}
+        className={`${inputClassName} flex items-center gap-3 text-left`}
+        aria-expanded={open}
+      >
+        {selected ? (
+          renderVisual(selected)
+        ) : (
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-[10px] font-bold text-slate-300">
+            {kind === "country"
+              ? "•"
+              : "FC"}
+          </span>
+        )}
+
+        <span className="min-w-0 flex-1 truncate">
+          <span
+            className={
+              selected
+                ? "block text-slate-800"
+                : "block text-slate-400"
+            }
+          >
+            {selected
+              ? getLabel(selected)
+              : String(value) ===
+                String(
+                  emptyOption?.value
+                )
+                ? emptyOption.label
+                : String(value) ===
+                    String(
+                      specialOption?.value
+                    )
+                  ? specialOption.label
+                  : placeholder}
+          </span>
+        </span>
+
+        {selected &&
+        getMeta(selected) ? (
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+            {getMeta(selected)}
+          </span>
+        ) : null}
+
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-slate-400 transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[80] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
+          <div className="border-b border-slate-100 p-2">
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3">
+              <Search
+                size={15}
+                className="shrink-0 text-slate-400"
+              />
+              <input
+                type="text"
+                value={query}
+                onChange={(event) =>
+                  setQuery(
+                    event.target.value
+                  )
+                }
+                placeholder={
+                  searchPlaceholder
+                }
+                autoFocus
+                className="h-9 min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+
+          <div className="max-h-64 overflow-y-auto p-1.5">
+            {emptyOption && (
+              <button
+                type="button"
+                onClick={() =>
+                  selectValue(
+                    emptyOption.value
+                  )
+                }
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition ${
+                  String(value) ===
+                  String(emptyOption.value)
+                    ? "bg-[#003399]/[0.06] text-[#003399]"
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-50 text-[10px] font-bold text-slate-300">
+                  {kind === "country"
+                    ? "•"
+                    : "FC"}
+                </span>
+                <span className="font-medium">
+                  {emptyOption.label}
+                </span>
+              </button>
+            )}
+
+            {filteredOptions.map(
+              (item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() =>
+                    selectValue(item.id)
+                  }
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${
+                    String(item.id) ===
+                    String(value)
+                      ? "bg-[#003399]/[0.06]"
+                      : "hover:bg-slate-50"
+                  }`}
+                >
+                  {renderVisual(item)}
+
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
+                    {getLabel(item)}
+                  </span>
+
+                  {getMeta(item) ? (
+                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                      {getMeta(item)}
+                    </span>
+                  ) : null}
+                </button>
+              )
+            )}
+
+            {filteredOptions.length ===
+              0 && (
+              <div className="px-3 py-6 text-center text-xs text-slate-400">
+                No results found.
+              </div>
+            )}
+
+            {specialOption && (
+              <button
+                type="button"
+                onClick={() =>
+                  selectValue(
+                    specialOption.value
+                  )
+                }
+                className={`mt-1 flex w-full items-center gap-3 rounded-lg border-t border-slate-100 px-3 py-2.5 text-left text-sm font-semibold text-[#003399] transition hover:bg-[#003399]/[0.04] ${
+                  String(value) ===
+                  String(
+                    specialOption.value
+                  )
+                    ? "bg-[#003399]/[0.06]"
+                    : ""
+                }`}
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#003399]/[0.08]">
+                  <Plus size={15} />
+                </span>
+                {specialOption.label}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KitColorPicker({
+  kitNumber,
+  photoUrl,
+  badgeBg,
+  badgeText,
+  onChangeColor,
+}) {
+  const [palette, setPalette] = useState([]);
+  const [imageError, setImageError] = useState(false);
+  const [target, setTarget] = useState("badgeBg");
+
+  const normalizedPhotoUrl =
+    normalizeImageUrl(photoUrl);
+
+  useEffect(() => {
+    setPalette([]);
+    setImageError(false);
+
+    if (!normalizedPhotoUrl) return;
+
+    const paletteImage =
+      new Image();
+
+    paletteImage.crossOrigin =
+      "anonymous";
+
+    paletteImage.onload = () => {
+      setPalette(
+        extractImagePalette(
+          paletteImage
+        )
+      );
+    };
+
+    paletteImage.onerror = () => {
+      setPalette([]);
+      setImageError(true);
+    };
+
+    paletteImage.src =
+      normalizedPhotoUrl;
+  }, [normalizedPhotoUrl]);
+
+  const pickScreenColor = async () => {
+    if (
+      typeof window ===
+        "undefined" ||
+      !window.EyeDropper
+    ) {
+      return;
+    }
+
+    try {
+      const eyeDropper =
+        new window.EyeDropper();
+
+      const result =
+        await eyeDropper.open();
+
+      if (result?.sRGBHex) {
+        onChangeColor(
+          target,
+          result.sRGBHex.toUpperCase()
+        );
+      }
+    } catch {
+      // User cancelled the native picker.
+    }
+  };
+
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-slate-700">
+            Kit colors
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            Selecciona el color del fondo o del texto de la insignia.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={pickScreenColor}
+          disabled={
+            typeof window ===
+              "undefined" ||
+            !window.EyeDropper
+          }
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          title="Usar cuentagotas del navegador"
+        >
+          <Pipette size={14} />
+          Cuentagotas
+        </button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setTarget("badgeBg")
+          }
+          className={`rounded-lg px-3 py-2 text-[11px] font-semibold transition ${
+            target === "badgeBg"
+              ? "bg-[#003399] text-white"
+              : "border border-slate-200 bg-white text-slate-700"
+          }`}
+        >
+          Badge background
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            setTarget("badgeText")
+          }
+          className={`rounded-lg px-3 py-2 text-[11px] font-semibold transition ${
+            target === "badgeText"
+              ? "bg-[#003399] text-white"
+              : "border border-slate-200 bg-white text-slate-700"
+          }`}
+        >
+          Badge text
+        </button>
+
+        <input
+          type="color"
+          value={
+            /^#[0-9A-Fa-f]{6}$/.test(
+              target === "badgeBg"
+                ? badgeBg
+                : badgeText
+            )
+              ? (
+                  target ===
+                  "badgeBg"
+                    ? badgeBg
+                    : badgeText
+                )
+              : "#FFFFFF"
+          }
+          onChange={(event) =>
+            onChangeColor(
+              target,
+              event.target.value.toUpperCase()
+            )
+          }
+          className="h-9 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
+          title="Seleccionar color"
+        />
+      </div>
+
+      {normalizedPhotoUrl ? (
+        <div className="mt-3 grid gap-3 md:grid-cols-[180px_1fr]">
+          <div className="flex min-h-[170px] items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
+            <img
+              src={normalizedPhotoUrl}
+              alt={`Kit ${kitNumber} preview`}
+              className="max-h-[180px] w-full object-contain"
+              onLoad={() =>
+                setImageError(false)
+              }
+              onError={() =>
+                setImageError(true)
+              }
+            />
+          </div>
+
+          <div>
+            {imageError ? (
+              <p className="text-xs text-red-600">
+                No se pudo cargar la camiseta o el servidor no permite analizar sus colores.
+              </p>
+            ) : palette.length > 0 ? (
+              <>
+                <p className="text-[11px] font-semibold text-slate-600">
+                  Colores detectados
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {palette.map(
+                    (color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() =>
+                          onChangeColor(
+                            target,
+                            color
+                          )
+                        }
+                        title={`Asignar ${color} a ${
+                          target ===
+                          "badgeBg"
+                            ? "Badge background"
+                            : "Badge text"
+                        }`}
+                        className="group flex w-14 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 transition hover:border-[#003399]"
+                      >
+                        <span
+                          className="h-8 w-8 rounded-md border border-slate-200"
+                          style={{
+                            backgroundColor:
+                              color,
+                          }}
+                        />
+                        <span className="text-[9px] font-semibold text-slate-500">
+                          {color}
+                        </span>
+                      </button>
+                    )
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-slate-400">
+                Introduce la URL de la camiseta para detectar una paleta de colores.
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-slate-400">
+          Introduce primero la foto de la camiseta.
+        </p>
+      )}
     </div>
   );
 }
@@ -255,199 +894,393 @@ function AddTeamModal({
 }) {
   const [logoImageError, setLogoImageError] = useState(false);
   const [logoPalette, setLogoPalette] = useState([]);
-  const [colorTarget, setColorTarget] = useState("primary");
-  const [isLogoZoomOpen, setIsLogoZoomOpen] = useState(false);
+  const [colorTarget, setColorTarget] =
+    useState("primary");
+  const [isLogoZoomOpen, setIsLogoZoomOpen] =
+    useState(false);
+  const [isCreatingNewCountry, setIsCreatingNewCountry] =
+    useState(!form.countryId);
+  const [isCreatingNewLeague, setIsCreatingNewLeague] =
+    useState(Boolean(form.newLeagueName?.trim()));
 
-  const logoPreviewUrl = normalizeImageUrl(form.logo);
+  const logoPreviewUrl =
+    normalizeImageUrl(form.logo);
 
   const updateField = (field, value) => {
-    setForm((currentForm) => ({ ...currentForm, [field]: value }));
+    setForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }));
   };
 
-  const textField = (field, label, placeholder, options = {}) => (
-    <FormField label={label} hint={options.hint}>
+  const textField = (
+    field,
+    label,
+    placeholder,
+    options = {}
+  ) => (
+    <FormField
+      label={label}
+      hint={options.hint}
+    >
       <input
-        type={options.type || "text"}
+        type={
+          options.type || "text"
+        }
         value={form[field]}
-        onChange={(event) => updateField(field, event.target.value)}
+        onChange={(event) =>
+          updateField(
+            field,
+            event.target.value
+          )
+        }
         placeholder={placeholder}
         className={inputClassName}
         min={options.min}
         max={options.max}
+        step={options.step}
+        inputMode={
+          options.inputMode
+        }
+        required={
+          Boolean(
+            options.required
+          )
+        }
       />
     </FormField>
   );
 
-  const selectField = (field, label, values) => (
-    <FormField label={label}>
-      <select value={form[field]} onChange={(event) => updateField(field, event.target.value)} className={inputClassName}>
-        {values.map((value) => <option key={value} value={value}>{value}</option>)}
+  const selectField = (
+    field,
+    label,
+    values
+  ) => (
+    <FormField
+      label={label}
+    >
+      <select
+        value={form[field]}
+        onChange={(event) =>
+          updateField(
+            field,
+            event.target.value
+          )
+        }
+        className={
+          inputClassName
+        }
+      >
+        {values.map(
+          (value) => (
+            <option
+              key={value}
+              value={value}
+            >
+              {value}
+            </option>
+          )
+        )}
       </select>
     </FormField>
   );
 
+  const handleCountryChange =
+    (selectedId) => {
+      if (
+        selectedId === "__new__"
+      ) {
+        setIsCreatingNewCountry(
+          true
+        );
+        updateField(
+          "countryId",
+          ""
+        );
+        updateField(
+          "country",
+          ""
+        );
+        updateField(
+          "countryCode",
+          ""
+        );
+        return;
+      }
+
+      const selectedCountry =
+        countries.find(
+          (country) =>
+            String(country.id) ===
+            String(selectedId)
+        );
+
+      setIsCreatingNewCountry(
+        false
+      );
+      updateField(
+        "countryId",
+        selectedId
+      );
+      updateField(
+        "country",
+        selectedCountry?.name ||
+          ""
+      );
+      updateField(
+        "countryCode",
+        selectedCountry?.code ||
+          ""
+      );
+
+      if (
+        selectedCountry?.continent
+      ) {
+        updateField(
+          "continent",
+          selectedCountry.continent
+        );
+      }
+    };
+
+  const handleLeagueChange =
+    (selectedId) => {
+      if (
+        selectedId === "__new__"
+      ) {
+        setIsCreatingNewLeague(
+          true
+        );
+        updateField(
+          "leagueId",
+          ""
+        );
+        return;
+      }
+
+      setIsCreatingNewLeague(
+        false
+      );
+      updateField(
+        "leagueId",
+        selectedId
+      );
+      updateField(
+        "newLeagueName",
+        ""
+      );
+    };
+
+  const handleKitColorChange =
+    (kitNumber, field, color) => {
+      updateField(
+        `kit${kitNumber}${field === "badgeBg" ? "BadgeBg" : "BadgeText"}`,
+        color
+      );
+    };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="add-team-title">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-team-title"
+    >
       <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h2 id="add-team-title" className="text-lg font-extrabold text-slate-900">Add team</h2>
-            <p className="mt-1 text-xs text-slate-500">Create a complete club profile manually.</p>
+            <h2
+              id="add-team-title"
+              className="text-lg font-extrabold text-slate-900"
+            >
+              Add team
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Create a complete club profile manually.
+            </p>
           </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Close modal">
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+            aria-label="Close modal"
+          >
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-7">
-          <section>
-            <SectionHeader icon={Shield} title="Basic information" description="Official identity and location of the club." />
+        <form
+          onSubmit={onSubmit}
+          className="space-y-4"
+        >
+          {/* 1 — IDENTITY */}
+          <CollapsibleSection
+            icon={Shield}
+            title="Identity"
+            description="The essential information that defines the club."
+            defaultOpen
+          >
             <div className="grid gap-4 md:grid-cols-2">
-              {textField("name", "Team name *", "e.g. Real Madrid")}
-              {textField("shortName", "Short name *", "e.g. RMA")}
-              <FormField label="Country *" hint="Selecciona un país existente o elige crear uno nuevo.">
-                <select
-                  value={form.countryId || "__new__"}
-                  onChange={(event) => {
-                    const selectedId = event.target.value;
-                    if (selectedId === "__new__") {
-                      updateField("countryId", "");
-                      updateField("country", "");
-                      updateField("countryCode", "");
-                      return;
-                    }
+              {textField(
+                "name",
+                "Team name *",
+                "e.g. Real Madrid",
+                { required: true }
+              )}
 
-                    const selectedCountry = countries.find((country) => String(country.id) === String(selectedId));
-                    updateField("countryId", selectedId);
-                    updateField("country", selectedCountry?.name || "");
-                    updateField("countryCode", selectedCountry?.code || "");
-                    if (selectedCountry?.continent) updateField("continent", selectedCountry.continent);
+              {textField(
+                "shortName",
+                "Short name *",
+                "e.g. RMA",
+                { required: true }
+              )}
+
+              <FormField
+                label="Country *"
+                hint="Busca un país por nombre o código."
+              >
+                <SearchableTeamSelect
+                  value={
+                    form.countryId ||
+                    "__new__"
+                  }
+                  onChange={
+                    handleCountryChange
+                  }
+                  options={countries}
+                  kind="country"
+                  placeholder="Select country"
+                  searchPlaceholder="Search country..."
+                  specialOption={{
+                    value: "__new__",
+                    label:
+                      "+ Create or enter a new country",
                   }}
-                  className={inputClassName}
-                >
-                  <option value="__new__">+ Create or enter a new country</option>
-                  {countries
-                    .filter((country) => country.id && country.name)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((country) => (
-                      <option key={country.id} value={country.id}>
-                        {country.name}{country.code ? ` (${country.code})` : ""}
-                      </option>
-                    ))}
-                </select>
-                {countries.length === 0 && (
-                  <p className="mt-1 text-[11px] text-amber-600">No se han cargado países existentes. Puedes crear uno abajo.</p>
+                />
+              </FormField>
+
+              <div className="md:col-span-1">
+                {isCreatingNewCountry && (
+                  <div className="grid gap-4">
+                    {textField(
+                      "country",
+                      "New country name *",
+                      "e.g. Spain",
+                      {
+                        required: true,
+                      }
+                    )}
+
+                    {textField(
+                      "countryCode",
+                      "Country code *",
+                      "e.g. ESP",
+                      {
+                        required: true,
+                        hint: "Código de 2 o 3 letras. Se utiliza al crear el país.",
+                      }
+                    )}
+                  </div>
                 )}
-              </FormField>
+              </div>
 
-              {!form.countryId && (
-                <>
-                  {textField("country", "New country name *", "e.g. Spain")}
-                  {textField("countryCode", "Country code *", "e.g. ESP", { hint: "Código de 2 o 3 letras. Se utiliza al crear el país." })}
-                </>
+              {textField(
+                "city",
+                "City",
+                "e.g. Madrid"
               )}
 
-              <FormField label="League" hint="Selecciona una liga existente o crea una nueva.">
-                <select
-                  value={form.leagueId}
+              {textField(
+                "foundedYear",
+                "Founded year",
+                "1902",
+                {
+                  type: "number",
+                  min: 1800,
+                  max: 2100,
+                }
+              )}
+
+              <FormField
+                label="Logo *"
+                hint="El logo se usa como identidad principal del club."
+              >
+                <input
+                  type="text"
+                  value={form.logo}
                   onChange={(event) => {
-                    const selectedId = event.target.value;
-                    updateField("leagueId", selectedId);
-                    updateField("newLeagueName", "");
+                    updateField(
+                      "logo",
+                      event.target.value
+                    );
+                    setLogoImageError(false);
+                    setLogoPalette([]);
                   }}
-                  className={inputClassName}
-                >
-                  <option value="">Without league</option>
-                  {leagues
-                    .filter((league) => league.id && league.name)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((league) => (
-                      <option key={league.id} value={league.id}>
-                        {league.name}{league.shortName ? ` (${league.shortName})` : ""}
-                      </option>
-                    ))}
-                </select>
+                  placeholder="https://..."
+                  className={
+                    inputClassName
+                  }
+                  required
+                />
               </FormField>
 
-              <FormField label="New league name (optional)" hint="Si introduces un nombre que no existe, se intentará crear automáticamente. Déjalo vacío si no quieres asociar una liga.">
-                  <input
-                    type="text"
-                    value={form.newLeagueName}
-                    onChange={(event) => updateField("newLeagueName", event.target.value)}
-                    placeholder="e.g. LaLiga EA Sports"
-                    className={inputClassName}
-                  />
-                </FormField>
-
-              {form.leagueId && (
-                <FormField label="Season *" hint="Ejemplo: 2026-2027">
-                  <input type="text" value={form.season} onChange={(event) => updateField("season", event.target.value)} placeholder="2026-2027" className={inputClassName} required />
-                </FormField>
-              )}
-              {selectField("continent", "Continent", ["Europe", "South America", "North America", "Asia", "Africa", "Oceania"])}
-              {textField("city", "City", "e.g. Madrid")}
-              <div className="md:col-span-2">
-                <FormField label="Country map URL" hint="Imagen del contorno del país. Se mostrará con una opacidad del 50 %.">
-                  <input
-                    type="url"
-                    value={form.countryMapUrl}
-                    onChange={(event) => updateField("countryMapUrl", event.target.value)}
-                    placeholder="https://.../italy.svg"
-                    className={inputClassName}
-                  />
-                </FormField>
-              </div>
-              <div className="md:col-span-2">
-                <FormField label="Country team map URL" hint="Misma imagen y proporciones, con el escudo del equipo integrado. Se mostrará al 100 %.">
-                  <input
-                    type="url"
-                    value={form.countryTeamMapUrl}
-                    onChange={(event) => updateField("countryTeamMapUrl", event.target.value)}
-                    placeholder="https://.../italy-juventus.svg"
-                    className={inputClassName}
-                  />
-                </FormField>
-              </div>
-              {textField("foundedYear", "Founded year", "1902", { type: "number", min: 1800, max: 2100 })}
-              <div className="md:col-span-2">
-                <FormField label="Logo URL" hint="Puedes pegar una URL completa o una dirección como fotmob.com/image_resources/logo/teamlogo/8633_large.png">
-                  <input
-                    type="text"
-                    value={form.logo}
-                    onChange={(event) => {
-                      updateField("logo", event.target.value);
-                      setLogoImageError(false);
-                      setLogoPalette([]);
-                    }}
-                    placeholder="https://..."
-                    className={inputClassName}
-                  />
-                </FormField>
-
+              <div className="md:col-span-1">
                 {logoPreviewUrl && (
-                  <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex flex-col gap-4 md:flex-row">
                       <div className="relative flex min-h-[180px] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white md:w-56">
                         <img
-                          src={logoPreviewUrl}
+                          src={
+                            logoPreviewUrl
+                          }
                           alt="Logo preview"
                           className="max-h-44 max-w-[90%] object-contain"
                           onLoad={() => {
-                            setLogoImageError(false);
-                            const paletteImage = new Image();
-                            paletteImage.crossOrigin = "anonymous";
-                            paletteImage.onload = () => setLogoPalette(extractImagePalette(paletteImage));
-                            paletteImage.onerror = () => setLogoPalette([]);
-                            paletteImage.src = logoPreviewUrl;
+                            setLogoImageError(
+                              false
+                            );
+
+                            const paletteImage =
+                              new Image();
+
+                            paletteImage.crossOrigin =
+                              "anonymous";
+
+                            paletteImage.onload =
+                              () =>
+                                setLogoPalette(
+                                  extractImagePalette(
+                                    paletteImage
+                                  )
+                                );
+
+                            paletteImage.onerror =
+                              () =>
+                                setLogoPalette(
+                                  []
+                                );
+
+                            paletteImage.src =
+                              logoPreviewUrl;
                           }}
                           onError={() => {
-                            setLogoImageError(true);
-                            setLogoPalette([]);
+                            setLogoImageError(
+                              true
+                            );
+                            setLogoPalette(
+                              []
+                            );
                           }}
                         />
+
                         <button
                           type="button"
-                          onClick={() => setIsLogoZoomOpen(true)}
+                          onClick={() =>
+                            setIsLogoZoomOpen(
+                              true
+                            )
+                          }
                           className="absolute bottom-2 right-2 rounded-lg bg-slate-900/80 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-900"
                         >
                           Ampliar imagen
@@ -457,156 +1290,634 @@ function AddTeamModal({
                       <div className="min-w-0 flex-1">
                         <div className="mb-2 flex items-center justify-between gap-3">
                           <div>
-                            <h4 className="text-xs font-extrabold uppercase tracking-wide text-slate-800">Logo palette</h4>
-                            <p className="mt-1 text-[11px] text-slate-500">Pulsa un color para asignarlo al campo seleccionado.</p>
+                            <h4 className="text-xs font-extrabold uppercase tracking-wide text-slate-800">
+                              Logo palette
+                            </h4>
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              Pulsa un color para asignarlo al campo seleccionado.
+                            </p>
                           </div>
+
                           <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">
-                            {colorTarget === "primary" ? "Primary" : "Secondary"}
+                            {colorTarget ===
+                            "primary"
+                              ? "Primary"
+                              : "Secondary"}
                           </span>
                         </div>
 
                         <div className="mb-3 flex flex-wrap gap-2">
                           <button
                             type="button"
-                            onClick={() => setColorTarget("primary")}
-                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${colorTarget === "primary" ? "bg-[#003399] text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+                            onClick={() =>
+                              setColorTarget(
+                                "primary"
+                              )
+                            }
+                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${
+                              colorTarget ===
+                              "primary"
+                                ? "bg-[#003399] text-white"
+                                : "border border-slate-200 bg-white text-slate-700"
+                            }`}
                           >
                             Seleccionar primario
                           </button>
+
                           <button
                             type="button"
-                            onClick={() => setColorTarget("secondary")}
-                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${colorTarget === "secondary" ? "bg-[#003399] text-white" : "border border-slate-200 bg-white text-slate-700"}`}
+                            onClick={() =>
+                              setColorTarget(
+                                "secondary"
+                              )
+                            }
+                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${
+                              colorTarget ===
+                              "secondary"
+                                ? "bg-[#003399] text-white"
+                                : "border border-slate-200 bg-white text-slate-700"
+                            }`}
                           >
                             Seleccionar secundario
                           </button>
                         </div>
 
                         {logoImageError ? (
-                          <p className="text-xs text-red-600">No se pudo cargar la imagen. Comprueba que la URL sea pública y completa.</p>
-                        ) : logoPalette.length > 0 ? (
+                          <p className="text-xs text-red-600">
+                            No se pudo cargar la imagen. Comprueba que la URL sea pública y completa.
+                          </p>
+                        ) : logoPalette.length >
+                          0 ? (
                           <div className="flex flex-wrap gap-2">
-                            {logoPalette.map((color) => (
-                              <button
-                                key={color}
-                                type="button"
-                                title={`Asignar ${color} a ${colorTarget}`}
-                                onClick={() => updateField(colorTarget === "primary" ? "primaryColor" : "secondaryColor", color)}
-                                className="group flex w-14 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 hover:border-[#003399]"
-                              >
-                                <span className="h-8 w-8 rounded-md border border-slate-200" style={{ backgroundColor: color }} />
-                                <span className="text-[9px] font-semibold text-slate-500">{color}</span>
-                              </button>
-                            ))}
+                            {logoPalette.map(
+                              (color) => (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  title={`Asignar ${color} a ${colorTarget}`}
+                                  onClick={() =>
+                                    updateField(
+                                      colorTarget ===
+                                        "primary"
+                                        ? "primaryColor"
+                                        : "secondaryColor",
+                                      color
+                                    )
+                                  }
+                                  className="group flex w-14 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 hover:border-[#003399]"
+                                >
+                                  <span
+                                    className="h-8 w-8 rounded-md border border-slate-200"
+                                    style={{
+                                      backgroundColor:
+                                        color,
+                                    }}
+                                  />
+                                  <span className="text-[9px] font-semibold text-slate-500">
+                                    {color}
+                                  </span>
+                                </button>
+                              )
+                            )}
                           </div>
                         ) : (
-                          <p className="text-xs text-slate-400">Introduce una imagen compatible para detectar colores. Si el servidor bloquea el análisis, puedes introducir el HEX manualmente.</p>
+                          <p className="text-xs text-slate-400">
+                            Introduce una imagen compatible para detectar colores.
+                          </p>
                         )}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
-            </div>
-          </section>
 
-          <section>
-            <SectionHeader icon={Palette} title="Identity & classification" description="Colors and internal club categories." />
+              <div className="md:col-span-2">
+                <p className="text-[11px] text-slate-400">
+                  El continente se completa automáticamente al seleccionar un país.
+                </p>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          {/* 2 — COMPETITION */}
+          <CollapsibleSection
+            icon={Globe}
+            title="Competition"
+            description="League and current season."
+            defaultOpen
+          >
             <div className="grid gap-4 md:grid-cols-2">
-              <FormField label="Primary color" hint="HEX seleccionado desde la paleta o introducido manualmente.">
+              <FormField
+                label="League"
+                hint="Busca una liga por nombre o abreviatura."
+              >
+                <SearchableTeamSelect
+                  value={
+                    isCreatingNewLeague
+                      ? "__new__"
+                      : form.leagueId
+                  }
+                  onChange={
+                    handleLeagueChange
+                  }
+                  options={leagues}
+                  kind="league"
+                  placeholder="Without league"
+                  searchPlaceholder="Search league..."
+                  emptyOption={{
+                    value: "",
+                    label: "Without league",
+                  }}
+                  specialOption={{
+                    value: "__new__",
+                    label:
+                      "+ Create new league",
+                  }}
+                />
+              </FormField>
+
+              {isCreatingNewLeague && (
+                <FormField
+                  label="New league name *"
+                  hint="Se intentará crearla si no existe."
+                >
+                  <input
+                    type="text"
+                    value={
+                      form.newLeagueName
+                    }
+                    onChange={(event) =>
+                      updateField(
+                        "newLeagueName",
+                        event.target.value
+                      )
+                    }
+                    placeholder="e.g. LaLiga EA Sports"
+                    className={
+                      inputClassName
+                    }
+                    required
+                  />
+                </FormField>
+              )}
+
+              {(form.leagueId ||
+                form.newLeagueName.trim()) && (
+                <FormField
+                  label="Season *"
+                  hint="Ejemplo: 2026-2027"
+                >
+                  <input
+                    type="text"
+                    value={form.season}
+                    onChange={(event) =>
+                      updateField(
+                        "season",
+                        event.target.value
+                      )
+                    }
+                    placeholder="2026-2027"
+                    className={
+                      inputClassName
+                    }
+                    required
+                  />
+                </FormField>
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* 3 — CLASSIFICATION */}
+          <CollapsibleSection
+            icon={TrendingUp}
+            title="Classification"
+            description="Club colors, reputation and market."
+            defaultOpen
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                label="Primary color"
+                hint="HEX seleccionado desde la paleta o introducido manualmente."
+              >
                 <div className="flex gap-2">
-                  <input type="color" value={/^#[0-9A-Fa-f]{6}$/.test(form.primaryColor) ? form.primaryColor : "#FFFFFF"} onChange={(event) => updateField("primaryColor", event.target.value.toUpperCase())} className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
-                  <input type="text" value={form.primaryColor} onChange={(event) => updateField("primaryColor", event.target.value.toUpperCase())} placeholder="#FFFFFF" className={inputClassName} />
+                  <input
+                    type="color"
+                    value={
+                      /^#[0-9A-Fa-f]{6}$/.test(
+                        form.primaryColor
+                      )
+                        ? form.primaryColor
+                        : "#FFFFFF"
+                    }
+                    onChange={(event) =>
+                      updateField(
+                        "primaryColor",
+                        event.target.value.toUpperCase()
+                      )
+                    }
+                    className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
+                  />
+
+                  <input
+                    type="text"
+                    value={form.primaryColor}
+                    onChange={(event) =>
+                      updateField(
+                        "primaryColor",
+                        event.target.value.toUpperCase()
+                      )
+                    }
+                    placeholder="#FFFFFF"
+                    className={
+                      inputClassName
+                    }
+                  />
                 </div>
               </FormField>
-              <FormField label="Secondary color" hint="HEX seleccionado desde la paleta o introducido manualmente.">
+
+              <FormField
+                label="Secondary color"
+                hint="HEX seleccionado desde la paleta o introducido manualmente."
+              >
                 <div className="flex gap-2">
-                  <input type="color" value={/^#[0-9A-Fa-f]{6}$/.test(form.secondaryColor) ? form.secondaryColor : "#000000"} onChange={(event) => updateField("secondaryColor", event.target.value.toUpperCase())} className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
-                  <input type="text" value={form.secondaryColor} onChange={(event) => updateField("secondaryColor", event.target.value.toUpperCase())} placeholder="#000000" className={inputClassName} />
+                  <input
+                    type="color"
+                    value={
+                      /^#[0-9A-Fa-f]{6}$/.test(
+                        form.secondaryColor
+                      )
+                        ? form.secondaryColor
+                        : "#000000"
+                    }
+                    onChange={(event) =>
+                      updateField(
+                        "secondaryColor",
+                        event.target.value.toUpperCase()
+                      )
+                    }
+                    className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
+                  />
+
+                  <input
+                    type="text"
+                    value={
+                      form.secondaryColor
+                    }
+                    onChange={(event) =>
+                      updateField(
+                        "secondaryColor",
+                        event.target.value.toUpperCase()
+                      )
+                    }
+                    placeholder="#000000"
+                    className={
+                      inputClassName
+                    }
+                  />
                 </div>
               </FormField>
-              {textField("reputation", "Reputation (0-10000)", "9500", { type: "number", min: 0, max: 10000, step: 1 })}
-              {textField("market", "Market value (€)", "25.000.001", {
-  type: "text",
-  inputMode: "numeric",
-  hint: "Introduce el valor total en euros. Ejemplo: 25.000.001"
-})}
-            </div>
-          </section>
 
-          {isLogoZoomOpen && logoPreviewUrl && (
-            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-5" role="dialog" aria-modal="true" aria-label="Expanded logo preview">
-              <button type="button" onClick={() => setIsLogoZoomOpen(false)} className="absolute right-5 top-5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800">Cerrar</button>
-              <img src={logoPreviewUrl} alt="Expanded logo preview" className="max-h-[85vh] max-w-[90vw] object-contain" />
-            </div>
-          )}
+              {textField(
+                "reputation",
+                "Reputation (0-10000)",
+                "9500",
+                {
+                  type: "number",
+                  min: 0,
+                  max: 10000,
+                  step: 1,
+                }
+              )}
 
-          <section>
-            <SectionHeader icon={Building2} title="Stadium" description="Main stadium information and images." />
+              {textField(
+                "market",
+                "Market value (€)",
+                "25.000.001",
+                {
+                  type: "text",
+                  inputMode:
+                    "numeric",
+                  hint: "Introduce el valor total en euros. Ejemplo: 25.000.001",
+                }
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* 4 — STADIUM */}
+          <CollapsibleSection
+            icon={Building2}
+            title="Stadium"
+            description="Stadium information and images."
+          >
             <div className="grid gap-4 md:grid-cols-2">
-              {textField("stadium", "Stadium name", "e.g. Santiago Bernabéu")}
-              {textField("stadiumId", "Stadium ID", "Internal Stadium record ID")}
-              {textField("stadiumCapacity", "Capacity", "81000", { type: "number", min: 0 })}
-              {textField("stadiumBuiltYear", "Built year", "1947", { type: "number", min: 1800, max: 2100 })}
-              {textField("stadiumRenovation", "Last renovation year", "2024", { type: "number", min: 1800, max: 2100 })}
-              {textField("pitchDimensions", "Pitch dimensions", "105 x 68 m")}
-              {textField("stadiumInteriorUrl", "Interior image URL", "https://...")}
-              {textField("stadiumExteriorUrl", "Exterior image URL", "https://...")}
-            </div>
-          </section>
+              {textField(
+                "stadium",
+                "Stadium name",
+                "e.g. Santiago Bernabéu"
+              )}
 
-          <section>
-            <SectionHeader icon={Users} title="Staff & key players" description="Current personnel. Leave fields blank when unknown." />
+              {textField(
+                "stadiumId",
+                "Stadium ID",
+                "Internal Stadium record ID"
+              )}
+
+              {textField(
+                "stadiumCapacity",
+                "Capacity",
+                "81000",
+                {
+                  type: "number",
+                  min: 0,
+                }
+              )}
+
+              {textField(
+                "stadiumBuiltYear",
+                "Built year",
+                "1947",
+                {
+                  type: "number",
+                  min: 1800,
+                  max: 2100,
+                }
+              )}
+
+              {textField(
+                "stadiumRenovation",
+                "Last renovation year",
+                "2024",
+                {
+                  type: "number",
+                  min: 1800,
+                  max: 2100,
+                }
+              )}
+
+              {textField(
+                "pitchDimensions",
+                "Pitch dimensions",
+                "105 x 68 m"
+              )}
+
+              {textField(
+                "stadiumInteriorUrl",
+                "Interior image URL",
+                "https://..."
+              )}
+
+              {textField(
+                "stadiumExteriorUrl",
+                "Exterior image URL",
+                "https://..."
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* 5 — STAFF */}
+          <CollapsibleSection
+            icon={Users}
+            title="Staff & key players"
+            description="Current personnel. Leave fields blank when unknown."
+          >
             <div className="grid gap-4 md:grid-cols-2">
-              {textField("coachName", "Coach name", "e.g. Coach name")}
-              {textField("coachPhotoUrl", "Coach photo URL", "https://...")}
-              {textField("captainName", "Captain name", "e.g. Captain name")}
-              {textField("captainPhotoUrl", "Captain photo URL", "https://...")}
-              {textField("secondCaptainName", "Second captain", "e.g. Second captain")}
-              {textField("secondCaptainPhotoUrl", "Second captain photo URL", "https://...")}
-              {textField("keyPlayerName", "Key player", "e.g. Player name")}
-              {textField("keyPlayerPhotoUrl", "Key player photo URL", "https://...")}
-            </div>
-          </section>
+              {textField(
+                "coachName",
+                "Coach name",
+                "e.g. Coach name"
+              )}
 
-          <section>
-            <SectionHeader icon={Shirt} title="Kits" description="Home, away and third kit information." />
+              {textField(
+                "coachPhotoUrl",
+                "Coach photo URL",
+                "https://..."
+              )}
+
+              {textField(
+                "captainName",
+                "Captain name",
+                "e.g. Captain name"
+              )}
+
+              {textField(
+                "captainPhotoUrl",
+                "Captain photo URL",
+                "https://..."
+              )}
+
+              {textField(
+                "secondCaptainName",
+                "Second captain",
+                "e.g. Second captain"
+              )}
+
+              {textField(
+                "secondCaptainPhotoUrl",
+                "Second captain photo URL",
+                "https://..."
+              )}
+
+              {textField(
+                "keyPlayerName",
+                "Key player",
+                "e.g. Player name"
+              )}
+
+              {textField(
+                "keyPlayerPhotoUrl",
+                "Key player photo URL",
+                "https://..."
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* 6 — KITS */}
+          <CollapsibleSection
+            icon={Shirt}
+            title="Kits"
+            description="Home, away and third kit information."
+          >
             <div className="space-y-5">
-              {[1, 2, 3].map((kitNumber) => (
-                <div key={kitNumber} className="rounded-xl border border-slate-200 p-4">
-                  <h4 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-slate-700">{kitNumber === 1 ? "First kit" : kitNumber === 2 ? "Second kit" : "Third kit"}</h4>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {textField(`kit${kitNumber}PhotoUrl`, "Photo URL", "https://...")}
-                    {textField(`kit${kitNumber}ShopUrl`, "Shop URL", "https://...")}
-                    {textField(`kit${kitNumber}BadgeBg`, "Badge background", "#FFFFFF")}
-                    {textField(`kit${kitNumber}BadgeText`, "Badge text color", "#000000")}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+              {[1, 2, 3].map(
+                (kitNumber) => (
+                  <div
+                    key={kitNumber}
+                    className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"
+                  >
+                    <div className="mb-3">
+                      <h4 className="text-xs font-extrabold uppercase tracking-wide text-slate-700">
+                        {kitNumber === 1
+                          ? "First kit"
+                          : kitNumber === 2
+                            ? "Second kit"
+                            : "Third kit"}
+                      </h4>
+                    </div>
 
-          <section>
-            <SectionHeader icon={Database} title="History & status" description="Additional information and completion state." />
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {textField(
+                        `kit${kitNumber}PhotoUrl`,
+                        "Photo URL",
+                        "https://..."
+                      )}
+
+                      {textField(
+                        `kit${kitNumber}ShopUrl`,
+                        "Shop URL",
+                        "https://..."
+                      )}
+                    </div>
+
+                    <KitColorPicker
+                      kitNumber={
+                        kitNumber
+                      }
+                      photoUrl={
+                        form[
+                          `kit${kitNumber}PhotoUrl`
+                        ]
+                      }
+                      badgeBg={
+                        form[
+                          `kit${kitNumber}BadgeBg`
+                        ]
+                      }
+                      badgeText={
+                        form[
+                          `kit${kitNumber}BadgeText`
+                        ]
+                      }
+                      onChangeColor={(
+                        field,
+                        color
+                      ) =>
+                        handleKitColorChange(
+                          kitNumber,
+                          field,
+                          color
+                        )
+                      }
+                    />
+                  </div>
+                )
+              )}
+
+              <FormField
+                label="Kits overview image"
+                hint="Imagen general opcional de las equipaciones."
+              >
+                <input
+                  type="text"
+                  value={
+                    form.kitsOverviewUrl
+                  }
+                  onChange={(event) =>
+                    updateField(
+                      "kitsOverviewUrl",
+                      event.target.value
+                    )
+                  }
+                  placeholder="https://..."
+                  className={
+                    inputClassName
+                  }
+                />
+              </FormField>
+            </div>
+          </CollapsibleSection>
+
+          {/* 7 — LEGACY / STATUS */}
+          <CollapsibleSection
+            icon={Database}
+            title="Legacy & status"
+            description="History, metadata and completion state."
+          >
             <div className="space-y-4">
               <FormField label="Club history">
-                <textarea value={form.history} onChange={(event) => updateField("history", event.target.value)} placeholder="Write the club history here..." className={textareaClassName} />
+                <textarea
+                  value={form.history}
+                  onChange={(event) =>
+                    updateField(
+                      "history",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Write the club history here..."
+                  className={
+                    textareaClassName
+                  }
+                />
               </FormField>
+
               <div className="grid gap-4 md:grid-cols-2">
-                {selectField("dataSource", "Data source", ["Manual", "Other"])}
+                {selectField(
+                  "dataSource",
+                  "Data source",
+                  ["Manual", "Other"]
+                )}
+
                 <FormField label="Active club">
                   <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm text-slate-700">
-                    <input type="checkbox" checked={form.isActive} onChange={(event) => updateField("isActive", event.target.checked)} />
+                    <input
+                      type="checkbox"
+                      checked={
+                        form.isActive
+                      }
+                      onChange={(event) =>
+                        updateField(
+                          "isActive",
+                          event.target.checked
+                        )
+                      }
+                    />
                     Team is active
                   </label>
                 </FormField>
               </div>
             </div>
-          </section>
+          </CollapsibleSection>
+
+          {isLogoZoomOpen &&
+            logoPreviewUrl && (
+              <div
+                className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-5"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Expanded logo preview"
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setIsLogoZoomOpen(
+                      false
+                    )
+                  }
+                  className="absolute right-5 top-5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800"
+                >
+                  Cerrar
+                </button>
+
+                <img
+                  src={logoPreviewUrl}
+                  alt="Expanded logo preview"
+                  className="max-h-[85vh] max-w-[90vw] object-contain"
+                />
+              </div>
+            )}
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button type="button" onClick={onClose} className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Cancel</button>
-            <button type="submit" className="flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-xs font-semibold text-white transition hover:bg-[#002477]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              className="flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-xs font-semibold text-white transition hover:bg-[#002477]"
+            >
               <Plus size={15} />
               Add team
             </button>
