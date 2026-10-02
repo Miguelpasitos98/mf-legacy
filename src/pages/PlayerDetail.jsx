@@ -707,8 +707,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   };
 
   return (
-    <main className="relative h-full min-h-0 overflow-visible bg-[#eef1f5] text-slate-900">
-      <div className="absolute inset-0 bg-[linear-gradient(110deg,#eef1f5_0%,#eef1f5_53%,#dfe4ea_53%,#dfe4ea_100%)]" />
+    <main className="relative h-full min-h-0 overflow-visible bg-[#e2e6eb] text-slate-900">
+      <div className="absolute inset-0 bg-[#e2e6eb]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
 
       <div
