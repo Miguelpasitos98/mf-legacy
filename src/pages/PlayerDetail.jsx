@@ -714,7 +714,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       <div
         className="pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(4rem,13vw,11.5.5rem)] font-bold leading-none tracking-[-0.065em] text-white"
         style={{
-          fontFamily: '"Teko", sans-serif',
+          fontFamily: '"League Gothic", sans-serif',
           fontWeight: 400,
           transform: "scaleX(1)",
           transformOrigin: "center center",
