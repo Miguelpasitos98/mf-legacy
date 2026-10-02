@@ -3608,6 +3608,54 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
       {Object.keys(groupedTeams).length > 0 ? (
         <div className="space-y-5">
           {Object.entries(groupedTeams).map(([groupName, groupTeams]) => {
+            if (activeFilter === "reputation") {
+              const sortedTeams = [...groupTeams].sort((a, b) => {
+                const reputationA = Number(a?.reputation);
+                const reputationB = Number(b?.reputation);
+
+                const normalizedReputationA = Number.isFinite(reputationA)
+                  ? reputationA
+                  : 0;
+                const normalizedReputationB = Number.isFinite(reputationB)
+                  ? reputationB
+                  : 0;
+
+                if (normalizedReputationA !== normalizedReputationB) {
+                  return normalizedReputationB - normalizedReputationA;
+                }
+
+                return (a.name || "").localeCompare(b.name || "", "es", {
+                  sensitivity: "base",
+                });
+              });
+
+              return (
+                <section
+                  key={groupName}
+                  className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,0.02)] md:p-4"
+                >
+                  <div className="mb-5 flex items-center justify-between gap-4">
+                    <h2 className="text-base font-extrabold text-slate-900">
+                      Reputation
+                    </h2>
+                    <span className="text-xs font-medium text-slate-400">
+                      {sortedTeams.length} {sortedTeams.length === 1 ? "team" : "teams"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6 2xl:grid-cols-6">
+                    {sortedTeams.map((team) => (
+                      <TeamCard
+                        key={team.id}
+                        team={team}
+                        onOpen={() => setSelectedTeam(team)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            }
+
             const competitions = groupTeams.reduce((groups, team) => {
               const competition = team.competition || "Without competition";
               if (!groups[competition]) groups[competition] = [];
@@ -3623,11 +3671,36 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
                 </div>
                 <div className="space-y-4">
                   {Object.entries(competitions)
-  .sort(([, teamsA], [, teamsB]) => {
-    const levelA = Number(teamsA?.[0]?.competitionLevel ?? 999);
-    const levelB = Number(teamsB?.[0]?.competitionLevel ?? 999);
+  .sort(([competitionNameA, teamsA], [competitionNameB, teamsB]) => {
+    const teamA = teamsA?.[0] || {};
+    const teamB = teamsB?.[0] || {};
 
-    return levelA - levelB;
+    const leagueA = leagues.find(
+      (league) => String(league?.id || "") === String(teamA?.leagueId || "")
+    );
+    const leagueB = leagues.find(
+      (league) => String(league?.id || "") === String(teamB?.leagueId || "")
+    );
+
+    const levelA = Number(
+      leagueA?.level ?? teamA?.competitionLevel ?? 999
+    );
+    const levelB = Number(
+      leagueB?.level ?? teamB?.competitionLevel ?? 999
+    );
+
+    const normalizedLevelA = Number.isFinite(levelA) ? levelA : 999;
+    const normalizedLevelB = Number.isFinite(levelB) ? levelB : 999;
+
+    if (normalizedLevelA !== normalizedLevelB) {
+      return normalizedLevelA - normalizedLevelB;
+    }
+
+    return String(competitionNameA || "").localeCompare(
+      String(competitionNameB || ""),
+      "es",
+      { sensitivity: "base" }
+    );
   })
   .map(([competitionName, competitionTeams]) => {
     const sortedTeams = [...(competitionTeams || [])].sort((a, b) => {
