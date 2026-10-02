@@ -3052,7 +3052,9 @@ export default function Teams() {
           const teamCountryId = team.country_id || team.countryId || "";
           const country = loadedCountries.find((item) => String(item.id || "") === String(teamCountryId));
           const relation = currentRelationsByTeam.get(String(teamId));
-          const leagueId = relation?.league_id || relation?.leagueId || "";
+          const directLeagueId = team.league_id || team.leagueId || "";
+          const legacyLeagueId = relation?.league_id || relation?.leagueId || "";
+          const leagueId = directLeagueId || legacyLeagueId;
           const league = loadedLeagues.find((item) => String(item.id || "") === String(leagueId));
           return {
             ...team,
@@ -3102,6 +3104,43 @@ export default function Teams() {
 incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
           };
         });
+        const legacyMigrations = loadedTeams
+          .map((team) => {
+            const teamId = team.id || team._id || "";
+            const directLeagueId = team.league_id || team.leagueId || "";
+            const relation = currentRelationsByTeam.get(String(teamId));
+            const legacyLeagueId = relation?.league_id || relation?.leagueId || "";
+
+            if (!teamId || directLeagueId || !legacyLeagueId) {
+              return null;
+            }
+
+            return { teamId, leagueId: legacyLeagueId };
+          })
+          .filter(Boolean);
+
+        if (legacyMigrations.length > 0) {
+          const migrationResults = await Promise.allSettled(
+            legacyMigrations.map(({ teamId, leagueId }) =>
+              base44.entities.Team.update(teamId, {
+                league_id: leagueId,
+              })
+            )
+          );
+
+          const migratedCount = migrationResults.filter(
+            (result) => result.status === "fulfilled"
+          ).length;
+
+          const failedCount = migrationResults.length - migratedCount;
+
+          console.info(
+            `[MF LEGACY] TeamLeague migration: ${migratedCount} team(s) migrated${
+              failedCount > 0 ? `, ${failedCount} failed` : ""
+            }.`
+          );
+        }
+
         if (!cancelled) setTeams(normalizedTeams);
       } catch (error) {
         console.error("Error loading teams:", error);
@@ -3295,6 +3334,7 @@ setCountries((currentCountries) => {
             name: newTeam.newLeagueName,
             league_level: 1,
             level: 1,
+            reputation: 0,
             country_id: countryId,
             is_active: true,
             status: "Incompleto",
@@ -3309,6 +3349,11 @@ setCountries((currentCountries) => {
         }
       }
 
+      if (!leagueId) {
+        alert("Select or create a league before saving the team.");
+        return false;
+      }
+
       const generatedCode = newTeam.shortName
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, "")
@@ -3321,6 +3366,7 @@ setCountries((currentCountries) => {
     code: generatedCode,
     continent: newTeam.continent || "Europe",
     country_id: countryId,
+    league_id: leagueId,
     city: newTeam.city,
     logo: newTeam.logo,
 country_map_url: newTeam.countryMapUrl,
@@ -3360,6 +3406,7 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
       code: generatedCode,
       continent: newTeam.continent || "Europe",
       country_id: countryId,
+      league_id: leagueId,
       city: newTeam.city,
       logo: newTeam.logo,
       country_map_url: newTeam.countryMapUrl,
@@ -3392,71 +3439,7 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
       key_player_photo_url: newTeam.keyPlayerPhotoUrl,
       data_source: newTeam.dataSource,
       is_active: newTeam.isActive,
-    });  let savedRelation = null;
-
-  const existingRelations =
-    await base44.entities.TeamLeague.list();
-
-  const relationList =
-    Array.isArray(existingRelations)
-      ? existingRelations
-      : Array.isArray(existingRelations?.data)
-        ? existingRelations.data
-        : Array.isArray(existingRelations?.items)
-          ? existingRelations.items
-          : Array.isArray(existingRelations?.results)
-            ? existingRelations.results
-            : [];
-
-  const currentRelation = relationList.find(
-    (relation) => {
-      const relationTeamId =
-        relation.team_id ||
-        relation.teamId;
-
-      const isCurrent =
-        relation.is_current ??
-        relation.isCurrent ??
-        true;
-
-      return (
-        editingTeam &&
-        String(relationTeamId) ===
-          String(savedTeam.id) &&
-        isCurrent
-      );
-    }
-  );
-
-  if (leagueId) {
-    if (currentRelation) {
-      savedRelation =
-        await base44.entities.TeamLeague.update(
-          currentRelation.id,
-          {
-            league_id: leagueId,
-            is_current: true,
-          }
-        );
-    } else {
-      savedRelation =
-        await base44.entities.TeamLeague.create(
-          {
-            team_id: savedTeam.id,
-            league_id: leagueId,
-            season: "2026-2027",
-            is_current: true,
-          }
-        );
-    }
-  } else if (currentRelation) {
-    await base44.entities.TeamLeague.update(
-      currentRelation.id,
-      {
-        is_current: false,
-      }
-    );
-  }
+    });
 
   const updatedTeam = {
     ...newTeam,
