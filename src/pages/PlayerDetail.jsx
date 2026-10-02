@@ -909,7 +909,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
               label="Potential Ability"
               value={cp}
               background={middleColor}
-              grow={1.5}
+              grow={1.65}
             />
             <PlayerStatCard
               label="Best Position"
