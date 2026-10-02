@@ -3393,9 +3393,10 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
   }
 
   setForm(emptyTeamForm);
-setEditingTeam(null);
-setAddModalOpen(false);
-setActiveFilter("countries");
+  setEditingTeam(null);
+  setAddModalOpen(false);
+  setActiveFilter("countries");
+  return true;
 } catch (error) {
   console.error("Error saving team:", error);
   const errorMessage =
