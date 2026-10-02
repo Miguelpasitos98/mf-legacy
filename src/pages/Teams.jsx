@@ -3117,16 +3117,92 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
   }, [teams, search]);
 
   const groupedTeams = useMemo(() => {
+    const normalizeComparable = (value) =>
+      String(value || "")
+        .trim()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+
+    const getCountryKeys = (country) =>
+      [
+        country?.id,
+        country?.name,
+        country?.code,
+        country?.country_code,
+      ]
+        .filter(Boolean)
+        .map(normalizeComparable);
+
+    const getLeagueCountryKeys = (league) =>
+      [
+        league?.countryId,
+        league?.country_id,
+      ]
+        .filter(Boolean)
+        .map(normalizeComparable);
+
+    const getCountryReputation = (countryId, countryName, countryCode) => {
+      const country =
+        countries.find(
+          (item) => String(item?.id || "") === String(countryId || "")
+        ) ||
+        countries.find(
+          (item) =>
+            normalizeComparable(item?.name) ===
+            normalizeComparable(countryName)
+        ) ||
+        countries.find(
+          (item) =>
+            normalizeComparable(item?.code) ===
+            normalizeComparable(countryCode)
+        );
+
+      const countryKeys = new Set(
+        [
+          countryId,
+          countryName,
+          countryCode,
+          country?.id,
+          country?.name,
+          country?.code,
+          country?.country_code,
+        ]
+          .filter(Boolean)
+          .map(normalizeComparable)
+      );
+
+      const levelOneLeagues = leagues.filter((league) => {
+        if (Number(league?.level) !== 1) return false;
+
+        const leagueCountryKeys = getLeagueCountryKeys(league);
+        return leagueCountryKeys.some((key) => countryKeys.has(key));
+      });
+
+      if (levelOneLeagues.length === 0) return 0;
+
+      return Math.max(
+        ...levelOneLeagues.map((league) => {
+          const reputation = Number(league?.reputation);
+          return Number.isFinite(reputation) ? reputation : 0;
+        })
+      );
+    };
+
     const groups = {};
 
     filteredTeams.forEach((team) => {
       let groupName;
 
-      if (activeFilter === "countries") groupName = team.country || "Unknown country";
-      else if (activeFilter === "continents") groupName = team.continent || "Unknown continent";
-      else if (activeFilter === "reputation") groupName = team.reputation || "Unclassified";
-      else if (activeFilter === "market") groupName = team.market || "Unclassified";
-      else if (activeFilter === "incomplete") {
+      if (activeFilter === "countries") {
+        groupName = team.country || "Unknown country";
+      } else if (activeFilter === "continents") {
+        groupName = team.continent || "Unknown continent";
+      } else if (activeFilter === "reputation") {
+        groupName = team.reputation || "Unclassified";
+      } else if (activeFilter === "market") {
+        groupName = team.market || "Unclassified";
+      } else if (activeFilter === "incomplete") {
         if (!team.incomplete) return;
         groupName = "Incomplete information";
       }
@@ -3135,50 +3211,40 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
       groups[groupName].push(team);
     });
 
-    const getCountryReputation = (countryId) => {
-      const countryLeagues = leagues.filter(
-        (league) =>
-          String(league.countryId || "") === String(countryId || "")
+    const entries = Object.entries(groups);
+
+    if (activeFilter !== "countries") {
+      return Object.fromEntries(entries);
+    }
+
+    entries.sort(([countryA, teamsA], [countryB, teamsB]) => {
+      const teamA = teamsA?.[0] || {};
+      const teamB = teamsB?.[0] || {};
+
+      const reputationA = getCountryReputation(
+        teamA.countryId,
+        teamA.country,
+        teamA.countryCode
+      );
+      const reputationB = getCountryReputation(
+        teamB.countryId,
+        teamB.country,
+        teamB.countryCode
       );
 
-      const levelOneLeagues = countryLeagues.filter(
-        (league) => Number(league.level) === 1
+      if (reputationA !== reputationB) {
+        return reputationB - reputationA;
+      }
+
+      return String(countryA || "").localeCompare(
+        String(countryB || ""),
+        "es",
+        { sensitivity: "base" }
       );
+    });
 
-      if (levelOneLeagues.length === 0) return 0;
-
-      return Math.max(
-        ...levelOneLeagues.map((league) => {
-          const reputation = Number(league.reputation);
-          return Number.isFinite(reputation) ? reputation : 0;
-        })
-      );
-    };
-
-    return Object.fromEntries(
-      Object.entries(groups).sort(([countryA, teamsA], [countryB, teamsB]) => {
-        if (activeFilter !== "countries") {
-          return 0;
-        }
-
-        const countryIdA = teamsA?.[0]?.countryId || "";
-        const countryIdB = teamsB?.[0]?.countryId || "";
-
-        const reputationA = getCountryReputation(countryIdA);
-        const reputationB = getCountryReputation(countryIdB);
-
-        if (reputationA !== reputationB) {
-          return reputationB - reputationA;
-        }
-
-        return String(countryA || "").localeCompare(
-          String(countryB || ""),
-          "es",
-          { sensitivity: "base" }
-        );
-      })
-    );
-  }, [filteredTeams, activeFilter, leagues]);
+    return Object.fromEntries(entries);
+  }, [filteredTeams, activeFilter, leagues, countries]);
 
   const handleAddTeam = async (event) => {
     event.preventDefault();
