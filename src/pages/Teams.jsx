@@ -1082,12 +1082,12 @@ function AddTeamModal({
 
   return (
     <div
-      className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-team-title"
     >
-      <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
+      <div className="relative z-10 max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
             <h2
@@ -3430,7 +3430,7 @@ setActiveFilter("countries");
 }
 
   return (
-    <div className="relative min-h-full bg-[#F6F7F9] p-6 md:p-8">
+    <div className="min-h-full bg-[#F6F7F9] p-6 md:p-8">
       <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {navigationFilters.map((filter) => {
