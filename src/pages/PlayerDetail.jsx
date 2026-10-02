@@ -714,7 +714,9 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       <div
         className="pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(4rem,9vw,8rem)] font-bold leading-none tracking-[-0.07em] text-white/90"
         style={{
-          fontFamily: '"Oswald", "Arial Narrow", "Roboto Condensed", sans-serif',
+          fontFamily: '"Roboto Condensed", "Arial Narrow", "Liberation Sans Narrow", sans-serif',
+          transform: "scaleX(0.82) scaleY(2)",
+          transformOrigin: "center top",
           WebkitMaskImage: "linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%)",
           maskImage: "linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%)",
         }}
