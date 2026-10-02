@@ -80,26 +80,11 @@
     },
     "reputation": {
       "type": "string",
-      "enum": [
-        "Elite",
-        "High",
-        "Medium",
-        "Low",
-        "Unclassified"
-      ],
-      "default": "Unclassified",
-      "description": "Categoría de reputación del equipo"
+      "description": "Reputación numérica del equipo en una escala de 0 a 10000"
     },
     "market": {
       "type": "string",
-      "enum": [
-        "High",
-        "Medium",
-        "Low",
-        "Unclassified"
-      ],
-      "default": "Unclassified",
-      "description": "Categoría de mercado del equipo"
+      "description": "Valor de mercado del equipo en euros. Se almacena con formato de miles y símbolo del euro, por ejemplo 230,975,207 (€)"
     },
     "history": {
       "type": "string",
