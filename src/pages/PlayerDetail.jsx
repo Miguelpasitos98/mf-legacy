@@ -457,6 +457,84 @@ function calculateAge(value) {
   return age >= 0 ? age : null;
 }
 
+
+const normalizeHexColor = (value, fallback) => {
+  const normalized = String(value || "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return normalized.toUpperCase();
+  return fallback;
+};
+
+const hexToRgb = (hex) => {
+  const normalized = normalizeHexColor(hex, "#003399").slice(1);
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+};
+
+const rgbToHex = (r, g, b) =>
+  `#${[r, g, b]
+    .map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0"))
+    .join("")}`.toUpperCase();
+
+const mixHexColors = (first, second, firstWeight = 0.5) => {
+  const a = hexToRgb(first);
+  const b = hexToRgb(second);
+  const weight = Math.max(0, Math.min(1, firstWeight));
+
+  return rgbToHex(
+    a.r * weight + b.r * (1 - weight),
+    a.g * weight + b.g * (1 - weight),
+    a.b * weight + b.b * (1 - weight)
+  );
+};
+
+const darkenHex = (hex, amount = 0.25) => {
+  const rgb = hexToRgb(hex);
+  const factor = Math.max(0, Math.min(1, 1 - amount));
+  return rgbToHex(rgb.r * factor, rgb.g * factor, rgb.b * factor);
+};
+
+const getContrastTextColor = (hex) => {
+  const { r, g, b } = hexToRgb(hex);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.62 ? "#0C1321" : "#FFFFFF";
+};
+
+const getBestPosition = (ratings) => {
+  if (!ratings || typeof ratings !== "object") return "—";
+
+  const valid = POSITION_CODES
+    .map((code) => ({ code, value: Number(ratings[code]) }))
+    .filter((item) => Number.isFinite(item.value))
+    .sort((a, b) => {
+      if (b.value !== a.value) return b.value - a.value;
+      return POSITION_CODES.indexOf(a.code) - POSITION_CODES.indexOf(b.code);
+    });
+
+  if (!valid.length || valid[0].value <= 0) return "—";
+  return `${valid[0].code} · ${valid[0].value}/20`;
+};
+
+const PlayerStatCard = ({ label, value, background }) => {
+  const textColor = getContrastTextColor(background);
+
+  return (
+    <div
+      className="flex min-h-[106px] min-w-0 flex-1 flex-col justify-between rounded-[14px] border border-black/10 px-4 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+      style={{ backgroundColor: background, color: textColor }}
+    >
+      <p className="text-[8px] font-black uppercase tracking-[0.18em] opacity-80 sm:text-[9px]">
+        {label}
+      </p>
+      <p className="truncate text-[25px] font-black leading-none tracking-[-0.04em] sm:text-[31px]">
+        {value}
+      </p>
+    </div>
+  );
+};
+
 export default function PlayerDetail({ player, team, country, teams = [], countries = [], onBack, onPlayerUpdated }) {
   const initialPositionRatings = useMemo(
     () => ({
@@ -790,6 +868,60 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           </div>
         </aside>
       </section>
+
+      {(() => {
+        const primaryColor = normalizeHexColor(
+          team?.primary_color || team?.primaryColor,
+          "#003399"
+        );
+        const secondaryColor = normalizeHexColor(
+          team?.secondary_color || team?.secondaryColor,
+          "#0C1321"
+        );
+        const middleColor = darkenHex(
+          mixHexColors(primaryColor, secondaryColor, 0.68),
+          0.16
+        );
+
+        const ca =
+          editablePlayer?.ca ??
+          editablePlayer?.CA ??
+          player?.ca ??
+          player?.CA ??
+          "—";
+        const cp =
+          editablePlayer?.cp ??
+          editablePlayer?.CP ??
+          player?.cp ??
+          player?.CP ??
+          "—";
+        const positionRatings =
+          editablePlayer?.positionRatings ||
+          editablePlayer?.position_ratings ||
+          player?.positionRatings ||
+          player?.position_ratings ||
+          {};
+
+        return (
+          <div className="pointer-events-none absolute bottom-[-42px] left-1/2 z-[70] flex w-[min(760px,calc(100%-28px))] -translate-x-1/2 gap-3 sm:gap-4">
+            <PlayerStatCard
+              label="Current Ability"
+              value={ca}
+              background={primaryColor}
+            />
+            <PlayerStatCard
+              label="Potential Ability"
+              value={cp}
+              background={middleColor}
+            />
+            <PlayerStatCard
+              label="Best Position"
+              value={getBestPosition(positionRatings)}
+              background={secondaryColor}
+            />
+          </div>
+        );
+      })()}
 
       {editOpen && typeof document !== "undefined"
         ? createPortal(
