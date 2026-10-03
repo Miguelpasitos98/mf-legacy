@@ -766,6 +766,20 @@ const normalizeTeam = (team) => ({
     team?.country_id ||
     team?.countryId ||
     "",
+
+  reputation: Number.isFinite(
+    Number(
+      team?.reputation ??
+      team?.data?.reputation ??
+      team?.data?.team?.reputation
+    )
+  )
+    ? Number(
+        team?.reputation ??
+        team?.data?.reputation ??
+        team?.data?.team?.reputation
+      )
+    : 0,
 });
 
 const normalizeCountry = (country) => ({
@@ -1375,9 +1389,35 @@ export default function Players() {
       groups[key].players.push(player);
     });
 
+    const getTeamReputation = (team) => {
+      const rawValue =
+        team?.reputation ??
+        team?.data?.reputation ??
+        team?.data?.team?.reputation ??
+        0;
+
+      const normalizedValue = String(rawValue)
+        .replace(/,/g, "")
+        .replace(/\s+/g, "")
+        .trim();
+
+      const numericValue = Number(normalizedValue);
+
+      return Number.isFinite(numericValue) ? numericValue : 0;
+    };
+
     return Object.values(groups).sort((a, b) => {
-      const nameA = a.team?.name || "No club";
-      const nameB = b.team?.name || "No club";
+      const reputationA = getTeamReputation(a.team);
+      const reputationB = getTeamReputation(b.team);
+
+      // 1. Mayor reputación primero.
+      if (reputationA !== reputationB) {
+        return reputationB - reputationA;
+      }
+
+      // 2. En caso de empate, orden alfabético por equipo.
+      const nameA = a.team?.name || a.team?.data?.name || "No club";
+      const nameB = b.team?.name || b.team?.data?.name || "No club";
 
       return nameA.localeCompare(nameB, "es", {
         sensitivity: "base",
