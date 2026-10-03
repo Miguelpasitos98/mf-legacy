@@ -939,6 +939,45 @@ const POSITION_LABELS = {
   DC: "DC",
 };
 
+const POSITION_GROUPS = [
+  { id: "GK", name: "Portero" },
+  { id: "DFC", name: "Defensa central" },
+  { id: "LD", name: "Lateral derecho" },
+  { id: "LI", name: "Lateral izquierdo" },
+  { id: "CRD", name: "Carrilero derecho" },
+  { id: "CRI", name: "Carrilero izquierdo" },
+  { id: "CDM", name: "Mediocentro defensivo" },
+  { id: "CM", name: "Mediocentro" },
+  { id: "CAM", name: "Mediapunta" },
+  { id: "EI", name: "Extremo izquierdo" },
+  { id: "ED", name: "Extremo derecho" },
+  { id: "DC", name: "Delantero centro" },
+];
+
+const AGE_GROUPS = [
+  { id: "age_0_18", name: "18 años o menos", test: (age) => age != null && age <= 18 },
+  { id: "age_19_21", name: "19–21 años", test: (age) => age != null && age >= 19 && age <= 21 },
+  { id: "age_22_25", name: "22–25 años", test: (age) => age != null && age >= 22 && age <= 25 },
+  { id: "age_26_29", name: "26–29 años", test: (age) => age != null && age >= 26 && age <= 29 },
+  { id: "age_30_33", name: "30–33 años", test: (age) => age != null && age >= 30 && age <= 33 },
+  { id: "age_34_plus", name: "34 años o más", test: (age) => age != null && age >= 34 },
+];
+
+const DESCRIPTION_GROUPS = PLAYER_DESCRIPTIONS.map((group, index) => ({
+  id: `description_${index}`,
+  name: group.group,
+  options: group.options,
+}));
+
+const PLAYER_VIEW_MODES = [
+  "all",
+  "teams",
+  "countries",
+  "positions",
+  "age",
+  "description",
+];
+
 function PlayerCard({
   player,
   team,
@@ -1020,7 +1059,7 @@ function PlayerCard({
           ) : null}
 
           <h3
-            className={`min-w-0 truncate font-bold text-slate-800 transition group-hover:text-[#003399] ${
+            className={`player-display-title min-w-0 truncate ${
               compact ? "text-sm" : "text-base"
             }`}
           >
@@ -1176,10 +1215,9 @@ export default function Players() {
   const [searchParams] = useSearchParams();
 
   const rawViewMode = searchParams.get("view");
-  const viewMode =
-    rawViewMode === "teams" || rawViewMode === "countries"
-      ? rawViewMode
-      : "all";
+  const viewMode = PLAYER_VIEW_MODES.includes(rawViewMode)
+    ? rawViewMode
+    : "all";
 
   const loadData = async () => {
     setIsLoading(true);
@@ -1370,6 +1408,111 @@ export default function Players() {
       });
     });
   }, [filteredPlayers, countryById]);
+
+  const groupedByPosition = useMemo(() => {
+    const groups = POSITION_GROUPS.map((group) => ({
+      ...group,
+      players: [],
+    }));
+
+    const groupById = groups.reduce((map, group) => {
+      map[group.id] = group;
+      return map;
+    }, {});
+
+    const withoutPosition = {
+      id: "__no_position__",
+      name: "Sin posición",
+      players: [],
+    };
+
+    filteredPlayers.forEach((player) => {
+      const position = getPrimaryPosition(player);
+      const target = groupById[position] || withoutPosition;
+      target.players.push(player);
+    });
+
+    if (withoutPosition.players.length > 0) {
+      groups.push(withoutPosition);
+    }
+
+    return groups;
+  }, [filteredPlayers]);
+
+  const groupedByAge = useMemo(() => {
+    const groups = AGE_GROUPS.map((group) => ({
+      id: group.id,
+      name: group.name,
+      players: [],
+    }));
+
+    const groupById = groups.reduce((map, group) => {
+      map[group.id] = group;
+      return map;
+    }, {});
+
+    const noAgeGroup = {
+      id: "age_unknown",
+      name: "Edad no disponible",
+      players: [],
+    };
+
+    filteredPlayers.forEach((player) => {
+      const age = calculateAge(player.dateOfBirth);
+      const ageGroup = AGE_GROUPS.find((group) => group.test(age));
+
+      if (ageGroup) {
+        groupById[ageGroup.id].players.push(player);
+      } else {
+        noAgeGroup.players.push(player);
+      }
+    });
+
+    if (noAgeGroup.players.length > 0) {
+      groups.push(noAgeGroup);
+    }
+
+    return groups;
+  }, [filteredPlayers]);
+
+  const groupedByDescription = useMemo(() => {
+    const groups = DESCRIPTION_GROUPS.map((group) => ({
+      id: group.id,
+      name: group.name,
+      players: [],
+    }));
+
+    const noDescriptionGroup = {
+      id: "description_unknown",
+      name: "Sin descripción",
+      players: [],
+    };
+
+    filteredPlayers.forEach((player) => {
+      const description = String(player?.description || "").trim();
+
+      if (!description) {
+        noDescriptionGroup.players.push(player);
+        return;
+      }
+
+      const groupIndex = DESCRIPTION_GROUPS.findIndex((group) =>
+        group.options.includes(description)
+      );
+
+      if (groupIndex >= 0) {
+        groups[groupIndex].players.push(player);
+      } else {
+        noDescriptionGroup.players.push(player);
+      }
+    });
+
+    if (noDescriptionGroup.players.length > 0) {
+      groups.push(noDescriptionGroup);
+    }
+
+    return groups;
+  }, [filteredPlayers]);
 
   const handleOpenAddPlayer = () => {
     setForm({
@@ -1943,6 +2086,100 @@ export default function Players() {
                     </section>
                   )
                 )}
+              </div>
+            )}
+
+
+            {/* BY POSITION */}
+            {viewMode === "positions" && (
+              <div className="space-y-6">
+                {groupedByPosition.map((group) => (
+                  <section key={group.id}>
+                    <GroupHeader
+                      type="position"
+                      name={group.name}
+                      count={group.players.length}
+                    />
+
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                      {group.players.map((player) => (
+                        <PlayerCard
+                          key={
+                            player.id ||
+                            `${player.name}-${player.dateOfBirth}`
+                          }
+                          player={player}
+                          team={teamById[player.teamId]}
+                          country={countryById[player.countryId]}
+                          compact
+                          onClick={() => setSelectedPlayer(player)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+
+            {/* BY AGE */}
+            {viewMode === "age" && (
+              <div className="space-y-6">
+                {groupedByAge.map((group) => (
+                  <section key={group.id}>
+                    <GroupHeader
+                      type="age"
+                      name={group.name}
+                      count={group.players.length}
+                    />
+
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                      {group.players.map((player) => (
+                        <PlayerCard
+                          key={
+                            player.id ||
+                            `${player.name}-${player.dateOfBirth}`
+                          }
+                          player={player}
+                          team={teamById[player.teamId]}
+                          country={countryById[player.countryId]}
+                          compact
+                          onClick={() => setSelectedPlayer(player)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+
+            {/* BY DESCRIPTION */}
+            {viewMode === "description" && (
+              <div className="space-y-6">
+                {groupedByDescription.map((group) => (
+                  <section key={group.id}>
+                    <GroupHeader
+                      type="description"
+                      name={group.name}
+                      count={group.players.length}
+                    />
+
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                      {group.players.map((player) => (
+                        <PlayerCard
+                          key={
+                            player.id ||
+                            `${player.name}-${player.dateOfBirth}`
+                          }
+                          player={player}
+                          team={teamById[player.teamId]}
+                          country={countryById[player.countryId]}
+                          compact
+                          onClick={() => setSelectedPlayer(player)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
               </div>
             )}
           </div>
