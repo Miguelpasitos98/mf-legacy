@@ -107,47 +107,86 @@ export default function Sidebar({
     >
       {open && isPlayersPage && (
         <nav
-          className="absolute left-1/2 top-1/2 grid -translate-x-1/2 -translate-y-1/2 grid-cols-3 gap-x-3 gap-y-12"
+          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-4"
           aria-label="Player views"
         >
-          {VIEW_OPTIONS.map((option) => {
-            const isActive = activeView === option.id;
+          <div className="flex flex-col items-center gap-4">
+            {VIEW_OPTIONS.slice(0, 3).map((option) => {
+              const isActive = activeView === option.id;
 
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => handleViewChange(option.id)}
-                className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200 ${
-                  isActive
-                    ? "bg-white/[0.14] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
-                    : "bg-transparent hover:bg-white/[0.08]"
-                }`}
-                aria-label={option.label}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <img
-                  src={option.icon}
-                  alt=""
-                  className="h-6 w-6 object-contain"
-                />
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => handleViewChange(option.id)}
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200 ${
+                    isActive
+                      ? "bg-white/[0.14] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
+                      : "bg-transparent hover:bg-white/[0.08]"
+                  }`}
+                  aria-label={option.label}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <img
+                    src={option.icon}
+                    alt=""
+                    className="h-6 w-6 object-contain"
+                  />
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200"
+            style={{ color: accentColor }}
+            aria-label="Cerrar menú"
+          >
+            <X size={20} />
+          </button>
+
+          <div className="flex flex-col items-center gap-4">
+            {VIEW_OPTIONS.slice(3, 6).map((option) => {
+              const isActive = activeView === option.id;
+
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => handleViewChange(option.id)}
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200 ${
+                    isActive
+                      ? "bg-white/[0.14] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
+                      : "bg-transparent hover:bg-white/[0.08]"
+                  }`}
+                  aria-label={option.label}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <img
+                    src={option.icon}
+                    alt=""
+                    className="h-6 w-6 object-contain"
+                  />
+                </button>
+              );
+            })}
+          </div>
         </nav>
       )}
 
-      <button
-        type="button"
-        onClick={onToggle}
-        className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
-        style={{
-          color: accentColor,
-        }}
-        aria-label={open ? "Cerrar menú" : "Abrir menú"}
-      >
-        {open ? <X size={20} /> : <Menu size={18} />}
-      </button>
+      {!open && (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+          style={{ color: accentColor }}
+          aria-label="Abrir menú"
+        >
+          <Menu size={18} />
+        </button>
+      )}
     </motion.aside>
   );
 }
