@@ -1,256 +1,345 @@
-import React, {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
-  useRef,
-} from "react";
-import { createPortal } from "react-dom";
-
-import { useOutletContext } from "react-router-dom";
-
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
-  Globe,
-  Star,
-  TrendingUp,
-  Map,
-  CircleAlert,
   Plus,
   X,
-  Shield,
-  Building2,
   Users,
-  Shirt,
-  Palette,
-  Database,
-  FileJson,
-  ClipboardPaste,
+  CalendarDays,
+  Building2,
+  Globe2,
   ChevronDown,
-  Pipette,
-  Save,
 } from "lucide-react";
+import PlayersDetail from "@/pages/PlayerDetail";
+import { useLocation, useSearchParams } from "react-router-dom";
 
 import { base44 } from "@/api/base44Client";
 
-const navigationFilters = [
-  { id: "countries", label: "Countries", icon: Globe },
-  { id: "continents", label: "Continents", icon: Map },
-  { id: "reputation", label: "Reputation", icon: Star },
-  { id: "market", label: "Market", icon: TrendingUp },
-  { id: "incomplete", label: "Incomplete", icon: CircleAlert },
+
+
+const PLAYER_DESCRIPTIONS = [
+  {
+    group: "Goalkeepers",
+    options: [
+      "🧤 Traditional Goalkeeper",
+      "🕹️ Modern Goalkeeper",
+      "🧱 Positional Goalkeeper",
+      "🚀 Sweeper Distributor",
+      "🪟 Sweeper Keeper",
+      "🪞 Penalty Specialist",
+      "🔁 Reliable Backup Keeper",
+    ],
+  },
+  {
+    group: "Centre-Backs",
+    options: [
+      "🧱 The Sweeper",
+      "🧠 Ball-Playing Defender",
+      "🦍 Physical Dominator",
+      "🛡️ Aggressive Front-Foot Defender",
+      "🧲 Libero Defender",
+      "📐 Tactical Defender",
+      "👑 Defensive Leader",
+      "🧬 Hybrid Defender",
+    ],
+  },
+  {
+    group: "Full-Backs / Wing-Backs",
+    options: [
+      "🚪 Defensive Full-Back",
+      "🛞 Overlapping Wing-Back",
+      "🌀 Complete Full-Back",
+      "🧩 Versatile Full-Back",
+      "🪫 Defensive Wing-Back",
+      "⚡ Explosive Full-Back",
+      "🪙 Technical Full-Back",
+      "🏗️ Inverted Full-Back",
+    ],
+  },
+  {
+    group: "Central Midfielders",
+    options: [
+      "⚓ The Anchorman",
+      "💥 The Destroyer",
+      "🧭 Regista",
+      "🔄 Box-to-Box Controller",
+      "🧠 Advanced Playmaker",
+      "📡 Deep-Lying Playmaker",
+      "🧯 Firefighter Midfielder",
+      "🧮 Methodical Midfielder",
+      "🛠️ Workhorse Midfielder",
+    ],
+  },
+  {
+    group: "Attacking Midfielders",
+    options: [
+      "🎨 The Architect",
+      "🎩 Space Creator",
+      "🧃 The Classic 10",
+      "🔁 The Connector",
+      "🧱 Physical Playmaker",
+      "🪛 Pressing Midfielder",
+      "🎬 Late Runner",
+      "🧲 Gravitational Playmaker",
+      "🛠️ Physical Creator",
+    ],
+  },
+  {
+    group: "Wingers",
+    options: [
+      "⚡ Line Breaker",
+      "🔁 Wide Connector",
+      "🧨 Inside Finisher",
+      "🛼 Wide Ball Carrier",
+      "🪄 Creative Winger",
+      "🌪️ Chaotic Winger",
+      "🧤 Defensive Winger",
+      "📦 Functional Winger",
+      "🎯 Wide Forward",
+    ],
+  },
+  {
+    group: "Strikers",
+    options: [
+      "🎯 Clinical Finisher",
+      "🐍 Dynamic Threat",
+      "🦍 Target Man",
+      "🔁 Second Striker",
+      "🌀 Space Creator",
+      "🧃 Space Attacker",
+      "🔫 Goal Hunter",
+      "🧠 Intelligent Forward",
+      "🚀 Breakaway Forward",
+      "🧊 Ice-Cold Finisher",
+    ],
+  },
+  {
+    group: "Special Roles",
+    options: [
+      "🧩 Utility Player",
+      "👑 Tactical Leader",
+      "🔋 Super Sub",
+      "🎮 Free Spirit",
+      "🧠 Hidden Genius",
+      "🎭 Classic Enganche",
+      "🎢 Inconsistent Talent",
+      "🪶 Elegant Technician",
+      "🪨 Rock-Solid Player",
+      "🧪 Tactical Experiment",
+      "🧳 Journeyman",
+      "🫥 The Invisible One",
+    ],
+  },
 ];
 
-const competitionDetails = {};
-
-const emptyTeamForm = {
-  name: "",
-  shortName: "",
-  country: "",
-  countryId: "",
-  countryCode: "",
-  countryMapUrl: "",
-  countryTeamMapUrl: "",
-  locationMapUrl: "",
-  leagueId: "",
-  newLeagueName: "",
-  continent: "Europe",
-  city: "",
-  logo: "",
-  primaryColor: "",
-  secondaryColor: "",
-  foundedYear: "",
-  stadium: "",
-  stadiumId: "",
-  stadiumCapacity: "",
-  stadiumBuiltYear: "",
-  stadiumRenovation: "",
-  pitchDimensions: "",
-  stadiumInteriorUrl: "",
-  stadiumExteriorUrl: "",
-  reputation: "0",
-  market: "0",
-  history: "",
-  coachName: "",
-  coachPhotoUrl: "",
-  captainName: "",
-  captainPhotoUrl: "",
-  secondCaptainName: "",
-  secondCaptainPhotoUrl: "",
-  keyPlayerName: "",
-  keyPlayerPhotoUrl: "",
-  kit1PhotoUrl: "",
-  kit1ShopUrl: "",
-  kit1BadgeBg: "",
-  kit1BadgeText: "",
-  kit2PhotoUrl: "",
-  kit2ShopUrl: "",
-  kit2BadgeBg: "",
-  kit2BadgeText: "",
-  kit3PhotoUrl: "",
-  kit3ShopUrl: "",
-  kit3BadgeBg: "",
-  kit3BadgeText: "",
-  kitsOverviewUrl: "",
-  dataSource: "Manual",
-  isActive: true,
+const getPrimaryPosition = (player) => {
+  const ratings = player?.positionRatings || player?.position_ratings || {};
+  return Object.entries(ratings)
+    .map(([code, value]) => ({ code, rating: Number(value) }))
+    .filter(({ rating }) => Number.isFinite(rating) && rating > 0)
+    .sort((a, b) => b.rating - a.rating || a.code.localeCompare(b.code))[0]?.code || "";
 };
+
+const computePlayerDescription = (player) => player?.description || "";
+
+const SPECIAL_LEGACY_TITLES = {
+  "Kylian Mbappé": "🐢 La Tortuga",
+  "Neymar Jr": "🪄 O Magico",
+  "Cristiano Ronaldo": "🐞 El Bicho",
+  "Erling Haaland": "🤖 The Cyborg",
+  "Luis Suárez": "🔫 El Pistolero",
+  "Pedri": "🪄 El Mago",
+  "Antoine Griezman": "👑 El Principito",
+  "Lionel Messi": "🛐 D10S",
+  "Thibaut Courtois": "🧱 The Belgian Wall",
+  "Frenkie de Jong": "🎩 El Filósofo",
+  "Paulo Dybala": "💎 La Joya",
+  "José Morales": "🪖 Comandante Morales",
+  "Ferran Torres": "🦈 El Tiburón",
+  "Franco Vázquez": "😶 Mudo Vázquez",
+  "Julián Álvarez": "🕷️ La Araña",
+  "Cole Palmer": "🧊 Cold Palmer",
+  "Claude Beacons": "🔥 Torch",
+  "Jordan Greenway": "🟩 Janus",
+  "Ousmane Dembélé": "🦟 Mosquito",
+};
+
+function computeLegacyTitle(player) {
+  const name = String(player?.name || "").trim();
+  if (SPECIAL_LEGACY_TITLES[name]) return SPECIAL_LEGACY_TITLES[name];
+
+  const ca = Number(player?.ca);
+  const cp = Number(player?.cp);
+  const age = Number(player?.age);
+  if (!Number.isFinite(ca) || !Number.isFinite(cp) || !Number.isFinite(age)) {
+    return "⚠️ Perfil indefinido";
+  }
+
+  if (cp >= 195) {
+    if (age <= 21) return "🪄 Heredero al trono";
+    if (cp >= 192) {
+      if (ca <= 191) return "🔱 Trono Dorado";
+      if (ca > 191) return "👑 Rey absoluto";
+    }
+  }
+
+  if (cp > 180) {
+    if (age <= 21) {
+      if (ca >= 160) return "🌠 Talento Generacional";
+      if (ca < 160) return "⭐ Future Star";
+    }
+    if (age <= 25) {
+      if (ca >= 175) return "🛰️ Élite Consolidada";
+      if (ca < 180) return "🧬 Generación Alfa";
+    }
+    if (age < 30) {
+      if (ca > 188) return "👑 Referente Mundial Absoluto";
+      if (ca >= 185) return "📅 Marcador de Época";
+      if (ca > 180) return "⚔️ Aspirante al Trono";
+      if (ca <= 175) return "🕯️ Vestigio de grandeza";
+      if (ca < 185) return "🏛️ Herencia de una generación";
+      if (ca <= 188) return "🥋 Fenómeno Generacional";
+    }
+    if (age >= 30) return "🧠 Leyenda en Activo";
+    return "❌ Sin margen competitivo";
+  }
+
+  if (cp > 170) {
+    if (age <= 21) {
+      if (ca >= 150) return "💫 Promesa Élite";
+      if (ca < 150) return "🔮 Potencial Especial";
+    }
+    if (age <= 25) {
+      if (ca >= 165) return "💥 Prodigio Generacional";
+      if (ca < 170) return "🪙 Generación Beta";
+    }
+    if (age < 30) {
+      if (ca >= 180) return "🎯 Titular de Élite";
+      if (ca > 175) return "🗿 Estatura de élite";
+      if (ca >= 170) return "🧿 Alta cuna futbolística";
+      if (ca < 170) return "🦉 Maestro del Juego";
+      if (ca < 175) return "⚙️ Pilar de Élite";
+      if (ca <= 180) return "🧩 Elemento Crucial";
+    }
+    if (age >= 30) return "🧓 Estrella Veterana";
+    return "❌ Sin margen competitivo";
+  }
+
+  if (cp >= 165) {
+    if (age <= 21) {
+      if (ca >= 140) return "🌟 Promesa Diferencial";
+      if (ca < 140) return "⚡ Proyección de Estrella";
+    }
+    if (age <= 25) {
+      if (ca >= 160) return "🦅 Referencia Generacional";
+      if (ca < 160) return "🔥 Forjador del futuro";
+    }
+    if (age < 30) {
+      if (ca >= 160) return "📏 Estándar de Élite";
+      if (ca < 160) return "🥷 Élite Silenciosa";
+    }
+    if (age >= 30) return "🦅 Último emperador";
+    return "❌ Sin margen competitivo";
+  }
+
+  if (cp < 165) {
+    if (age <= 21) {
+      if (ca >= 130) return "🌱 Promesa Proyectable";
+      if (ca < 130) return "🎯 Jugador a Observar";
+    }
+    if (age <= 25) {
+      if (ca >= 150) return "🧃 Talento a Seguir";
+      if (ca < 150) return "🔬 Potencial Real";
+    }
+    if (age < 30) {
+      if (ca >= 150) return "🧱 Perfil Competitivo";
+      if (ca < 150) return "🧩 Jugador de Buen Nivel";
+    }
+    if (age >= 30) return "🧓 Veterano Competitivo";
+    return "❌ Sin margen competitivo";
+  }
+  return "⚠️ Perfil indefinido";
+}
 
 const inputClassName =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
 
-const textareaClassName =
-  "min-h-[104px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
+const POSITION_RATING_GROUPS = [
+  {
+    title: "Delantero",
+    positions: [
+      ["DC", "DC"],
+    ],
+  },
+  {
+    title: "Extremo",
+    positions: [
+      ["EI", "EI"],
+      ["ED", "ED"],
+    ],
+  },
+  {
+    title: "Centrocampista",
+    positions: [
+      ["CAM", "CAM"],
+      ["CM", "CM"],
+      ["CDM", "CDM"],
+    ],
+  },
+  {
+    title: "Central",
+    positions: [
+      ["DFC", "DFC"],
+    ],
+  },
+  {
+    title: "Lateral",
+    positions: [
+      ["LD", "LD"],
+      ["LI", "LI"],
+      ["CRD", "CRD"],
+      ["CRI", "CRI"],
+    ],
+  },
+  {
+    title: "Portero",
+    positions: [
+      ["GK", "GK"],
+    ],
+  },
+];
 
-const normalizeImageUrl = (value) => {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) return "";
-
-  let url = trimmed;
-
-  if (url.startsWith("//")) {
-    url = `https:${url}`;
-  } else if (!/^(https?:|data:|blob:)/i.test(url)) {
-    url = `https://${url}`;
-  }
-
-  // GitHub "blob" URLs are HTML pages rather than image resources.
-  // Convert them to raw.githubusercontent.com so <img> can render them.
-  const githubBlobMatch = url.match(
-    /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/i
-  );
-
-  if (githubBlobMatch) {
-    const [, owner, repo, branch, filePath] =
-      githubBlobMatch;
-
-    return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
-  }
-
-  return url;
+const POSITION_RATING_DEFAULTS = {
+  GK: "0",
+  DFC: "0",
+  LD: "0",
+  LI: "0",
+  CRD: "0",
+  CRI: "0",
+  CDM: "0",
+  CM: "0",
+  CAM: "0",
+  EI: "0",
+  ED: "0",
+  DC: "0",
 };
 
-const rgbToHex = (r, g, b) =>
-  `#${[r, g, b].map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
-
-const extractImagePalette = (image) => {
-  try {
-    const canvas = document.createElement("canvas");
-    const size = 80;
-    canvas.width = size;
-    canvas.height = size;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context) return [];
-
-    context.drawImage(image, 0, 0, size, size);
-    const pixels = context.getImageData(0, 0, size, size).data;
-    const buckets = new Map();
-
-    for (let index = 0; index < pixels.length; index += 16) {
-      const alpha = pixels[index + 3];
-      if (alpha < 160) continue;
-
-      const r = pixels[index];
-      const g = pixels[index + 1];
-      const b = pixels[index + 2];
-      const brightness = (r + g + b) / 3;
-      if (brightness > 248 || brightness < 8) continue;
-
-      const key = [Math.round(r / 24), Math.round(g / 24), Math.round(b / 24)].join(",");
-      const previous = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
-      previous.count += 1;
-      previous.r += r;
-      previous.g += g;
-      previous.b += b;
-      buckets.set(key, previous);
-    }
-
-    return Array.from(buckets.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 12)
-      .map((bucket) => rgbToHex(bucket.r / bucket.count, bucket.g / bucket.count, bucket.b / bucket.count));
-  } catch (error) {
-    console.warn("Could not extract logo colors. The image server may not allow canvas access.", error);
-    return [];
-  }
+const emptyPlayerForm = {
+  name: "",
+  dateOfBirth: "",
+  teamId: "",
+  countryId: "",
+  photoUrl: "",
+  cardPhotoUrl: "",
+  ca: "",
+  cp: "",
+  positionRatings: { ...POSITION_RATING_DEFAULTS },
+  description: "",
+  newTeamName: "",
+  newCountryName: "",
+  newCountryContinent: "Europe",
 };
 
-function FormField({ label, children, hint }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold text-slate-600">{label}</span>
-      {children}
-      {hint && <span className="mt-1 block text-[11px] text-slate-400">{hint}</span>}
-    </label>
-  );
-}
-
-function SectionHeader({
-  icon: Icon,
-  title,
-  description,
-  open,
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-        <Icon size={16} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="text-sm font-extrabold text-slate-900">
-          {title}
-        </h3>
-        {description && (
-          <p className="mt-0.5 text-xs text-slate-500">
-            {description}
-          </p>
-        )}
-      </div>
-      <ChevronDown
-        size={17}
-        className={`shrink-0 text-slate-400 transition-transform ${
-          open ? "rotate-180" : ""
-        }`}
-      />
-    </div>
-  );
-}
-
-function CollapsibleSection({
-  icon,
-  title,
-  description,
-  defaultOpen = false,
-  children,
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition hover:bg-slate-50 md:px-5"
-        aria-expanded={open}
-      >
-        <SectionHeader
-          icon={icon}
-          title={title}
-          description={description}
-          open={open}
-        />
-      </button>
-
-      {open && (
-        <div className="border-t border-slate-100 px-4 pb-5 pt-5 md:px-5">
-          {children}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function getCountryFlagUrl(country) {
+const getCountryFlagUrl = (country) => {
   const directFlag = normalizeImageUrl(
     country?.flag ||
       country?.flag_url ||
@@ -281,24 +370,22 @@ function getCountryFlagUrl(country) {
 
   const alpha2 =
     alpha3ToAlpha2[code] ||
-    (code.length === 2
-      ? code.toLowerCase()
-      : "");
+    (code.length === 2 ? code.toLowerCase() : "");
 
   return alpha2
     ? `https://flagcdn.com/${alpha2}.svg`
     : "";
-}
+};
 
-function SearchableTeamSelect({
+function SearchableEntitySelect({
   value,
   onChange,
   options,
-  kind,
   placeholder,
   searchPlaceholder,
-  emptyOption,
-  specialOption,
+  kind,
+  emptyOption = null,
+  specialOption = null,
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -314,10 +401,7 @@ function SearchableTeamSelect({
       }
     };
 
-    document.addEventListener(
-      "mousedown",
-      handleOutsideClick
-    );
+    document.addEventListener("mousedown", handleOutsideClick);
 
     return () => {
       document.removeEventListener(
@@ -327,63 +411,41 @@ function SearchableTeamSelect({
     };
   }, [open]);
 
-  const getLabel = (item) =>
-    item?.name || "Unnamed";
+  const getLabel = (item) => item?.name || "Unnamed";
 
   const getMeta = (item) =>
     kind === "country"
       ? item?.code || ""
-      : item?.shortName ||
-        item?.short_name ||
-        "";
+      : item?.short_name || "";
 
-  const getImage = (item) => {
-    if (kind === "country") {
-      return getCountryFlagUrl(item);
-    }
+  const getImage = (item) =>
+    kind === "country"
+      ? getCountryFlagUrl(item)
+      : normalizeImageUrl(item?.logo);
 
-    return normalizeImageUrl(
-      item?.logo ||
-        item?.logo_url ||
-        item?.logoUrl
+  const filteredOptions = options.filter((item) => {
+    const searchText = [
+      item?.name,
+      item?.short_name,
+      item?.code,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchText.includes(
+      query.trim().toLowerCase()
     );
-  };
-
-  const filteredOptions = options
-    .filter(
-      (item) =>
-        item?.id &&
-        item?.name
-    )
-    .filter((item) => {
-      const searchText = [
-        item?.name,
-        item?.shortName,
-        item?.short_name,
-        item?.code,
-        item?.countryName,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return searchText.includes(
-        query.trim().toLowerCase()
-      );
-    })
-    .sort((a, b) =>
-      String(a?.name || "").localeCompare(
-        String(b?.name || ""),
-        "es",
-        { sensitivity: "base" }
-      )
-    );
+  });
 
   const selected =
-    options.find(
-      (item) =>
-        String(item?.id) === String(value)
-    ) || null;
+    options.find((item) => item?.id === value) || null;
+
+  const isEmptySelected =
+    emptyOption && value === emptyOption.value;
+
+  const isSpecialSelected =
+    specialOption && value === specialOption.value;
 
   const selectValue = (nextValue) => {
     onChange(nextValue);
@@ -408,26 +470,26 @@ function SearchableTeamSelect({
                 : "h-6 w-6 object-contain"
             }
             onError={(event) => {
-              event.currentTarget.style.display =
-                "none";
+              event.currentTarget.style.display = "none";
             }}
           />
+        ) : kind === "country" ? (
+          <Globe2
+            size={15}
+            className="text-slate-300"
+          />
         ) : (
-          <span className="text-[10px] font-bold text-slate-300">
-            {kind === "country"
-              ? "•"
-              : "FC"}
-          </span>
+          <Building2
+            size={15}
+            className="text-slate-300"
+          />
         )}
       </span>
     );
   };
 
   return (
-    <div
-      ref={wrapperRef}
-      className="relative"
-    >
+    <div ref={wrapperRef} className="relative">
       <button
         type="button"
         onClick={() => {
@@ -440,10 +502,18 @@ function SearchableTeamSelect({
         {selected ? (
           renderVisual(selected)
         ) : (
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-[10px] font-bold text-slate-300">
-            {kind === "country"
-              ? "•"
-              : "FC"}
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50">
+            {kind === "country" ? (
+              <Globe2
+                size={15}
+                className="text-slate-300"
+              />
+            ) : (
+              <Building2
+                size={15}
+                className="text-slate-300"
+              />
+            )}
           </span>
         )}
 
@@ -457,22 +527,15 @@ function SearchableTeamSelect({
           >
             {selected
               ? getLabel(selected)
-              : String(value) ===
-                String(
-                  emptyOption?.value
-                )
+              : isEmptySelected
                 ? emptyOption.label
-                : String(value) ===
-                    String(
-                      specialOption?.value
-                    )
+                : isSpecialSelected
                   ? specialOption.label
                   : placeholder}
           </span>
         </span>
 
-        {selected &&
-        getMeta(selected) ? (
+        {selected && getMeta(selected) ? (
           <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
             {getMeta(selected)}
           </span>
@@ -498,13 +561,9 @@ function SearchableTeamSelect({
                 type="text"
                 value={query}
                 onChange={(event) =>
-                  setQuery(
-                    event.target.value
-                  )
+                  setQuery(event.target.value)
                 }
-                placeholder={
-                  searchPlaceholder
-                }
+                placeholder={searchPlaceholder}
                 autoFocus
                 className="h-9 min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
               />
@@ -516,21 +575,26 @@ function SearchableTeamSelect({
               <button
                 type="button"
                 onClick={() =>
-                  selectValue(
-                    emptyOption.value
-                  )
+                  selectValue(emptyOption.value)
                 }
                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition ${
-                  String(value) ===
-                  String(emptyOption.value)
+                  value === emptyOption.value
                     ? "bg-[#003399]/[0.06] text-[#003399]"
                     : "hover:bg-slate-50"
                 }`}
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-50 text-[10px] font-bold text-slate-300">
-                  {kind === "country"
-                    ? "•"
-                    : "FC"}
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-50">
+                  {kind === "country" ? (
+                    <Globe2
+                      size={15}
+                      className="text-slate-300"
+                    />
+                  ) : (
+                    <Building2
+                      size={15}
+                      className="text-slate-300"
+                    />
+                  )}
                 </span>
                 <span className="font-medium">
                   {emptyOption.label}
@@ -538,38 +602,32 @@ function SearchableTeamSelect({
               </button>
             )}
 
-            {filteredOptions.map(
-              (item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() =>
-                    selectValue(item.id)
-                  }
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${
-                    String(item.id) ===
-                    String(value)
-                      ? "bg-[#003399]/[0.06]"
-                      : "hover:bg-slate-50"
-                  }`}
-                >
-                  {renderVisual(item)}
+            {filteredOptions.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => selectValue(item.id)}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${
+                  item.id === value
+                    ? "bg-[#003399]/[0.06]"
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                {renderVisual(item)}
 
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
-                    {getLabel(item)}
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
+                  {getLabel(item)}
+                </span>
+
+                {getMeta(item) ? (
+                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                    {getMeta(item)}
                   </span>
+                ) : null}
+              </button>
+            ))}
 
-                  {getMeta(item) ? (
-                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                      {getMeta(item)}
-                    </span>
-                  ) : null}
-                </button>
-              )
-            )}
-
-            {filteredOptions.length ===
-              0 && (
+            {filteredOptions.length === 0 && (
               <div className="px-3 py-6 text-center text-xs text-slate-400">
                 No results found.
               </div>
@@ -579,15 +637,10 @@ function SearchableTeamSelect({
               <button
                 type="button"
                 onClick={() =>
-                  selectValue(
-                    specialOption.value
-                  )
+                  selectValue(specialOption.value)
                 }
                 className={`mt-1 flex w-full items-center gap-3 rounded-lg border-t border-slate-100 px-3 py-2.5 text-left text-sm font-semibold text-[#003399] transition hover:bg-[#003399]/[0.04] ${
-                  String(value) ===
-                  String(
-                    specialOption.value
-                  )
+                  value === specialOption.value
                     ? "bg-[#003399]/[0.06]"
                     : ""
                 }`}
@@ -605,3300 +658,2217 @@ function SearchableTeamSelect({
   );
 }
 
-function KitColorPicker({
-  kitNumber,
-  photoUrl,
-  badgeBg,
-  badgeText,
-  onChangeColor,
-}) {
-  const [palette, setPalette] = useState([]);
-  const [imageError, setImageError] = useState(false);
-  const [target, setTarget] = useState("badgeBg");
+const NEW_TEAM_VALUE = "__new_team__";
+const NEW_COUNTRY_VALUE = "__new_country__";
 
-  const normalizedPhotoUrl =
-    normalizeImageUrl(photoUrl);
-
-  useEffect(() => {
-    setPalette([]);
-    setImageError(false);
-
-    if (!normalizedPhotoUrl) return;
-
-    const paletteImage =
-      new Image();
-
-    paletteImage.crossOrigin =
-      "anonymous";
-
-    paletteImage.onload = () => {
-      setPalette(
-        extractImagePalette(
-          paletteImage
-        )
-      );
-    };
-
-    paletteImage.onerror = () => {
-      setPalette([]);
-      setImageError(true);
-    };
-
-    paletteImage.src =
-      normalizedPhotoUrl;
-  }, [normalizedPhotoUrl]);
-
-  const pickScreenColor = async () => {
-    if (
-      typeof window ===
-        "undefined" ||
-      !window.EyeDropper
-    ) {
-      return;
-    }
-
-    try {
-      const eyeDropper =
-        new window.EyeDropper();
-
-      const result =
-        await eyeDropper.open();
-
-      if (result?.sRGBHex) {
-        onChangeColor(
-          target,
-          result.sRGBHex.toUpperCase()
-        );
-      }
-    } catch {
-      // User cancelled the native picker.
-    }
-  };
-
-  return (
-    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-slate-700">
-            Kit colors
-          </p>
-          <p className="mt-1 text-[11px] text-slate-400">
-            Selecciona el color del fondo o del texto de la insignia.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={pickScreenColor}
-          disabled={
-            typeof window ===
-              "undefined" ||
-            !window.EyeDropper
-          }
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          title="Usar cuentagotas del navegador"
-        >
-          <Pipette size={14} />
-          Cuentagotas
-        </button>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() =>
-            setTarget("badgeBg")
-          }
-          className={`rounded-lg px-3 py-2 text-[11px] font-semibold transition ${
-            target === "badgeBg"
-              ? "bg-[#003399] text-white"
-              : "border border-slate-200 bg-white text-slate-700"
-          }`}
-        >
-          Badge background
-        </button>
-
-        <button
-          type="button"
-          onClick={() =>
-            setTarget("badgeText")
-          }
-          className={`rounded-lg px-3 py-2 text-[11px] font-semibold transition ${
-            target === "badgeText"
-              ? "bg-[#003399] text-white"
-              : "border border-slate-200 bg-white text-slate-700"
-          }`}
-        >
-          Badge text
-        </button>
-
-        <input
-          type="color"
-          value={
-            /^#[0-9A-Fa-f]{6}$/.test(
-              target === "badgeBg"
-                ? badgeBg
-                : badgeText
-            )
-              ? (
-                  target ===
-                  "badgeBg"
-                    ? badgeBg
-                    : badgeText
-                )
-              : "#FFFFFF"
-          }
-          onChange={(event) =>
-            onChangeColor(
-              target,
-              event.target.value.toUpperCase()
-            )
-          }
-          className="h-9 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
-          title="Seleccionar color"
-        />
-      </div>
-
-      {normalizedPhotoUrl ? (
-        <div className="mt-3 grid gap-3 md:grid-cols-[180px_1fr]">
-          <div className="flex min-h-[170px] items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
-            <img
-              src={normalizedPhotoUrl}
-              alt={`Kit ${kitNumber} preview`}
-              className="max-h-[180px] w-full object-contain"
-              onLoad={() =>
-                setImageError(false)
-              }
-              onError={() =>
-                setImageError(true)
-              }
-            />
-          </div>
-
-          <div>
-            {imageError ? (
-              <p className="text-xs text-red-600">
-                No se pudo cargar la camiseta o el servidor no permite analizar sus colores.
-              </p>
-            ) : palette.length > 0 ? (
-              <>
-                <p className="text-[11px] font-semibold text-slate-600">
-                  Colores detectados
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {palette.map(
-                    (color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() =>
-                          onChangeColor(
-                            target,
-                            color
-                          )
-                        }
-                        title={`Asignar ${color} a ${
-                          target ===
-                          "badgeBg"
-                            ? "Badge background"
-                            : "Badge text"
-                        }`}
-                        className="group flex w-14 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 transition hover:border-[#003399]"
-                      >
-                        <span
-                          className="h-8 w-8 rounded-md border border-slate-200"
-                          style={{
-                            backgroundColor:
-                              color,
-                          }}
-                        />
-                        <span className="text-[9px] font-semibold text-slate-500">
-                          {color}
-                        </span>
-                      </button>
-                    )
-                  )}
-                </div>
-              </>
-            ) : (
-              <p className="text-xs text-slate-400">
-                Introduce la URL de la camiseta para detectar una paleta de colores.
-              </p>
-            )}
-          </div>
-        </div>
-      ) : (
-        <p className="mt-3 text-xs text-slate-400">
-          Introduce primero la foto de la camiseta.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function TeamLogo({ team }) {
-  const logoUrl = normalizeImageUrl(
-    team.logo ||
-      team.logo_url ||
-      team.logoUrl
-  );
-
-  const [imageError, setImageError] =
-    useState(false);
-
-  useEffect(() => {
-    setImageError(false);
-  }, [logoUrl]);
-
-  if (logoUrl && !imageError) {
-    return (
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center bg-transparent">
-        <img
-          src={logoUrl}
-          alt={`${team.name} logo`}
-          className="h-full w-full object-contain"
-          loading="lazy"
-          onError={() =>
-            setImageError(true)
-          }
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
-      <span className="max-w-[90%] px-1 text-center text-[10px] font-extrabold leading-tight tracking-tight text-slate-800">
-        {team.shortName ||
-          team.short_name ||
-          "FC"}
-      </span>
-    </div>
-  );
-}
-
-function CompetitionHeader({ competitionName, teams }) {
-  const competition = competitionDetails[competitionName] || {
-  level: "Competition",
-  logo: "",
+const getList = (result) => {
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.data)) return result.data;
+  if (Array.isArray(result?.items)) return result.items;
+  if (Array.isArray(result?.results)) return result.results;
+  return [];
 };
 
-const competitionLogo =
-  teams.find((team) => team.competitionLogo)?.competitionLogo ||
-  competition.logo ||
-  "";
+const normalizeImageUrl = (value) => {
+  const trimmed = String(value || "").trim();
 
-  return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 p-1">
-  {competitionLogo ? (
-    <img
-      src={competitionLogo}
-      alt={`${competitionName} logo`}
-      className="h-full w-full object-contain"
-    />
-  ) : (
-    <span className="text-[8px] font-black text-slate-700">
-      FC
-    </span>
-  )}
-</div>
-        <div className="flex flex-wrap items-center gap-3">
-          <h3 className="text-sm font-bold text-slate-900">{competitionName || "Without competition"}</h3>
-          <span className="text-xs text-slate-400">{competition.level}</span>
-        </div>
-      </div>
-      <span className="shrink-0 text-xs font-medium text-slate-400">
-        {teams.length} {teams.length === 1 ? "team" : "teams"}
-      </span>
-    </div>
-  );
+  if (!trimmed) return "";
+
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
+  }
+
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+};
+
+const normalizePlayer = (player) => ({
+  ...player,
+
+  id:
+    player?.id ||
+    player?._id ||
+    player?.data?.id ||
+    "",
+
+  name:
+    player?.name ||
+    player?.full_name ||
+    player?.fullName ||
+    "",
+
+  dateOfBirth:
+    player?.date_of_birth ||
+    player?.dateOfBirth ||
+    player?.birth_date ||
+    player?.birthDate ||
+    "",
+
+  teamId:
+    player?.team_id ||
+    player?.teamId ||
+    player?.club_id ||
+    player?.clubId ||
+    "",
+
+  countryId:
+    player?.country_id ||
+    player?.countryId ||
+    "",
+
+  photoUrl:
+    player?.photo_url ||
+    player?.photoUrl ||
+    player?.image_url ||
+    player?.imageUrl ||
+    "",
+
+  cardPhotoUrl:
+    player?.card_photo_url ||
+    player?.cardPhotoUrl ||
+    "",
+
+  ca: player?.ca ?? "",
+
+  cp: player?.cp ?? "",
+
+  positionRatings: {
+    ...POSITION_RATING_DEFAULTS,
+    ...(player?.position_ratings || {}),
+  },
+
+  description: player?.description || "",
+});
+
+const normalizeTeam = (team) => ({
+  ...team,
+
+  id:
+    team?.id ||
+    team?._id ||
+    team?.data?.id ||
+    "",
+
+  name:
+    team?.name ||
+    "",
+
+  logo:
+    team?.logo ||
+    team?.logo_url ||
+    team?.logoUrl ||
+    "",
+
+  countryId:
+    team?.country_id ||
+    team?.countryId ||
+    "",
+
+  reputation: Number.isFinite(Number(team?.reputation))
+    ? Number(team.reputation)
+    : 0,
+});
+
+const normalizeCountry = (country) => ({
+  ...country,
+
+  id:
+    country?.id ||
+    country?._id ||
+    country?.data?.id ||
+    "",
+
+  name:
+    country?.name ||
+    "",
+
+  code:
+    country?.code ||
+    country?.country_code ||
+    "",
+
+  flag:
+    country?.flag ||
+    country?.flag_url ||
+    country?.flagUrl ||
+    "",
+});
+
+const normalizeDateOfBirth = (value) => {
+  const trimmed = String(value || "").trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (!match) {
+    return trimmed;
+  }
+
+  const [, dayValue, monthValue, yearValue] = match;
+
+  const day = Number(dayValue);
+  const month = Number(monthValue);
+  const year = Number(yearValue);
+
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return trimmed;
+  }
+
+  return [
+    String(day).padStart(2, "0"),
+    String(month).padStart(2, "0"),
+    String(year),
+  ].join("/");
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+
+  const stringValue = String(value).trim();
+
+  const normalizedDate = normalizeDateOfBirth(stringValue);
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalizedDate)) {
+    return normalizedDate;
+  }
+
+  const date = new Date(stringValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return stringValue;
+  }
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+};
+
+const isValidDateOfBirth = (value) => {
+  const trimmed = String(value || "").trim();
+
+  if (!trimmed) {
+    return true;
+  }
+
+  const normalizedDate = normalizeDateOfBirth(trimmed);
+
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(normalizedDate)) {
+    return false;
+  }
+
+  return true;
+};
+
+function calculateAge(value) {
+  const trimmed = String(value || "").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  let birthDate = null;
+
+  const ddmmyyyy = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
+    birthDate = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day)
+    );
+  } else {
+    const parsedDate = new Date(trimmed);
+
+    if (!Number.isNaN(parsedDate.getTime())) {
+      birthDate = parsedDate;
+    }
+  }
+
+  if (!birthDate || Number.isNaN(birthDate.getTime())) {
+    return null;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+
+  const hasHadBirthday =
+    today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() &&
+      today.getDate() >= birthDate.getDate());
+
+  if (!hasHadBirthday) {
+    age -= 1;
+  }
+
+  return age >= 0 && age < 120 ? age : null;
 }
 
-function TeamCard({ team, onOpen, showReputation = false }) {
-  const reputationValue = Number(team?.reputation);
-  const normalizedReputation = Number.isFinite(reputationValue)
-    ? reputationValue
-    : 0;
+function ageCircleColor(age) {
+  if (age == null) return "bg-slate-300";
+  if (age <= 18) return "bg-purple-500";
+  if (age <= 21) return "bg-blue-500";
+  if (age <= 25) return "bg-green-500";
+  if (age <= 29) return "bg-yellow-500";
+  if (age <= 33) return "bg-orange-500";
+  return "bg-red-500";
+}
+
+const POSITION_LABELS = {
+  GK: "GK",
+  DFC: "DFC",
+  LD: "LD",
+  LI: "LI",
+  CRD: "CRD",
+  CRI: "CRI",
+  CDM: "CDM",
+  CM: "CM",
+  CAM: "CAM",
+  EI: "EI",
+  ED: "ED",
+  DC: "DC",
+};
+
+const POSITION_GROUPS = [
+  { id: "GK", name: "Portero" },
+  { id: "DFC", name: "Defensa central" },
+  { id: "LD", name: "Lateral derecho" },
+  { id: "LI", name: "Lateral izquierdo" },
+  { id: "CRD", name: "Carrilero derecho" },
+  { id: "CRI", name: "Carrilero izquierdo" },
+  { id: "CDM", name: "Mediocentro defensivo" },
+  { id: "CM", name: "Mediocentro" },
+  { id: "CAM", name: "Mediapunta" },
+  { id: "EI", name: "Extremo izquierdo" },
+  { id: "ED", name: "Extremo derecho" },
+  { id: "DC", name: "Delantero centro" },
+];
+
+const AGE_GROUPS = [
+  { id: "age_0_18", name: "18 años o menos", test: (age) => age != null && age <= 18 },
+  { id: "age_19_21", name: "19–21 años", test: (age) => age != null && age >= 19 && age <= 21 },
+  { id: "age_22_25", name: "22–25 años", test: (age) => age != null && age >= 22 && age <= 25 },
+  { id: "age_26_29", name: "26–29 años", test: (age) => age != null && age >= 26 && age <= 29 },
+  { id: "age_30_33", name: "30–33 años", test: (age) => age != null && age >= 30 && age <= 33 },
+  { id: "age_34_plus", name: "34 años o más", test: (age) => age != null && age >= 34 },
+];
+
+const DESCRIPTION_GROUPS = PLAYER_DESCRIPTIONS.flatMap((group, groupIndex) =>
+  group.options.map((description, optionIndex) => ({
+    id: `description_${groupIndex}_${optionIndex}`,
+    name: description,
+    category: group.group,
+    description,
+  }))
+);
+
+const PLAYER_VIEW_MODES = [
+  "all",
+  "teams",
+  "countries",
+  "positions",
+  "age",
+  "description",
+];
+
+function PlayerCard({
+  player,
+  team,
+  country,
+  onClick,
+  compact = false,
+  hideTeam = false,
+}) {
+  const photoUrl = normalizeImageUrl(
+    player.cardPhotoUrl || player.photoUrl
+  );
+  const teamLogo = normalizeImageUrl(team?.logo);
+
+  const age = calculateAge(player.dateOfBirth);
+  const legacyTitle = computeLegacyTitle({
+    ...player,
+    age: age ?? undefined,
+  });
+  const primaryPosition = getPrimaryPosition(player);
+  const description = computePlayerDescription(player);
+
+  const countryFlagUrl = normalizeImageUrl(country?.flag);
+  const countryCode = String(country?.code || "").trim().toLowerCase();
+
+  const fallbackFlagUrl =
+    !countryFlagUrl && countryCode.length === 2
+      ? `https://flagcdn.com/${countryCode}.svg`
+      : "";
 
   return (
     <button
       type="button"
-      onClick={onOpen}
-      className="group flex min-h-[100px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
+      onClick={onClick}
+      className={`group w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] ${
+        compact ? "max-w-[230px]" : ""
+      }`}
     >
-      <TeamLogo team={team} />
-      <span className="w-full truncate text-[11px] font-bold text-slate-800 transition group-hover:text-[#003399]">
-        {team.name}
-      </span>
-      {showReputation && (
-        <span className="text-[10px] font-semibold text-slate-400">
-          Reputation: {normalizedReputation}
-        </span>
-      )}
+      {/* PHOTO */}
+      <div
+        className={`relative w-full overflow-hidden bg-slate-50 ${
+          compact ? "aspect-[5/4]" : "aspect-[4/3]"
+        }`}
+      >
+        {photoUrl ? (
+          <img
+            src={photoUrl}
+            alt={player.name || "Player"}
+            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.025]"
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Users
+              size={56}
+              strokeWidth={1.25}
+              className="text-slate-200"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* INFO */}
+      <div
+        className={`border-t border-slate-100 ${
+          compact ? "px-3 pb-3 pt-2.5" : "px-4 pb-4 pt-3"
+        }`}
+      >
+        {/* NAME + FLAG */}
+        <div className="flex min-w-0 items-center gap-2">
+          {countryFlagUrl || fallbackFlagUrl ? (
+            <img
+              src={countryFlagUrl || fallbackFlagUrl}
+              alt={country?.name || ""}
+              className="h-4 w-6 shrink-0 rounded-[2px] object-cover"
+              loading="lazy"
+            />
+          ) : null}
+
+          <h3
+            className={`player-display-title min-w-0 truncate ${
+              compact ? "text-sm" : "text-base"
+            }`}
+          >
+            {player.name || "Unnamed player"}
+          </h3>
+        </div>
+
+        {/* LEGACY TITLE + CA/CP */}
+        <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 items-center gap-1.5 text-xs`}>
+          <span className="shrink-0 font-semibold text-slate-900">
+            {legacyTitle}
+          </span>
+
+          <span className="shrink-0 text-slate-300">|</span>
+
+          <span className="shrink-0 font-semibold text-slate-500">
+            {player.ca !== "" && player.ca != null
+              ? player.ca
+              : "—"}{" "}
+            /{" "}
+            {player.cp !== "" && player.cp != null
+              ? player.cp
+              : "—"}
+          </span>
+        </div>
+
+        {/* AGE + POSITION + DESCRIPTION */}
+        <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 items-center gap-1.5 text-xs`}>
+          <span
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${ageCircleColor(
+              age
+            )}`}
+          />
+
+          <span className="shrink-0 font-semibold text-slate-700">
+            {age ?? "—"}
+          </span>
+
+          <span className="shrink-0 text-slate-300">|</span>
+
+          <span className="shrink-0 font-semibold text-slate-700">
+            {POSITION_LABELS[primaryPosition] || "—"}
+          </span>
+
+          {description && (
+            <>
+              <span className="shrink-0 text-slate-300">|</span>
+
+              <span className="min-w-0 truncate font-medium text-slate-500">
+                {description}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* CLUB */}
+        {!hideTeam && (
+          <div className={`${compact ? "mt-2" : "mt-3"} flex min-w-0 items-center gap-2 text-xs text-slate-400`}>
+            {teamLogo ? (
+              <img
+                src={teamLogo}
+                alt=""
+                className="h-4 w-4 shrink-0 object-contain"
+                loading="lazy"
+              />
+            ) : (
+              <Building2
+                size={14}
+                strokeWidth={1.7}
+                className="shrink-0"
+              />
+            )}
+
+            <span className="truncate">
+              {team?.name || "No club associated"}
+            </span>
+          </div>
+        )}
+      </div>
     </button>
   );
 }
 
-function AddTeamModal({
-  form,
-  setForm,
-  countries,
-  leagues,
-  onClose,
-  onSubmit,
-  isEditing = false,
+function GroupHeader({
+  type,
+  name,
+  logo,
+  code,
+  count,
 }) {
-  const [logoImageError, setLogoImageError] = useState(false);
-  const [logoPalette, setLogoPalette] = useState([]);
-  const [colorTarget, setColorTarget] =
-    useState("primary");
-  const [isLogoZoomOpen, setIsLogoZoomOpen] =
-    useState(false);
-  const [isCreatingNewCountry, setIsCreatingNewCountry] =
-    useState(!form.countryId);
-  const [isCreatingNewLeague, setIsCreatingNewLeague] =
-    useState(Boolean(form.newLeagueName?.trim()));
+  const normalizedLogo = normalizeImageUrl(logo);
 
-  const logoPreviewUrl =
-    normalizeImageUrl(form.logo);
-
-  const updateField = (field, value) => {
-    setForm((currentForm) => ({
-      ...currentForm,
-      [field]: value,
-    }));
-  };
-
-  const textField = (
-    field,
-    label,
-    placeholder,
-    options = {}
-  ) => (
-    <FormField
-      label={label}
-      hint={options.hint}
-    >
-      <input
-        type={
-          options.type || "text"
-        }
-        value={form[field]}
-        onChange={(event) =>
-          updateField(
-            field,
-            event.target.value
-          )
-        }
-        placeholder={placeholder}
-        className={inputClassName}
-        min={options.min}
-        max={options.max}
-        step={options.step}
-        inputMode={
-          options.inputMode
-        }
-        required={
-          Boolean(
-            options.required
-          )
-        }
-      />
-    </FormField>
-  );
-
-  const selectField = (
-    field,
-    label,
-    values
-  ) => (
-    <FormField
-      label={label}
-    >
-      <select
-        value={form[field]}
-        onChange={(event) =>
-          updateField(
-            field,
-            event.target.value
-          )
-        }
-        className={
-          inputClassName
-        }
-      >
-        {values.map(
-          (value) => (
-            <option
-              key={value}
-              value={value}
-            >
-              {value}
-            </option>
-          )
-        )}
-      </select>
-    </FormField>
-  );
-
-  const handleCountryChange =
-    (selectedId) => {
-      if (
-        selectedId === "__new__"
-      ) {
-        setIsCreatingNewCountry(
-          true
-        );
-        updateField(
-          "countryId",
-          ""
-        );
-        updateField(
-          "country",
-          ""
-        );
-        updateField(
-          "countryCode",
-          ""
-        );
-        return;
-      }
-
-      const selectedCountry =
-        countries.find(
-          (country) =>
-            String(country.id) ===
-            String(selectedId)
-        );
-
-      setIsCreatingNewCountry(
-        false
-      );
-      updateField(
-        "countryId",
-        selectedId
-      );
-      updateField(
-        "country",
-        selectedCountry?.name ||
-          ""
-      );
-      updateField(
-        "countryCode",
-        selectedCountry?.code ||
-          ""
-      );
-
-      if (
-        selectedCountry?.continent
-      ) {
-        updateField(
-          "continent",
-          selectedCountry.continent
-        );
-      }
-    };
-
-  const handleLeagueChange =
-    (selectedId) => {
-      if (
-        selectedId === "__new__"
-      ) {
-        setIsCreatingNewLeague(
-          true
-        );
-        updateField(
-          "leagueId",
-          ""
-        );
-        return;
-      }
-
-      setIsCreatingNewLeague(
-        false
-      );
-      updateField(
-        "leagueId",
-        selectedId
-      );
-      updateField(
-        "newLeagueName",
-        ""
-      );
-    };
-
-  const handleKitColorChange =
-    (kitNumber, field, color) => {
-      updateField(
-        `kit${kitNumber}${field === "badgeBg" ? "BadgeBg" : "BadgeText"}`,
-        color
-      );
-    };
-
-  const modalContent = (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="add-team-title"
-    >
-      <div className="relative z-10 max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="max-h-[92vh] overflow-y-auto p-5 md:p-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <h2
-              id="add-team-title"
-              className="text-lg font-extrabold text-slate-900"
-            >
-              {isEditing ? "Edit team" : "Add team"}
-            </h2>
-            <p className="mt-1 text-xs text-slate-500">
-              {isEditing
-                ? "Update the team's information."
-                : "Create a complete club profile manually."}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-            aria-label="Close modal"
-          >
-            <X size={18} />
-          </button>
+  return (
+    <div className="mb-3 flex items-center justify-between border-b border-slate-200 pb-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white">
+          {normalizedLogo ? (
+            <img
+              src={normalizedLogo}
+              alt=""
+              className="h-7 w-7 object-contain"
+            />
+          ) : type === "team" ? (
+            <Building2 size={18} className="text-slate-400" />
+          ) : (
+            <Globe2 size={18} className="text-slate-400" />
+          )}
         </div>
 
-        <form
-          onSubmit={onSubmit}
-          className="space-y-4"
-        >
-          {/* 1 — IDENTITY */}
-          <CollapsibleSection
-            icon={Shield}
-            title="Identity"
-            description="The essential information that defines the club."
-            defaultOpen
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              {textField(
-                "name",
-                "Team name *",
-                "e.g. Real Madrid",
-                { required: true }
-              )}
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-extrabold tracking-tight text-slate-900">
+            {name}
+          </h2>
+          {code && (
+            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+              {code}
+            </p>
+          )}
+        </div>
+      </div>
 
-              {textField(
-                "shortName",
-                "Short name *",
-                "e.g. RMA",
-                { required: true }
-              )}
+      <div className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        {count} {count === 1 ? "player" : "players"}
+      </div>
+    </div>
+  );
+}
 
-              <FormField
-                label="Country *"
-                hint="Busca un país por nombre o código."
-              >
-                <SearchableTeamSelect
-                  value={
-                    form.countryId ||
-                    "__new__"
-                  }
-                  onChange={
-                    handleCountryChange
-                  }
-                  options={countries}
-                  kind="country"
-                  placeholder="Select country"
-                  searchPlaceholder="Search country..."
-                  specialOption={{
-                    value: "__new__",
-                    label:
-                      "+ Create or enter a new country",
-                  }}
-                />
-              </FormField>
+export default function Players() {
+  const [players, setPlayers] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [countries, setCountries] = useState([]);
 
-              <div className="md:col-span-1">
-                {isCreatingNewCountry && (
-                  <div className="grid gap-4">
-                    {textField(
-                      "country",
-                      "New country name *",
-                      "e.g. Spain",
-                      {
-                        required: true,
-                      }
-                    )}
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
-                    {textField(
-                      "countryCode",
-                      "Country code *",
-                      "e.g. ESP",
-                      {
-                        required: true,
-                        hint: "Código de 2 o 3 letras. Se utiliza al crear el país.",
-                      }
-                    )}
-                  </div>
-                )}
-              </div>
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
-              {textField(
-                "city",
-                "City",
-                "e.g. Madrid"
-              )}
+  const [sortBy, setSortBy] = useState("");
 
-              {textField(
-                "foundedYear",
-                "Founded year",
-                "1902",
-                {
-                  type: "number",
-                  min: 1800,
-                  max: 2100,
-                }
-              )}
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
-              <FormField
-                label="Logo *"
-                hint="El logo se usa como identidad principal del club."
-              >
+  const [form, setForm] = useState({
+    ...emptyPlayerForm,
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const rawViewMode = searchParams.get("view");
+  const viewMode = PLAYER_VIEW_MODES.includes(rawViewMode)
+    ? rawViewMode
+    : "all";
+
+  const loadData = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+
+    try {
+      const [
+        playersResult,
+        teamsResult,
+        countriesResult,
+      ] = await Promise.all([
+        base44.entities.Player.list(),
+        base44.entities.Team.list(),
+        base44.entities.Country.list(),
+      ]);
+
+      const loadedPlayers = getList(playersResult)
+        .map(normalizePlayer)
+        .filter((player) => player.id || player.name);
+
+      const loadedTeams = getList(teamsResult)
+        .map(normalizeTeam)
+        .filter((team) => team.id && team.name)
+        .sort((a, b) =>
+          a.name.localeCompare(b.name, "es", {
+            sensitivity: "base",
+          })
+        );
+
+      const loadedCountries = getList(countriesResult)
+        .map(normalizeCountry)
+        .filter((country) => country.id && country.name)
+        .sort((a, b) =>
+          a.name.localeCompare(b.name, "es", {
+            sensitivity: "base",
+          })
+        );
+
+      setPlayers(loadedPlayers);
+      setTeams(loadedTeams);
+      setCountries(loadedCountries);
+    } catch (error) {
+      console.error("Error loading players:", error);
+
+      setErrorMessage(
+        "No se han podido cargar los jugadores, equipos o países. Comprueba que las entidades Player, Team y Country existen en Base44."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (location.state?.mfPlayerViewChange) {
+      setSelectedPlayer(null);
+    }
+  }, [location.key, location.state]);
+
+  useEffect(() => {
+    setSelectedPlayer(null);
+  }, [viewMode]);
+
+  const teamById = useMemo(() => {
+    return teams.reduce((map, team) => {
+      map[team.id] = team;
+      return map;
+    }, {});
+  }, [teams]);
+
+  const countryById = useMemo(() => {
+    return countries.reduce((map, country) => {
+      map[country.id] = country;
+      return map;
+    }, {});
+  }, [countries]);
+
+  const filteredPlayers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return players
+      .filter((player) => {
+        if (!query) {
+          return true;
+        }
+
+        const team = teamById[player.teamId];
+        const country = countryById[player.countryId];
+
+        return (
+          (player.name || "")
+            .toLowerCase()
+            .includes(query) ||
+          (team?.name || "")
+            .toLowerCase()
+            .includes(query) ||
+          (country?.name || "")
+            .toLowerCase()
+            .includes(query)
+        );
+      })
+      .sort((a, b) => {
+        if (sortBy === "ca") {
+          return (
+            Number(b.ca || 0) -
+            Number(a.ca || 0)
+          );
+        }
+
+        if (sortBy === "cp") {
+          return (
+            Number(b.cp || 0) -
+            Number(a.cp || 0)
+          );
+        }
+
+        return (a.name || "").localeCompare(
+          b.name || "",
+          "es",
+          {
+            sensitivity: "base",
+          }
+        );
+      });
+  }, [
+    players,
+    search,
+    teamById,
+    countryById,
+    sortBy,
+  ]);
+
+
+
+  const groupedByTeam = useMemo(() => {
+    const groups = {};
+
+    filteredPlayers.forEach((player) => {
+      const key = player.teamId || "__no_team__";
+
+      if (!groups[key]) {
+        groups[key] = {
+          id: key,
+          team: teamById[player.teamId] || null,
+          players: [],
+        };
+      }
+
+      groups[key].players.push(player);
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      const reputationA = Number(a.team?.reputation || 0);
+      const reputationB = Number(b.team?.reputation || 0);
+
+      // 1. Mayor reputación primero.
+      if (reputationA !== reputationB) {
+        return reputationB - reputationA;
+      }
+
+      // 2. En caso de empate, orden alfabético por equipo.
+      const nameA = a.team?.name || "No club";
+      const nameB = b.team?.name || "No club";
+
+      return nameA.localeCompare(nameB, "es", {
+        sensitivity: "base",
+      });
+    });
+  }, [filteredPlayers, teamById]);
+
+  const groupedByCountry = useMemo(() => {
+    const groups = {};
+
+    filteredPlayers.forEach((player) => {
+      const key = player.countryId || "__no_country__";
+
+      if (!groups[key]) {
+        groups[key] = {
+          id: key,
+          country: countryById[player.countryId] || null,
+          players: [],
+        };
+      }
+
+      groups[key].players.push(player);
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      const nameA = a.country?.name || "No country";
+      const nameB = b.country?.name || "No country";
+
+      return nameA.localeCompare(nameB, "es", {
+        sensitivity: "base",
+      });
+    });
+  }, [filteredPlayers, countryById]);
+
+  const groupedByPosition = useMemo(() => {
+    const groups = POSITION_GROUPS.map((group) => ({
+      ...group,
+      players: [],
+    }));
+
+    const groupById = groups.reduce((map, group) => {
+      map[group.id] = group;
+      return map;
+    }, {});
+
+    const withoutPosition = {
+      id: "__no_position__",
+      name: "Sin posición",
+      players: [],
+    };
+
+    filteredPlayers.forEach((player) => {
+      const position = getPrimaryPosition(player);
+      const target = groupById[position] || withoutPosition;
+      target.players.push(player);
+    });
+
+    if (withoutPosition.players.length > 0) {
+      groups.push(withoutPosition);
+    }
+
+    return groups;
+  }, [filteredPlayers]);
+
+  const groupedByAge = useMemo(() => {
+    const groups = AGE_GROUPS.map((group) => ({
+      id: group.id,
+      name: group.name,
+      players: [],
+    }));
+
+    const groupById = groups.reduce((map, group) => {
+      map[group.id] = group;
+      return map;
+    }, {});
+
+    const noAgeGroup = {
+      id: "age_unknown",
+      name: "Edad no disponible",
+      players: [],
+    };
+
+    filteredPlayers.forEach((player) => {
+      const age = calculateAge(player.dateOfBirth);
+      const ageGroup = AGE_GROUPS.find((group) => group.test(age));
+
+      if (ageGroup) {
+        groupById[ageGroup.id].players.push(player);
+      } else {
+        noAgeGroup.players.push(player);
+      }
+    });
+
+    if (noAgeGroup.players.length > 0) {
+      groups.push(noAgeGroup);
+    }
+
+    return groups;
+  }, [filteredPlayers]);
+
+  const groupedByDescriptionCategories = useMemo(() => {
+    const playerGroups = new Map();
+
+    PLAYER_DESCRIPTIONS.forEach((category) => {
+      category.options.forEach((description) => {
+        playerGroups.set(description, []);
+      });
+    });
+
+    const noDescriptionPlayers = [];
+
+    filteredPlayers.forEach((player) => {
+      const description = String(player?.description || "").trim();
+
+      if (!description || !playerGroups.has(description)) {
+        noDescriptionPlayers.push(player);
+        return;
+      }
+
+      playerGroups.get(description).push(player);
+    });
+
+    const categories = PLAYER_DESCRIPTIONS.map((category, categoryIndex) => ({
+      id: `description_category_${categoryIndex}`,
+      name: category.group,
+      subgroups: category.options.map((description, optionIndex) => ({
+        id: `description_${categoryIndex}_${optionIndex}`,
+        name: description,
+        players: playerGroups.get(description) || [],
+      })),
+    }));
+
+    if (noDescriptionPlayers.length > 0) {
+      categories.push({
+        id: "description_category_unknown",
+        name: "Sin descripción",
+        subgroups: [
+          {
+            id: "description_unknown",
+            name: "Jugadores sin descripción",
+            players: noDescriptionPlayers,
+          },
+        ],
+      });
+    }
+
+    return categories;
+  }, [filteredPlayers]);
+
+  const handleOpenAddPlayer = () => {
+    setForm({
+      ...emptyPlayerForm,
+    });
+
+    setAddModalOpen(true);
+  };
+
+  const handleCloseAddPlayer = () => {
+    if (isSaving) {
+      return;
+    }
+
+    setAddModalOpen(false);
+
+    setForm({
+      ...emptyPlayerForm,
+    });
+  };
+
+  const handleSavePlayer = async (event) => {
+    event.preventDefault();
+
+    if (!form.name.trim()) {
+      return;
+    }
+
+    if (!isValidDateOfBirth(form.dateOfBirth)) {
+      setErrorMessage(
+        "La fecha de nacimiento debe tener el formato DD/MM/YYYY. Ejemplo: 28/09/1998."
+      );
+      return;
+    }
+
+    if (
+      form.teamId === NEW_TEAM_VALUE &&
+      !form.newTeamName.trim()
+    ) {
+      setErrorMessage(
+        "Introduce el nombre del nuevo club."
+      );
+      return;
+    }
+
+    if (
+      form.countryId === NEW_COUNTRY_VALUE &&
+      !form.newCountryName.trim()
+    ) {
+      setErrorMessage(
+        "Introduce el nombre del nuevo país."
+      );
+      return;
+    }
+
+    if (form.ca === "" || form.ca == null || Number(form.ca) < 0 || Number(form.ca) > 200) {
+      setErrorMessage(
+        "El CA debe estar entre 0 y 200."
+      );
+      return;
+    }
+
+    if (form.cp === "" || form.cp == null || Number(form.cp) < 0 || Number(form.cp) > 200) {
+      setErrorMessage(
+        "El CP debe estar entre 0 y 200."
+      );
+      return;
+    }
+
+    const positionRatings = Object.entries(form.positionRatings).reduce(
+      (result, [code, value]) => {
+        const numericValue = Number(value);
+        result[code] = Number.isFinite(numericValue)
+          ? numericValue
+          : 0;
+        return result;
+      },
+      {}
+    );
+
+    const invalidPositionRating = Object.values(positionRatings).some(
+      (value) => value < 0 || value > 20
+    );
+
+    if (invalidPositionRating) {
+      setErrorMessage(
+        "Las valoraciones de posición deben estar entre 0 y 20."
+      );
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMessage("");
+
+    try {
+      let teamId = form.teamId || "";
+      let countryId = form.countryId || "";
+
+      /* CREATE NEW TEAM */
+      if (teamId === NEW_TEAM_VALUE) {
+        const newTeamName = form.newTeamName.trim();
+
+        const normalizedNewTeamName =
+          newTeamName.toLowerCase();
+
+        const existingTeam = teams.find(
+          (team) =>
+            String(team.name || "")
+              .trim()
+              .toLowerCase() ===
+            normalizedNewTeamName
+        );
+
+        if (existingTeam?.id) {
+          teamId = existingTeam.id;
+        } else {
+          const generatedShortName =
+            newTeamName
+              .toUpperCase()
+              .replace(/[^A-Z0-9À-ÿ]/g, "")
+              .slice(0, 12) ||
+            `TEAM${Date.now()}`;
+
+          const createdTeam =
+            await base44.entities.Team.create({
+              name: newTeamName,
+              short_name: generatedShortName,
+              country_id:
+                form.countryId || "",
+              continent: "Europe",
+              is_active: true,
+            });
+
+          const createdTeamData =
+            createdTeam?.data ||
+            createdTeam;
+
+          teamId =
+            createdTeamData?.id ||
+            createdTeamData?._id ||
+            createdTeam?.id ||
+            createdTeam?._id ||
+            "";
+
+          if (!teamId) {
+            throw new Error(
+              "El club se creó pero Base44 no devolvió su ID."
+            );
+          }
+        }
+      }
+
+      /* CREATE NEW COUNTRY */
+      if (countryId === NEW_COUNTRY_VALUE) {
+        const newCountryName =
+          form.newCountryName.trim();
+
+        const normalizedNewCountryName =
+          newCountryName.toLowerCase();
+
+        const existingCountry = countries.find(
+          (country) =>
+            String(country.name || "")
+              .trim()
+              .toLowerCase() ===
+            normalizedNewCountryName
+        );
+
+        if (existingCountry?.id) {
+          countryId = existingCountry.id;
+        } else {
+          const generatedCountryCode =
+            newCountryName
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toUpperCase()
+              .replace(/[^A-Z]/g, "")
+              .slice(0, 3)
+              .padEnd(3, "X");
+
+          const createdCountry =
+            await base44.entities.Country.create({
+              name: newCountryName,
+              code: generatedCountryCode,
+              continent: form.newCountryContinent,
+              flag: "",
+              is_active: true,
+            });
+
+          const createdCountryData =
+            createdCountry?.data ||
+            createdCountry;
+
+          countryId =
+            createdCountryData?.id ||
+            createdCountryData?._id ||
+            createdCountry?.id ||
+            createdCountry?._id ||
+            "";
+
+          if (!countryId) {
+            throw new Error(
+              "El país se creó pero Base44 no devolvió su ID."
+            );
+          }
+        }
+      }
+
+      /* CREATE PLAYER */
+      await base44.entities.Player.create({
+        name: form.name.trim(),
+
+        date_of_birth:
+          normalizeDateOfBirth(
+            form.dateOfBirth
+          ),
+
+        team_id: teamId,
+
+        country_id:
+          countryId || "",
+
+        photo_url:
+          normalizeImageUrl(form.photoUrl),
+
+        card_photo_url:
+          normalizeImageUrl(form.cardPhotoUrl),
+
+        ca: Number(form.ca),
+
+        cp: Number(form.cp),
+
+        position_ratings: positionRatings,
+
+        description:
+          form.description || "",
+      });
+
+      setAddModalOpen(false);
+
+      setForm({
+        ...emptyPlayerForm,
+      });
+
+      await loadData();
+    } catch (error) {
+      console.error(
+        "Error creating player:",
+        error
+      );
+
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "No se ha podido crear el jugador.";
+
+      setErrorMessage(
+        `Error al crear el jugador: ${errorMessage}`
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /*
+   * =========================================================
+   * PLAYER DETAIL
+   * =========================================================
+   *
+   * Cuando selectedPlayer tiene valor, dejamos la lista
+   * y mostramos directamente PlayerDetail.
+   *
+   * =========================================================
+   */
+
+  if (selectedPlayer) {
+    return (
+      <PlayersDetail
+        player={selectedPlayer}
+        team={teamById[selectedPlayer.teamId]}
+        country={countryById[selectedPlayer.countryId]}
+        teams={teams}
+        countries={countries}
+        onBack={() => {
+          setSelectedPlayer(null);
+        }}
+        onPlayerUpdated={(updatedPlayer) => {
+          setSelectedPlayer(updatedPlayer);
+
+          setPlayers((currentPlayers) =>
+            currentPlayers.map((currentPlayer) =>
+              currentPlayer.id === updatedPlayer.id
+                ? normalizePlayer(updatedPlayer)
+                : currentPlayer
+            )
+          );
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
+      <div className="mx-auto max-w-[1800px]">
+
+        {/* HEADER */}
+        <div className="mb-4 flex items-center justify-end">
+          <div className="flex items-center gap-2">
+
+            {/* SEARCH */}
+            {searchOpen && (
+              <div className="w-[220px] sm:w-[280px]">
                 <input
                   type="text"
-                  value={form.logo}
-                  onChange={(event) => {
-                    updateField(
-                      "logo",
-                      event.target.value
-                    );
-                    setLogoImageError(false);
-                    setLogoPalette([]);
-                  }}
-                  placeholder="https://..."
-                  className={
-                    inputClassName
+                  value={search}
+                  onChange={(event) =>
+                    setSearch(event.target.value)
                   }
-                  required
+                  placeholder="Search players..."
+                  autoFocus
+                  className={inputClassName}
                 />
-              </FormField>
+              </div>
+            )}
 
-              <div className="md:col-span-1">
-                {logoPreviewUrl && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex flex-col gap-4 md:flex-row">
-                      <div className="relative flex min-h-[180px] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white md:w-56">
-                        <img
-                          src={
-                            logoPreviewUrl
-                          }
-                          alt="Logo preview"
-                          className="max-h-44 max-w-[90%] object-contain"
-                          onLoad={() => {
-                            setLogoImageError(
-                              false
-                            );
+            <button
+              type="button"
+              onClick={() => {
+                setSearchOpen(
+                  (open) => !open
+                );
 
-                            const paletteImage =
-                              new Image();
+                if (searchOpen) {
+                  setSearch("");
+                }
+              }}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                searchOpen
+                  ? "border-[#003399] bg-[#003399] text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+              aria-label="Search players"
+              title="Search players"
+            >
+              {searchOpen ? (
+                <X size={17} />
+              ) : (
+                <Search size={17} />
+              )}
+            </button>
 
-                            paletteImage.crossOrigin =
-                              "anonymous";
+            {/* TOP CA */}
+            <button
+              type="button"
+              onClick={() =>
+                setSortBy((current) =>
+                  current === "ca" ? "" : "ca"
+                )
+              }
+              className={`flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-extrabold transition ${
+                sortBy === "ca"
+                  ? "border-[#003399] bg-[#003399] text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+              aria-label="Order by CA"
+              title="Order by CA"
+            >
+              Top CA
+            </button>
 
-                            paletteImage.onload =
-                              () =>
-                                setLogoPalette(
-                                  extractImagePalette(
-                                    paletteImage
-                                  )
-                                );
+            {/* TOP CP */}
+            <button
+              type="button"
+              onClick={() =>
+                setSortBy((current) =>
+                  current === "cp" ? "" : "cp"
+                )
+              }
+              className={`flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-extrabold transition ${
+                sortBy === "cp"
+                  ? "border-[#003399] bg-[#003399] text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+              aria-label="Order by CP"
+              title="Order by CP"
+            >
+              Top CP
+            </button>
 
-                            paletteImage.onerror =
-                              () =>
-                                setLogoPalette(
-                                  []
-                                );
+            {/* ADD PLAYER */}
+            <button
+              type="button"
+              onClick={handleOpenAddPlayer}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003399] text-white transition hover:bg-[#002477]"
+              aria-label="Add player"
+              title="Add player"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+        </div>
 
-                            paletteImage.src =
-                              logoPreviewUrl;
-                          }}
-                          onError={() => {
-                            setLogoImageError(
-                              true
-                            );
-                            setLogoPalette(
-                              []
-                            );
-                          }}
-                        />
+        {/* ERROR */}
+        {errorMessage && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setIsLogoZoomOpen(
-                              true
-                            )
-                          }
-                          className="absolute bottom-2 right-2 rounded-lg bg-slate-900/80 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-900"
-                        >
-                          Ampliar imagen
-                        </button>
-                      </div>
+        {/* COUNTER */}
+        <div className="mb-4 flex items-center justify-between">
+          <div className="text-xs font-medium text-slate-400">
+            {isLoading
+              ? "Loading players..."
+              : `${filteredPlayers.length} ${
+                  filteredPlayers.length === 1
+                    ? "player"
+                    : "players"
+                }`}
+          </div>
+        </div>
 
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <div>
-                            <h4 className="text-xs font-extrabold uppercase tracking-wide text-slate-800">
-                              Logo palette
-                            </h4>
-                            <p className="mt-1 text-[11px] text-slate-500">
-                              Pulsa un color para asignarlo al campo seleccionado.
-                            </p>
-                          </div>
+        {/* LOADING */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+            {Array.from({ length: 8 }).map(
+              (_, index) => (
+                <div
+                  key={index}
+                  className="h-[106px] animate-pulse rounded-2xl border border-slate-200 bg-white"
+                />
+              )
+            )}
+          </div>
+        ) : filteredPlayers.length > 0 ? (
 
-                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">
-                            {colorTarget ===
-                            "primary"
-                              ? "Primary"
-                              : "Secondary"}
-                          </span>
-                        </div>
+          /* PLAYERS */
+          <div className="space-y-8">
 
-                        <div className="mb-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setColorTarget(
-                                "primary"
-                              )
-                            }
-                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-                              colorTarget ===
-                              "primary"
-                                ? "bg-[#003399] text-white"
-                                : "border border-slate-200 bg-white text-slate-700"
-                            }`}
-                          >
-                            Seleccionar primario
-                          </button>
+            {/* ALL PLAYERS */}
+            {viewMode === "all" && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+                {filteredPlayers.map(
+                  (player) => (
+                    <PlayerCard
+                      key={
+                        player.id ||
+                        `${player.name}-${player.dateOfBirth}`
+                      }
+                      player={player}
+                      team={
+                        teamById[player.teamId]
+                      }
+                      country={
+                        countryById[
+                          player.countryId
+                        ]
+                      }
+                      onClick={() => {
+                        console.log(
+                          "PLAYER CLICKED:",
+                          player
+                        );
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setColorTarget(
-                                "secondary"
-                              )
-                            }
-                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-                              colorTarget ===
-                              "secondary"
-                                ? "bg-[#003399] text-white"
-                                : "border border-slate-200 bg-white text-slate-700"
-                            }`}
-                          >
-                            Seleccionar secundario
-                          </button>
-                        </div>
-
-                        {logoImageError ? (
-                          <p className="text-xs text-red-600">
-                            No se pudo cargar la imagen. Comprueba que la URL sea pública y completa.
-                          </p>
-                        ) : logoPalette.length >
-                          0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {logoPalette.map(
-                              (color) => (
-                                <button
-                                  key={color}
-                                  type="button"
-                                  title={`Asignar ${color} a ${colorTarget}`}
-                                  onClick={() =>
-                                    updateField(
-                                      colorTarget ===
-                                        "primary"
-                                        ? "primaryColor"
-                                        : "secondaryColor",
-                                      color
-                                    )
-                                  }
-                                  className="group flex w-14 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 hover:border-[#003399]"
-                                >
-                                  <span
-                                    className="h-8 w-8 rounded-md border border-slate-200"
-                                    style={{
-                                      backgroundColor:
-                                        color,
-                                    }}
-                                  />
-                                  <span className="text-[9px] font-semibold text-slate-500">
-                                    {color}
-                                  </span>
-                                </button>
-                              )
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-slate-400">
-                            Introduce una imagen compatible para detectar colores.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                        setSelectedPlayer(player);
+                      }}
+                    />
+                  )
                 )}
               </div>
+            )}
 
-              <div className="md:col-span-2">
-                <p className="text-[11px] text-slate-400">
-                  El continente se completa automáticamente al seleccionar un país.
-                </p>
+            {/* BY TEAMS */}
+            {viewMode === "teams" && (
+              <div className="space-y-6">
+                {groupedByTeam.map(
+                  (group) => (
+                    <section key={group.id}>
+                      <GroupHeader
+                        type="team"
+                        name={
+                          group.team?.name ||
+                          "No club"
+                        }
+                        logo={group.team?.logo}
+                        count={group.players.length}
+                      />
+
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                        {group.players.map(
+                          (player) => (
+                            <PlayerCard
+                              key={
+                                player.id ||
+                                `${player.name}-${player.dateOfBirth}`
+                              }
+                              player={player}
+                              team={
+                                teamById[player.teamId]
+                              }
+                              country={
+                                countryById[player.countryId]
+                              }
+                              compact
+                              hideTeam
+                              onClick={() => {
+                                console.log(
+                                  "PLAYER CLICKED:",
+                                  player
+                                );
+
+                                setSelectedPlayer(player);
+                              }}
+                            />
+                          )
+                        )}
+                      </div>
+                    </section>
+                  )
+                )}
               </div>
+            )}
+
+            {/* BY COUNTRIES */}
+            {viewMode === "countries" && (
+              <div className="space-y-6">
+                {groupedByCountry.map(
+                  (group) => (
+                    <section key={group.id}>
+                      <GroupHeader
+                        type="country"
+                        name={
+                          group.country?.name ||
+                          "No country"
+                        }
+                        code={
+                          group.country?.code
+                        }
+                        count={group.players.length}
+                      />
+
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                        {group.players.map(
+                          (player) => (
+                            <PlayerCard
+                              key={
+                                player.id ||
+                                `${player.name}-${player.dateOfBirth}`
+                              }
+                              player={player}
+                              team={
+                                teamById[player.teamId]
+                              }
+                              country={
+                                countryById[player.countryId]
+                              }
+                              compact
+                              onClick={() => {
+                                console.log(
+                                  "PLAYER CLICKED:",
+                                  player
+                                );
+
+                                setSelectedPlayer(player);
+                              }}
+                            />
+                          )
+                        )}
+                      </div>
+                    </section>
+                  )
+                )}
+              </div>
+            )}
+
+
+            {/* BY POSITION */}
+            {viewMode === "positions" && (
+              <div className="space-y-6">
+                {groupedByPosition.map((group) => (
+                  <section key={group.id}>
+                    <GroupHeader
+                      type="position"
+                      name={group.name}
+                      count={group.players.length}
+                    />
+
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                      {group.players.map((player) => (
+                        <PlayerCard
+                          key={
+                            player.id ||
+                            `${player.name}-${player.dateOfBirth}`
+                          }
+                          player={player}
+                          team={teamById[player.teamId]}
+                          country={countryById[player.countryId]}
+                          compact
+                          onClick={() => setSelectedPlayer(player)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+
+            {/* BY AGE */}
+            {viewMode === "age" && (
+              <div className="space-y-6">
+                {groupedByAge.map((group) => (
+                  <section key={group.id}>
+                    <GroupHeader
+                      type="age"
+                      name={group.name}
+                      count={group.players.length}
+                    />
+
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                      {group.players.map((player) => (
+                        <PlayerCard
+                          key={
+                            player.id ||
+                            `${player.name}-${player.dateOfBirth}`
+                          }
+                          player={player}
+                          team={teamById[player.teamId]}
+                          country={countryById[player.countryId]}
+                          compact
+                          onClick={() => setSelectedPlayer(player)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+
+            {/* BY DESCRIPTION */}
+            {viewMode === "description" && (
+              <div className="space-y-4">
+                {groupedByDescriptionCategories.map((category) => {
+                  const categoryCount = category.subgroups.reduce(
+                    (total, subgroup) => total + subgroup.players.length,
+                    0
+                  );
+                  return (
+                    <section
+                      key={category.id}
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                    >
+                      <div className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+                              <ChevronDown size={17} className="text-slate-500" />
+                            </span>
+
+                            <div className="min-w-0">
+                              <h2 className="truncate text-base font-extrabold tracking-tight text-slate-900">
+                                {category.name}
+                              </h2>
+                              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+                                {category.subgroups.length} subgroups
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                          {categoryCount} {
+                            categoryCount === 1 ? "player" : "players"
+                          }
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-100 bg-slate-50/40 p-3">
+                          <div className="space-y-2">
+                            {category.subgroups.map((subgroup) => {
+                              return (
+                                <div
+                                  key={subgroup.id}
+                                  className="overflow-hidden rounded-xl border border-slate-200 bg-white"
+                                >
+                                  <div className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50">
+                                        <ChevronDown
+                                          size={15}
+                                          className="text-slate-400"
+                                        />
+                                      </span>
+
+                                      <span className="min-w-0 truncate text-sm font-semibold text-slate-800">
+                                        {subgroup.name}
+                                      </span>
+                                    </div>
+
+                                    <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                                      {subgroup.players.length} {
+                                        subgroup.players.length === 1
+                                          ? "player"
+                                          : "players"
+                                      }
+                                    </span>
+                                  </div>
+
+                                  <div className="border-t border-slate-100 bg-slate-50/30 p-3">
+                                      {subgroup.players.length > 0 ? (
+                                        <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                                          {subgroup.players.map((player) => (
+                                            <PlayerCard
+                                              key={
+                                                player.id ||
+                                                `${player.name}-${player.dateOfBirth}`
+                                              }
+                                              player={player}
+                                              team={teamById[player.teamId]}
+                                              country={
+                                                countryById[player.countryId]
+                                              }
+                                              compact
+                                              onClick={() =>
+                                                setSelectedPlayer(player)
+                                              }
+                                            />
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-xs font-medium text-slate-400">
+                                          No players in this subgroup.
+                                        </div>
+                                      )}
+                                    </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+        ) : (
+
+          /* EMPTY STATE */
+          <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center">
+
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-300">
+              <Users size={24} />
             </div>
-          </CollapsibleSection>
 
-          {/* 2 — COMPETITION */}
-          <CollapsibleSection
-            icon={Globe}
-            title="Competition"
-            description="League and current competition."
-            defaultOpen
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField
-                label="League"
-                hint="Busca una liga por nombre o abreviatura."
+            <h2 className="mt-4 text-sm font-extrabold text-slate-900">
+              {search
+                ? "No players found"
+                : "No players created yet"}
+            </h2>
+
+            <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
+              {search
+                ? "Try another player, club or country name."
+                : "Create your first player using the + button."}
+            </p>
+
+            {!search && (
+              <button
+                type="button"
+                onClick={
+                  handleOpenAddPlayer
+                }
+                className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477]"
               >
-                <SearchableTeamSelect
-                  value={
-                    isCreatingNewLeague
-                      ? "__new__"
-                      : form.leagueId
-                  }
-                  onChange={
-                    handleLeagueChange
-                  }
-                  options={leagues}
-                  kind="league"
-                  placeholder="Without league"
-                  searchPlaceholder="Search league..."
-                  emptyOption={{
-                    value: "",
-                    label: "Without league",
-                  }}
-                  specialOption={{
-                    value: "__new__",
-                    label:
-                      "+ Create new league",
-                  }}
-                />
-              </FormField>
+                <Plus size={16} />
+                Add player
+              </button>
+            )}
 
-              {isCreatingNewLeague && (
-                <FormField
-                  label="New league name *"
-                  hint="Se intentará crearla si no existe."
+          </div>
+        )}
+
+        {/* ADD PLAYER MODAL */}
+        {addModalOpen && (
+          <div
+            className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
+            onMouseDown={(event) => {
+              if (
+                event.target ===
+                event.currentTarget
+              ) {
+                handleCloseAddPlayer();
+              }
+            }}
+          >
+            <div className="max-h-[calc(100%_-_32px)] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+
+              {/* MODAL HEADER */}
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-900">
+                    Add player
+                  </h2>
+
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    Create a new player in the database.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    handleCloseAddPlayer
+                  }
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50"
+                  aria-label="Close"
                 >
+                  <X size={17} />
+                </button>
+              </div>
+
+              <form
+                onSubmit={
+                  handleSavePlayer
+                }
+                className="space-y-5 p-5"
+              >
+
+                {/* PLAYER NAME */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Player name
+                  </label>
+
                   <input
                     type="text"
-                    value={
-                      form.newLeagueName
-                    }
+                    value={form.name}
                     onChange={(event) =>
-                      updateField(
-                        "newLeagueName",
-                        event.target.value
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          name:
+                            event.target
+                              .value,
+                        })
                       )
                     }
-                    placeholder="e.g. LaLiga EA Sports"
+                    placeholder="e.g. Neymar Jr"
                     className={
                       inputClassName
                     }
                     required
                   />
-                </FormField>
-              )}
-            </div>
-          </CollapsibleSection>
-
-          {/* 3 — CLASSIFICATION */}
-          <CollapsibleSection
-            icon={TrendingUp}
-            title="Classification"
-            description="Club colors, reputation and market."
-            defaultOpen
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField
-                label="Primary color"
-                hint="HEX seleccionado desde la paleta o introducido manualmente."
-              >
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={
-                      /^#[0-9A-Fa-f]{6}$/.test(
-                        form.primaryColor
-                      )
-                        ? form.primaryColor
-                        : "#FFFFFF"
-                    }
-                    onChange={(event) =>
-                      updateField(
-                        "primaryColor",
-                        event.target.value.toUpperCase()
-                      )
-                    }
-                    className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
-                  />
-
-                  <input
-                    type="text"
-                    value={form.primaryColor}
-                    onChange={(event) =>
-                      updateField(
-                        "primaryColor",
-                        event.target.value.toUpperCase()
-                      )
-                    }
-                    placeholder="#FFFFFF"
-                    className={
-                      inputClassName
-                    }
-                  />
                 </div>
-              </FormField>
 
-              <FormField
-                label="Secondary color"
-                hint="HEX seleccionado desde la paleta o introducido manualmente."
-              >
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={
-                      /^#[0-9A-Fa-f]{6}$/.test(
-                        form.secondaryColor
-                      )
-                        ? form.secondaryColor
-                        : "#000000"
-                    }
-                    onChange={(event) =>
-                      updateField(
-                        "secondaryColor",
-                        event.target.value.toUpperCase()
-                      )
-                    }
-                    className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
-                  />
+                {/* DATE OF BIRTH */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Date of birth
+                  </label>
 
                   <input
                     type="text"
                     value={
-                      form.secondaryColor
+                      form.dateOfBirth
                     }
                     onChange={(event) =>
-                      updateField(
-                        "secondaryColor",
-                        event.target.value.toUpperCase()
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          dateOfBirth:
+                            event.target
+                              .value,
+                        })
                       )
                     }
-                    placeholder="#000000"
+                    placeholder="5/2/1999 o 05/02/1999"
+                    inputMode="numeric"
+                    maxLength={10}
                     className={
                       inputClassName
                     }
                   />
+
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    Format: DD/MM/YYYY
+                  </p>
                 </div>
-              </FormField>
 
-              {textField(
-                "reputation",
-                "Reputation (0-10000)",
-                "9500",
-                {
-                  type: "number",
-                  min: 0,
-                  max: 10000,
-                  step: 1,
-                }
-              )}
+                {/* COUNTRY */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Country
+                  </label>
 
-              <FormField
-                label="Market value (€)"
-                hint="Introduce el valor en euros. Se guardará y mostrará como 230,975,207 (€)."
-              >
-                <input
-                  type="text"
-                  value={form.market}
-                  onChange={(event) =>
-                    updateField(
-                      "market",
-                      cleanMarketInput(event.target.value)
-                    )
-                  }
-                  onBlur={() =>
-                    updateField(
-                      "market",
-                      formatMarketValue(form.market, "")
-                    )
-                  }
-                  placeholder="230,975,207 (€)"
-                  className={inputClassName}
-                  inputMode="numeric"
-                />
-              </FormField>
-            </div>
-          </CollapsibleSection>
+                  <SearchableEntitySelect
+                    value={form.countryId}
+                    onChange={(value) =>
+                      setForm((current) => ({
+                        ...current,
+                        countryId: value,
+                        newCountryName: "",
+                      }))
+                    }
+                    options={countries}
+                    kind="country"
+                    placeholder="Select country"
+                    searchPlaceholder="Search country..."
+                    emptyOption={{
+                      value: "",
+                      label: "Select country",
+                    }}
+                    specialOption={{
+                      value: NEW_COUNTRY_VALUE,
+                      label: "New country",
+                    }}
+                  />
 
-          {/* 4 — STADIUM */}
-          <CollapsibleSection
-            icon={Building2}
-            title="Stadium"
-            description="Stadium information and images."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              {textField(
-                "stadium",
-                "Stadium name",
-                "e.g. Santiago Bernabéu"
-              )}
+                  {form.countryId ===
+                    NEW_COUNTRY_VALUE && (
+                    <div className="mt-3 rounded-xl border border-[#003399]/15 bg-[#003399]/[0.035] p-4">
 
-              {textField(
-                "stadiumId",
-                "Stadium ID",
-                "Internal Stadium record ID"
-              )}
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        New country
+                      </label>
 
-              {textField(
-                "stadiumCapacity",
-                "Capacity",
-                "81000",
-                {
-                  type: "number",
-                  min: 0,
-                }
-              )}
+                      <input
+                        type="text"
+                        value={
+                          form.newCountryName
+                        }
+                        onChange={(event) =>
+                          setForm(
+                            (current) => ({
+                              ...current,
+                              newCountryName:
+                                event.target.value,
+                            })
+                          )
+                        }
+                        placeholder="e.g. Argentina"
+                        className={
+                          inputClassName
+                        }
+                        autoFocus
+                      />
 
-              {textField(
-                "stadiumBuiltYear",
-                "Built year",
-                "1947",
-                {
-                  type: "number",
-                  min: 1800,
-                  max: 2100,
-                }
-              )}
-
-              {textField(
-                "stadiumRenovation",
-                "Last renovation year",
-                "2024",
-                {
-                  type: "number",
-                  min: 1800,
-                  max: 2100,
-                }
-              )}
-
-              {textField(
-                "pitchDimensions",
-                "Pitch dimensions",
-                "105 x 68 m"
-              )}
-
-              {textField(
-                "stadiumInteriorUrl",
-                "Interior image URL",
-                "https://..."
-              )}
-
-              {textField(
-                "stadiumExteriorUrl",
-                "Exterior image URL",
-                "https://..."
-              )}
-            </div>
-          </CollapsibleSection>
-
-          {/* 5 — STAFF */}
-          <CollapsibleSection
-            icon={Users}
-            title="Staff & key players"
-            description="Current personnel. Leave fields blank when unknown."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              {textField(
-                "coachName",
-                "Coach name",
-                "e.g. Coach name"
-              )}
-
-              {textField(
-                "coachPhotoUrl",
-                "Coach photo URL",
-                "https://..."
-              )}
-
-              {textField(
-                "captainName",
-                "Captain name",
-                "e.g. Captain name"
-              )}
-
-              {textField(
-                "captainPhotoUrl",
-                "Captain photo URL",
-                "https://..."
-              )}
-
-              {textField(
-                "secondCaptainName",
-                "Second captain",
-                "e.g. Second captain"
-              )}
-
-              {textField(
-                "secondCaptainPhotoUrl",
-                "Second captain photo URL",
-                "https://..."
-              )}
-
-              {textField(
-                "keyPlayerName",
-                "Key player",
-                "e.g. Player name"
-              )}
-
-              {textField(
-                "keyPlayerPhotoUrl",
-                "Key player photo URL",
-                "https://..."
-              )}
-            </div>
-          </CollapsibleSection>
-
-          {/* 6 — KITS */}
-          <CollapsibleSection
-            icon={Shirt}
-            title="Kits"
-            description="Home, away and third kit information."
-          >
-            <div className="space-y-5">
-              {[1, 2, 3].map(
-                (kitNumber) => (
-                  <div
-                    key={kitNumber}
-                    className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"
-                  >
-                    <div className="mb-3">
-                      <h4 className="text-xs font-extrabold uppercase tracking-wide text-slate-700">
-                        {kitNumber === 1
-                          ? "First kit"
-                          : kitNumber === 2
-                            ? "Second kit"
-                            : "Third kit"}
-                      </h4>
+                      <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+                        The country will be created
+                        automatically when you save
+                        the player. Its 3-letter code
+                        will be generated automatically.
+                      </p>
                     </div>
+                  )}
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {textField(
-                        `kit${kitNumber}PhotoUrl`,
-                        "Photo URL",
-                        "https://..."
-                      )}
+                  {countries.length ===
+                    0 && (
+                    <p className="mt-1.5 text-[11px] text-slate-400">
+                      No countries have
+                      been created yet.
+                    </p>
+                  )}
+                </div>
 
-                      {textField(
-                        `kit${kitNumber}ShopUrl`,
-                        "Shop URL",
-                        "https://..."
-                      )}
-                    </div>
+                {/* CLUB */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Associated club
+                  </label>
 
-                    <KitColorPicker
-                      kitNumber={
-                        kitNumber
-                      }
-                      photoUrl={
-                        form[
-                          `kit${kitNumber}PhotoUrl`
-                        ]
-                      }
-                      badgeBg={
-                        form[
-                          `kit${kitNumber}BadgeBg`
-                        ]
-                      }
-                      badgeText={
-                        form[
-                          `kit${kitNumber}BadgeText`
-                        ]
-                      }
-                      onChangeColor={(
-                        field,
-                        color
-                      ) =>
-                        handleKitColorChange(
-                          kitNumber,
-                          field,
-                          color
-                        )
-                      }
-                    />
-                  </div>
-                )
-              )}
+                  <SearchableEntitySelect
+                    value={form.teamId}
+                    onChange={(value) =>
+                      setForm((current) => ({
+                        ...current,
+                        teamId: value,
+                        newTeamName: "",
+                      }))
+                    }
+                    options={teams}
+                    kind="team"
+                    placeholder="No club"
+                    searchPlaceholder="Search club..."
+                    emptyOption={{
+                      value: "",
+                      label: "No club",
+                    }}
+                    specialOption={{
+                      value: NEW_TEAM_VALUE,
+                      label: "+ Create new club",
+                    }}
+                  />
+                </div>
 
-              <FormField
-                label="Kits overview image"
-                hint="Imagen general opcional de las equipaciones."
-              >
-                <input
-                  type="text"
-                  value={
-                    form.kitsOverviewUrl
-                  }
-                  onChange={(event) =>
-                    updateField(
-                      "kitsOverviewUrl",
-                      event.target.value
-                    )
-                  }
-                  placeholder="https://..."
-                  className={
-                    inputClassName
-                  }
-                />
-              </FormField>
-            </div>
-          </CollapsibleSection>
+                {/* NEW CLUB */}
+                {form.teamId ===
+                  NEW_TEAM_VALUE && (
+                  <div className="rounded-xl border border-[#003399]/15 bg-[#003399]/[0.035] p-4">
 
-          {/* 7 — LEGACY / STATUS */}
-          <CollapsibleSection
-            icon={Database}
-            title="Legacy & status"
-            description="History, metadata and completion state."
-          >
-            <div className="space-y-4">
-              <FormField label="Club history">
-                <textarea
-                  value={form.history}
-                  onChange={(event) =>
-                    updateField(
-                      "history",
-                      event.target.value
-                    )
-                  }
-                  placeholder="Write the club history here..."
-                  className={
-                    textareaClassName
-                  }
-                />
-              </FormField>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                      New club
+                    </label>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                {selectField(
-                  "dataSource",
-                  "Data source",
-                  ["Manual", "Other"]
-                )}
-
-                <FormField label="Active club">
-                  <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm text-slate-700">
                     <input
-                      type="checkbox"
-                      checked={
-                        form.isActive
+                      type="text"
+                      value={
+                        form.newTeamName
                       }
                       onChange={(event) =>
-                        updateField(
-                          "isActive",
-                          event.target.checked
+                        setForm(
+                          (current) => ({
+                            ...current,
+                            newTeamName:
+                              event.target.value,
+                          })
                         )
                       }
-                    />
-                    Team is active
-                  </label>
-                </FormField>
-              </div>
-            </div>
-          </CollapsibleSection>
-
-          {isLogoZoomOpen &&
-            logoPreviewUrl && (
-              <div
-                className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-5"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Expanded logo preview"
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setIsLogoZoomOpen(
-                      false
-                    )
-                  }
-                  className="absolute right-5 top-5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800"
-                >
-                  Cerrar
-                </button>
-
-                <img
-                  src={logoPreviewUrl}
-                  alt="Expanded logo preview"
-                  className="max-h-[85vh] max-w-[90vw] object-contain"
-                />
-              </div>
-            )}
-
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              className="flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-xs font-semibold text-white transition hover:bg-[#002477]"
-            >
-              {isEditing ? (
-                <Save size={15} />
-              ) : (
-                <Plus size={15} />
-              )}
-              {isEditing ? "Save changes" : "Add team"}
-            </button>
-          </div>
-        </form>
-        </div>
-      </div>
-    </div>
-  );
-
-  return typeof document !== "undefined"
-    ? createPortal(
-        modalContent,
-        document.body
-      )
-    : null;
-}
-
-
-function cleanJsonInput(value) {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-  return fenced ? fenced[1].trim() : trimmed;
-}
-
-function importedValue(value) {
-  return value === null || value === undefined ? "" : String(value);
-}
-
-function numericValue(value, fallback = "0") {
-  if (value === null || value === undefined || value === "") return fallback;
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  const normalized = String(value).trim().toLowerCase();
-  const categoryMap = { elite: "9500", high: "8000", medium: "6000", low: "3500", unclassified: "0" };
-  if (categoryMap[normalized]) return categoryMap[normalized];
-  const digits = normalized.replace(/[^0-9.-]/g, "");
-  return digits && Number.isFinite(Number(digits)) ? digits : fallback;
-}
-
-function formatMarketValue(value, fallback = "") {
-  if (value === null || value === undefined || value === "") return fallback;
-
-  const normalized = String(value).trim();
-  if (!normalized) return fallback;
-
-  const digits = normalized.replace(/\D/g, "");
-  if (!digits) return fallback;
-
-  const numeric = digits.replace(/^0+(?=\d)/, "");
-  const grouped = numeric.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-
-  return `${grouped} (€)`;
-}
-
-function cleanMarketInput(value) {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  if (!digits) return "";
-
-  const numeric = digits.replace(/^0+(?=\d)/, "");
-  return numeric.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
-function mapImportedTeamToForm(data) {
-  const stadium = data.stadium || {};
-  const classification = data.classification || {};
-  const staff = data.staff || {};
-  const kits = data.kits || {};
-
-  return {
-    ...emptyTeamForm,
-    name: importedValue(data.name),
-    shortName: importedValue(data.short_name),
-    country: importedValue(data.country),
-    countryId: importedValue(data.country_id),
-    countryCode: importedValue(data.country_code),
-    newLeagueName: importedValue(data.competitions?.[0]?.name || data.league_name),
-    continent: importedValue(data.continent) || "Europe",
-    city: importedValue(data.city),
-    logo: importedValue(data.logo || data.badge_url),
-    primaryColor: importedValue(data.primary_color),
-    secondaryColor: importedValue(data.secondary_color),
-    foundedYear: importedValue(data.founded_year),
-    stadium: importedValue(stadium.name || data.stadium),
-    stadiumId: importedValue(data.stadium_id),
-    stadiumCapacity: importedValue(stadium.capacity || data.stadium_capacity),
-    stadiumBuiltYear: importedValue(stadium.built_year || data.stadium_built_year),
-    stadiumRenovation: importedValue(stadium.renovation_year || data.stadium_renovation),
-    pitchDimensions: importedValue(stadium.pitch_dimensions || data.pitch_dimensions),
-    stadiumInteriorUrl: importedValue(stadium.interior_url || data.stadium_interior_url),
-    stadiumExteriorUrl: importedValue(stadium.exterior_url || data.stadium_exterior_url),
-    reputation: numericValue(classification.reputation ?? data.reputation, "0"),
-    market: formatMarketValue(data.market_value ?? data.market, ""),
-    history: importedValue(data.history),
-    coachName: importedValue(staff.coach_name || data.coach_name),
-    coachPhotoUrl: importedValue(staff.coach_photo_url || data.coach_photo_url),
-    captainName: importedValue(staff.captain_name || data.captain_name),
-    captainPhotoUrl: importedValue(staff.captain_photo_url || data.captain_photo_url),
-    secondCaptainName: importedValue(staff.second_captain_name || data.second_captain_name),
-    secondCaptainPhotoUrl: importedValue(staff.second_captain_photo_url || data.second_captain_photo_url),
-    keyPlayerName: importedValue(staff.key_player_name || data.key_player_name),
-    keyPlayerPhotoUrl: importedValue(staff.key_player_photo_url || data.key_player_photo_url),
-    kit1PhotoUrl: importedValue(kits.kit1?.photo_url || data.kit1_photo_url),
-    kit1ShopUrl: importedValue(kits.kit1?.shop_url || data.kit1_shop_url),
-    kit1BadgeBg: importedValue(kits.kit1?.badge_bg || data.kit1_badge_bg),
-    kit1BadgeText: importedValue(kits.kit1?.badge_text || data.kit1_badge_text),
-    kit2PhotoUrl: importedValue(kits.kit2?.photo_url || data.kit2_photo_url),
-    kit2ShopUrl: importedValue(kits.kit2?.shop_url || data.kit2_shop_url),
-    kit2BadgeBg: importedValue(kits.kit2?.badge_bg || data.kit2_badge_bg),
-    kit2BadgeText: importedValue(kits.kit2?.badge_text || data.kit2_badge_text),
-    kit3PhotoUrl: importedValue(kits.kit3?.photo_url || data.kit3_photo_url),
-    kit3ShopUrl: importedValue(kits.kit3?.shop_url || data.kit3_shop_url),
-    kit3BadgeBg: importedValue(kits.kit3?.badge_bg || data.kit3_badge_bg),
-    kit3BadgeText: importedValue(kits.kit3?.badge_text || data.kit3_badge_text),
-    kitsOverviewUrl: importedValue(data.kits_overview_url || data.kitsOverviewUrl),
-    dataSource: "Manual",
-    isActive: true,
-  };
-}
-
-function mapTeamToForm(team) {
-  return {
-    ...emptyTeamForm,
-
-    name: team.name || "",
-    shortName: team.short_name || team.shortName || "",
-    country: team.country || "",
-    countryId: team.country_id || team.countryId || "",
-    countryCode: team.country_code || team.countryCode || "",
-    countryMapUrl: team.country_map_url || team.countryMapUrl || "",
-    countryTeamMapUrl: team.country_team_map_url || team.countryTeamMapUrl || "",
-    locationMapUrl: team.location_map_url || team.locationMapUrl || "",
-
-    leagueId: team.league_id || team.leagueId || "",
-    newLeagueName: "",
-
-    continent: team.continent || "Europe",
-    city: team.city || "",
-    logo: team.logo || "",
-
-    primaryColor: team.primary_color || team.primaryColor || "",
-    secondaryColor: team.secondary_color || team.secondaryColor || "",
-
-    foundedYear: team.founded_year || team.foundedYear || "",
-
-    stadium: team.stadium || "",
-    stadiumId: team.stadium_id || team.stadiumId || "",
-    stadiumCapacity: team.stadium_capacity || team.stadiumCapacity || "",
-    stadiumBuiltYear: team.stadium_built_year || team.stadiumBuiltYear || "",
-    stadiumRenovation: team.stadium_renovation || team.stadiumRenovation || "",
-    pitchDimensions: team.pitch_dimensions || team.pitchDimensions || "",
-    stadiumInteriorUrl: team.stadium_interior_url || team.stadiumInteriorUrl || "",
-    stadiumExteriorUrl: team.stadium_exterior_url || team.stadiumExteriorUrl || "",
-
-    reputation: team.reputation || "",
-    market: formatMarketValue(team.market, ""),
-    history: team.history || "",
-
-    coachName: team.coach_name || team.coachName || "",
-    coachPhotoUrl: team.coach_photo_url || team.coachPhotoUrl || "",
-
-    captainName: team.captain_name || team.captainName || "",
-    captainPhotoUrl: team.captain_photo_url || team.captainPhotoUrl || "",
-
-    secondCaptainName:
-      team.second_captain_name || team.secondCaptainName || "",
-    secondCaptainPhotoUrl:
-      team.second_captain_photo_url || team.secondCaptainPhotoUrl || "",
-
-    keyPlayerName: team.key_player_name || team.keyPlayerName || "",
-    keyPlayerPhotoUrl:
-      team.key_player_photo_url || team.keyPlayerPhotoUrl || "",
-
-    kit1PhotoUrl: team.kit1_photo_url || team.kit1PhotoUrl || "",
-    kit1ShopUrl: team.kit1_shop_url || team.kit1ShopUrl || "",
-    kit1BadgeBg: team.kit1_badge_bg || team.kit1BadgeBg || "",
-    kit1BadgeText: team.kit1_badge_text || team.kit1BadgeText || "",
-
-    kit2PhotoUrl: team.kit2_photo_url || team.kit2PhotoUrl || "",
-    kit2ShopUrl: team.kit2_shop_url || team.kit2ShopUrl || "",
-    kit2BadgeBg: team.kit2_badge_bg || team.kit2BadgeBg || "",
-    kit2BadgeText: team.kit2_badge_text || team.kit2BadgeText || "",
-
-    kit3PhotoUrl: team.kit3_photo_url || team.kit3PhotoUrl || "",
-    kit3ShopUrl: team.kit3_shop_url || team.kit3ShopUrl || "",
-    kit3BadgeBg: team.kit3_badge_bg || team.kit3BadgeBg || "",
-    kit3BadgeText: team.kit3_badge_text || team.kit3BadgeText || "",
-    kitsOverviewUrl: team.kits_overview_url || team.kitsOverviewUrl || "",
-
-    dataSource: team.data_source || team.dataSource || "Manual",
-    isActive: team.is_active ?? team.isActive ?? true,
-  };
-}
-
-function extractJsonFromText(value) {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-  if (fenced) return fenced[1].trim();
-
-  if (trimmed.startsWith("{") && trimmed.endsWith("}")) return trimmed;
-
-  const firstBrace = trimmed.indexOf("{");
-  const lastBrace = trimmed.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    return trimmed.slice(firstBrace, lastBrace + 1).trim();
-  }
-
-  return "";
-}
-
-function parseLabeledTeamText(text) {
-  const result = {};
-  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-
-  const aliases = {
-    "nombre": "name",
-    "nombre oficial": "name",
-    "team name": "name",
-    "club": "name",
-    "nombre corto": "short_name",
-    "short name": "short_name",
-    "abreviatura": "short_name",
-    "país": "country",
-    "pais": "country",
-    "country": "country",
-    "código": "country_code",
-    "codigo": "country_code",
-    "country code": "country_code",
-    "continente": "continent",
-    "continent": "continent",
-    "ciudad": "city",
-    "city": "city",
-    "escudo": "logo",
-    "logo": "logo",
-    "logo url": "logo",
-    "año de fundación": "founded_year",
-    "ano de fundacion": "founded_year",
-    "founded year": "founded_year",
-    "estadio": "stadium",
-    "stadium": "stadium",
-    "capacidad": "stadium_capacity",
-    "stadium capacity": "stadium_capacity",
-    "entrenador": "coach_name",
-    "coach": "coach_name",
-    "capitán": "captain_name",
-    "capitan": "captain_name",
-    "captain": "captain_name",
-    "historia": "history",
-    "history": "history",
-    "reputación": "reputation",
-    "reputacion": "reputation",
-    "reputation": "reputation",
-    "mercado": "market",
-    "market": "market"
-  };
-
-  lines.forEach((line) => {
-    const match = line.match(/^[-*•]?\s*([^:：-]+?)\s*[:：-]\s*(.+)$/);
-    if (!match) return;
-
-    const label = match[1].trim().toLowerCase();
-    const value = match[2].trim();
-    const field = aliases[label];
-    if (field && value) result[field] = value;
-  });
-
-  return result;
-}
-
-function normalizeImportedTeamText(value) {
-  const jsonCandidate = extractJsonFromText(value);
-
-  if (jsonCandidate) {
-    try {
-      const parsed = JSON.parse(jsonCandidate);
-      if (parsed && !Array.isArray(parsed) && typeof parsed === "object") return parsed;
-    } catch {
-      // If the content is not valid JSON, try the simple labelled-text parser below.
-    }
-  }
-
-  return parseLabeledTeamText(value);
-}
-
-function ImportTeamJsonModal({ onClose, onImport }) {
-  const [mode, setMode] = useState("text");
-  const [content, setContent] = useState("");
-  const [error, setError] = useState("");
-
-  const handleImport = (event) => {
-    event.preventDefault();
-    setError("");
-
-    const parsed = normalizeImportedTeamText(content);
-
-    if (!parsed || (!parsed.name && !parsed.short_name)) {
-      setError(
-        mode === "text"
-          ? "No se han identificado datos suficientes. Pega el JSON completo generado por el prompt o utiliza líneas con formato Campo: valor."
-          : "El contenido debe ser un objeto JSON válido con al menos name o short_name."
-      );
-      return;
-    }
-
-    onImport(mapImportedTeamToForm(parsed));
-  };
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="import-team-json-title">
-      <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h2 id="import-team-json-title" className="text-lg font-extrabold text-slate-900">Añadir equipo mediante información</h2>
-            <p className="mt-1 text-xs text-slate-500">Pega el resultado completo del prompt y carga los datos en el editor.</p>
-          </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" aria-label="Close import dialog">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="mb-4 flex gap-2">
-          <button type="button" onClick={() => { setMode("text"); setError(""); }} className={`rounded-lg border px-4 py-2 text-xs font-semibold transition ${mode === "text" ? "border-[#073B35] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
-            Pegar texto
-          </button>
-          <button type="button" onClick={() => { setMode("json"); setError(""); }} className={`rounded-lg border px-4 py-2 text-xs font-semibold transition ${mode === "json" ? "border-[#073B35] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
-            JSON
-          </button>
-        </div>
-
-        <form onSubmit={handleImport} className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-            {mode === "text"
-              ? "Pega aquí toda la información del club. Se aceptan el JSON del prompt, bloques JSON con formato Markdown o líneas como Nombre: Real Madrid."
-              : "Pega el objeto JSON completo generado por el prompt. También se aceptan bloques con formato ```json ... ```."}
-          </div>
-          <textarea
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            placeholder={mode === "text" ? "Pega aquí toda la información del equipo..." : '{\n  "name": "Real Madrid",\n  "short_name": "RMA",\n  "country": "Spain"\n}'}
-            className={`${textareaClassName} min-h-[320px] font-mono text-xs`}
-            autoFocus
-            required
-          />
-          {error && <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-            <button type="button" onClick={onClose} className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Cancelar</button>
-            <button type="submit" className="flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-xs font-semibold text-white transition hover:bg-[#002477]">
-              <ClipboardPaste size={15} />
-              Detectar información
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-
-
-function TeamDetail({
-  team,
-  onClose,
-  onEdit,
-  form,
-  setForm,
-  countries,
-  leagues,
-  onCloseEdit,
-  onSubmit,
-}) {
-  const [editPanelOpen, setEditPanelOpen] = useState(false);
-  const [isPageTransitioning, setIsPageTransitioning] = useState(false);
-  const detailScrollRef = useRef(null);
-  const transitionTimeoutRef = useRef(null);
-
-  useLayoutEffect(() => {
-    const container =
-      detailScrollRef.current;
-
-    if (!container) return;
-
-    const resetScroll = () => {
-      container.scrollTop = 0;
-      container.scrollLeft = 0;
-
-      let parent = container.parentElement;
-
-      while (parent) {
-        parent.scrollTop = 0;
-        parent.scrollLeft = 0;
-        parent = parent.parentElement;
-      }
-
-      window.scrollTo({
-        top: 0,
-        left: 0,
-        behavior: "auto",
-      });
-    };
-
-    resetScroll();
-
-    const frame = window.requestAnimationFrame(
-      resetScroll
-    );
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [team?.id]);
-
-  useEffect(() => {
-    return () => {
-      if (transitionTimeoutRef.current) {
-        window.clearTimeout(transitionTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const goToSection = (sectionIndex) => {
-    const container = detailScrollRef.current;
-    if (!container || isPageTransitioning) return;
-
-    const sections = Array.from(
-      container.querySelectorAll("[data-scroll-section]")
-    );
-    const targetSection = sections[sectionIndex];
-
-    if (!targetSection) return;
-
-    setIsPageTransitioning(true);
-
-    const containerRect = container.getBoundingClientRect();
-    const targetRect = targetSection.getBoundingClientRect();
-    const targetTop =
-      container.scrollTop + (targetRect.top - containerRect.top);
-
-    container.scrollTo({
-      top: targetTop,
-      behavior: "smooth",
-    });
-
-    transitionTimeoutRef.current = window.setTimeout(() => {
-      setIsPageTransitioning(false);
-    }, 900);
-  };
-
-  const primaryColor =
-    team.primaryColor ||
-    team.primary_color ||
-    "#063B78";
-
-  const secondaryColor =
-    team.secondaryColor ||
-    team.secondary_color ||
-    "#941638";
-
-  const foundedYear =
-    team.foundedYear ||
-    team.founded_year ||
-    team.yearFounded ||
-    "";
-
-  const city = team.city || "";
-  const country = team.country || "";
-  const marketDisplay = formatMarketValue(team.market, "");
-  const teamName = team.name || "Equipo";
-  const shortName = team.shortName || team.short_name || "";
-
-  // Información adicional del equipo
-  const stadium =
-    team.stadium ||
-    team.stadium_name ||
-    team.stadiumName ||
-    "";
-
-  const stadiumCapacity =
-    team.stadiumCapacity ||
-    team.stadium_capacity ||
-    team.capacity ||
-    "";
-
-  const ranking =
-    team.ranking ||
-    team.worldRanking ||
-    team.world_ranking ||
-    "";
-
-// Imagen de la camiseta
-const kitHomeUrl = normalizeImageUrl(
-  team.kit1_photo_url ||
-    team.kit1PhotoUrl ||
-    team.kit_home_url ||
-    team.kitHomeUrl ||
-    team.home_kit_url ||
-    team.homeKitUrl ||
-    team.kit_url ||
-    team.kits?.kit1?.photo_url ||
-    ""
-);
-
-const kitsOverviewUrl = normalizeImageUrl(
-  team.kits_overview_url ||
-    team.kitsOverviewUrl ||
-    team.kits_image_url ||
-    team.kitsImageUrl ||
-    ""
-);
-
-  // Gráficos geográficos superpuestos: mapa del país + mapa con el escudo
-  const countryMapUrl = normalizeImageUrl(
-    team.country_map_url ||
-      team.countryMapUrl ||
-      ""
-  );
-
-  const countryTeamMapUrl =
-    normalizeImageUrl(
-      team.country_team_map_url ||
-        team.countryTeamMapUrl ||
-        ""
-    );
-
-  const displayName = teamName.toUpperCase();
-
-  return (
-    <div
-      ref={detailScrollRef}
-      className="relative h-[calc(100vh-4rem)] overflow-y-auto overscroll-none p-3 sm:p-4 md:p-6 [&::-webkit-scrollbar]:hidden"
-      style={{
-        backgroundColor: primaryColor,
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-      }}
-    >
-      {/* FONDO SECUNDARIO DIAGONAL */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundColor: secondaryColor,
-          clipPath:
-            "polygon(60% 0, 100% 0, 100% 100%, 42% 100%)",
-        }}
-      />
-
-      {/* DEGRADADO DE PROFUNDIDAD */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-25"
-        style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, transparent 45%, ${secondaryColor} 100%)`,
-        }}
-      />
-
-      {/* CONTENEDOR PRINCIPAL */}
-      <div className="relative z-10">
-        <div
-          data-scroll-section
-          className="relative min-h-full overflow-hidden rounded-2xl border border-white/20 bg-black/10 shadow-2xl"
-        >
-          {/* GRÁFICO GEOGRÁFICO: MISMA POSICIÓN, TAMAÑO Y PROPORCIÓN */}
-          {countryMapUrl && (
-            <img
-              src={countryMapUrl}
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none absolute bottom-[150px] right-4 z-0 h-[70%] w-auto max-w-[55%] object-contain opacity-35 grayscale"
-            />
-          )}
-          {countryTeamMapUrl && (
-            <img
-              src={countryTeamMapUrl}
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none absolute bottom-[150px] right-4 z-0 h-[70%] w-auto max-w-[55%] object-contain"
-            />
-          )}
-
-          {/* CABECERA INTEGRADA */}
-          <div className="relative z-30 flex items-center justify-between gap-4 px-5 pt-5 md:px-8 md:pt-7">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-full border border-white/40 bg-black/10 px-4 py-2 text-[11px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
-            >
-              ← Volver a equipos
-            </button>
-
-            <button
-  type="button"
-  onClick={() => {
-  setEditPanelOpen(true);
-  onEdit(team);
-}}
-  className="cursor-pointer rounded-sm text-[10px] font-bold uppercase tracking-[0.3em] text-white/75 transition hover:text-white focus:outline-none focus:ring-1 focus:ring-white/60"
->
-  Team profile
-</button>
-          </div>
-
-          {/* COMPOSICIÓN PRINCIPAL */}
-<div className="relative z-10 grid min-h-[720px] grid-cols-1 md:grid-cols-[55%_45%]">
-            {/* LADO IZQUIERDO */}
-            <div className="relative flex flex-col justify-between p-6 pt-14 sm:p-8 sm:pt-16 md:p-12 md:pt-20">
-              {/* LEMA */}
-              <div>
-                <div className="mb-8 flex items-center gap-3">
-                  <div className="flex gap-2">
-                    <span
-                      className="h-1 w-9"
-                      style={{
-                        backgroundColor: primaryColor,
-                      }}
+                      placeholder="e.g. Santos FC"
+                      className={
+                        inputClassName
+                      }
+                      autoFocus
                     />
 
-                    <span
-                      className="h-1 w-9"
-                      style={{
-                        backgroundColor: secondaryColor,
-                      }}
-                    />
-                  </div>
-
-                  <span className="team-section-label text-[10px] text-white/80 sm:text-xs">
-                    Más que un club
-                  </span>
-                </div>
-
-                {/* CIUDAD / IDENTIFICADOR */}
-                <p className="team-section-label mb-4 text-xs text-white/65">
-                  {city || shortName || "Football Club"}
-                </p>
-
-                {/* NOMBRE PRINCIPAL */}
-<h1 className="team-display-title max-w-none text-5xl text-white sm:text-7xl md:text-[8rem]">
-  {displayName.split(" ").map((word, index) => (
-    <span key={index} className="block">
-      {word}
-    </span>
-  ))}
-</h1>
-
-                <p className="team-section-label mt-7 text-[9px] text-white/65 sm:text-xs">
-                  MF LEGACY · TEAM PROFILE
-                </p>
-              </div>
-
-              {/* DATOS BÁSICOS */}
-              <div className="relative z-20 mt-14 md:mt-8">
-                <div className="grid grid-cols-2 gap-x-5 gap-y-7 md:grid-cols-3">
-                  <div>
-                    <p className="team-section-label text-[9px] text-white/55">
-                      Año de fundación
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+                      The club will be
+                      created automatically
+                      when you save the player.
+                      The selected country will be
+                      assigned to the new club.
                     </p>
 
-                    <p className="team-data-value mt-2 text-xl text-white">
-                      {foundedYear || "—"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="team-section-label text-[9px] text-white/55">
-                      País
-                    </p>
-
-                    <p className="team-data-value mt-2 text-xl text-white">
-                      {country || "—"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="team-section-label text-[9px] text-white/55">
-                      Market value
-                    </p>
-
-                    <p className="team-data-value mt-2 text-xl text-white">
-                      {marketDisplay || "—"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="team-section-label text-[9px] text-white/55">
-                      Ciudad
-                    </p>
-
-                    <p className="team-data-value mt-2 text-xl text-white">
-                      {city || "—"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* INFORMACIÓN DEPORTIVA */}
-                {(stadium || stadiumCapacity || ranking) && (
-                  <div className="mt-8 grid grid-cols-2 gap-5 border-t border-white/20 pt-5">
-                    {(ranking || ranking === 0) && (
-                      <div>
-                        <p className="team-section-label text-[9px] text-white/55">
-                          Ranking
-                        </p>
-
-                        <p className="team-data-value mt-2 text-lg text-white">
-                          {ranking}
-                        </p>
-                      </div>
-                    )}
-
-                    {stadium && (
-                      <div>
-                        <p className="team-section-label text-[9px] text-white/55">
-                          Estadio
-                        </p>
-
-                        <p className="team-data-value mt-2 text-sm text-white">
-                          {stadium}
-                        </p>
-
-                        {stadiumCapacity && (
-                          <p className="mt-1 text-xs text-white/60">
-                            Capacidad {stadiumCapacity}
-                          </p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 )}
-              </div>
 
-              {/* AÑO DE FUNDACIÓN DECORATIVO */}
-              <div className="pointer-events-none absolute bottom-[-10px] left-5 select-none overflow-hidden md:left-10">
-                <span className="text-[110px] font-black leading-none text-white/[0.07] sm:text-[150px] md:text-[190px]">
-                  {foundedYear || "FC"}
-                </span>
-              </div>
-            </div>
-
-            {/* LADO DERECHO */}
-<div className="relative flex min-h-[450px] flex-col items-center justify-center p-6 pt-20 sm:p-10 md:absolute md:inset-0 md:z-20 md:min-h-0 md:p-0">
-              {/* ETIQUETA DE IDENTIDAD */}
-              <div className="absolute right-6 top-12 text-right sm:right-10 md:right-12">
-                <p className="team-section-label text-[10px] text-white/80 sm:text-xs">
-                  Identity
-                </p>
-
-                <div className="ml-auto mt-3 flex gap-2">
-                  <span
-                    className="h-1 w-7"
-                    style={{
-                      backgroundColor: primaryColor,
-                    }}
-                  />
-
-                  <span
-                    className="h-1 w-7"
-                    style={{
-                      backgroundColor: secondaryColor,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* CAMISETA PRINCIPAL */}
-              {kitHomeUrl && (
-                <div className="relative z-10 flex w-full items-center justify-center px-4 py-6 md:absolute md:left-1/2 md:top-1/2 md:w-[68%] md:-translate-x-1/2 md:-translate-y-1/2 md:px-0">
-                  <img
-  src={kitHomeUrl}
-  alt={`${teamName} primera equipación`}
-  className="max-h-[520px] w-full max-w-[520px] object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-105 sm:max-h-[560px] sm:max-w-[560px] md:max-h-[650px] md:max-w-[620px]"
-/>
-                </div>
-              )}
-
-              {/* NAVEGACIÓN A LA SIGUIENTE PÁGINA */}
-              <button
-                type="button"
-                onClick={() => goToSection(1)}
-                disabled={isPageTransitioning}
-                aria-label="Ir a History"
-                className={`group absolute bottom-8 right-6 flex items-center gap-3 text-right transition-all duration-500 sm:right-10 md:right-12 ${
-                  isPageTransitioning
-                    ? "translate-x-2 opacity-50"
-                    : "hover:-translate-x-1"
-                }`}
-              >
-                <span className="flex flex-col">
-                  <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
-                    Tradition
-                  </span>
-
-                  <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
-                    Identity
-                  </span>
-
-                  <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
-                    Legacy
-                  </span>
-
-                  <span className="mt-2 text-[8px] uppercase tracking-[0.25em] text-white/45 transition-colors duration-300 group-hover:text-white/80">
-                    Enter history →
-                  </span>
-                </span>
-
-                <span className="flex h-16 w-1 flex-col">
-                  <div
-                    className="h-1/2"
-                    style={{
-                      backgroundColor: primaryColor,
-                    }}
-                  />
-
-                  <div
-                    className="h-1/2"
-                    style={{
-                      backgroundColor: secondaryColor,
-                    }}
-                  />
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* LÍNEA INFERIOR DE COLOR */}
-          <div className="absolute bottom-0 left-0 right-0 z-30 flex h-1">
-            <div
-              className="w-1/2"
-              style={{
-                backgroundColor: primaryColor,
-              }}
-            />
-
-            <div
-              className="w-1/2"
-              style={{
-                backgroundColor: secondaryColor,
-              }}
-            />
-                    </div>
-
-          {editPanelOpen && (
-            <AddTeamModal
-              form={form}
-              setForm={setForm}
-              countries={countries}
-              leagues={leagues}
-              isEditing
-              onClose={() => {
-                setEditPanelOpen(false);
-                onCloseEdit();
-              }}
-              onSubmit={async (event) => {
-                const saved = await onSubmit(event);
-                if (saved) {
-                  setEditPanelOpen(false);
-                }
-              }}
-            />
-          )}
-        </div>
-
-        {/* SECCIÓN 2: HISTORIA DEL CLUB */}
-        <section
-          data-scroll-section
-          className="relative mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
-        >
-          <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 md:grid-cols-[1fr_1fr]">
-            <div>
-              <p className="team-section-label text-xs uppercase tracking-[0.3em] text-white/70">MF LEGACY · CLUB HISTORY</p>
-              <h2 className="mt-4 text-5xl font-black uppercase text-white md:text-8xl">History</h2>
-              <div className="mt-10 max-w-3xl border-l-2 border-white/30 pl-5">
-                <p className="text-sm leading-7 text-white/80 md:text-base">
-                  {team.history || "Añade la historia del club desde Team profile para mostrarla aquí."}
-                </p>
-              </div>
-            </div>
-            <div className="relative flex min-h-[360px] items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/10 p-5 md:min-h-[520px]">
-              {kitsOverviewUrl || kitHomeUrl ? (
-                <>
-                  <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-3xl md:h-[420px] md:w-[420px]" />
-                  <img
-                    src={kitsOverviewUrl || kitHomeUrl}
-                    alt={kitsOverviewUrl ? `${teamName} tres equipaciones` : `${teamName} camiseta local`}
-                    className="relative z-10 mx-auto h-auto max-h-[460px] w-full object-contain drop-shadow-[0_25px_30px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-[1.04]"
-                  />
-                </>
-              ) : (
-                <p className="text-center text-xs uppercase tracking-[0.3em] text-white/60">
-                  Añade la imagen de las tres equipaciones
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* NAVEGACIÓN A LA PÁGINA PRINCIPAL */}
-          <button
-            type="button"
-            onClick={() => goToSection(0)}
-            disabled={isPageTransitioning}
-            aria-label="Volver a la página principal"
-            className={`group absolute bottom-8 right-6 flex items-center gap-3 text-right transition-all duration-500 sm:right-10 md:right-12 ${
-              isPageTransitioning
-                ? "translate-x-2 opacity-50"
-                : "hover:-translate-x-1"
-            }`}
-          >
-            <span className="flex flex-col">
-              <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
-                Tradition
-              </span>
-
-              <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
-                Identity
-              </span>
-
-              <span className="team-section-label text-[9px] text-white/70 transition-colors duration-300 group-hover:text-white">
-                Legacy
-              </span>
-
-              <span className="mt-2 text-[8px] uppercase tracking-[0.25em] text-white/45 transition-colors duration-300 group-hover:text-white/80">
-                Back to identity ←
-              </span>
-            </span>
-
-            <span className="flex h-16 w-1 flex-col">
-              <div
-                className="h-1/2"
-                style={{
-                  backgroundColor: primaryColor,
-                }}
-              />
-
-              <div
-                className="h-1/2"
-                style={{
-                  backgroundColor: secondaryColor,
-                }}
-              />
-            </span>
-          </button>
-        </section>
-
-        {/* SECCIÓN 3: ESTADIO Y PERSONAL */}
-        <section
-          data-scroll-section
-          className="mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12"
-        >
-          <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 md:grid-cols-2">
-            <div>
-              <p className="team-section-label text-xs uppercase tracking-[0.3em] text-white/70">MF LEGACY · CLUB DATA</p>
-              <h2 className="mt-4 text-5xl font-black uppercase text-white md:text-7xl">Stadium</h2>
-              <p className="mt-6 text-sm leading-7 text-white/80 md:text-base">
-                {stadium || "Estadio no disponible"}
-              </p>
-              {stadiumCapacity && (
-                <p className="mt-2 text-sm text-white/60">Capacidad: {stadiumCapacity}</p>
-              )}
-            </div>
-            <div className="overflow-hidden rounded-2xl border border-white/20 bg-black/20">
-              {team.stadium_exterior_url || team.stadiumExteriorUrl ? (
-                <img
-                  src={team.stadium_exterior_url || team.stadiumExteriorUrl}
-                  alt={`${teamName} estadio`}
-                  className="h-full max-h-[520px] w-full object-cover"
-                />
-              ) : (
-                <div className="flex min-h-[300px] items-center justify-center p-6 text-center text-xs uppercase tracking-[0.25em] text-white/50">
-                  Añade una imagen exterior del estadio
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
-export default function Teams() {
-
-  const [teams, setTeams] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [countries, setCountries] = useState([]);
-  const [leagues, setLeagues] = useState([]);
-  const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState("countries");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [importJsonModalOpen, setImportJsonModalOpen] = useState(false);
-  const [form, setForm] = useState(emptyTeamForm);
-  const [selectedTeam, setSelectedTeam] = useState(null);
-  const [editingTeam, setEditingTeam] = useState(null);
-
-  const handleOpenAddTeam = () => {
-    setEditingTeam(null);
-    setForm({ ...emptyTeamForm });
-    setAddModalOpen(true);
-  };
-
-  useEffect(() => {
-  if (editingTeam) {
-    setForm(mapTeamToForm(editingTeam));
-  }
-}, [editingTeam]);
-
-  const {
-    setTeamTheme,
-    setSidebarVisible,
-  } = useOutletContext() || {};
-
-  useEffect(() => {
-    if (!setTeamTheme) return;
-
-    if (!selectedTeam) {
-      setTeamTheme({
-        primaryColor: "#003399",
-        secondaryColor: "#FFFFFF",
-      });
-
-      if (setSidebarVisible) {
-        setSidebarVisible(true);
-      }
-
-      return;
-    }
-
-  const primaryColor =
-    selectedTeam.primaryColor ||
-    selectedTeam.primary_color ||
-    "#063B78";
-
-  const secondaryColor =
-    selectedTeam.secondaryColor ||
-    selectedTeam.secondary_color ||
-    "#941638";
-
-  setTeamTheme({
-    primaryColor,
-    secondaryColor,
-  });
-}, [selectedTeam, setTeamTheme]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const getList = (result) => {
-      if (Array.isArray(result)) return result;
-      if (Array.isArray(result?.data)) return result.data;
-      if (Array.isArray(result?.items)) return result.items;
-      if (Array.isArray(result?.results)) return result.results;
-      return [];
-    };
-
-    const normalizeCountry = (country) => ({
-      ...country,
-      id: country?.id || country?._id || country?.data?.id || "",
-      name: country?.name || "",
-      code: country?.code || country?.country_code || "",
-      continent: country?.continent || "",
-    });
-
-    const normalizeLeague = (league) => ({
-      ...league,
-      id: league?.id || league?._id || league?.data?.id || "",
-      name: league?.name || "",
-      shortName: league?.short_name || league?.shortName || "",
-      countryId: league?.country_id || league?.countryId || "",
-      level: league?.level ?? league?.league_level ?? "",
-      reputation: league?.reputation ?? league?.league_reputation ?? 0,
-      logo: league?.logo || league?.logo_url || "",
-      isActive: league?.is_active ?? league?.isActive ?? true,
-    });
-
-    const loadCountries = async () => {
-      try {
-        const result = await base44.entities.Country.list();
-        const loadedCountries = getList(result).map(normalizeCountry);
-        if (!cancelled) setCountries(loadedCountries);
-        return loadedCountries;
-      } catch (error) {
-        console.error("Error loading countries:", error);
-        return [];
-      }
-    };
-
-    const loadLeagues = async () => {
-      try {
-        const result = await base44.entities.League.list();
-        const loadedLeagues = getList(result).map(normalizeLeague).filter((league) => league.id && league.name && league.isActive !== false);
-        if (!cancelled) setLeagues(loadedLeagues);
-        return loadedLeagues;
-      } catch (error) {
-        console.error("Error loading leagues:", error);
-        return [];
-      }
-    };
-
-    const loadTeams = async (
-  loadedCountries = [],
-  loadedLeagues = []
-) => {
-  setIsLoading(true);
-
-  try {
-    const result = await base44.entities.Team.list();
-    const loadedTeams = getList(result);
-    console.log("EQUIPOS CARGADOS DESDE BASE44:", loadedTeams);
-
-        const normalizedTeams = loadedTeams.map((team) => {
-          const teamId = team.id || team._id || "";
-          const teamCountryId = team.country_id || team.countryId || "";
-          const country = loadedCountries.find((item) => String(item.id || "") === String(teamCountryId));
-          const leagueId = team.league_id || team.leagueId || "";
-          const league = loadedLeagues.find((item) => String(item.id || "") === String(leagueId));
-          return {
-            ...team,
-            id: teamId,
-            name: team.name || "",
-            shortName: team.short_name || team.shortName || "",
-            countryId: teamCountryId,
-            country: team.country || team.country_name || team.countryName || country?.name || "Unknown country",
-            countryCode: team.country_code || team.countryCode || country?.code || "",
-            continent: team.continent || country?.continent || "Unknown continent",
-            city: team.city || "",
-            logo: team.logo || team.logo_url || "",
-            primaryColor: team.primary_color || team.primaryColor || "",
-            secondaryColor: team.secondary_color || team.secondaryColor || "",
-            foundedYear: team.founded_year || team.foundedYear || null,
-            stadium: team.stadium || "",
-            stadiumId: team.stadium_id || team.stadiumId || "",
-            stadiumCapacity: team.stadium_capacity || team.stadiumCapacity || null,
-            stadiumBuiltYear: team.stadium_built_year || team.stadiumBuiltYear || null,
-            stadiumRenovation: team.stadium_renovation || team.stadiumRenovation || null,
-            pitchDimensions: team.pitch_dimensions || team.pitchDimensions || "",
-            stadiumInteriorUrl: team.stadium_interior_url || team.stadiumInteriorUrl || "",
-            stadiumExteriorUrl: team.stadium_exterior_url || team.stadiumExteriorUrl || "",
-            reputation: numericValue(team.reputation, "0"),
-            market: formatMarketValue(team.market, ""),
-            history: team.history || "",
-            coachName: team.coach_name || team.coachName || "",
-            coachPhotoUrl: team.coach_photo_url || team.coachPhotoUrl || "",
-            captainName: team.captain_name || team.captainName || "",
-            captainPhotoUrl: team.captain_photo_url || team.captainPhotoUrl || "",
-            secondCaptainName: team.second_captain_name || team.secondCaptainName || "",
-            secondCaptainPhotoUrl: team.second_captain_photo_url || team.secondCaptainPhotoUrl || "",
-            keyPlayerName: team.key_player_name || team.keyPlayerName || "",
-            keyPlayerPhotoUrl: team.key_player_photo_url || team.keyPlayerPhotoUrl || "",
-            dataSource: team.data_source || team.dataSource || "Manual",
-            isActive: team.is_active ?? team.isActive ?? true,
-            leagueId,
-            competition: league?.name || "Without competition",
-            competitionLogo: league?.logo || "",
-            competitionLevel:
-            league?.level !== undefined &&
-            league?.level !== null &&
-            league?.level !== ""
-    ? Number(league.level)
-    : 999,
-incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
-          };
-        });
-        if (!cancelled) setTeams(normalizedTeams);
-      } catch (error) {
-        console.error("Error loading teams:", error);
-      }
-    };
-
-    const loadData = async () => {
-      const [loadedCountries, loadedLeagues] = await Promise.all([
-        loadCountries(),
-        loadLeagues(),
-      ]);
-      await loadTeams(loadedCountries, loadedLeagues);
-    };
-
-    loadData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const filteredTeams = useMemo(() => {
-    const normalizedSearch = search.toLowerCase().trim();
-
-    const getReputation = (team) => {
-      const rawValue = team?.reputation;
-      if (rawValue === null || rawValue === undefined || String(rawValue).trim() === "") {
-        return null;
-      }
-
-      const value = Number(rawValue);
-      return Number.isFinite(value) ? value : null;
-    };
-
-    return teams
-      .filter((team) => {
-        if (!normalizedSearch) return true;
-
-        return [team.name, team.country, team.competition, team.city]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(normalizedSearch));
-      })
-      .sort((a, b) => {
-        const reputationA = getReputation(a);
-        const reputationB = getReputation(b);
-
-        // Teams with a known reputation come first, from highest to lowest.
-        if (reputationA === null && reputationB !== null) return 1;
-        if (reputationA !== null && reputationB === null) return -1;
-        if (reputationA !== null && reputationB !== null && reputationA !== reputationB) {
-          return reputationB - reputationA;
-        }
-
-        // Stable, predictable ordering for equal or missing reputation values.
-        return String(a?.name || "").localeCompare(String(b?.name || ""), "es", {
-          sensitivity: "base",
-        });
-      });
-  }, [teams, search]);
-
-  const groupedTeams = useMemo(() => {
-    const normalizeComparable = (value) =>
-      String(value || "")
-        .trim()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase();
-
-    const getCountryKeys = (country) =>
-      [
-        country?.id,
-        country?.name,
-        country?.code,
-        country?.country_code,
-      ]
-        .filter(Boolean)
-        .map(normalizeComparable);
-
-    const getLeagueCountryKeys = (league) =>
-      [
-        league?.countryId,
-        league?.country_id,
-      ]
-        .filter(Boolean)
-        .map(normalizeComparable);
-
-    const getCountryReputation = (countryId, countryName, countryCode) => {
-      const country =
-        countries.find(
-          (item) => String(item?.id || "") === String(countryId || "")
-        ) ||
-        countries.find(
-          (item) =>
-            normalizeComparable(item?.name) ===
-            normalizeComparable(countryName)
-        ) ||
-        countries.find(
-          (item) =>
-            normalizeComparable(item?.code) ===
-            normalizeComparable(countryCode)
-        );
-
-      const countryKeys = new Set(
-        [
-          countryId,
-          countryName,
-          countryCode,
-          country?.id,
-          country?.name,
-          country?.code,
-          country?.country_code,
-        ]
-          .filter(Boolean)
-          .map(normalizeComparable)
-      );
-
-      const levelOneLeagues = leagues.filter((league) => {
-        if (Number(league?.level) !== 1) return false;
-
-        const leagueCountryKeys = getLeagueCountryKeys(league);
-        return leagueCountryKeys.some((key) => countryKeys.has(key));
-      });
-
-      if (levelOneLeagues.length === 0) return 0;
-
-      return Math.max(
-        ...levelOneLeagues.map((league) => {
-          const reputation = Number(league?.reputation);
-          return Number.isFinite(reputation) ? reputation : 0;
-        })
-      );
-    };
-
-    if (activeFilter === "reputation") {
-      const reputationRanges = [
-        { key: "Elite", min: 9000, max: 9500 },
-        { key: "World Class", min: 8750, max: 8999 },
-        { key: "Top", min: 8500, max: 8749 },
-        { key: "Very Strong", min: 8250, max: 8499 },
-        { key: "Strong", min: 8000, max: 8249 },
-        { key: "High", min: 7500, max: 7999 },
-        { key: "Competitive", min: 7000, max: 7499 },
-        { key: "Solid", min: 6000, max: 6999 },
-        { key: "Mid", min: 5000, max: 5999 },
-        { key: "Low", min: 4000, max: 4999 },
-        { key: "Very Low", min: 3000, max: 3999 },
-        { key: "Minor", min: 0, max: 2999 },
-      ];
-
-      const getReputationGroup = (value) => {
-        if (value === null || value === undefined || String(value).trim() === "") {
-          return "Unclassified";
-        }
-
-        const reputation = Number(value);
-
-        if (!Number.isFinite(reputation)) {
-          return "Unclassified";
-        }
-
-        return (
-          reputationRanges.find(
-            (range) =>
-              reputation >= range.min &&
-              reputation <= range.max
-          )?.key || "Unclassified"
-        );
-      };
-
-      const groupedReputationTeams = reputationRanges.reduce(
-        (result, range) => {
-          result[range.key] = [];
-          return result;
-        },
-        {}
-      );
-
-      filteredTeams.forEach((team) => {
-        const groupName = getReputationGroup(team?.reputation);
-        groupedReputationTeams[groupName].push(team);
-      });
-
-      Object.keys(groupedReputationTeams).forEach((groupName) => {
-        groupedReputationTeams[groupName].sort((a, b) => {
-          const reputationA = Number(a?.reputation);
-          const reputationB = Number(b?.reputation);
-
-          const normalizedReputationA = Number.isFinite(reputationA)
-            ? reputationA
-            : 0;
-          const normalizedReputationB = Number.isFinite(reputationB)
-            ? reputationB
-            : 0;
-
-          if (normalizedReputationA !== normalizedReputationB) {
-            return normalizedReputationB - normalizedReputationA;
-          }
-
-          return (a?.name || "").localeCompare(b?.name || "", "es", {
-            sensitivity: "base",
-          });
-        });
-      });
-
-      return Object.fromEntries(
-        Object.entries(groupedReputationTeams).filter(
-          ([, groupTeams]) => groupTeams.length > 0
-        )
-      );
-    }
-
-    const groups = {};
-
-    filteredTeams.forEach((team) => {
-      let groupName;
-
-      if (activeFilter === "countries") {
-        groupName = team.country || "Unknown country";
-      } else if (activeFilter === "continents") {
-        groupName = team.continent || "Unknown continent";
-      } else if (activeFilter === "market") {
-        groupName = team.market || "Unclassified";
-      } else if (activeFilter === "incomplete") {
-        if (!team.incomplete) return;
-        groupName = "Incomplete information";
-      }
-
-      if (!groups[groupName]) groups[groupName] = [];
-      groups[groupName].push(team);
-    });
-
-    const entries = Object.entries(groups);
-
-    if (activeFilter !== "countries") {
-      return Object.fromEntries(entries);
-    }
-
-    entries.sort(([countryA, teamsA], [countryB, teamsB]) => {
-      const teamA = teamsA?.[0] || {};
-      const teamB = teamsB?.[0] || {};
-
-      const reputationA = getCountryReputation(
-        teamA.countryId,
-        teamA.country,
-        teamA.countryCode
-      );
-      const reputationB = getCountryReputation(
-        teamB.countryId,
-        teamB.country,
-        teamB.countryCode
-      );
-
-      if (reputationA !== reputationB) {
-        return reputationB - reputationA;
-      }
-
-      return String(countryA || "").localeCompare(
-        String(countryB || ""),
-        "es",
-        { sensitivity: "base" }
-      );
-    });
-
-    return Object.fromEntries(entries);
-  }, [filteredTeams, activeFilter, leagues, countries]);
-
-  const handleAddTeam = async (event) => {
-    event.preventDefault();
-
-    const wasEditing = Boolean(editingTeam);
-
-    const newTeam = {
-      id: `manual-${Date.now()}`,
-      name: form.name.trim(),
-      shortName: form.shortName.trim().toUpperCase(),
-      country: form.country.trim(),
-      countryId: form.countryId.trim(),
-      countryCode: form.countryCode.trim().toUpperCase(),
-      countryMapUrl: form.countryMapUrl.trim(),
-      countryTeamMapUrl: form.countryTeamMapUrl.trim(),
-      locationMapUrl: form.locationMapUrl.trim(),
-      leagueId: form.leagueId.trim(),
-      newLeagueName: form.newLeagueName.trim(),
-      continent: form.continent,
-      city: form.city.trim(),
-      logo: form.logo.trim(),
-      primaryColor: form.primaryColor.trim(),
-      secondaryColor: form.secondaryColor.trim(),
-      foundedYear: form.foundedYear ? Number(form.foundedYear) : null,
-      stadium: form.stadium.trim(),
-      stadiumId: form.stadiumId.trim(),
-      stadiumCapacity: form.stadiumCapacity ? Number(form.stadiumCapacity) : null,
-      stadiumBuiltYear: form.stadiumBuiltYear ? Number(form.stadiumBuiltYear) : null,
-      stadiumRenovation: form.stadiumRenovation ? Number(form.stadiumRenovation) : null,
-      pitchDimensions: form.pitchDimensions.trim(),
-      stadiumInteriorUrl: form.stadiumInteriorUrl.trim(),
-      stadiumExteriorUrl: form.stadiumExteriorUrl.trim(),
-      reputation: Number(form.reputation || 0),
-      market: formatMarketValue(form.market, ""),
-      history: form.history.trim(),
-      coachName: form.coachName.trim(),
-      coachPhotoUrl: form.coachPhotoUrl.trim(),
-      captainName: form.captainName.trim(),
-      captainPhotoUrl: form.captainPhotoUrl.trim(),
-      secondCaptainName: form.secondCaptainName.trim(),
-      secondCaptainPhotoUrl: form.secondCaptainPhotoUrl.trim(),
-      keyPlayerName: form.keyPlayerName.trim(),
-      keyPlayerPhotoUrl: form.keyPlayerPhotoUrl.trim(),
-      kit1PhotoUrl: form.kit1PhotoUrl.trim(),
-      kit1ShopUrl: form.kit1ShopUrl.trim(),
-      kit1BadgeBg: form.kit1BadgeBg.trim(),
-      kit1BadgeText: form.kit1BadgeText.trim(),
-      kit2PhotoUrl: form.kit2PhotoUrl.trim(),
-      kit2ShopUrl: form.kit2ShopUrl.trim(),
-      kit2BadgeBg: form.kit2BadgeBg.trim(),
-      kit2BadgeText: form.kit2BadgeText.trim(),
-      kit3PhotoUrl: form.kit3PhotoUrl.trim(),
-      kit3ShopUrl: form.kit3ShopUrl.trim(),
-      kit3BadgeBg: form.kit3BadgeBg.trim(),
-      kit3BadgeText: form.kit3BadgeText.trim(),
-      kitsOverviewUrl: form.kitsOverviewUrl.trim(),
-      dataSource: form.dataSource,
-      isActive: form.isActive,
-      incomplete: !form.name.trim() || !form.shortName.trim() || !form.country.trim() || !form.logo.trim(),
-      competition: "Without competition",
-    };
-
-    try {
-      if (!form.name.trim() || !form.shortName.trim() || !form.country.trim()) {
-        alert("Name, short name and country are required.");
-        return;
-      }
-
-      let countryId = form.countryId.trim();
-      const normalizedCountryName = form.country.trim().toLowerCase();
-
-      const existingCountry = countries.find(
-        (country) => country.name?.trim().toLowerCase() === normalizedCountryName
-      );
-
-      if (!countryId && existingCountry?.id) {
-        countryId = existingCountry.id;
-      }
-
-      if (!countryId) {
-        if (!form.countryCode.trim()) {
-          alert("Introduce the country code to create the country automatically.");
-          return;
-        }
-
-        const createdCountry = await base44.entities.Country.create({
-          name: form.country.trim(),
-          code: form.countryCode.trim().toUpperCase(),
-          continent: form.continent || "Europe",
-          is_active: true,
-        });
-
-        const countryData = createdCountry?.data || createdCountry;
-
-countryId =
-  countryData?.id ||
-  countryData?._id ||
-  createdCountry?.id ||
-  createdCountry?._id ||
-  "";
-
-if (!countryId) {
-  alert(
-    "The country was created, but Base44 did not return its ID. Check the Country entity response."
-  );
-  return;
-}
-
-const normalizedCreatedCountry = {
-  ...countryData,
-  id: countryId,
-  name: countryData?.name || form.country.trim(),
-  code: countryData?.code || form.countryCode.trim().toUpperCase(),
-  continent: countryData?.continent || form.continent || "Europe",
-};
-
-setCountries((currentCountries) => {
-  const alreadyExists = currentCountries.some(
-    (country) => String(country.id) === String(countryId)
-  );
-
-  return alreadyExists
-    ? currentCountries
-    : [...currentCountries, normalizedCreatedCountry];
-});
-      }
-
-      newTeam.countryId = countryId;
-
-      let leagueId = newTeam.leagueId;
-      let selectedLeague = leagues.find((league) => String(league.id) === String(leagueId));
-
-      if (!leagueId && newTeam.newLeagueName) {
-        const existingLeague = leagues.find((league) => league.name?.trim().toLowerCase() === newTeam.newLeagueName.toLowerCase());
-        if (existingLeague?.id) {
-          leagueId = existingLeague.id;
-          selectedLeague = existingLeague;
-        } else {
-          const createdLeague = await base44.entities.League.create({
-            name: newTeam.newLeagueName,
-            league_level: 1,
-            level: 1,
-            reputation: 0,
-            country_id: countryId,
-            is_active: true,
-            status: "Incompleto",
-          });
-          leagueId = createdLeague?.id || createdLeague?.data?.id || createdLeague?._id || "";
-          if (!leagueId) {
-            alert("The league was created, but Base44 did not return its ID.");
-            return;
-          }
-          selectedLeague = { ...createdLeague, id: leagueId, name: newTeam.newLeagueName };
-          setLeagues((currentLeagues) => [...currentLeagues, selectedLeague]);
-        }
-      }
-
-      if (!leagueId) {
-        alert("Select or create a league before saving the team.");
-        return false;
-      }
-
-      const generatedCode = newTeam.shortName
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "")
-        .slice(0, 12) || `TEAM${Date.now()}`;
-
-      const savedTeam = editingTeam
-  ? await base44.entities.Team.update(editingTeam.id, {
-    name: newTeam.name,
-    short_name: newTeam.shortName,
-    code: generatedCode,
-    continent: newTeam.continent || "Europe",
-    country_id: countryId,
-    league_id: leagueId,
-    city: newTeam.city,
-    logo: newTeam.logo,
-country_map_url: newTeam.countryMapUrl,
-country_team_map_url: newTeam.countryTeamMapUrl,
-location_map_url: newTeam.locationMapUrl,
-primary_color: newTeam.primaryColor,
-secondary_color: newTeam.secondaryColor,
-kit1_photo_url: newTeam.kit1PhotoUrl,
-kit2_photo_url: newTeam.kit2PhotoUrl,
-kit3_photo_url: newTeam.kit3PhotoUrl,
-    founded_year: newTeam.foundedYear,
-    stadium_id: newTeam.stadiumId,
-    stadium: newTeam.stadium,
-    stadium_capacity: newTeam.stadiumCapacity,
-    stadium_built_year: newTeam.stadiumBuiltYear,
-    stadium_renovation: newTeam.stadiumRenovation,
-    pitch_dimensions: newTeam.pitchDimensions,
-    stadium_interior_url: newTeam.stadiumInteriorUrl,
-    stadium_exterior_url: newTeam.stadiumExteriorUrl,
-    reputation: String(newTeam.reputation ?? ""),
-    market: String(newTeam.market ?? ""),
-    history: newTeam.history,
-    coach_name: newTeam.coachName,
-    coach_photo_url: newTeam.coachPhotoUrl,
-    captain_name: newTeam.captainName,
-    captain_photo_url: newTeam.captainPhotoUrl,
-    second_captain_name: newTeam.secondCaptainName,
-    second_captain_photo_url: newTeam.secondCaptainPhotoUrl,
-    key_player_name: newTeam.keyPlayerName,
-    key_player_photo_url: newTeam.keyPlayerPhotoUrl,
-    data_source: newTeam.dataSource,
-        is_active: newTeam.isActive,
-  })
-  : await base44.entities.Team.create({
-      name: newTeam.name,
-      short_name: newTeam.shortName,
-      code: generatedCode,
-      continent: newTeam.continent || "Europe",
-      country_id: countryId,
-      league_id: leagueId,
-      city: newTeam.city,
-      logo: newTeam.logo,
-      country_map_url: newTeam.countryMapUrl,
-      country_team_map_url: newTeam.countryTeamMapUrl,
-      location_map_url: newTeam.locationMapUrl,
-      primary_color: newTeam.primaryColor,
-      secondary_color: newTeam.secondaryColor,
-      kit1_photo_url: newTeam.kit1PhotoUrl,
-      kit2_photo_url: newTeam.kit2PhotoUrl,
-      kit3_photo_url: newTeam.kit3PhotoUrl,
-      founded_year: newTeam.foundedYear,
-      stadium_id: newTeam.stadiumId,
-      stadium: newTeam.stadium,
-      stadium_capacity: newTeam.stadiumCapacity,
-      stadium_built_year: newTeam.stadiumBuiltYear,
-      stadium_renovation: newTeam.stadiumRenovation,
-      pitch_dimensions: newTeam.pitchDimensions,
-      stadium_interior_url: newTeam.stadiumInteriorUrl,
-      stadium_exterior_url: newTeam.stadiumExteriorUrl,
-      reputation: String(newTeam.reputation ?? ""),
-      market: String(newTeam.market ?? ""),
-      history: newTeam.history,
-      coach_name: newTeam.coachName,
-      coach_photo_url: newTeam.coachPhotoUrl,
-      captain_name: newTeam.captainName,
-      captain_photo_url: newTeam.captainPhotoUrl,
-      second_captain_name: newTeam.secondCaptainName,
-      second_captain_photo_url: newTeam.secondCaptainPhotoUrl,
-      key_player_name: newTeam.keyPlayerName,
-      key_player_photo_url: newTeam.keyPlayerPhotoUrl,
-      data_source: newTeam.dataSource,
-      is_active: newTeam.isActive,
-    });
-
-  const updatedTeam = {
-    ...newTeam,
-    id: savedTeam.id,
-    competition:
-      selectedLeague?.name ||
-      "Without competition",
-    leagueId,
-  };
-
-  setTeams((currentTeams) => {
-    if (wasEditing) {
-      return currentTeams.map((team) =>
-        team.id === editingTeam.id ? updatedTeam : team
-      );
-    }
-
-    return [...currentTeams, updatedTeam];
-  });
-
-  if (wasEditing) {
-    setSelectedTeam(updatedTeam);
-  }
-
-  setForm(emptyTeamForm);
-  setEditingTeam(null);
-  setAddModalOpen(false);
-  setActiveFilter("countries");
-  return true;
-} catch (error) {
-  console.error("Error saving team:", error);
-  const errorMessage =
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
-    error?.message ||
-    (typeof error === "string" ? error : JSON.stringify(error));
-  alert(`Error real de Base44:\n\n${errorMessage}`);
-  return false;
-}
-  };
-
-  const handleImportJson = (importedForm) => {
-    setForm(importedForm);
-    setImportJsonModalOpen(false);
-    setAddModalOpen(true);
-  };
-
-  const handleCloseSearch = () => {
-    setSearch("");
-    setSearchOpen(false);
-  };
-
-    if (selectedTeam) {
-  return (
-    <TeamDetail
-  team={selectedTeam}
-  onClose={() => setSelectedTeam(null)}
-  onEdit={(team) => {
-    setEditingTeam(team);
-  }}
-  form={form}
-  setForm={setForm}
-  countries={countries}
-  leagues={leagues}
-  onCloseEdit={() => setEditingTeam(null)}
-  onSubmit={handleAddTeam}
-/>
-  );
-}
-
-  return (
-    <div className="min-h-full bg-[#F6F7F9] p-6 md:p-8">
-      <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          {navigationFilters.map((filter) => {
-            const Icon = filter.icon;
-            const isActive = activeFilter === filter.id;
-
-            return (
-              <button key={filter.id} type="button" onClick={() => setActiveFilter(filter.id)} className={`flex h-10 items-center gap-2 rounded-xl border px-4 text-xs font-semibold transition ${isActive ? "border-[#073B35] bg-[#003399] text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`}>
-                <Icon size={14} strokeWidth={1.8} />
-                {filter.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {searchOpen && (
-            <div className="relative w-[220px]">
-              <Search size={16} strokeWidth={2} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="text" placeholder="Search teams..." value={search} onChange={(event) => setSearch(event.target.value)} autoFocus className={`${inputClassName} pl-9 pr-9 text-xs`} />
-              <button type="button" onClick={handleCloseSearch} className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Close search">
-                <X size={14} />
-              </button>
-            </div>
-          )}
-
-          <button type="button" onClick={() => setSearchOpen((open) => !open)} className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${searchOpen ? "border-[#073B35] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Search teams" title="Search teams">
-            {searchOpen ? <X size={17} strokeWidth={2} /> : <Search size={17} strokeWidth={2} />}
-          </button>
-
-          <button type="button" onClick={() => setImportJsonModalOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50" aria-label="Import team from text or JSON" title="Import team from text or JSON">
-            <FileJson size={17} strokeWidth={2} />
-          </button>
-
-          <button type="button" onClick={handleOpenAddTeam} className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003399] text-white transition hover:bg-[#002477]" aria-label="Add team" title="Add team">
-            <Plus size={18} strokeWidth={2} />
-          </button>
-        </div>
-      </div>
-
-      {Object.keys(groupedTeams).length > 0 ? (
-        <div className="space-y-5">
-          {Object.entries(groupedTeams).map(([groupName, groupTeams]) => {
-            if (activeFilter === "reputation") {
-              return (
-                <section
-                  key={groupName}
-                  className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,0.02)] md:p-4"
-                >
-                  <div className="mb-5 flex items-center justify-between gap-4">
-                    <h2 className="text-base font-extrabold text-slate-900">
-                      {groupName}
-                    </h2>
-                    <span className="text-xs font-medium text-slate-400">
-                      {groupTeams.length} {groupTeams.length === 1 ? "team" : "teams"}
+                {/* CA / CP */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Ratings
+                    </label>
+                    <span className="text-[11px] text-slate-400">
+                      CA / CP: 0-200
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6 2xl:grid-cols-6">
-                    {groupTeams.map((team) => (
-                      <TeamCard
-                        key={team.id}
-                        team={team}
-                        showReputation
-                        onOpen={() => setSelectedTeam(team)}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                        CA
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={200}
+                        step={1}
+                        value={form.ca}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            ca: event.target.value,
+                          }))
+                        }
+                        placeholder="e.g. 185"
+                        className={inputClassName}
+                        required
                       />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                        CP
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={200}
+                        step={1}
+                        value={form.cp}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            cp: event.target.value,
+                          }))
+                        }
+                        placeholder="e.g. 195"
+                        className={inputClassName}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* POSITION RATINGS */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700">
+                        Position ratings
+                      </label>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        Valora cada posición de 0 a 20. Un jugador puede tener distintas valoraciones.
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                      0-20
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {POSITION_RATING_GROUPS.map((group) => (
+                      <div key={group.title}>
+                        <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                          {group.title}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                          {group.positions.map(([code, label]) => (
+                            <div key={code}>
+                              <label className="mb-1 block text-[11px] font-semibold text-slate-600">
+                                {label}
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                max={20}
+                                step={1}
+                                value={
+                                  form.positionRatings?.[code] ??
+                                  "0"
+                                }
+                                onChange={(event) =>
+                                  setForm((current) => ({
+                                    ...current,
+                                    positionRatings: {
+                                      ...current.positionRatings,
+                                      [code]: event.target.value,
+                                    },
+                                  }))
+                                }
+                                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </section>
-              );
-            }
-
-            const competitions = groupTeams.reduce((groups, team) => {
-              const competition = team.competition || "Without competition";
-              if (!groups[competition]) groups[competition] = [];
-              groups[competition].push(team);
-              return groups;
-            }, {});
-
-            return (
-              <section key={groupName} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,0.02)] md:p-4">
-                <div className="mb-5 flex items-center justify-between gap-4">
-                  <h2 className="text-base font-extrabold text-slate-900">{groupName}</h2>
-                  <span className="text-xs font-medium text-slate-400">{groupTeams.length} {groupTeams.length === 1 ? "team" : "teams"}</span>
                 </div>
-                <div className="space-y-4">
-                  {Object.entries(competitions)
-  .sort(([competitionNameA, teamsA], [competitionNameB, teamsB]) => {
-    const teamA = teamsA?.[0] || {};
-    const teamB = teamsB?.[0] || {};
 
-    const leagueA = leagues.find(
-      (league) => String(league?.id || "") === String(teamA?.leagueId || "")
-    );
-    const leagueB = leagues.find(
-      (league) => String(league?.id || "") === String(teamB?.leagueId || "")
-    );
+                {/* DESCRIPTION */}
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Description
+                    </label>
+                    <span className="text-[11px] text-slate-400">
+                      Selecciona el perfil del jugador
+                    </span>
+                  </div>
 
-    const levelA = Number(
-      leagueA?.level ?? teamA?.competitionLevel ?? 999
-    );
-    const levelB = Number(
-      leagueB?.level ?? teamB?.competitionLevel ?? 999
-    );
+                  <select
+                    value={form.description || ""}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        description: event.target.value,
+                      }))
+                    }
+                    className={inputClassName}
+                  >
+                    <option value="">Sin descripción</option>
 
-    const normalizedLevelA = Number.isFinite(levelA) ? levelA : 999;
-    const normalizedLevelB = Number.isFinite(levelB) ? levelB : 999;
+                    {PLAYER_DESCRIPTIONS.map((group) => (
+                      <optgroup
+                        key={group.group}
+                        label={group.group}
+                      >
+                        {group.options.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
 
-    if (normalizedLevelA !== normalizedLevelB) {
-      return normalizedLevelA - normalizedLevelB;
-    }
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    La descripción podrá utilizarse después como perfil
+                    automático basado en edad, CA, CP y posiciones.
+                  </p>
+                </div>
 
-    return String(competitionNameA || "").localeCompare(
-      String(competitionNameB || ""),
-      "es",
-      { sensitivity: "base" }
-    );
-  })
-  .map(([competitionName, competitionTeams]) => {
-    const sortedTeams = [...(competitionTeams || [])].sort((a, b) => {
-      const reputationA = Number(a?.reputation);
-      const reputationB = Number(b?.reputation);
+                {/* PLAYER PHOTO */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Player photo URL
+                  </label>
 
-      const normalizedReputationA = Number.isFinite(reputationA) ? reputationA : 0;
-      const normalizedReputationB = Number.isFinite(reputationB) ? reputationB : 0;
+                  <input
+                    type="url"
+                    value={
+                      form.photoUrl
+                    }
+                    onChange={(event) =>
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          photoUrl:
+                            event.target
+                              .value,
+                        })
+                      )
+                    }
+                    placeholder="https://..."
+                    className={
+                      inputClassName
+                    }
+                  />
+                </div>
 
-      if (normalizedReputationA !== normalizedReputationB) {
-        return normalizedReputationB - normalizedReputationA;
-      }
+                {/* PLAYER CARD PHOTO */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Player card photo URL
+                  </label>
 
-      return (a.name || "").localeCompare(b.name || "", "es", {
-        sensitivity: "base",
-      });
-    });
+                  <input
+                    type="url"
+                    value={form.cardPhotoUrl}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        cardPhotoUrl: event.target.value,
+                      }))
+                    }
+                    placeholder="https://..."
+                    className={inputClassName}
+                  />
 
-    return (
-      <div key={competitionName}>
-        <CompetitionHeader
-          competitionName={competitionName}
-          teams={sortedTeams}
-        />
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    Imagen utilizada exclusivamente en las tarjetas del listado de jugadores.
+                  </p>
+                </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6 2xl:grid-cols-6">
-          {sortedTeams.map((team) => (
-            <TeamCard
-              key={team.id}
-              team={team}
-              onOpen={() => setSelectedTeam(team)}
-            />
-          ))}
-        </div>
+                {/* PHOTO PREVIEW */}
+                {form.photoUrl && (
+                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+
+                    <img
+                      src={normalizeImageUrl(
+                        form.photoUrl
+                      )}
+                      alt=""
+                      className="h-16 w-16 rounded-lg object-cover object-top"
+                      onError={(event) => {
+                        event.currentTarget.style.display =
+                          "none";
+                      }}
+                    />
+
+                    <div className="text-xs text-slate-500">
+                      Preview of the player photo.
+                    </div>
+
+                  </div>
+                )}
+
+                {/* CARD PHOTO PREVIEW */}
+                {form.cardPhotoUrl && (
+                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <img
+                      src={normalizeImageUrl(form.cardPhotoUrl)}
+                      alt=""
+                      className="h-16 w-16 rounded-lg object-cover object-top"
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+
+                    <div className="text-xs text-slate-500">
+                      Preview of the player card photo.
+                    </div>
+                  </div>
+                )}
+
+                {/* ACTIONS */}
+                <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+
+                  <button
+                    type="button"
+                    onClick={
+                      handleCloseAddPlayer
+                    }
+                    disabled={isSaving}
+                    className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={
+                      isSaving ||
+                      !form.name.trim() ||
+                      form.ca === "" ||
+                      form.cp === "" ||
+                      ((form.teamId ===
+                        NEW_TEAM_VALUE &&
+                        !form.newTeamName.trim()) ||
+                      (form.countryId ===
+                        NEW_COUNTRY_VALUE &&
+                        !form.newCountryName.trim()))
+                    }
+                    className="h-10 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isSaving
+                      ? "Saving..."
+                      : "Create player"}
+                  </button>
+
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
-    );
-  })}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-50"><CircleAlert size={22} className="text-slate-400" /></div>
-          <h2 className="mt-4 text-base font-bold text-slate-800">No teams found</h2>
-          <p className="mt-2 text-sm text-slate-500">Add your first team using the plus button.</p>
-          <button type="button" onClick={handleOpenAddTeam} className="mt-5 rounded-xl bg-[#003399] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#002477]">Add first team</button>
-        </div>
-      )}
-
-      {(addModalOpen || editingTeam) && (
-  <AddTeamModal
-    form={form}
-    setForm={setForm}
-    countries={countries}
-    leagues={leagues}
-    isEditing={Boolean(editingTeam)}
-    onClose={() => {
-      setAddModalOpen(false);
-      setEditingTeam(null);
-    }}
-    onSubmit={handleAddTeam}
-  />
-)}
-      {importJsonModalOpen && <ImportTeamJsonModal onClose={() => setImportJsonModalOpen(false)} onImport={handleImportJson} />}
     </div>
   );
 }
