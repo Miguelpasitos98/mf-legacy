@@ -107,10 +107,7 @@ export default function Sidebar({
     >
       {open && isPlayersPage && (
         <nav
-          className="absolute left-1/2 flex -translate-x-1/2 flex-col items-center gap-3"
-          style={{
-            bottom: "calc(50% + 44px)",
-          }}
+          className="absolute left-1/2 top-1/2 grid -translate-x-1/2 -translate-y-1/2 grid-cols-3 gap-x-3 gap-y-12"
           aria-label="Player views"
         >
           {VIEW_OPTIONS.map((option) => {
