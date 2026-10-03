@@ -1214,11 +1214,6 @@ export default function Players() {
 
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
-  const [expandedDescriptionCategories, setExpandedDescriptionCategories] =
-    useState(new Set());
-  const [expandedDescriptionGroups, setExpandedDescriptionGroups] =
-    useState(new Set());
-
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
@@ -2178,39 +2173,15 @@ export default function Players() {
                     (total, subgroup) => total + subgroup.players.length,
                     0
                   );
-                  const categoryOpen = expandedDescriptionCategories.has(
-                    category.id
-                  );
-
                   return (
                     <section
                       key={category.id}
                       className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
                     >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedDescriptionCategories((current) => {
-                            const next = new Set(current);
-
-                            if (next.has(category.id)) {
-                              next.delete(category.id);
-                            } else {
-                              next.add(category.id);
-                            }
-
-                            return next;
-                          })
-                        }
-                        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-slate-50"
-                      >
+                      <div className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left">
                         <div className="min-w-0">
                           <div className="flex items-center gap-3">
-                            <span
-                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 transition-transform ${
-                                categoryOpen ? "rotate-180" : ""
-                              }`}
-                            >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
                               <ChevronDown size={17} className="text-slate-500" />
                             </span>
 
@@ -2230,44 +2201,20 @@ export default function Players() {
                             categoryCount === 1 ? "player" : "players"
                           }
                         </div>
-                      </button>
+                      </div>
 
-                      {categoryOpen && (
+                      <div className="border-t border-slate-100 bg-slate-50/40 p-3">
                         <div className="border-t border-slate-100 bg-slate-50/40 p-3">
                           <div className="space-y-2">
                             {category.subgroups.map((subgroup) => {
-                              const subgroupOpen = expandedDescriptionGroups.has(
-                                subgroup.id
-                              );
-
                               return (
                                 <div
                                   key={subgroup.id}
                                   className="overflow-hidden rounded-xl border border-slate-200 bg-white"
                                 >
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setExpandedDescriptionGroups((current) => {
-                                        const next = new Set(current);
-
-                                        if (next.has(subgroup.id)) {
-                                          next.delete(subgroup.id);
-                                        } else {
-                                          next.add(subgroup.id);
-                                        }
-
-                                        return next;
-                                      })
-                                    }
-                                    className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-slate-50"
-                                  >
+                                  <div className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left">
                                     <div className="flex min-w-0 items-center gap-3">
-                                      <span
-                                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 transition-transform ${
-                                          subgroupOpen ? "rotate-180" : ""
-                                        }`}
-                                      >
+                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50">
                                         <ChevronDown
                                           size={15}
                                           className="text-slate-400"
@@ -2286,10 +2233,9 @@ export default function Players() {
                                           : "players"
                                       }
                                     </span>
-                                  </button>
+                                  </div>
 
-                                  {subgroupOpen && (
-                                    <div className="border-t border-slate-100 bg-slate-50/30 p-3">
+                                  <div className="border-t border-slate-100 bg-slate-50/30 p-3">
                                       {subgroup.players.length > 0 ? (
                                         <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
                                           {subgroup.players.map((player) => (
@@ -2316,13 +2262,11 @@ export default function Players() {
                                         </div>
                                       )}
                                     </div>
-                                  )}
                                 </div>
                               );
                             })}
                           </div>
                         </div>
-                      )}
                     </section>
                   );
                 })}
