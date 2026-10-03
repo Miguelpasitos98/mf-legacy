@@ -330,6 +330,7 @@ const emptyPlayerForm = {
   countryId: "",
   photoUrl: "",
   cardPhotoUrl: "",
+  nationalCardPhotoUrl: "",
   ca: "",
   cp: "",
   positionRatings: { ...POSITION_RATING_DEFAULTS },
@@ -731,6 +732,11 @@ const normalizePlayer = (player) => ({
     player?.cardPhotoUrl ||
     "",
 
+  nationalCardPhotoUrl:
+    player?.national_card_photo_url ||
+    player?.nationalCardPhotoUrl ||
+    "",
+
   ca: player?.ca ?? "",
 
   cp: player?.cp ?? "",
@@ -1002,10 +1008,16 @@ function PlayerCard({
   onClick,
   compact = false,
   hideTeam = false,
+  useNationalCardPhoto = false,
 }) {
-  const photoUrl = normalizeImageUrl(
-    player.cardPhotoUrl || player.photoUrl
-  );
+  const preferredCardPhoto = useNationalCardPhoto
+    ? player.nationalCardPhotoUrl ||
+      player.cardPhotoUrl ||
+      player.photoUrl
+    : player.cardPhotoUrl ||
+      player.photoUrl;
+
+  const photoUrl = normalizeImageUrl(preferredCardPhoto);
   const teamLogo = normalizeImageUrl(team?.logo);
 
   const age = calculateAge(player.dateOfBirth);
@@ -1794,6 +1806,9 @@ export default function Players() {
         card_photo_url:
           normalizeImageUrl(form.cardPhotoUrl),
 
+        national_card_photo_url:
+          normalizeImageUrl(form.nationalCardPhotoUrl),
+
         ca: Number(form.ca),
 
         cp: Number(form.cp),
@@ -2124,6 +2139,7 @@ export default function Players() {
                                 countryById[player.countryId]
                               }
                               compact
+                              useNationalCardPhoto
                               onClick={() => {
                                 console.log(
                                   "PLAYER CLICKED:",
@@ -2811,6 +2827,30 @@ export default function Players() {
 
                   <p className="mt-1.5 text-[11px] text-slate-400">
                     Imagen utilizada exclusivamente en las tarjetas del listado de jugadores.
+                  </p>
+                </div>
+
+                {/* NATIONAL TEAM CARD PHOTO */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    National team card photo URL
+                  </label>
+
+                  <input
+                    type="url"
+                    value={form.nationalCardPhotoUrl}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        nationalCardPhotoUrl: event.target.value,
+                      }))
+                    }
+                    placeholder="https://..."
+                    className={inputClassName}
+                  />
+
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    Imagen utilizada en la agrupación por países, idealmente con la camiseta de la selección.
                   </p>
                 </div>
 
