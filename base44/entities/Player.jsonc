@@ -24,7 +24,11 @@
     },
     "card_photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del jugador utilizada en las tarjetas del listado de jugadores"
+      "description": "URL de la fotografía del jugador utilizada en las tarjetas del listado de jugadores cuando se muestran en contexto de club"
+    },
+    "national_card_photo_url": {
+      "type": "string",
+      "description": "URL de la fotografía del jugador con la camiseta de su selección nacional, utilizada en las tarjetas del listado cuando los jugadores se agrupan por países"
     },
     "ca": {
       "type": "number",
@@ -93,5 +97,7 @@
       "description": "Perfil o descripción del jugador"
     }
   },
-  "required": ["name"]
+  "required": [
+    "name"
+  ]
 }
