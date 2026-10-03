@@ -80,6 +80,11 @@ export default function Sidebar({
       pathname: "/players",
       search: view === "all" ? "" : `?view=${view}`,
     });
+
+    // Después de seleccionar una agrupación, cerramos automáticamente el sidebar.
+    if (open) {
+      onToggle();
+    }
   };
 
   return (
