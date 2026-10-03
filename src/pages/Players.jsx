@@ -963,11 +963,14 @@ const AGE_GROUPS = [
   { id: "age_34_plus", name: "34 años o más", test: (age) => age != null && age >= 34 },
 ];
 
-const DESCRIPTION_GROUPS = PLAYER_DESCRIPTIONS.map((group, index) => ({
-  id: `description_${index}`,
-  name: group.group,
-  options: group.options,
-}));
+const DESCRIPTION_GROUPS = PLAYER_DESCRIPTIONS.flatMap((group, groupIndex) =>
+  group.options.map((description, optionIndex) => ({
+    id: `description_${groupIndex}_${optionIndex}`,
+    name: description,
+    category: group.group,
+    description,
+  }))
+);
 
 const PLAYER_VIEW_MODES = [
   "all",
@@ -1210,6 +1213,11 @@ export default function Players() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+
+  const [expandedDescriptionCategories, setExpandedDescriptionCategories] =
+    useState(new Set());
+  const [expandedDescriptionGroups, setExpandedDescriptionGroups] =
+    useState(new Set());
 
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -1475,43 +1483,53 @@ export default function Players() {
     return groups;
   }, [filteredPlayers]);
 
-  const groupedByDescription = useMemo(() => {
-    const groups = DESCRIPTION_GROUPS.map((group) => ({
-      id: group.id,
-      name: group.name,
-      players: [],
-    }));
+  const groupedByDescriptionCategories = useMemo(() => {
+    const playerGroups = new Map();
 
-    const noDescriptionGroup = {
-      id: "description_unknown",
-      name: "Sin descripción",
-      players: [],
-    };
+    PLAYER_DESCRIPTIONS.forEach((category) => {
+      category.options.forEach((description) => {
+        playerGroups.set(description, []);
+      });
+    });
+
+    const noDescriptionPlayers = [];
 
     filteredPlayers.forEach((player) => {
       const description = String(player?.description || "").trim();
 
-      if (!description) {
-        noDescriptionGroup.players.push(player);
+      if (!description || !playerGroups.has(description)) {
+        noDescriptionPlayers.push(player);
         return;
       }
 
-      const groupIndex = DESCRIPTION_GROUPS.findIndex((group) =>
-        group.options.includes(description)
-      );
-
-      if (groupIndex >= 0) {
-        groups[groupIndex].players.push(player);
-      } else {
-        noDescriptionGroup.players.push(player);
-      }
+      playerGroups.get(description).push(player);
     });
 
-    if (noDescriptionGroup.players.length > 0) {
-      groups.push(noDescriptionGroup);
+    const categories = PLAYER_DESCRIPTIONS.map((category, categoryIndex) => ({
+      id: `description_category_${categoryIndex}`,
+      name: category.group,
+      subgroups: category.options.map((description, optionIndex) => ({
+        id: `description_${categoryIndex}_${optionIndex}`,
+        name: description,
+        players: playerGroups.get(description) || [],
+      })),
+    }));
+
+    if (noDescriptionPlayers.length > 0) {
+      categories.push({
+        id: "description_category_unknown",
+        name: "Sin descripción",
+        subgroups: [
+          {
+            id: "description_unknown",
+            name: "Jugadores sin descripción",
+            players: noDescriptionPlayers,
+          },
+        ],
+      });
     }
 
-    return groups;
+    return categories;
   }, [filteredPlayers]);
 
   const handleOpenAddPlayer = () => {
@@ -2154,32 +2172,160 @@ export default function Players() {
 
             {/* BY DESCRIPTION */}
             {viewMode === "description" && (
-              <div className="space-y-6">
-                {groupedByDescription.map((group) => (
-                  <section key={group.id}>
-                    <GroupHeader
-                      type="description"
-                      name={group.name}
-                      count={group.players.length}
-                    />
+              <div className="space-y-4">
+                {groupedByDescriptionCategories.map((category) => {
+                  const categoryCount = category.subgroups.reduce(
+                    (total, subgroup) => total + subgroup.players.length,
+                    0
+                  );
+                  const categoryOpen = expandedDescriptionCategories.has(
+                    category.id
+                  );
 
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
-                      {group.players.map((player) => (
-                        <PlayerCard
-                          key={
-                            player.id ||
-                            `${player.name}-${player.dateOfBirth}`
+                  return (
+                    <section
+                      key={category.id}
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedDescriptionCategories((current) => {
+                            const next = new Set(current);
+
+                            if (next.has(category.id)) {
+                              next.delete(category.id);
+                            } else {
+                              next.add(category.id);
+                            }
+
+                            return next;
+                          })
+                        }
+                        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-slate-50"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 transition-transform ${
+                                categoryOpen ? "rotate-180" : ""
+                              }`}
+                            >
+                              <ChevronDown size={17} className="text-slate-500" />
+                            </span>
+
+                            <div className="min-w-0">
+                              <h2 className="truncate text-base font-extrabold tracking-tight text-slate-900">
+                                {category.name}
+                              </h2>
+                              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+                                {category.subgroups.length} subgroups
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                          {categoryCount} {
+                            categoryCount === 1 ? "player" : "players"
                           }
-                          player={player}
-                          team={teamById[player.teamId]}
-                          country={countryById[player.countryId]}
-                          compact
-                          onClick={() => setSelectedPlayer(player)}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ))}
+                        </div>
+                      </button>
+
+                      {categoryOpen && (
+                        <div className="border-t border-slate-100 bg-slate-50/40 p-3">
+                          <div className="space-y-2">
+                            {category.subgroups.map((subgroup) => {
+                              const subgroupOpen = expandedDescriptionGroups.has(
+                                subgroup.id
+                              );
+
+                              return (
+                                <div
+                                  key={subgroup.id}
+                                  className="overflow-hidden rounded-xl border border-slate-200 bg-white"
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setExpandedDescriptionGroups((current) => {
+                                        const next = new Set(current);
+
+                                        if (next.has(subgroup.id)) {
+                                          next.delete(subgroup.id);
+                                        } else {
+                                          next.add(subgroup.id);
+                                        }
+
+                                        return next;
+                                      })
+                                    }
+                                    className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-slate-50"
+                                  >
+                                    <div className="flex min-w-0 items-center gap-3">
+                                      <span
+                                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 transition-transform ${
+                                          subgroupOpen ? "rotate-180" : ""
+                                        }`}
+                                      >
+                                        <ChevronDown
+                                          size={15}
+                                          className="text-slate-400"
+                                        />
+                                      </span>
+
+                                      <span className="min-w-0 truncate text-sm font-semibold text-slate-800">
+                                        {subgroup.name}
+                                      </span>
+                                    </div>
+
+                                    <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                                      {subgroup.players.length} {
+                                        subgroup.players.length === 1
+                                          ? "player"
+                                          : "players"
+                                      }
+                                    </span>
+                                  </button>
+
+                                  {subgroupOpen && (
+                                    <div className="border-t border-slate-100 bg-slate-50/30 p-3">
+                                      {subgroup.players.length > 0 ? (
+                                        <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                                          {subgroup.players.map((player) => (
+                                            <PlayerCard
+                                              key={
+                                                player.id ||
+                                                `${player.name}-${player.dateOfBirth}`
+                                              }
+                                              player={player}
+                                              team={teamById[player.teamId]}
+                                              country={
+                                                countryById[player.countryId]
+                                              }
+                                              compact
+                                              onClick={() =>
+                                                setSelectedPlayer(player)
+                                              }
+                                            />
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-xs font-medium text-slate-400">
+                                          No players in this subgroup.
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
               </div>
             )}
           </div>
