@@ -2204,7 +2204,6 @@ export default function Players() {
                       </div>
 
                       <div className="border-t border-slate-100 bg-slate-50/40 p-3">
-                        <div className="border-t border-slate-100 bg-slate-50/40 p-3">
                           <div className="space-y-2">
                             {category.subgroups.map((subgroup) => {
                               return (
