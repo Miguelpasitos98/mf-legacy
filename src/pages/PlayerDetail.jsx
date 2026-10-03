@@ -553,6 +553,10 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       dateOfBirth: player?.dateOfBirth || player?.date_of_birth || "",
       photoUrl: player?.photoUrl || player?.photo_url || "",
       cardPhotoUrl: player?.cardPhotoUrl || player?.card_photo_url || "",
+      nationalCardPhotoUrl:
+        player?.nationalCardPhotoUrl ||
+        player?.national_card_photo_url ||
+        "",
       teamId: player?.teamId || player?.team_id || "",
       countryId: player?.countryId || player?.country_id || "",
       ca: player?.ca ?? "",
@@ -657,6 +661,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         country_id: form.countryId || "",
         photo_url: normalizeImageUrl(form.photoUrl),
         card_photo_url: normalizeImageUrl(form.cardPhotoUrl),
+        national_card_photo_url:
+          normalizeImageUrl(form.nationalCardPhotoUrl),
         ca: numericCA,
         cp: numericCP,
         position_ratings: positionRatings,
@@ -676,6 +682,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         photo_url: form.photoUrl.trim(),
         cardPhotoUrl: form.cardPhotoUrl.trim(),
         card_photo_url: form.cardPhotoUrl.trim(),
+        nationalCardPhotoUrl: form.nationalCardPhotoUrl.trim(),
+        national_card_photo_url: form.nationalCardPhotoUrl.trim(),
         ca: numericCA,
         cp: numericCP,
         positionRatings,
@@ -1115,6 +1123,24 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                     setForm((current) => ({
                       ...current,
                       cardPhotoUrl: event.target.value,
+                    }))
+                  }
+                  placeholder="https://..."
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  National team card photo URL
+                </label>
+                <input
+                  type="url"
+                  value={form.nationalCardPhotoUrl}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      nationalCardPhotoUrl: event.target.value,
                     }))
                   }
                   placeholder="https://..."
