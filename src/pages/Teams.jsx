@@ -3155,13 +3155,40 @@ incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
   const filteredTeams = useMemo(() => {
     const normalizedSearch = search.toLowerCase().trim();
 
-    return teams.filter((team) => {
-      if (!normalizedSearch) return true;
+    const getReputation = (team) => {
+      const rawValue = team?.reputation;
+      if (rawValue === null || rawValue === undefined || String(rawValue).trim() === "") {
+        return null;
+      }
 
-      return [team.name, team.country, team.competition, team.city]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(normalizedSearch));
-    });
+      const value = Number(rawValue);
+      return Number.isFinite(value) ? value : null;
+    };
+
+    return teams
+      .filter((team) => {
+        if (!normalizedSearch) return true;
+
+        return [team.name, team.country, team.competition, team.city]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(normalizedSearch));
+      })
+      .sort((a, b) => {
+        const reputationA = getReputation(a);
+        const reputationB = getReputation(b);
+
+        // Teams with a known reputation come first, from highest to lowest.
+        if (reputationA === null && reputationB !== null) return 1;
+        if (reputationA !== null && reputationB === null) return -1;
+        if (reputationA !== null && reputationB !== null && reputationA !== reputationB) {
+          return reputationB - reputationA;
+        }
+
+        // Stable, predictable ordering for equal or missing reputation values.
+        return String(a?.name || "").localeCompare(String(b?.name || ""), "es", {
+          sensitivity: "base",
+        });
+      });
   }, [teams, search]);
 
   const groupedTeams = useMemo(() => {
