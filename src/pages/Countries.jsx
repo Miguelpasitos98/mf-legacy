@@ -8,6 +8,8 @@ import {
   Shield,
   Trophy,
   CalendarDays,
+  Plus,
+  X,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -127,57 +129,6 @@ const normalizeTeamLeague = (relation) => ({
   isCurrent:
     relation?.is_current !== false,
 });
-
-
-const ISO3_TO_ISO2 = {
-  ESP: "es",
-  DEU: "de",
-  GBR: "gb",
-  ENG: "gb",
-  SAU: "sa",
-  BEL: "be",
-  BRA: "br",
-  ITA: "it",
-  FRA: "fr",
-  PRT: "pt",
-  NLD: "nl",
-  ARG: "ar",
-  URY: "uy",
-  CHL: "cl",
-  COL: "co",
-  MEX: "mx",
-  USA: "us",
-  CAN: "ca",
-  JPN: "jp",
-  KOR: "kr",
-  AUS: "au",
-  MAR: "ma",
-  NGA: "ng",
-  CIV: "ci",
-  SEN: "sn",
-  EGY: "eg",
-};
-
-const getFlagUrl = (country) => {
-  const rawFlag = String(country?.flag || "").trim();
-
-  if (/^(https?:|data:|blob:)/i.test(rawFlag)) {
-    return rawFlag;
-  }
-
-  const rawCode = String(country?.code || "").trim().toUpperCase();
-
-  const iso2 =
-    rawCode.length === 2
-      ? rawCode.toLowerCase()
-      : ISO3_TO_ISO2[rawCode] || "";
-
-  if (!iso2) {
-    return "";
-  }
-
-  return `https://flagcdn.com/w80/${iso2}.png`;
-};
 
 const normalizeImageUrl = (value) => {
   const trimmed = String(value || "").trim();
@@ -322,6 +273,16 @@ export default function Countries() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [countryModalOpen, setCountryModalOpen] = useState(false);
+  const [countryModalContinent, setCountryModalContinent] = useState("Europe");
+  const [isCreatingCountry, setIsCreatingCountry] = useState(false);
+  const [countryFormError, setCountryFormError] = useState("");
+  const [countryForm, setCountryForm] = useState({
+    name: "",
+    code: "",
+    flag: "",
+  });
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -404,6 +365,168 @@ export default function Countries() {
       country.name.toLowerCase().includes(normalizedSearch)
     );
   }, [countries, search]);
+
+  const continentOrder = [
+    "Europe",
+    "South America",
+    "North America",
+    "Asia",
+    "Africa",
+    "Oceania",
+  ];
+
+  const continentLabels = {
+    Europe: "Europa",
+    "South America": "Sudamérica",
+    "North America": "Norteamérica",
+    Asia: "Asia",
+    Africa: "África",
+    Oceania: "Oceanía",
+    "Unknown": "Sin continente",
+  };
+
+  const groupedCountriesByContinent = useMemo(() => {
+    const groups = new Map();
+
+    filteredCountries.forEach((country) => {
+      const continent = String(country?.continent || "").trim() || "Unknown";
+
+      if (!groups.has(continent)) {
+        groups.set(continent, []);
+      }
+
+      groups.get(continent).push(country);
+    });
+
+    for (const list of groups.values()) {
+      list.sort((a, b) =>
+        (a.name || "").localeCompare(b.name || "", "es", {
+          sensitivity: "base",
+        })
+      );
+    }
+
+    return Array.from(groups.entries()).sort(([continentA], [continentB]) => {
+      const indexA =
+        continentOrder.indexOf(continentA) === -1
+          ? continentOrder.length
+          : continentOrder.indexOf(continentA);
+      const indexB =
+        continentOrder.indexOf(continentB) === -1
+          ? continentOrder.length
+          : continentOrder.indexOf(continentB);
+
+      if (indexA !== indexB) {
+        return indexA - indexB;
+      }
+
+      return (continentLabels[continentA] || continentA).localeCompare(
+        continentLabels[continentB] || continentB,
+        "es",
+        { sensitivity: "base" }
+      );
+    });
+  }, [filteredCountries]);
+
+  const openCountryModal = (continent) => {
+    setCountryModalContinent(continent);
+    setCountryForm({
+      name: "",
+      code: "",
+      flag: "",
+    });
+    setCountryFormError("");
+    setCountryModalOpen(true);
+  };
+
+  const closeCountryModal = () => {
+    if (isCreatingCountry) return;
+
+    setCountryModalOpen(false);
+    setCountryFormError("");
+  };
+
+  const handleCreateCountry = async (event) => {
+    event.preventDefault();
+
+    const name = String(countryForm.name || "").trim();
+    const code = String(countryForm.code || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "")
+      .slice(0, 3);
+    const flag = String(countryForm.flag || "").trim();
+
+    if (!name) {
+      setCountryFormError("El nombre del país es obligatorio.");
+      return;
+    }
+
+    const existingCountry = countries.find(
+      (country) =>
+        String(country?.name || "").trim().toLocaleLowerCase("es") ===
+        name.toLocaleLowerCase("es")
+    );
+
+    if (existingCountry) {
+      setCountryFormError("Ese país ya existe en la base de datos.");
+      return;
+    }
+
+    setIsCreatingCountry(true);
+    setCountryFormError("");
+
+    try {
+      const generatedCode =
+        code ||
+        name
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toUpperCase()
+          .replace(/[^A-Z]/g, "")
+          .slice(0, 3)
+          .padEnd(3, "X");
+
+      const created = await base44.entities.Country.create({
+        name,
+        code: generatedCode,
+        continent: countryModalContinent,
+        flag,
+        is_active: true,
+      });
+
+      const createdCountry = normalizeCountry(created?.data || created);
+
+      if (!createdCountry.id) {
+        throw new Error("El país se creó pero Base44 no devolvió su ID.");
+      }
+
+      setCountries((current) =>
+        [...current, createdCountry].sort((a, b) =>
+          (a.name || "").localeCompare(b.name || "", "es", {
+            sensitivity: "base",
+          })
+        )
+      );
+
+      setCountryModalOpen(false);
+      setCountryForm({
+        name: "",
+        code: "",
+        flag: "",
+      });
+    } catch (error) {
+      console.error("Error creating country:", error);
+      setCountryFormError(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "No se ha podido crear el país."
+      );
+    } finally {
+      setIsCreatingCountry(false);
+    }
+  };
 
   const countryById = useMemo(
     () =>
@@ -569,18 +692,8 @@ export default function Countries() {
 
           <div className="mb-8 flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 items-center gap-5">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F1F5F9]">
-                {getFlagUrl(selectedCountry) ? (
-                  <img
-                    src={getFlagUrl(selectedCountry)}
-                    alt={`Bandera de ${selectedCountry.name}`}
-                    className="max-h-full max-w-full object-contain"
-                  />
-                ) : (
-                  <span className="text-4xl">
-                    {selectedCountry.flag || "🏳️"}
-                  </span>
-                )}
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[#F1F5F9] text-5xl">
+                {selectedCountry.flag || "🏳️"}
               </div>
 
               <div className="min-w-0">
@@ -723,7 +836,7 @@ export default function Countries() {
 
   return (
     <div className="h-full min-h-0 overflow-y-auto bg-[#E8E9EC] px-6 py-8 md:px-10">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="mx-auto max-w-[1700px]">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#64748B]">
@@ -735,16 +848,16 @@ export default function Countries() {
             </h1>
 
             <p className="mt-2 text-sm text-[#64748B]">
-              Explora los países y sus jugadores, equipos y competiciones.
+              Explora los países organizados por continentes.
             </p>
           </div>
 
-          <div className="hidden rounded-xl bg-[#003399] px-4 py-3 text-sm font-semibold text-white md:block">
+          <div className="rounded-xl bg-[#003399] px-4 py-3 text-sm font-semibold text-white">
             {countries.length} países
           </div>
         </div>
 
-        <div className="mb-6 flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm">
+        <div className="mb-7 flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm">
           <Search
             size={19}
             className="shrink-0 text-[#94A3B8]"
@@ -766,92 +879,119 @@ export default function Countries() {
         )}
 
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-[106px] animate-pulse rounded-2xl border border-slate-200 bg-white"
-              />
+          <div className="space-y-7">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <section key={index}>
+                <div className="mb-3 h-7 w-48 animate-pulse rounded-lg bg-slate-200" />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 3 }).map((__, cardIndex) => (
+                    <div
+                      key={cardIndex}
+                      className="h-[106px] animate-pulse rounded-2xl border border-slate-200 bg-white"
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
-        ) : filteredCountries.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredCountries.map((country) => {
-              const countryPlayers = players.filter(
-                (player) =>
-                  String(player.countryId) ===
-                  String(country.id)
-              );
+        ) : groupedCountriesByContinent.length > 0 ? (
+          <div className="space-y-7">
+            {groupedCountriesByContinent.map(([continent, continentCountries]) => (
+              <section key={continent}>
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <div className="flex min-w-0 items-end gap-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#94A3B8]">
+                        Continente
+                      </p>
+                      <h2 className="text-xl font-extrabold tracking-tight text-[#0F172A]">
+                        {continentLabels[continent] || continent}
+                      </h2>
+                    </div>
 
-              const countryTeams = teams.filter(
-                (team) =>
-                  String(team.countryId) ===
-                  String(country.id)
-              );
+                    <span className="pb-0.5 text-xs font-medium text-[#94A3B8]">
+                      {continentCountries.length}{" "}
+                      {continentCountries.length === 1 ? "país" : "países"}
+                    </span>
+                  </div>
 
-              const countryLeagueIds = new Set(
-                teamLeagues
-                  .filter((relation) =>
-                    countryTeams.some(
+                  <button
+                    type="button"
+                    onClick={() => openCountryModal(continent)}
+                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#003399] px-3.5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#002477] hover:shadow-md"
+                  >
+                    <Plus size={15} />
+                    Añadir bandera
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {continentCountries.map((country) => {
+                    const countryPlayers = players.filter(
+                      (player) =>
+                        String(player.countryId) === String(country.id)
+                    );
+
+                    const countryTeams = teams.filter(
                       (team) =>
-                        String(team.id) ===
-                        String(relation.teamId)
-                    )
-                  )
-                  .map((relation) => relation.leagueId)
-              );
+                        String(team.countryId) === String(country.id)
+                    );
 
-              return (
-                <button
-                  key={country.id}
-                  type="button"
-                  onClick={() =>
-                    setSelectedCountryId(country.id)
-                  }
-                  className="group flex items-center gap-4 rounded-2xl border border-white/70 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
-                >
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F1F5F9]">
-                    {getFlagUrl(country) ? (
-                      <img
-                        src={getFlagUrl(country)}
-                        alt={`Bandera de ${country.name}`}
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    ) : (
-                      <span className="text-4xl">
-                        {country.flag || "🏳️"}
-                      </span>
-                    )}
-                  </div>
+                    const countryLeagueIds = new Set(
+                      teamLeagues
+                        .filter((relation) =>
+                          countryTeams.some(
+                            (team) =>
+                              String(team.id) === String(relation.teamId)
+                          )
+                        )
+                        .map((relation) => relation.leagueId)
+                    );
 
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-bold text-[#0F172A]">
-                      {country.name}
-                    </h2>
+                    return (
+                      <button
+                        key={country.id}
+                        type="button"
+                        onClick={() => setSelectedCountryId(country.id)}
+                        className="group flex items-center gap-4 rounded-2xl border border-white/70 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
+                      >
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F1F5F9] text-4xl">
+                          {String(country.flag || "").startsWith("http") ? (
+                            <img
+                              src={normalizeImageUrl(country.flag)}
+                              alt={`Bandera de ${country.name}`}
+                              className="max-h-full max-w-full object-contain"
+                            />
+                          ) : (
+                            <span>{country.flag || "🏳️"}</span>
+                          )}
+                        </div>
 
-                    <p className="mt-1 text-xs text-[#64748B]">
-                      {countryLeagueIds.size}{" "}
-                      {countryLeagueIds.size === 1
-                        ? "liga"
-                        : "ligas"}{" "}
-                      · {countryTeams.length}{" "}
-                      {countryTeams.length === 1
-                        ? "equipo"
-                        : "equipos"}{" "}
-                      · {countryPlayers.length}{" "}
-                      {countryPlayers.length === 1
-                        ? "jugador"
-                        : "jugadores"}
-                    </p>
-                  </div>
+                        <div className="min-w-0 flex-1">
+                          <h2 className="text-lg font-bold text-[#0F172A]">
+                            {country.name}
+                          </h2>
 
-                  <ChevronRight
-                    size={20}
-                    className="shrink-0 text-[#94A3B8] transition-transform group-hover:translate-x-1"
-                  />
-                </button>
-              );
-            })}
+                          <p className="mt-1 text-xs text-[#64748B]">
+                            {countryLeagueIds.size}{" "}
+                            {countryLeagueIds.size === 1 ? "liga" : "ligas"}{" "}
+                            · {countryTeams.length}{" "}
+                            {countryTeams.length === 1 ? "equipo" : "equipos"}{" "}
+                            · {countryPlayers.length}{" "}
+                            {countryPlayers.length === 1 ? "jugador" : "jugadores"}
+                          </p>
+                        </div>
+
+                        <ChevronRight
+                          size={20}
+                          className="shrink-0 text-[#94A3B8] transition-transform group-hover:translate-x-1"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-[#CBD5E1] bg-white/50 p-12 text-center">
@@ -861,15 +1001,141 @@ export default function Countries() {
             />
 
             <h2 className="text-lg font-semibold text-[#0F172A]">
-              No se han encontrado países
+              {search
+                ? "No se han encontrado países"
+                : "No hay países registrados"}
             </h2>
 
             <p className="mt-2 text-sm text-[#64748B]">
-              Prueba con otro nombre.
+              {search
+                ? "Prueba con otro nombre."
+                : "Añade una bandera desde el continente correspondiente."}
             </p>
           </div>
         )}
       </div>
+
+      {countryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                  {continentLabels[countryModalContinent] || countryModalContinent}
+                </p>
+                <h2 className="mt-1 text-xl font-extrabold text-slate-900">
+                  Añadir bandera
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeCountryModal}
+                disabled={isCreatingCountry}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-50"
+                aria-label="Cerrar"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCountry} className="p-6">
+              {countryFormError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {countryFormError}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Nombre del país
+                  </label>
+                  <input
+                    type="text"
+                    value={countryForm.name}
+                    onChange={(event) =>
+                      setCountryForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                    placeholder="Ej. Marruecos"
+                    className={inputClassName}
+                    autoFocus
+                    disabled={isCreatingCountry}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Código ISO
+                  </label>
+                  <input
+                    type="text"
+                    value={countryForm.code}
+                    onChange={(event) =>
+                      setCountryForm((current) => ({
+                        ...current,
+                        code: event.target.value.toUpperCase(),
+                      }))
+                    }
+                    placeholder="Ej. MAR"
+                    maxLength={3}
+                    className={inputClassName}
+                    disabled={isCreatingCountry}
+                  />
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Opcional. Si lo dejas vacío, se genera automáticamente.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                    Bandera
+                  </label>
+                  <input
+                    type="text"
+                    value={countryForm.flag}
+                    onChange={(event) =>
+                      setCountryForm((current) => ({
+                        ...current,
+                        flag: event.target.value,
+                      }))
+                    }
+                    placeholder="Emoji o URL de la bandera"
+                    className={inputClassName}
+                    disabled={isCreatingCountry}
+                  />
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Puedes usar un emoji (🇲🇦) o una URL de imagen.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeCountryModal}
+                  disabled={isCreatingCountry}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isCreatingCountry}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#003399] px-4 py-2.5 text-sm font-extrabold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Plus size={16} />
+                  {isCreatingCountry ? "Guardando..." : "Añadir bandera"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
