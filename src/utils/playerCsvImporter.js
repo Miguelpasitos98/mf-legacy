@@ -140,49 +140,17 @@ const parseNumeric = (value, fallback = 0) => {
     .replace(/[€$£¥]/g, "")
     .replace(/p\/a/gi, "");
 
-  const rangeMatch = cleaned.match(
-    /^(-?\d+(?:[.,]\d+)?)[\-–—](-?\d+(?:[.,]\d+)?)$/
-  );
-
-  if (rangeMatch) {
-    const first = Number(
-      rangeMatch[1].replace(",", ".")
-    );
-    const second = Number(
-      rangeMatch[2].replace(",", ".")
-    );
-
-    if (
-      Number.isFinite(first) &&
-      Number.isFinite(second)
-    ) {
-      return (first + second) / 2;
-    }
-  }
-
   const match = cleaned.match(/-?\d+(?:[.,]\d+)?/);
   if (!match) return fallback;
 
-  const numeric = Number(
-    match[0].replace(",", ".")
-  );
-
-  return Number.isFinite(numeric)
-    ? numeric
-    : fallback;
+  const numeric = Number(match[0].replace(",", "."));
+  return Number.isFinite(numeric) ? numeric : fallback;
 };
 
 const parseInteger = (value, fallback = 0) => {
-  const numeric = parseNumeric(
-    value,
-    Number.NaN
-  );
-
-  if (!Number.isFinite(numeric)) {
-    return fallback;
-  }
-
-  return Math.round(numeric);
+  const numeric = parseNumeric(value, Number.NaN);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.trunc(numeric);
 };
 
 const parseDateOfBirth = (value) => {
@@ -218,63 +186,16 @@ const parseSalary = (value) => {
     .trim()
     .replace(/\s+/g, "");
 
-  const rangeMatch = normalized.match(
-    /(-?\d+(?:[.,]\d+)?)[\-–—](-?\d+(?:[.,]\d+)?)([KMB])?/i
-  );
-
-  const multiplierFor = (suffix) => {
-    const normalizedSuffix = String(
-      suffix || ""
-    ).toUpperCase();
-
-    if (normalizedSuffix === "K") return 1_000;
-    if (normalizedSuffix === "M") return 1_000_000;
-    if (normalizedSuffix === "B") return 1_000_000_000;
-
-    return 1;
-  };
-
-  if (rangeMatch) {
-    const first = Number(
-      rangeMatch[1].replace(",", ".")
-    );
-    const second = Number(
-      rangeMatch[2].replace(",", ".")
-    );
-
-    if (
-      !Number.isFinite(first) ||
-      !Number.isFinite(second)
-    ) {
-      return 0;
-    }
-
-    const multiplier =
-      multiplierFor(rangeMatch[3]);
-
-    return Math.round(
-      ((first + second) / 2) *
-        multiplier
-    );
-  }
-
-  const match = normalized.match(
-    /(-?\d+(?:[.,]\d+)?)([KMB])?/i
-  );
-
+  const match = normalized.match(/(-?\d+(?:[.,]\d+)?)([KMB])?/i);
   if (!match) return 0;
 
-  let number = Number(
-    match[1].replace(",", ".")
-  );
+  let number = Number(match[1].replace(",", "."));
+  if (!Number.isFinite(number)) return 0;
 
-  if (!Number.isFinite(number)) {
-    return 0;
-  }
-
-  number *= multiplierFor(
-    match[2]
-  );
+  const suffix = String(match[2] || "").toUpperCase();
+  if (suffix === "K") number *= 1_000;
+  if (suffix === "M") number *= 1_000_000;
+  if (suffix === "B") number *= 1_000_000_000;
 
   return Math.round(number);
 };
@@ -357,106 +278,42 @@ const normalizePositionAtom = (value) => {
   return POSITION_CODES.has(raw.toUpperCase()) ? raw.toUpperCase() : "";
 };
 
+const splitSourcePositions = (value) => {
+  const original = normalizeText(value);
+  if (!original) return [];
+
+  // Football Manager can export several positions in the same field, for
+  // example: "MC, ME/MP (C)". Keep every position exactly as FM wrote it;
+  // do not reinterpret ME/MP (C) into another MF LEGACY position.
+  return original
+    .split(/\s*,\s*|\s+-\s+/)
+    .map((position) => position.trim())
+    .filter(Boolean);
+};
+
 const normalizePosition = (value) => {
   const original = normalizeText(value);
   if (!original) return "";
 
-  const normalized = normalizeHeader(
-    original
-  );
+  const normalized = normalizeHeader(original);
+  const direct = normalizePositionAtom(normalized);
+  if (direct) return direct;
 
-  /*
-   * Football Manager can export several positions
-   * in one cell, e.g.:
-   *   MC, ME/MP (C)
-   *   MC, ME (DC), MP (C)
-   *
-   * We take the first position we can map.
-   */
-  const parts = normalized
-    .split(/[,/;]+/)
-    .map((part) =>
-      part
-        .replace(/[()]/g, "")
-        .trim()
-    )
-    .filter(Boolean);
-
-  for (const part of parts) {
-    const mapped =
-      normalizePositionAtom(
-        part
-      );
-
-    if (mapped) {
-      return mapped;
-    }
-  }
-
-  const direct =
-    normalizePositionAtom(
-      normalized
-    );
-
-  if (direct) {
-    return direct;
-  }
-
+  // Preserve the central meaning for compound FM positions such as:
+  // MP (DIC) -> CAM, MP (DC) -> CAM, DL (C) -> DC.
   if (normalized.startsWith("mp")) {
-    const inside =
-      normalized
-        .replace(/^mp\s*/, "");
-
-    if (
-      inside.includes("c")
-    ) {
-      return "CAM";
-    }
-
-    if (
-      inside.includes("d") &&
-      !inside.includes("i")
-    ) {
-      return "ED";
-    }
-
-    if (
-      inside.includes("i") &&
-      !inside.includes("d")
-    ) {
-      return "EI";
-    }
-
-    return "CAM";
+    const inside = normalized.replace(/^mp\s*/, "");
+    if (inside.includes("c")) return "CAM";
+    if (inside.includes("d") && !inside.includes("i")) return "ED";
+    if (inside.includes("i") && !inside.includes("d")) return "EI";
+    if (inside.includes("d") || inside.includes("i")) return "CAM";
   }
 
-  if (
-    normalized.startsWith("dl")
-  ) {
-    return "DC";
-  }
-
-  if (
-    normalized.startsWith("df")
-  ) {
-    if (
-      normalized.includes("c")
-    ) {
-      return "DFC";
-    }
-
-    if (
-      normalized.includes("d")
-    ) {
-      return "LD";
-    }
-
-    if (
-      normalized.includes("i")
-    ) {
-      return "LI";
-    }
-
+  if (normalized.startsWith("dl")) return "DC";
+  if (normalized.startsWith("df")) {
+    if (normalized.includes("c")) return "DFC";
+    if (normalized.includes("d")) return "LD";
+    if (normalized.includes("i")) return "LI";
     return "DFC";
   }
 
@@ -565,6 +422,12 @@ export function convertFootballManagerRow(row) {
   const positionRaw = get("position");
   const secondaryPositionRaw = get("secondaryPosition");
 
+  const sourcePositions = splitSourcePositions(positionRaw);
+  const explicitSecondaryPositions = splitSourcePositions(secondaryPositionRaw);
+  const primaryPosition = sourcePositions[0] || "";
+  const secondaryPosition =
+    explicitSecondaryPositions[0] || sourcePositions[1] || "";
+
   const teamName = get("team");
   const countryName = get("country");
 
@@ -577,9 +440,9 @@ export function convertFootballManagerRow(row) {
     country_id: "",
 
     position_raw: positionRaw,
-    position: normalizePosition(positionRaw),
-    secondary_position_raw: secondaryPositionRaw,
-    secondary_position: normalizePosition(secondaryPositionRaw),
+    position: primaryPosition,
+    secondary_position_raw: secondaryPositionRaw || sourcePositions[1] || "",
+    secondary_position: secondaryPosition,
 
     style: get("style"),
     height: parseHeight(get("height")),
@@ -673,10 +536,7 @@ export function convertFootballManagerRow(row) {
   if (!player.name) warnings.push("Missing player name");
   if (!countryName) warnings.push("Missing country");
   if (!teamName) warnings.push("Missing team/club column or value");
-  if (!player.position) warnings.push(`Unknown primary position: ${positionRaw || "(empty)"}`);
-  if (secondaryPositionRaw && !player.secondary_position) {
-    warnings.push(`Unknown secondary position: ${secondaryPositionRaw}`);
-  }
+  if (!player.position) warnings.push(`Missing primary position: ${positionRaw || "(empty)"}`);
 
   return {
     player,
