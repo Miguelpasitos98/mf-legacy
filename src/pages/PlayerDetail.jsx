@@ -30,6 +30,22 @@ const POSITION_CODES = [
   "DC",
 ];
 
+const buildPositionOptions = (...values) =>
+  [...new Set([...POSITION_CODES, ...values.filter(Boolean)])];
+
+const formatSalaryDisplay = (value) => {
+  const numeric = Number(String(value ?? "").replace(/\D/g, ""));
+  if (!Number.isFinite(numeric) || numeric <= 0) return "";
+  return `${Math.round(numeric).toLocaleString("en-US")} (€ / Year)`;
+};
+
+const parseSalaryInput = (value) => {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return 0;
+  const numeric = Number(digits);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
 const DESCRIPTION_OPTIONS = [
   {
     group: "Goalkeepers",
@@ -692,6 +708,12 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   const [editError, setEditError] = useState("");
   const [editablePlayer, setEditablePlayer] = useState(player);
   const [form, setForm] = useState(initialForm);
+  const [salaryFocused, setSalaryFocused] = useState(false);
+
+  const positionOptions = useMemo(
+    () => buildPositionOptions(form.position, form.secondaryPosition),
+    [form.position, form.secondaryPosition]
+  );
 
   useEffect(() => {
     setEditablePlayer(player);
@@ -793,7 +815,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
     const numericHeight = Number(form.height);
     const numericShirtNumber = Number(form.shirtNumber);
-    const numericSalary = Number(form.salary);
+    const numericSalary = parseSalaryInput(form.salary);
 
     setIsSaving(true);
     setEditError("");
@@ -1372,7 +1394,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                         className={INPUT_CLASS}
                       >
                         <option value="">No position</option>
-                        {POSITION_CODES.map((code) => (
+                        {positionOptions.map((code) => (
                           <option key={code} value={code}>
                             {code}
                           </option>
@@ -1437,16 +1459,35 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                       Salary
                     </label>
                     <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={form.salary}
+                      type="text"
+                      inputMode="numeric"
+                      value={
+                        salaryFocused
+                          ? String(form.salary ?? "").replace(/\D/g, "")
+                          : formatSalaryDisplay(form.salary)
+                      }
+                      onFocus={(event) => {
+                        setSalaryFocused(true);
+                        setForm((current) => ({
+                          ...current,
+                          salary: String(current.salary ?? "").replace(/\D/g, ""),
+                        }));
+                        event.target.select();
+                      }}
                       onChange={(event) =>
                         setForm((current) => ({
                           ...current,
-                          salary: event.target.value,
+                          salary: event.target.value.replace(/\D/g, ""),
                         }))
                       }
+                      onBlur={(event) => {
+                        setSalaryFocused(false);
+                        setForm((current) => ({
+                          ...current,
+                          salary: parseSalaryInput(event.target.value),
+                        }));
+                      }}
+                      placeholder="0 (€ / Year)"
                       className={INPUT_CLASS}
                     />
                   </div>
