@@ -954,20 +954,38 @@ function ageCircleColor(age) {
 }
 
 const POSITION_LABELS = {
-  portero: "Portero",
-  defensa_izquierdo: "Defensa izquierdo",
-  defensa_central: "Defensa central",
-  defensa_derecho: "Defensa derecho",
-  mediocentro: "Mediocentro",
-  carrilero_izquierdo: "Carrilero izquierdo",
-  carrilero_derecho: "Carrilero derecho",
-  centrocampista_izquierdo: "Centrocampista izquierdo",
-  centrocampista: "Centrocampista",
-  centrocampista_derecho: "Centrocampista derecho",
-  mediapunta_por_la_izquierda: "Mediapunta por la izquierda",
-  mediapunta_central: "Mediapunta central",
-  mediapunta_por_la_derecha: "Mediapunta por la derecha",
-  delantero: "Delantero",
+  portero: "POR",
+  defensa_izquierdo: "DF (I)",
+  defensa_central: "DF (C)",
+  defensa_derecho: "DF (D)",
+  mediocentro: "MCD",
+  carrilero_izquierdo: "CR (I)",
+  carrilero_derecho: "CR (D)",
+  centrocampista_izquierdo: "MC (I)",
+  centrocampista: "MC",
+  centrocampista_derecho: "MC (D)",
+  mediapunta_por_la_izquierda: "EI",
+  mediapunta_central: "MP (C)",
+  mediapunta_por_la_derecha: "ED",
+  delantero: "DL (C)",
+};
+
+const getDisplayPositions = (player) => {
+  const ratings = player?.positionRatings || player?.position_ratings || {};
+
+  return Object.entries(ratings)
+    .map(([key, value]) => ({
+      key,
+      rating: Number(value),
+      label: POSITION_LABELS[key] || key,
+    }))
+    .filter(
+      ({ rating }) => Number.isFinite(rating) && rating >= 15
+    )
+    .sort((a, b) =>
+      b.rating - a.rating ||
+      a.key.localeCompare(b.key)
+    );
 };
 
 const POSITION_GROUPS = POSITION_RATING_GROUPS.flatMap((group) =>
@@ -1026,6 +1044,7 @@ function PlayerCard({
     age: age ?? undefined,
   });
   const primaryPosition = getPrimaryPosition(player);
+  const displayPositions = getDisplayPositions(player);
   const description = computePlayerDescription(player);
 
   const countryFlagUrl = normalizeImageUrl(country?.flag);
@@ -1129,8 +1148,19 @@ function PlayerCard({
 
           <span className="shrink-0 text-slate-300">|</span>
 
-          <span className="shrink-0 font-semibold text-slate-700">
-            {POSITION_LABELS[primaryPosition] || "—"}
+          <span className="min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-semibold text-slate-700">
+            {displayPositions.length > 0
+              ? displayPositions.map((position, index) => (
+                  <React.Fragment key={position.key}>
+                    {index > 0 && (
+                      <span className="text-slate-300">·</span>
+                    )}
+                    <span className="shrink-0">
+                      {position.label}
+                    </span>
+                  </React.Fragment>
+                ))
+              : "—"}
           </span>
 
           {description && (
@@ -1746,20 +1776,19 @@ export default function Players() {
     useState(0);
   const [defaultImportLeagueId, setDefaultImportLeagueId] = useState("");
 
-  const [positionImportModalOpen, setPositionImportModalOpen] =
-    useState(false);
-  const [positionImportFileName, setPositionImportFileName] =
-    useState("");
-  const [positionImportAnalysis, setPositionImportAnalysis] =
-    useState(null);
-  const [positionImporting, setPositionImporting] =
-    useState(false);
-  const [positionImportResult, setPositionImportResult] =
-    useState(null);
-  const [positionImportError, setPositionImportError] =
-    useState("");
-  const [positionImportFileKey, setPositionImportFileKey] =
-    useState(0);
+  // POSITIONS CSV import (updates existing players only)
+  const [positionImportModalOpen, setPositionImportModalOpen] = useState(false);
+  const [positionImportFileName, setPositionImportFileName] = useState("");
+  const [positionImportAnalysis, setPositionImportAnalysis] = useState(null);
+  const [positionImportResult, setPositionImportResult] = useState(null);
+  const [positionImportError, setPositionImportError] = useState("");
+  const [positionImporting, setPositionImporting] = useState(false);
+  const [positionImportFileKey, setPositionImportFileKey] = useState(0);
+  const [positionImportProgress, setPositionImportProgress] = useState({
+    current: 0,
+    total: 0,
+    phase: "",
+  });
 
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -2108,6 +2137,181 @@ export default function Players() {
     setAddModalOpen(true);
   };
 
+  const handleOpenPositionImport = () => {
+    setPositionImportModalOpen(true);
+    setPositionImportFileName("");
+    setPositionImportAnalysis(null);
+    setPositionImportResult(null);
+    setPositionImportError("");
+    setPositionImportProgress({
+      current: 0,
+      total: 0,
+      phase: "",
+    });
+    setPositionImportFileKey((current) => current + 1);
+  };
+
+  const handleClosePositionImport = () => {
+    if (positionImporting) return;
+
+    setPositionImportModalOpen(false);
+    setPositionImportFileName("");
+    setPositionImportAnalysis(null);
+    setPositionImportResult(null);
+    setPositionImportError("");
+    setPositionImportProgress({
+      current: 0,
+      total: 0,
+      phase: "",
+    });
+    setPositionImportFileKey((current) => current + 1);
+  };
+
+  const handlePositionImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setPositionImportError("");
+    setPositionImportResult(null);
+    setPositionImportAnalysis(null);
+    setPositionImportFileName(file.name);
+
+    try {
+      const csvText = await file.text();
+      if (!csvText.trim()) {
+        throw new Error("El archivo CSV de posiciones está vacío.");
+      }
+
+      const analysis = parsePositionCsv(csvText);
+
+      if (analysis.missingRequiredHeaders?.length) {
+        throw new Error(
+          `Faltan columnas obligatorias: ${analysis.missingRequiredHeaders.join(", ")}`
+        );
+      }
+
+      if (!analysis.players?.length) {
+        throw new Error("No se encontraron filas de jugadores en el CSV de posiciones.");
+      }
+
+      const rows = analysis.players.map((row) => {
+        const match = findPlayerForPositionRow(row, players, teams);
+        return { ...row, match };
+      });
+
+      setPositionImportAnalysis({
+        ...analysis,
+        rows,
+        matched: rows.filter((row) => row.match?.status === "matched").length,
+        ambiguous: rows.filter((row) => row.match?.status === "ambiguous").length,
+        notFound: rows.filter((row) => row.match?.status === "not_found").length,
+        invalid: rows.filter((row) => row.match?.status === "invalid").length,
+      });
+    } catch (error) {
+      console.error("Error leyendo CSV de posiciones:", error);
+      setPositionImportError(
+        error?.message || "No se ha podido leer el CSV de posiciones."
+      );
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const handleStartPositionImport = async () => {
+    const rows = positionImportAnalysis?.rows || [];
+    if (!rows.length || positionImporting) return;
+
+    const matchedRows = rows.filter((row) => row.match?.status === "matched");
+    if (!matchedRows.length) {
+      setPositionImportError("No hay ningún jugador válido para actualizar.");
+      return;
+    }
+
+    setPositionImporting(true);
+    setPositionImportError("");
+    setPositionImportResult(null);
+
+    const result = {
+      total: rows.length,
+      updated: 0,
+      notFound: 0,
+      ambiguous: 0,
+      invalid: 0,
+      errors: [],
+    };
+
+    try {
+      for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index];
+        setPositionImportProgress({
+          current: index + 1,
+          total: rows.length,
+          phase: "Actualizando posiciones...",
+        });
+
+        if (row.match?.status === "not_found") {
+          result.notFound += 1;
+          continue;
+        }
+        if (row.match?.status === "ambiguous") {
+          result.ambiguous += 1;
+          continue;
+        }
+        if (row.match?.status === "invalid") {
+          result.invalid += 1;
+          continue;
+        }
+
+        const player = row.match?.player;
+        if (!player?.id) {
+          result.invalid += 1;
+          continue;
+        }
+
+        const positionRatings = {
+          ...(player.position_ratings || player.positionRatings || {}),
+          ...row.position_ratings,
+        };
+
+        try {
+          await base44.entities.Player.update(player.id, {
+            fm_position: row.fm_position || "",
+            best_positions: row.best_positions || "",
+            role_used_to_fill_empty_attributes:
+              row.role_used_to_fill_empty_attributes || "",
+            preferred_central_position:
+              row.preferred_central_position || "",
+            position_ratings: positionRatings,
+          });
+          result.updated += 1;
+        } catch (error) {
+          result.errors.push(
+            `${row.name}: ${
+              error?.response?.data?.message ||
+              error?.response?.data?.error ||
+              error?.message ||
+              "Error desconocido."
+            }`
+          );
+        }
+      }
+
+      await loadData();
+      setPositionImportResult(result);
+    } catch (error) {
+      console.error("Error actualizando posiciones:", error);
+      setPositionImportError(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "No se ha podido completar la actualización de posiciones."
+      );
+      setPositionImportResult(result);
+    } finally {
+      setPositionImporting(false);
+    }
+  };
+
   const handleOpenImport = async () => {
     setImportModalOpen(true);
     setDefaultImportLeagueId("");
@@ -2191,181 +2395,6 @@ export default function Players() {
       );
     } finally {
       event.target.value = "";
-    }
-  };
-
-  const handleOpenPositionImport = () => {
-    setPositionImportModalOpen(true);
-    setPositionImportFileName("");
-    setPositionImportAnalysis(null);
-    setPositionImportResult(null);
-    setPositionImportError("");
-    setPositionImportFileKey((current) => current + 1);
-  };
-
-  const handleClosePositionImport = () => {
-    if (positionImporting) return;
-
-    setPositionImportModalOpen(false);
-    setPositionImportFileName("");
-    setPositionImportAnalysis(null);
-    setPositionImportResult(null);
-    setPositionImportError("");
-    setPositionImportFileKey((current) => current + 1);
-  };
-
-  const handlePositionImportFile = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setPositionImportError("");
-    setPositionImportResult(null);
-    setPositionImportAnalysis(null);
-    setPositionImportFileName(file.name);
-
-    try {
-      const csvText = await file.text();
-
-      if (!csvText.trim()) {
-        throw new Error("El CSV de posiciones está vacío.");
-      }
-
-      const analysis = parsePositionCsv(csvText);
-
-      if (analysis.missingRequiredHeaders?.length) {
-        throw new Error(
-          `Faltan columnas obligatorias: ${analysis.missingRequiredHeaders.join(", ")}`
-        );
-      }
-
-      if (!analysis.total_rows) {
-        throw new Error("No se encontraron jugadores en el CSV de posiciones.");
-      }
-
-      setPositionImportAnalysis(analysis);
-    } catch (error) {
-      console.error("Error reading position CSV:", error);
-      setPositionImportError(
-        error?.message ||
-          "No se ha podido leer el CSV de posiciones."
-      );
-    } finally {
-      event.target.value = "";
-    }
-  };
-
-  const positionImportPreview = useMemo(() => {
-    if (!positionImportAnalysis) return null;
-
-    const rows = positionImportAnalysis.players.map((positionRow) => {
-      const match = findPlayerForPositionRow(
-        positionRow,
-        players,
-        teams
-      );
-
-      return {
-        positionRow,
-        ...match,
-      };
-    });
-
-    return {
-      total: rows.length,
-      matched: rows.filter((row) => row.status === "matched").length,
-      notFound: rows.filter((row) => row.status === "not_found").length,
-      ambiguous: rows.filter((row) => row.status === "ambiguous").length,
-      invalid: rows.filter((row) => row.status === "invalid").length,
-      rows,
-    };
-  }, [positionImportAnalysis, players, teams]);
-
-  const handleStartPositionImport = async () => {
-    if (
-      !positionImportPreview?.rows?.length ||
-      positionImporting
-    ) {
-      return;
-    }
-
-    setPositionImporting(true);
-    setPositionImportError("");
-    setPositionImportResult(null);
-
-    const result = {
-      total: positionImportPreview.total,
-      updated: 0,
-      notFound: 0,
-      ambiguous: 0,
-      invalid: 0,
-      errors: [],
-    };
-
-    try {
-      for (const item of positionImportPreview.rows) {
-        const { positionRow, status, player, message } = item;
-
-        if (status === "not_found") {
-          result.notFound += 1;
-          result.errors.push(message);
-          continue;
-        }
-
-        if (status === "ambiguous") {
-          result.ambiguous += 1;
-          result.errors.push(
-            `${positionRow.name}: ${message}`
-          );
-          continue;
-        }
-
-        if (status !== "matched" || !player?.id) {
-          result.invalid += 1;
-          result.errors.push(
-            `${positionRow.name || `Fila ${positionRow.rowNumber}`}: ${
-              message || "No se pudo localizar el jugador."
-            }`
-          );
-          continue;
-        }
-
-        try {
-          await base44.entities.Player.update(player.id, {
-            fm_position: positionRow.fm_position,
-            best_positions: positionRow.best_positions,
-            role_used_to_fill_empty_attributes:
-              positionRow.role_used_to_fill_empty_attributes,
-            preferred_central_position:
-              positionRow.preferred_central_position,
-            position_ratings: positionRow.position_ratings,
-          });
-
-          result.updated += 1;
-        } catch (error) {
-          result.errors.push(
-            `${positionRow.name}: ${
-              error?.response?.data?.message ||
-              error?.response?.data?.error ||
-              error?.message ||
-              "Error al actualizar el jugador."
-            }`
-          );
-        }
-      }
-
-      await loadData();
-      setPositionImportResult(result);
-    } catch (error) {
-      console.error("Position CSV import failed:", error);
-      setPositionImportError(
-        error?.response?.data?.message ||
-          error?.response?.data?.error ||
-          error?.message ||
-          "No se ha podido completar la actualización de posiciones."
-      );
-      setPositionImportResult(result);
-    } finally {
-      setPositionImporting(false);
     }
   };
 
@@ -3655,6 +3684,194 @@ export default function Players() {
           </div>
         )}
 
+        {/* IMPORT POSITIONS MODAL */}
+        {positionImportModalOpen && (
+          <div
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !positionImporting) {
+                handleClosePositionImport();
+              }
+            }}
+          >
+            <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <div className="min-w-0">
+                  <h2 className="text-base font-extrabold text-slate-900">
+                    Import Positions CSV
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Solo actualiza los datos de la pantalla de posiciones de jugadores existentes.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClosePositionImport}
+                  disabled={positionImporting}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 disabled:opacity-50"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="max-h-[calc(92vh-76px)] overflow-y-auto p-5">
+                {positionImportError && (
+                  <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {positionImportError}
+                  </div>
+                )}
+
+                {!positionImportAnalysis && !positionImportResult && (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                    <Upload className="mx-auto text-slate-400" size={28} />
+                    <p className="mt-3 text-sm font-semibold text-slate-700">
+                      Selecciona el CSV de posiciones
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      El archivo puede contener varios jugadores del mismo equipo.
+                    </p>
+                    <label className="mt-5 inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white hover:bg-[#002477]">
+                      <Upload size={16} />
+                      Seleccionar CSV
+                      <input
+                        key={positionImportFileKey}
+                        type="file"
+                        accept=".csv,text/csv"
+                        className="hidden"
+                        onChange={handlePositionImportFile}
+                        disabled={positionImporting}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {positionImportAnalysis && !positionImportResult && (
+                  <>
+                    <div className="mb-4 flex flex-wrap gap-3">
+                      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Filas</p>
+                        <p className="mt-1 text-lg font-extrabold text-slate-900">{positionImportAnalysis.total_rows}</p>
+                      </div>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-600">Encontrados</p>
+                        <p className="mt-1 text-lg font-extrabold text-emerald-700">{positionImportAnalysis.matched}</p>
+                      </div>
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-600">Ambiguos</p>
+                        <p className="mt-1 text-lg font-extrabold text-amber-700">{positionImportAnalysis.ambiguous}</p>
+                      </div>
+                      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-red-600">No encontrados</p>
+                        <p className="mt-1 text-lg font-extrabold text-red-700">{positionImportAnalysis.notFound}</p>
+                      </div>
+                    </div>
+
+                    <div className="mb-4 overflow-hidden rounded-xl border border-slate-200">
+                      <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                          {positionImportFileName}
+                        </p>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        {positionImportAnalysis.rows.map((row) => (
+                          <div key={`${row.rowNumber}-${row.name}`} className="flex items-center justify-between gap-4 px-4 py-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-slate-800">{row.name || "Sin nombre"}</p>
+                              <p className="truncate text-xs text-slate-400">{row.teamName || "Sin equipo"} · {row.fm_position || "Sin posición"}</p>
+                            </div>
+                            <div className="shrink-0 text-xs font-semibold">
+                              {row.match?.status === "matched" && (
+                                <span className="text-emerald-600">✓ Se actualizará</span>
+                              )}
+                              {row.match?.status === "ambiguous" && (
+                                <span className="text-amber-600">⚠️ Ambiguo</span>
+                              )}
+                              {row.match?.status === "not_found" && (
+                                <span className="text-red-600">✕ No encontrado</span>
+                              )}
+                              {row.match?.status === "invalid" && (
+                                <span className="text-red-600">✕ Inválido</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {positionImporting && (
+                      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
+                          <span>{positionImportProgress.phase}</span>
+                          <span>{positionImportProgress.current}/{positionImportProgress.total}</span>
+                        </div>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full rounded-full bg-[#003399] transition-all"
+                            style={{
+                              width: `${positionImportProgress.total ? (positionImportProgress.current / positionImportProgress.total) * 100 : 0}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                      <button
+                        type="button"
+                        onClick={handleClosePositionImport}
+                        disabled={positionImporting}
+                        className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleStartPositionImport}
+                        disabled={positionImporting || !positionImportAnalysis.matched}
+                        className="h-10 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {positionImporting ? "Actualizando..." : "Actualizar posiciones"}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {positionImportResult && !positionImporting && (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                      <p className="text-sm font-extrabold text-emerald-800">Importación de posiciones completada</p>
+                      <p className="mt-1 text-sm text-emerald-700">{positionImportResult.updated} jugadores actualizados.</p>
+                    </div>
+                    {(positionImportResult.notFound || positionImportResult.ambiguous || positionImportResult.invalid || positionImportResult.errors.length) > 0 && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                        {positionImportResult.notFound > 0 && <p>• No encontrados: {positionImportResult.notFound}</p>}
+                        {positionImportResult.ambiguous > 0 && <p>• Ambiguos: {positionImportResult.ambiguous}</p>}
+                        {positionImportResult.invalid > 0 && <p>• Inválidos: {positionImportResult.invalid}</p>}
+                        {positionImportResult.errors.length > 0 && (
+                          <div className="mt-2 space-y-1 text-xs">
+                            {positionImportResult.errors.slice(0, 10).map((error, index) => (
+                              <p key={index}>{error}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleClosePositionImport}
+                        className="h-10 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white hover:bg-[#002477]"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ADD PLAYER MODAL */}
         {importModalOpen && (
           <div
@@ -4142,215 +4359,6 @@ export default function Players() {
                           Import{" "}
                           {importAnalysis?.total_rows || 0}{" "}
                           players
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {positionImportModalOpen && (
-          <div
-            className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) {
-                handleClosePositionImport();
-              }
-            }}
-          >
-            <div className="max-h-[calc(100%_-_32px)] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                <div>
-                  <h2 className="text-base font-extrabold text-slate-900">
-                    Import position CSV
-                  </h2>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Actualiza únicamente los datos de la pestaña POSICIONES. No crea jugadores ni modifica CA, CP, atributos, salario, fotos u otros campos.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleClosePositionImport}
-                  disabled={positionImporting}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
-                  aria-label="Close"
-                >
-                  <X size={17} />
-                </button>
-              </div>
-
-              <div className="max-h-[calc(92vh-72px)] overflow-y-auto p-5">
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-6">
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <FileText
-                      size={30}
-                      strokeWidth={1.6}
-                      className="text-slate-300"
-                    />
-                    <p className="mt-3 text-sm font-extrabold text-slate-800">
-                      {positionImportFileName ||
-                        "Selecciona el CSV de posiciones"}
-                    </p>
-                    <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-400">
-                      Se buscará cada jugador existente por nombre y, cuando aparezca, por equipo. Los jugadores no encontrados no se crearán.
-                    </p>
-                    <label className="mt-4 inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477]">
-                      <Upload size={16} />
-                      {positionImportFileName
-                        ? "Seleccionar otro CSV"
-                        : "Seleccionar CSV"}
-                      <input
-                        key={positionImportFileKey}
-                        type="file"
-                        accept=".csv,text/csv"
-                        className="hidden"
-                        onChange={handlePositionImportFile}
-                        disabled={positionImporting}
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {positionImportError && (
-                  <div className="mt-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    <AlertCircle size={17} className="mt-0.5 shrink-0" />
-                    <div className="min-w-0">{positionImportError}</div>
-                  </div>
-                )}
-
-                {positionImportAnalysis && positionImportPreview && (
-                  <>
-                    <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <div className="rounded-xl border border-slate-200 bg-white p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                          Filas
-                        </p>
-                        <p className="mt-1 text-2xl font-extrabold text-slate-900">
-                          {positionImportPreview.total}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-600">
-                          Encontrados
-                        </p>
-                        <p className="mt-1 text-2xl font-extrabold text-emerald-900">
-                          {positionImportPreview.matched}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-600">
-                          No encontrados
-                        </p>
-                        <p className="mt-1 text-2xl font-extrabold text-amber-900">
-                          {positionImportPreview.notFound}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-red-600">
-                          Ambiguos / error
-                        </p>
-                        <p className="mt-1 text-2xl font-extrabold text-red-900">
-                          {positionImportPreview.ambiguous + positionImportPreview.invalid}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
-                      <div className="grid grid-cols-[1.4fr_1fr_1fr] border-b border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                        <span>Jugador</span>
-                        <span>Equipo</span>
-                        <span>Estado</span>
-                      </div>
-                      <div className="divide-y divide-slate-100">
-                        {positionImportPreview.rows.slice(0, 20).map((row, index) => (
-                          <div key={`${row.positionRow.rowNumber}-${index}`} className="grid grid-cols-[1.4fr_1fr_1fr] items-center px-4 py-3 text-xs">
-                            <div className="font-semibold text-slate-800">
-                              {row.positionRow.name || `Fila ${row.positionRow.rowNumber}`}
-                            </div>
-                            <div className="truncate text-slate-500">
-                              {row.positionRow.teamName || "—"}
-                            </div>
-                            <div className={
-                              row.status === "matched"
-                                ? "font-semibold text-emerald-600"
-                                : "font-semibold text-red-500"
-                            }>
-                              {row.status === "matched"
-                                ? `✓ ${row.player?.name || "Encontrado"}`
-                                : row.message}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      {positionImportPreview.rows.length > 20 && (
-                        <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 text-center text-[11px] text-slate-400">
-                          Mostrando 20 de {positionImportPreview.rows.length} filas.
-                        </div>
-                      )}
-                    </div>
-
-                    {positionImportResult && (
-                      <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                        <div className="flex items-start gap-3">
-                          <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-600" />
-                          <div className="text-sm text-emerald-900">
-                            <p className="font-extrabold">
-                              Actualización terminada
-                            </p>
-                            <p className="mt-1 text-xs">
-                              {positionImportResult.updated} actualizados · {positionImportResult.notFound} no encontrados · {positionImportResult.ambiguous} ambiguos · {positionImportResult.invalid} inválidos.
-                            </p>
-                            {positionImportResult.errors.length > 0 && (
-                              <div className="mt-3 space-y-1 text-xs text-red-600">
-                                {positionImportResult.errors.slice(0, 12).map((error, index) => (
-                                  <p key={index}>• {error}</p>
-                                ))}
-                                {positionImportResult.errors.length > 12 && (
-                                  <p>+ {positionImportResult.errors.length - 12} incidencias más.</p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <div className="mt-5 flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    onClick={handleClosePositionImport}
-                    disabled={positionImporting}
-                    className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    {positionImportResult ? "Cerrar" : "Cancelar"}
-                  </button>
-
-                  {!positionImportResult && (
-                    <button
-                      type="button"
-                      onClick={handleStartPositionImport}
-                      disabled={
-                        positionImporting ||
-                        !positionImportPreview ||
-                        !positionImportPreview.matched
-                      }
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {positionImporting ? (
-                        <>
-                          <Loader2 size={16} className="animate-spin" />
-                          Actualizando...
-                        </>
-                      ) : (
-                        <>
-                          <Upload size={16} />
-                          Actualizar {positionImportPreview?.matched || 0} jugadores
                         </>
                       )}
                     </button>
