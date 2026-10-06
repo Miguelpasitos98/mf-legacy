@@ -16,19 +16,38 @@ import {
 import { base44 } from "@/api/base44Client";
 
 const POSITION_CODES = [
-  "GK",
-  "DFC",
-  "LD",
-  "LI",
-  "CRD",
-  "CRI",
-  "CDM",
-  "CM",
-  "CAM",
-  "EI",
-  "ED",
-  "DC",
+  "portero",
+  "defensa_izquierdo",
+  "defensa_central",
+  "defensa_derecho",
+  "mediocentro",
+  "carrilero_izquierdo",
+  "carrilero_derecho",
+  "centrocampista_izquierdo",
+  "centrocampista",
+  "centrocampista_derecho",
+  "mediapunta_por_la_izquierda",
+  "mediapunta_central",
+  "mediapunta_por_la_derecha",
+  "delantero",
 ];
+
+const POSITION_LABELS = {
+  portero: "Portero",
+  defensa_izquierdo: "Defensa izquierdo",
+  defensa_central: "Defensa central",
+  defensa_derecho: "Defensa derecho",
+  mediocentro: "Mediocentro",
+  carrilero_izquierdo: "Carrilero izquierdo",
+  carrilero_derecho: "Carrilero derecho",
+  centrocampista_izquierdo: "Centrocampista izquierdo",
+  centrocampista: "Centrocampista",
+  centrocampista_derecho: "Centrocampista derecho",
+  mediapunta_por_la_izquierda: "Mediapunta por la izquierda",
+  mediapunta_central: "Mediapunta central",
+  mediapunta_por_la_derecha: "Mediapunta por la derecha",
+  delantero: "Delantero",
+};
 
 
 const formatSalaryDisplay = (value) => {
@@ -639,18 +658,20 @@ const PlayerStatCard = ({ background, grow = 1 }) => {
 export default function PlayerDetail({ player, team, country, teams = [], countries = [], onBack, onPlayerUpdated }) {
   const initialPositionRatings = useMemo(
     () => ({
-      GK: 0,
-      DFC: 0,
-      LD: 0,
-      LI: 0,
-      CRD: 0,
-      CRI: 0,
-      CDM: 0,
-      CM: 0,
-      CAM: 0,
-      EI: 0,
-      ED: 0,
-      DC: 0,
+      portero: 0,
+      defensa_izquierdo: 0,
+      defensa_central: 0,
+      defensa_derecho: 0,
+      mediocentro: 0,
+      carrilero_izquierdo: 0,
+      carrilero_derecho: 0,
+      centrocampista_izquierdo: 0,
+      centrocampista: 0,
+      centrocampista_derecho: 0,
+      mediapunta_por_la_izquierda: 0,
+      mediapunta_central: 0,
+      mediapunta_por_la_derecha: 0,
+      delantero: 0,
       ...(player?.position_ratings || player?.positionRatings || {}),
     }),
     [player]
@@ -779,13 +800,16 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       return;
     }
 
-    const positionRatings = POSITION_CODES.reduce((result, code) => {
-      const value = Number(form.positionRatings?.[code] ?? 0);
-      result[code] = Number.isFinite(value)
-        ? Math.min(20, Math.max(0, value))
-        : 0;
-      return result;
-    }, {});
+    const positionRatings = Object.entries(form.positionRatings || {}).reduce(
+      (result, [code, value]) => {
+        const numericValue = Number(value);
+        result[code] = Number.isFinite(numericValue)
+          ? Math.min(20, Math.max(0, numericValue))
+          : 0;
+        return result;
+      },
+      {}
+    );
 
     const normalizedStats = {
       mental: {},
@@ -1549,7 +1573,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                     {POSITION_CODES.map((code) => (
                       <div key={code}>
                         <label className="mb-1 block text-[11px] font-semibold text-slate-600">
-                          {code}
+                          {POSITION_LABELS[code] || code}
                         </label>
                         <input
                           type="number"
