@@ -1,10 +1,12 @@
 {
-  // Especificación de importación del CSV de Football Manager -> entidad Player de MF LEGACY.
-  // El export actual analizado contiene 65 columnas y usa ';' como separador.
+  // Especificación del nuevo importador: Football Manager Editor -> MF LEGACY.
+  // La fuente puede ser un CSV generado manualmente/por IA a partir de capturas.
   "source": {
-    "delimiter": ";",
+    "canonical_delimiter": ",",
+    "supported_delimiters": [",", ";", "\\t"],
     "encoding": "UTF-8",
-    "columns_expected": 65
+    "columns_expected": 82,
+    "note": "El importador detecta automáticamente el separador. Las columnas de posiciones proceden directamente de la pantalla POSICIONES del Editor y NO se interpretan."
   },
   "relations": {
     "country": {
@@ -25,16 +27,34 @@
       "create_defaults": {
         "is_active": true
       },
-      "note": "La exportación actual todavía no incluye la columna Equipo. El importador debe exigirla para asociar el club automáticamente."
+      "note": "El equipo se toma literalmente del CSV."
     }
   },
   "direct_mappings": {
     "Jugador": "name",
+    "Posición": "fm_position",
+    "Mejores puestos": "best_positions",
+    "Rol utilizado para rellenar atributos vacíos": "role_used_to_fill_empty_attributes",
+    "Posición central preferida": "preferred_central_position",
     "Estilo": "style",
     "Pierna derecha": "right_foot",
     "Pierna izquierda": "left_foot",
     "CA": "ca",
     "CP": "cp",
+    "Portero": "position_ratings.portero",
+    "Defensa izquierdo": "position_ratings.defensa_izquierdo",
+    "Defensa central": "position_ratings.defensa_central",
+    "Defensa derecho": "position_ratings.defensa_derecho",
+    "Mediocentro": "position_ratings.mediocentro",
+    "Carrilero izquierdo": "position_ratings.carrilero_izquierdo",
+    "Carrilero derecho": "position_ratings.carrilero_derecho",
+    "Centrocampista izquierdo": "position_ratings.centrocampista_izquierdo",
+    "Centrocampista": "position_ratings.centrocampista",
+    "Centrocampista derecho": "position_ratings.centrocampista_derecho",
+    "Mediapunta por la izquierda": "position_ratings.mediapunta_por_la_izquierda",
+    "Mediapunta central": "position_ratings.mediapunta_central",
+    "Mediapunta por la derecha": "position_ratings.mediapunta_por_la_derecha",
+    "Delantero": "position_ratings.delantero",
     "Agresividad": "stats.mental.agresividad",
     "Anticipación": "stats.mental.anticipacion",
     "Valentía": "stats.mental.valentia",
@@ -94,3 +114,42 @@
     },
     "Altura": {
       "target_field": "height",
+      "rule": "Extract numeric centimeters from values such as '173 cm'"
+    },
+    "Sueldo": {
+      "target_field": "salary",
+      "rule": "Normalize decimal comma and K/M/B suffixes to an absolute numeric annual value"
+    },
+    "Nº": {
+      "target_field": "shirt_number",
+      "rule": "Parse integer; blank or nonnumeric becomes 0"
+    },
+    "Tendencia a lesionarse": {
+      "target_field": "stats.physical.tendencia_a_lesionarse",
+      "rule": "Invert the FM value: MF = 20 - FM, so 20 means greater resistance and 0 greater injury proneness"
+    }
+  },
+  "preserve_source_fields_exactly": [
+    "fm_position",
+    "best_positions",
+    "role_used_to_fill_empty_attributes",
+    "preferred_central_position",
+    "position_ratings.*"
+  ],
+  "calculated_later": [
+    "stats.physical.alcance_de_salto_recomendado_altura",
+    "stats.goalkeeping.balones_aereos_recomendado_altura"
+  ],
+  "not_source_fields": [
+    "photo_url",
+    "card_photo_url",
+    "national_card_photo_url",
+    "description"
+  ],
+  "semantic_exceptions": {
+    "juego_sucio": "Keep Football Manager numeric value.",
+    "excentricidad": "Keep Football Manager numeric value.",
+    "salidas_tendencia": "Keep Football Manager numeric value.",
+    "tendencia_a_lesionarse": "Invert during import so the MF LEGACY value follows the project's 20=better convention."
+  }
+}
