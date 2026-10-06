@@ -1,38 +1,44 @@
 /**
  * MF LEGACY
- * Football Manager CSV -> Player importer utilities
+ * Football Manager Editor/CSV -> Player importer utilities
  *
  * Responsibility of this module:
- * - Parse the CSV exported by Football Manager/Moneyball.
- * - Normalize and convert one CSV row into the MF LEGACY Player shape.
- * - Preserve original position strings for traceability.
+ * - Parse CSV generated from Football Manager Editor screenshots or exports.
+ * - Preserve the Football Manager position text exactly as source data.
+ * - Import the complete position-rating screen without interpreting positions.
+ * - Convert one CSV row into the MF LEGACY Player shape.
  * - Return source metadata needed later to resolve Country/Team IDs.
  *
  * This module does NOT create Base44 entities.
- * Players.jsx (or a future service layer) will handle Country/Team/Player persistence.
+ * Players.jsx (or a future service layer) handles Country/Team/Player persistence.
  */
 
-const DELIMITER = ";";
+const DEFAULT_DELIMITER = ";";
 
-const POSITION_CODES = new Set([
-  "GK",
-  "DFC",
-  "LD",
-  "LI",
-  "CRD",
-  "CRI",
-  "CDM",
-  "CM",
-  "CAM",
-  "EI",
-  "ED",
-  "DC",
+const POSITION_RATING_FIELDS = Object.freeze([
+  { key: "portero", header: "Portero", english: "portero" },
+  { key: "defensa_izquierdo", header: "Defensa izquierdo", english: "defensa_izquierdo" },
+  { key: "defensa_central", header: "Defensa central", english: "defensa_central" },
+  { key: "defensa_derecho", header: "Defensa derecho", english: "defensa_derecho" },
+  { key: "mediocentro", header: "Mediocentro", english: "mediocentro" },
+  { key: "carrilero_izquierdo", header: "Carrilero izquierdo", english: "carrilero_izquierdo" },
+  { key: "carrilero_derecho", header: "Carrilero derecho", english: "carrilero_derecho" },
+  { key: "centrocampista_izquierdo", header: "Centrocampista izquierdo", english: "centrocampista_izquierdo" },
+  { key: "centrocampista", header: "Centrocampista", english: "centrocampista" },
+  { key: "centrocampista_derecho", header: "Centrocampista derecho", english: "centrocampista_derecho" },
+  { key: "mediapunta_por_la_izquierda", header: "Mediapunta por la izquierda", english: "mediapunta_por_la_izquierda" },
+  { key: "mediapunta_central", header: "Mediapunta central", english: "mediapunta_central" },
+  { key: "mediapunta_por_la_derecha", header: "Mediapunta por la derecha", english: "mediapunta_por_la_derecha" },
+  { key: "delantero", header: "Delantero", english: "delantero" },
 ]);
 
 const PLAYER_CSV_COLUMNS = Object.freeze({
   name: "Jugador",
-  position: "Posición",
-  secondaryPosition: "Posición alternativa",
+  team: "Equipo",
+  fmPosition: "Posición",
+  bestPositions: "Mejores puestos",
+  roleUsedToFillEmptyAttributes: "Rol utilizado para rellenar atributos vacíos",
+  preferredCentralPosition: "Posición central preferida",
   style: "Estilo",
   dateOfBirth: "Nacim.",
   country: "País",
@@ -95,6 +101,9 @@ const PLAYER_CSV_COLUMNS = Object.freeze({
   consistency: "Consistencia",
   dirtiness: "Juego sucio",
   versatility: "Polivalencia",
+  ...Object.fromEntries(
+    POSITION_RATING_FIELDS.map((field) => [`positionRating_${field.key}`, field.header])
+  ),
 });
 
 const OPTIONAL_TEAM_HEADERS = [
@@ -105,7 +114,26 @@ const OPTIONAL_TEAM_HEADERS = [
   "Equipo actual",
   "Team name",
   "Club name",
+  "team",
 ];
+
+const HEADER_ENGLISH_ALIASES = Object.freeze({
+  name: "name",
+  jugador: "name",
+  team: "team",
+  club: "team",
+  position: "fmPosition",
+  fm_position: "fmPosition",
+  best_positions: "bestPositions",
+  best_positions_: "bestPositions",
+  mejores_puestos: "bestPositions",
+  role_used_to_fill_empty_attributes: "roleUsedToFillEmptyAttributes",
+  rol_used_to_fill_empty_attributes: "roleUsedToFillEmptyAttributes",
+  rol_utilizado_para_rellenar_atributos_vacios: "roleUsedToFillEmptyAttributes",
+  preferred_central_position: "preferredCentralPosition",
+  posicion_central_preferida: "preferredCentralPosition",
+  position_central_preferida: "preferredCentralPosition",
+});
 
 const normalizeHeader = (value) =>
   String(value ?? "")
@@ -113,7 +141,8 @@ const normalizeHeader = (value) =>
     .trim()
     .toLocaleLowerCase("es-ES")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "_");
 
 const HEADER_ALIASES = (() => {
   const aliases = {};
@@ -124,6 +153,85 @@ const HEADER_ALIASES = (() => {
 
   OPTIONAL_TEAM_HEADERS.forEach((header) => {
     aliases[normalizeHeader(header)] = "team";
+  });
+
+  POSITION_RATING_FIELDS.forEach((field) => {
+    aliases[field.english] = `positionRating_${field.key}`;
+    aliases[normalizeHeader(field.header)] = `positionRating_${field.key}`;
+  });
+
+  Object.entries(HEADER_ENGLISH_ALIASES).forEach(([header, key]) => {
+    aliases[normalizeHeader(header)] = key;
+  });
+
+  // Full set of existing source/stat keys in snake_case English.
+  const snakeAliases = {
+    style: "style",
+    date_of_birth: "dateOfBirth",
+    country: "country",
+    ca: "ca",
+    cp: "cp",
+    height: "height",
+    right_foot: "rightFoot",
+    left_foot: "leftFoot",
+    shirt_number: "shirtNumber",
+    salary: "salary",
+    aggression: "aggression",
+    anticipation: "anticipation",
+    bravery: "bravery",
+    composure: "composure",
+    concentration: "concentration",
+    decisions: "decisions",
+    determination: "determination",
+    flair: "flair",
+    leadership: "leadership",
+    off_the_ball: "offTheBall",
+    positioning: "positioning",
+    teamwork: "teamwork",
+    vision: "vision",
+    sacrifice: "sacrifice",
+    acceleration: "acceleration",
+    agility: "agility",
+    balance: "balance",
+    jumping_reach: "jumpingReach",
+    natural_fitness: "naturalFitness",
+    pace: "pace",
+    stamina: "stamina",
+    strength: "strength",
+    corners: "corners",
+    crossing: "crossing",
+    dribbling: "dribbling",
+    finishing: "finishing",
+    first_touch: "firstTouch",
+    free_kick_taking: "freeKickTaking",
+    heading: "heading",
+    long_shots: "longShots",
+    long_throws: "longThrows",
+    marking: "marking",
+    passing: "passing",
+    penalty_taking: "penaltyTaking",
+    tackling: "tackling",
+    technique: "technique",
+    aerial_reach: "aerialReach",
+    command_of_area: "commandOfArea",
+    communication: "communication",
+    eccentricity: "eccentricity",
+    handling: "handling",
+    goal_kicks: "goalKicks",
+    one_on_ones: "oneOnOnes",
+    punching: "punching",
+    reflexes: "reflexes",
+    rushing_out: "rushingOut",
+    throwing: "throwing",
+    important_matches: "importantMatches",
+    injury_proneness: "injuryProneness",
+    consistency: "consistency",
+    dirtiness: "dirtiness",
+    versatility: "versatility",
+  };
+
+  Object.entries(snakeAliases).forEach(([header, key]) => {
+    aliases[header] = key;
   });
 
   return aliases;
@@ -181,143 +289,41 @@ const parseSalary = (value) => {
 
   const normalized = raw
     .replace(/\u00A0/g, " ")
-    .replace(/€/g, "")
+    .replace(/[€$£¥]/g, "")
     .replace(/p\/a/gi, "")
     .trim()
     .replace(/\s+/g, "");
 
-  const match = normalized.match(/(-?\d+(?:[.,]\d+)?)([KMB])?/i);
+  const match = normalized.match(/(-?[\d.,]+)([KMB])?/i);
   if (!match) return 0;
 
-  let number = Number(match[1].replace(",", "."));
+  const rawNumber = match[1];
+  const suffix = String(match[2] || "").toUpperCase();
+  let number;
+
+  if (suffix) {
+    // With K/M/B, a comma or dot is treated as a decimal separator.
+    number = Number(rawNumber.replace(/,/g, "."));
+  } else if (/^-?\d{1,3}(?:,\d{3})+$/.test(rawNumber)) {
+    // 10,530,000 -> 10530000
+    number = Number(rawNumber.replace(/,/g, ""));
+  } else if (/^-?\d{1,3}(?:\.\d{3})+$/.test(rawNumber)) {
+    // 10.530.000 -> 10530000
+    number = Number(rawNumber.replace(/\./g, ""));
+  } else if (/^-?\d+,\d+$/.test(rawNumber)) {
+    // Decimal comma, e.g. 10,53
+    number = Number(rawNumber.replace(",", "."));
+  } else {
+    number = Number(rawNumber);
+  }
+
   if (!Number.isFinite(number)) return 0;
 
-  const suffix = String(match[2] || "").toUpperCase();
   if (suffix === "K") number *= 1_000;
   if (suffix === "M") number *= 1_000_000;
   if (suffix === "B") number *= 1_000_000_000;
 
   return Math.round(number);
-};
-
-const normalizePositionAtom = (value) => {
-  const raw = normalizeHeader(value).replace(/[()]/g, "");
-
-  if (!raw) return "";
-
-  if (["por", "p", "gk", "goalkeeper", "portero"].includes(raw)) return "GK";
-
-  if ([
-    "dfc",
-    "dfc c",
-    "df c",
-    "df c c",
-    "defensa central",
-    "central",
-    "libero",
-  ].includes(raw)) {
-    return "DFC";
-  }
-
-  if (["dfd", "df d", "ld", "ltd", "lateral derecho"].includes(raw)) {
-    return "LD";
-  }
-
-  if (["dfi", "df i", "li", "lti", "lateral izquierdo"].includes(raw)) {
-    return "LI";
-  }
-
-  if (["crd", "cr d", "carrilero derecho"].includes(raw)) return "CRD";
-  if (["cri", "cr i", "carrilero izquierdo"].includes(raw)) return "CRI";
-
-  if (["mcd", "mdc", "mc d", "pivote", "mediocentro defensivo", "dm", "cdm"].includes(raw)) {
-    return "CDM";
-  }
-
-  if (["mc", "m c", "mec", "mediocentro", "cm"].includes(raw)) {
-    return "CM";
-  }
-
-  if (["mp c", "mpc", "mp centro", "mediapunta centro", "cam"].includes(raw)) {
-    return "CAM";
-  }
-
-  if (["mp d", "mp derecho", "ed", "extremo derecho"].includes(raw)) return "ED";
-  if (["mp i", "mp izquierdo", "ei", "extremo izquierdo"].includes(raw)) return "EI";
-
-  if (["dc", "dl c", "dlc", "delantero centro", "st", "striker"].includes(raw)) return "DC";
-
-  // Generic side-specific / multi-position FM forms.
-  if (raw.startsWith("mp ")) {
-    const side = raw.replace(/^mp\s+/, "");
-    if (side.includes("d") && !side.includes("i") && !side.includes("c")) return "ED";
-    if (side.includes("i") && !side.includes("d") && !side.includes("c")) return "EI";
-    if (side.includes("c")) return "CAM";
-  }
-
-  if (raw.startsWith("dl ") || raw.startsWith("dl")) {
-    if (raw.includes("c")) return "DC";
-    if (raw.includes("d")) return "DC";
-    if (raw.includes("i")) return "DC";
-  }
-
-  // Generic defensive forms.
-  if (raw.startsWith("df ")) {
-    if (raw.includes("c")) return "DFC";
-    if (raw.includes("d")) return "LD";
-    if (raw.includes("i")) return "LI";
-  }
-
-  // Generic central midfield forms.
-  if (raw.startsWith("m ") || raw === "m") {
-    if (raw.includes("d")) return "CDM";
-    if (raw.includes("c")) return "CM";
-    if (raw.includes("i")) return "CM";
-  }
-
-  return POSITION_CODES.has(raw.toUpperCase()) ? raw.toUpperCase() : "";
-};
-
-const splitSourcePositions = (value) => {
-  const original = normalizeText(value);
-  if (!original) return [];
-
-  // Football Manager can export several positions in the same field, for
-  // example: "MC, ME/MP (C)". Keep every position exactly as FM wrote it;
-  // do not reinterpret ME/MP (C) into another MF LEGACY position.
-  return original
-    .split(/\s*,\s*|\s+-\s+/)
-    .map((position) => position.trim())
-    .filter(Boolean);
-};
-
-const normalizePosition = (value) => {
-  const original = normalizeText(value);
-  if (!original) return "";
-
-  const normalized = normalizeHeader(original);
-  const direct = normalizePositionAtom(normalized);
-  if (direct) return direct;
-
-  // Preserve the central meaning for compound FM positions such as:
-  // MP (DIC) -> CAM, MP (DC) -> CAM, DL (C) -> DC.
-  if (normalized.startsWith("mp")) {
-    const inside = normalized.replace(/^mp\s*/, "");
-    if (inside.includes("c")) return "CAM";
-    if (inside.includes("d") && !inside.includes("i")) return "ED";
-    if (inside.includes("i") && !inside.includes("d")) return "EI";
-    if (inside.includes("d") || inside.includes("i")) return "CAM";
-  }
-
-  if (normalized.startsWith("dl")) return "DC";
-  if (normalized.startsWith("df")) {
-    if (normalized.includes("c")) return "DFC";
-    if (normalized.includes("d")) return "LD";
-    if (normalized.includes("i")) return "LI";
-    return "DFC";
-  }
-
-  return "";
 };
 
 const invertInjuryProneness = (value) => {
@@ -326,11 +332,41 @@ const invertInjuryProneness = (value) => {
   return Math.max(0, Math.min(20, 20 - fmValue));
 };
 
+const detectDelimiter = (csvText) => {
+  const sample = String(csvText ?? "").slice(0, 8000);
+  const candidates = [",", ";", "\t"];
+
+  const counts = candidates.map((delimiter) => {
+    let count = 0;
+    let inQuotes = false;
+
+    for (let index = 0; index < sample.length; index += 1) {
+      const char = sample[index];
+      const nextChar = sample[index + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          index += 1;
+          continue;
+        }
+        inQuotes = !inQuotes;
+        continue;
+      }
+
+      if (!inQuotes && char === delimiter) count += 1;
+    }
+
+    return { delimiter, count };
+  });
+
+  counts.sort((a, b) => b.count - a.count);
+  return counts[0]?.count > 0 ? counts[0].delimiter : DEFAULT_DELIMITER;
+};
+
 /**
- * Parse a semicolon-delimited CSV, including quoted values containing
- * delimiters/newlines. Returns an array of row arrays.
+ * Parse a delimited CSV, including quoted values containing delimiters/newlines.
  */
-export function parseCsvText(csvText, delimiter = DELIMITER) {
+export function parseCsvText(csvText, delimiter = DEFAULT_DELIMITER) {
   const text = String(csvText ?? "").replace(/^\uFEFF/, "");
   const rows = [];
   let row = [];
@@ -364,10 +400,7 @@ export function parseCsvText(csvText, delimiter = DELIMITER) {
       row.push(field);
       field = "";
 
-      if (row.some((value) => String(value).trim() !== "")) {
-        rows.push(row);
-      }
-
+      if (row.some((value) => String(value).trim() !== "")) rows.push(row);
       row = [];
       continue;
     }
@@ -401,35 +434,25 @@ const rowsToObjects = (rows) => {
   };
 };
 
-const createEmptyPositionRatings = () => ({
-  GK: 0,
-  DFC: 0,
-  LD: 0,
-  LI: 0,
-  CRD: 0,
-  CRI: 0,
-  CDM: 0,
-  CM: 0,
-  CAM: 0,
-  EI: 0,
-  ED: 0,
-  DC: 0,
-});
+const createEmptyPositionRatings = () =>
+  POSITION_RATING_FIELDS.reduce((result, field) => {
+    result[field.key] = 0;
+    return result;
+  }, {});
 
 export function convertFootballManagerRow(row) {
   const get = (key) => normalizeText(row?.[key]);
 
-  const positionRaw = get("position");
-  const secondaryPositionRaw = get("secondaryPosition");
-
-  const sourcePositions = splitSourcePositions(positionRaw);
-  const explicitSecondaryPositions = splitSourcePositions(secondaryPositionRaw);
-  const primaryPosition = sourcePositions[0] || "";
-  const secondaryPosition =
-    explicitSecondaryPositions[0] || sourcePositions[1] || "";
-
   const teamName = get("team");
   const countryName = get("country");
+
+  const positionRatings = createEmptyPositionRatings();
+  POSITION_RATING_FIELDS.forEach((field) => {
+    positionRatings[field.key] = parseInteger(
+      get(`positionRating_${field.key}`),
+      0
+    );
+  });
 
   const player = {
     name: get("name"),
@@ -439,10 +462,10 @@ export function convertFootballManagerRow(row) {
     team_id: "",
     country_id: "",
 
-    position_raw: positionRaw,
-    position: primaryPosition,
-    secondary_position_raw: secondaryPositionRaw || sourcePositions[1] || "",
-    secondary_position: secondaryPosition,
+    fm_position: get("fmPosition"),
+    best_positions: get("bestPositions"),
+    role_used_to_fill_empty_attributes: get("roleUsedToFillEmptyAttributes"),
+    preferred_central_position: get("preferredCentralPosition"),
 
     style: get("style"),
     height: parseHeight(get("height")),
@@ -458,7 +481,7 @@ export function convertFootballManagerRow(row) {
     ca: parseInteger(get("ca"), 0),
     cp: parseInteger(get("cp"), 0),
 
-    position_ratings: createEmptyPositionRatings(),
+    position_ratings: positionRatings,
 
     stats: {
       mental: {
@@ -521,9 +544,9 @@ export function convertFootballManagerRow(row) {
         blocaje: parseInteger(get("handling")),
         saques_de_puerta: parseInteger(get("goalKicks")),
         uno_contra_uno: parseInteger(get("oneOnOnes")),
-        salidas_tendencia: parseInteger(get("rushingOut")),
         salida_de_puños: parseInteger(get("punching")),
         reflejos: parseInteger(get("reflexes")),
+        salidas_tendencia: parseInteger(get("rushingOut")),
         saque_con_la_mano: parseInteger(get("throwing")),
       },
     },
@@ -536,7 +559,6 @@ export function convertFootballManagerRow(row) {
   if (!player.name) warnings.push("Missing player name");
   if (!countryName) warnings.push("Missing country");
   if (!teamName) warnings.push("Missing team/club column or value");
-  if (!player.position) warnings.push(`Missing primary position: ${positionRaw || "(empty)"}`);
 
   return {
     player,
@@ -555,16 +577,22 @@ export async function readCsvFile(file) {
   }
 
   const text = await file.text();
-  return parseCsvText(text, DELIMITER);
+  return parseCsvText(text, detectDelimiter(text));
 }
 
 export function parseFootballManagerCsv(csvText) {
-  const rows = parseCsvText(csvText, DELIMITER);
+  const delimiter = detectDelimiter(csvText);
+  const rows = parseCsvText(csvText, delimiter);
   const { headers, rows: objectRows } = rowsToObjects(rows);
+  const players = objectRows.map(convertFootballManagerRow);
 
   return {
     headers,
+    delimiter,
     rows: objectRows,
-    players: objectRows.map(convertFootballManagerRow),
+    players,
+    total_rows: players.length,
   };
 }
+
+export { POSITION_RATING_FIELDS };
