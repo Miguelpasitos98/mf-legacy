@@ -1753,6 +1753,10 @@ export default function Players() {
 
   const [sortBy, setSortBy] = useState("");
 
+  // Persistent player filters. They remain active when opening/closing a player.
+  const [teamFilterId, setTeamFilterId] = useState("");
+  const [positionFilter, setPositionFilter] = useState("");
+
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   const [form, setForm] = useState({
@@ -1891,12 +1895,20 @@ export default function Players() {
 
     return players
       .filter((player) => {
+        const team = teamById[player.teamId];
+        const country = countryById[player.countryId];
+
+        if (teamFilterId && String(player.teamId || "") !== String(teamFilterId)) {
+          return false;
+        }
+
+        if (positionFilter && getPrimaryPosition(player) !== positionFilter) {
+          return false;
+        }
+
         if (!query) {
           return true;
         }
-
-        const team = teamById[player.teamId];
-        const country = countryById[player.countryId];
 
         return (
           (player.name || "")
@@ -1912,25 +1924,17 @@ export default function Players() {
       })
       .sort((a, b) => {
         if (sortBy === "ca") {
-          return (
-            Number(b.ca || 0) -
-            Number(a.ca || 0)
-          );
+          return Number(b.ca || 0) - Number(a.ca || 0);
         }
 
         if (sortBy === "cp") {
-          return (
-            Number(b.cp || 0) -
-            Number(a.cp || 0)
-          );
+          return Number(b.cp || 0) - Number(a.cp || 0);
         }
 
         return (a.name || "").localeCompare(
           b.name || "",
           "es",
-          {
-            sensitivity: "base",
-          }
+          { sensitivity: "base" }
         );
       });
   }, [
@@ -1939,6 +1943,8 @@ export default function Players() {
     teamById,
     countryById,
     sortBy,
+    teamFilterId,
+    positionFilter,
   ]);
 
 
@@ -3394,6 +3400,51 @@ export default function Players() {
               <Plus size={18} />
             </button>
           </div>
+        </div>
+
+        {/* PERSISTENT FILTERS */}
+        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-2.5 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1 sm:max-w-[280px]">
+            <SearchableEntitySelect
+              value={teamFilterId}
+              onChange={setTeamFilterId}
+              options={teams}
+              placeholder="Todos los equipos"
+              searchPlaceholder="Buscar equipo..."
+              kind="team"
+            />
+          </div>
+
+          <div className="min-w-0 flex-1 sm:max-w-[240px]">
+            <select
+              value={positionFilter}
+              onChange={(event) => setPositionFilter(event.target.value)}
+              className={`${inputClassName} cursor-pointer`}
+              aria-label="Filtrar por posición"
+            >
+              <option value="">Todas las posiciones</option>
+              {POSITION_GROUPS.map((position) => (
+                <option key={position.id} value={position.id}>
+                  {position.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {(teamFilterId || positionFilter) && (
+            <button
+              type="button"
+              onClick={() => {
+                setTeamFilterId("");
+                setPositionFilter("");
+              }}
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
+              title="Limpiar filtros"
+            >
+              <X size={14} />
+              Limpiar
+            </button>
+          )}
         </div>
 
         {/* ERROR */}
