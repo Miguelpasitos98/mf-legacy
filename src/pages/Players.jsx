@@ -1977,6 +1977,75 @@ export default function Players() {
       return Number.isFinite(numericValue) ? numericValue : 0;
     };
 
+    // Orden de posiciones dentro de cada equipo:
+    // portero → defensas → mediocentro → centrocampistas →
+    // mediapuntas/extremos → delanteros → sin posición.
+    const getTeamPositionOrder = (player) => {
+      const primaryPosition = getPrimaryPosition(player);
+
+      const positionOrder = {
+        portero: 0,
+
+        defensa_izquierdo: 1,
+        defensa_central: 1,
+        defensa_derecho: 1,
+        carrilero_izquierdo: 1,
+        carrilero_derecho: 1,
+
+        mediocentro: 2,
+
+        centrocampista_izquierdo: 3,
+        centrocampista: 3,
+        centrocampista_derecho: 3,
+
+        mediapunta_por_la_izquierda: 4,
+        mediapunta_central: 4,
+        mediapunta_por_la_derecha: 4,
+
+        delantero: 5,
+      };
+
+      return positionOrder[primaryPosition] ?? 6;
+    };
+
+    const getPrimaryPositionRating = (player) => {
+      const primaryPosition = getPrimaryPosition(player);
+      const ratings =
+        player?.positionRatings ||
+        player?.position_ratings ||
+        {};
+
+      const rating = Number(ratings?.[primaryPosition]);
+      return Number.isFinite(rating) ? rating : 0;
+    };
+
+    Object.values(groups).forEach((group) => {
+      group.players.sort((a, b) => {
+        const positionOrderA = getTeamPositionOrder(a);
+        const positionOrderB = getTeamPositionOrder(b);
+
+        // 1. Posición en el orden táctico.
+        if (positionOrderA !== positionOrderB) {
+          return positionOrderA - positionOrderB;
+        }
+
+        // 2. Dentro de la misma posición, mayor valoración primero.
+        const ratingA = getPrimaryPositionRating(a);
+        const ratingB = getPrimaryPositionRating(b);
+
+        if (ratingA !== ratingB) {
+          return ratingB - ratingA;
+        }
+
+        // 3. En empate, nombre alfabético.
+        return (a.name || "").localeCompare(
+          b.name || "",
+          "es",
+          { sensitivity: "base" }
+        );
+      });
+    });
+
     return Object.values(groups).sort((a, b) => {
       const reputationA = getTeamReputation(a.team);
       const reputationB = getTeamReputation(b.team);
