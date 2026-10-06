@@ -39,6 +39,22 @@ const normalizeCountry = (country) => ({
   continent: country?.continent || "",
 });
 
+const ISO3_TO_ISO2 = {
+  ESP: "es", DEU: "de", GBR: "gb", ENG: "gb", SAU: "sa", BEL: "be", BRA: "br",
+  ITA: "it", FRA: "fr", PRT: "pt", NLD: "nl", POL: "pl", ARG: "ar", URY: "uy",
+  CHL: "cl", COL: "co", MEX: "mx", USA: "us", CAN: "ca", JPN: "jp", KOR: "kr",
+  AUS: "au", MAR: "ma", NGA: "ng", CIV: "ci", SEN: "sn", EGY: "eg", GEO: "ge", HUN: "hu",
+};
+
+const getFlagUrl = (country) => {
+  const rawFlag = String(country?.flag || "").trim();
+  if (/^(https?:|data:|blob:)/i.test(rawFlag)) return rawFlag;
+
+  const code = String(country?.code || "").trim().toUpperCase();
+  const iso2 = code.length === 2 ? code.toLowerCase() : ISO3_TO_ISO2[code] || "";
+  return iso2 ? `https://flagcdn.com/w80/${iso2}.png` : "";
+};
+
 const normalizePlayer = (player) => ({
   ...player,
   id:
@@ -503,6 +519,57 @@ export default function Countries() {
     selectedCountryId,
   ]);
 
+  const continentOrder = [
+    "Europe",
+    "South America",
+    "North America",
+    "Asia",
+    "Africa",
+    "Oceania",
+  ];
+
+  const continentLabels = {
+    Europe: "Europa",
+    "South America": "Sudamérica",
+    "North America": "Norteamérica",
+    Asia: "Asia",
+    Africa: "África",
+    Oceania: "Oceanía",
+  };
+
+  const groupedCountriesByContinent = useMemo(() => {
+    const groups = new Map();
+
+    filteredCountries.forEach((country) => {
+      const rawContinent = String(country?.continent || "").trim();
+      const continent = continentOrder.includes(rawContinent)
+        ? rawContinent
+        : "Other";
+
+      if (!groups.has(continent)) {
+        groups.set(continent, []);
+      }
+
+      groups.get(continent).push(country);
+    });
+
+    return Array.from(groups.entries())
+      .sort((a, b) => {
+        const ia = continentOrder.indexOf(a[0]);
+        const ib = continentOrder.indexOf(b[0]);
+        if (a[0] === "Other") return 1;
+        if (b[0] === "Other") return -1;
+        return ia - ib;
+      })
+      .map(([continent, items]) => ({
+        continent,
+        label: continentLabels[continent] || "Otros",
+        countries: items.sort((a, b) =>
+          a.name.localeCompare(b.name, "es", { sensitivity: "base" })
+        ),
+      }));
+  }, [filteredCountries]);
+
   if (selectedCountry) {
     return (
       <div className="h-full min-h-0 overflow-y-auto bg-[#E8E9EC] px-6 py-8 md:px-10">
@@ -519,7 +586,15 @@ export default function Countries() {
           <div className="mb-8 flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 items-center gap-5">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-[#F1F5F9] text-5xl">
-                {selectedCountry.flag || "🏳️"}
+                {getFlagUrl(selectedCountry) ? (
+                  <img
+                    src={getFlagUrl(selectedCountry)}
+                    alt={`Bandera de ${selectedCountry.name}`}
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  selectedCountry.flag || "🏳️"
+                )}
               </div>
 
               <div className="min-w-0">
@@ -705,38 +780,87 @@ export default function Countries() {
         )}
 
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {Array.from({ length: 10 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-[76px] animate-pulse rounded-xl border border-slate-200 bg-white"
-              />
+          <div className="space-y-6">
+            {Array.from({ length: 3 }).map((_, groupIndex) => (
+              <section key={groupIndex}>
+                <div className="mb-3 h-8 w-48 animate-pulse rounded bg-slate-200" />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-[76px] animate-pulse rounded-xl border border-slate-200 bg-white"
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
-        ) : filteredCountries.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {filteredCountries.map((country) => (
-              <button
-                key={country.id}
-                type="button"
-                onClick={() => setSelectedCountryId(country.id)}
-                className="group flex min-h-[76px] items-center gap-3 rounded-xl border border-white/70 bg-white px-3.5 py-3 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F1F5F9] text-2xl">
-                  {country.flag || "🏳️"}
+        ) : groupedCountriesByContinent.length > 0 ? (
+          <div className="space-y-7">
+            {groupedCountriesByContinent.map((group) => (
+              <section key={group.continent}>
+                <div className="mb-3 flex items-end gap-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                      Continente
+                    </p>
+                    <h2 className="text-lg font-extrabold text-[#0F172A]">
+                      {group.label}
+                    </h2>
+                  </div>
+                  <span className="pb-0.5 text-xs font-medium text-slate-400">
+                    {group.countries.length} {group.countries.length === 1 ? "país" : "países"}
+                  </span>
                 </div>
 
-                <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-[15px] font-extrabold text-[#0F172A]">
-                    {country.name}
-                  </h2>
-                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                  {group.countries.map((country) => {
+                    const playerCount = players.filter(
+                      (player) => String(player.countryId) === String(country.id)
+                    ).length;
 
-                <ChevronRight
-                  size={16}
-                  className="shrink-0 text-[#94A3B8] transition-transform group-hover:translate-x-0.5"
-                />
-              </button>
+                    const flagUrl = getFlagUrl(country);
+
+                    return (
+                      <button
+                        key={country.id}
+                        type="button"
+                        onClick={() => setSelectedCountryId(country.id)}
+                        className="group flex min-h-[76px] items-center gap-3 rounded-xl border border-white/70 bg-white px-3.5 py-3 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                      >
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F1F5F9]">
+                          {flagUrl ? (
+                            <img
+                              src={flagUrl}
+                              alt={`Bandera de ${country.name}`}
+                              className="h-full w-full object-contain"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className="text-2xl">
+                              {country.flag || "🏳️"}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <h2 className="truncate text-[15px] font-extrabold text-[#0F172A]">
+                            {country.name}
+                          </h2>
+                          <p className="mt-0.5 text-[11px] text-slate-400">
+                            {playerCount} {playerCount === 1 ? "jugador" : "jugadores"}
+                          </p>
+                        </div>
+
+                        <ChevronRight
+                          size={16}
+                          className="shrink-0 text-[#94A3B8] transition-transform group-hover:translate-x-0.5"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
             ))}
           </div>
         ) : (
