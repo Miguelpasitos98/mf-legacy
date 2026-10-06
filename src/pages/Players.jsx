@@ -2352,15 +2352,31 @@ export default function Players() {
         };
 
         try {
-          await base44.entities.Player.update(player.id, {
-            fm_position: row.fm_position || "",
-            best_positions: row.best_positions || "",
-            role_used_to_fill_empty_attributes:
-              row.role_used_to_fill_empty_attributes || "",
-            preferred_central_position:
-              row.preferred_central_position || "",
+          const positionUpdate = {
             position_ratings: positionRatings,
-          });
+          };
+
+          // A position CSV must never erase an existing text field just
+          // because that field is empty in a later import.
+          if (String(row.fm_position || "").trim()) {
+            positionUpdate.fm_position = row.fm_position.trim();
+          }
+
+          if (String(row.best_positions || "").trim()) {
+            positionUpdate.best_positions = row.best_positions.trim();
+          }
+
+          if (String(row.role_used_to_fill_empty_attributes || "").trim()) {
+            positionUpdate.role_used_to_fill_empty_attributes =
+              row.role_used_to_fill_empty_attributes.trim();
+          }
+
+          if (String(row.preferred_central_position || "").trim()) {
+            positionUpdate.preferred_central_position =
+              row.preferred_central_position.trim();
+          }
+
+          await base44.entities.Player.update(player.id, positionUpdate);
           result.updated += 1;
         } catch (error) {
           result.errors.push(
