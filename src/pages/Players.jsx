@@ -819,6 +819,36 @@ const normalizeCountry = (country) => ({
     "",
 });
 
+
+const normalizeLeague = (league) => ({
+  ...league,
+
+  id:
+    league?.id ||
+    league?._id ||
+    league?.data?.id ||
+    "",
+
+  name:
+    league?.name ||
+    "",
+
+  countryId:
+    league?.country_id ||
+    league?.countryId ||
+    "",
+
+  level:
+    league?.level ??
+    league?.league_level ??
+    0,
+
+  isActive:
+    league?.is_active ??
+    league?.isActive ??
+    true,
+});
+
 const normalizeDateOfBirth = (value) => {
   const trimmed = String(value || "").trim();
 
@@ -1373,7 +1403,8 @@ export default function Players() {
     useState("");
   const [importFileKey, setImportFileKey] =
     useState(0);
-  const [defaultImportLeagueId, setDefaultImportLeagueId] = useState("");
+  const [defaultImportLeagueId, setDefaultImportLeagueId] =
+    useState("");
 
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -1392,10 +1423,12 @@ export default function Players() {
         playersResult,
         teamsResult,
         countriesResult,
+        leaguesResult,
       ] = await Promise.all([
         base44.entities.Player.list(),
         base44.entities.Team.list(),
         base44.entities.Country.list(),
+        base44.entities.League.list(),
       ]);
 
       const loadedPlayers = getList(playersResult)
@@ -1420,14 +1453,24 @@ export default function Players() {
           })
         );
 
+      const loadedLeagues = getList(leaguesResult)
+        .map(normalizeLeague)
+        .filter((league) => league.id && league.name)
+        .sort((a, b) =>
+          a.name.localeCompare(b.name, "es", {
+            sensitivity: "base",
+          })
+        );
+
       setPlayers(loadedPlayers);
       setTeams(loadedTeams);
       setCountries(loadedCountries);
+      setLeagues(loadedLeagues);
     } catch (error) {
       console.error("Error loading players:", error);
 
       setErrorMessage(
-        "No se han podido cargar los jugadores, equipos o países. Comprueba que las entidades Player, Team y Country existen en Base44."
+        "No se han podido cargar los jugadores, equipos o países. Comprueba que las entidades Player, Team, Country y League existen en Base44."
       );
     } finally {
       setIsLoading(false);
@@ -1722,7 +1765,7 @@ export default function Players() {
     setAddModalOpen(true);
   };
 
-  const handleOpenImport = async () => {
+  const handleOpenImport = () => {
     setImportModalOpen(true);
     setDefaultImportLeagueId("");
     setImportFileName("");
@@ -1735,7 +1778,6 @@ export default function Players() {
       phase: "",
     });
     setImportFileKey((current) => current + 1);
-    await loadImportLeagues();
   };
 
   const handleCloseImport = () => {
@@ -1774,25 +1816,25 @@ export default function Players() {
         );
       }
 
-      const rawAnalysis =
+      const analysis =
         parseFootballManagerCsv(csvText);
 
-      const analysis = {
-        ...rawAnalysis,
+      const normalizedAnalysis = {
+        ...analysis,
         total_rows:
-          rawAnalysis?.total_rows ??
-          rawAnalysis?.players?.length ??
-          rawAnalysis?.rows?.length ??
+          analysis?.total_rows ??
+          analysis?.rows?.length ??
+          analysis?.players?.length ??
           0,
       };
 
-      if (!analysis.total_rows) {
+      if (!normalizedAnalysis.total_rows) {
         throw new Error(
           "No se encontraron jugadores en el CSV."
         );
       }
 
-      setImportAnalysis(analysis);
+      setImportAnalysis(normalizedAnalysis);
     } catch (error) {
       console.error(
         "Error reading CSV:",
@@ -1809,7 +1851,9 @@ export default function Players() {
   };
 
   const importPreview = useMemo(() => {
-    if (!importAnalysis) return null;
+    if (!importAnalysis) {
+      return null;
+    }
 
     const countryMap = new Map(
       countries.map((country) => [
@@ -1818,67 +1862,121 @@ export default function Players() {
       ])
     );
 
+    // A club belongs to the club itself, not to the player's nationality.
+    // Therefore the CSV Team/Club value is matched by team name only.
     const existingTeamNames = new Set(
-      teams.map((team) => normalizeEntityName(team.name))
+      teams.map((team) =>
+        normalizeEntityName(team.name)
+      )
     );
 
     const uniqueCountries = new Set();
     const uniqueTeams = new Set();
+
     let missingNames = 0;
     let missingCountries = 0;
     let missingTeams = 0;
 
-    importAnalysis.players.forEach(({ player, source }) => {
-      const countryKey = normalizeEntityName(source?.countryName || "");
-      const teamKey = normalizeEntityName(source?.teamName || "");
+    importAnalysis.players.forEach(
+      ({ player, source }) => {
+        const countryName =
+          source?.countryName || "";
 
-      if (!player?.name?.trim()) missingNames += 1;
-      if (!countryKey) missingCountries += 1;
-      else uniqueCountries.add(countryKey);
-      if (!teamKey) missingTeams += 1;
-      else uniqueTeams.add(teamKey);
-    });
+        const teamName =
+          source?.teamName || "";
 
-    const existingCountries = Array.from(uniqueCountries).filter((key) => countryMap.has(key)).length;
-    const existingTeams = Array.from(uniqueTeams).filter((key) => existingTeamNames.has(key)).length;
+        const countryKey =
+          normalizeEntityName(countryName);
+
+        const teamKey =
+          normalizeEntityName(teamName);
+
+        if (!player?.name?.trim()) {
+          missingNames += 1;
+        }
+
+        if (!countryKey) {
+          missingCountries += 1;
+        } else {
+          uniqueCountries.add(countryKey);
+        }
+
+        if (!teamKey) {
+          missingTeams += 1;
+        } else {
+          uniqueTeams.add(teamKey);
+        }
+      }
+    );
+
+    const existingCountries =
+      Array.from(uniqueCountries).filter((key) =>
+        countryMap.has(key)
+      ).length;
+
+    const existingTeams =
+      Array.from(uniqueTeams).filter((key) =>
+        existingTeamNames.has(key)
+      ).length;
 
     return {
-      total: importAnalysis.total_rows ?? importAnalysis.players.length,
-      uniqueCountries: uniqueCountries.size,
+      total:
+        importAnalysis.total_rows ??
+        importAnalysis.players.length,
+
+      uniqueCountries:
+        uniqueCountries.size,
+
+      newCountries:
+        uniqueCountries.size -
+        existingCountries,
+
       existingCountries,
-      newCountries: uniqueCountries.size - existingCountries,
-      uniqueTeams: uniqueTeams.size,
+
+      uniqueTeams:
+        uniqueTeams.size,
+
+      newTeams:
+        uniqueTeams.size -
+        existingTeams,
+
       existingTeams,
-      newTeams: uniqueTeams.size - existingTeams,
+
       missingNames,
       missingCountries,
       missingTeams,
-      warningRows: importAnalysis.players.filter(({ warnings = [] }) => warnings.length > 0).length,
-    };
-  }, [importAnalysis, countries, teams]);
 
-  const loadImportLeagues = async () => {
-    try {
-      const result = await base44.entities.League.list();
-      const list = getList(result)
-        .filter((league) => (league?.id || league?._id) && league?.name)
-        .sort((a, b) => String(a.name).localeCompare(String(b.name), "es", { sensitivity: "base" }));
-      setLeagues(list);
-      return list;
-    } catch (error) {
-      console.error("Error loading leagues for CSV import:", error);
-      setLeagues([]);
-      setImportError("No se han podido cargar las ligas. Comprueba que la entidad League existe.");
-      return [];
-    }
-  };
+      warningRows:
+        importAnalysis.players.filter(
+          ({ warnings }) =>
+            warnings.length > 0
+        ).length,
+    };
+  }, [
+    importAnalysis,
+    countries,
+    teams,
+  ]);
 
   const handleStartImport = async () => {
-    if (!importAnalysis?.players?.length || isImporting) return;
+    if (
+      !importAnalysis ||
+      !importAnalysis.players.length ||
+      isImporting
+    ) {
+      return;
+    }
 
-    const newTeamCount = Number(importPreview?.newTeams || 0);
-    if (newTeamCount > 0 && !defaultImportLeagueId) {
-      setImportError("Hay equipos nuevos. Selecciona una liga antes de importar.");
+    const newTeamCount =
+      Number(importPreview?.newTeams || 0);
+
+    if (
+      newTeamCount > 0 &&
+      !defaultImportLeagueId
+    ) {
+      setImportError(
+        "Hay equipos nuevos en este CSV. Selecciona la liga que debe asignarse a esos equipos antes de importar."
+      );
       return;
     }
 
@@ -1887,7 +1985,8 @@ export default function Players() {
     setImportResult(null);
 
     const result = {
-      total: importAnalysis.players.length,
+      total:
+        importAnalysis.players.length,
       imported: 0,
       skippedDuplicates: 0,
       skippedInvalid: 0,
@@ -1897,134 +1996,644 @@ export default function Players() {
     };
 
     try {
-      const countryCache = new Map(countries.map((country) => [normalizeEntityName(country.name), country]));
-      const teamCache = new Map(teams.map((team) => [normalizeEntityName(team.name), team]));
-      const selectedLeague = leagues.find((league) => String(league?.id || league?._id) === String(defaultImportLeagueId));
-      const selectedLeagueId = selectedLeague?.id || selectedLeague?._id || selectedLeague?.data?.id || "";
-      const selectedLeagueCountryId = selectedLeague?.country_id || selectedLeague?.countryId || "";
+      const countryCache = new Map(
+        countries.map((country) => [
+          normalizeEntityName(
+            country.name
+          ),
+          country,
+        ])
+      );
 
-      // Countries
-      const uniqueCountryKeys = Array.from(new Set(importAnalysis.players.map(({ source }) => normalizeEntityName(source?.countryName || "")).filter(Boolean)));
-      setImportProgress({ current: 0, total: uniqueCountryKeys.length, phase: "Resolving countries..." });
+      const teamCache = new Map();
 
-      for (let index = 0; index < uniqueCountryKeys.length; index += 1) {
-        const countryKey = uniqueCountryKeys[index];
-        if (!countryCache.has(countryKey)) {
-          const sourceRow = importAnalysis.players.find(({ source }) => normalizeEntityName(source?.countryName || "") === countryKey);
-          const countryName = sourceRow?.source?.countryName?.trim();
-          if (countryName) {
-            const created = await base44.entities.Country.create({
+      teams.forEach((team) => {
+        teamCache.set(
+          normalizeEntityName(team.name),
+          team
+        );
+      });
+
+      const leagueCache = new Map(
+        leagues.map((league) => [
+          normalizeEntityName(
+            league.name
+          ),
+          league,
+        ])
+      );
+
+      /*
+       * 1. Resolve/create countries.
+       */
+      const uniqueCountryKeys =
+        Array.from(
+          new Set(
+            importAnalysis.players
+              .map(
+                ({ source }) =>
+                  normalizeEntityName(
+                    source?.countryName || ""
+                  )
+              )
+              .filter(Boolean)
+          )
+        );
+
+      setImportProgress({
+        current: 0,
+        total:
+          uniqueCountryKeys.length,
+        phase:
+          "Resolving countries...",
+      });
+
+      for (
+        let index = 0;
+        index <
+        uniqueCountryKeys.length;
+        index += 1
+      ) {
+        const countryKey =
+          uniqueCountryKeys[index];
+
+        if (
+          countryCache.has(
+            countryKey
+          )
+        ) {
+          setImportProgress({
+            current: index + 1,
+            total:
+              uniqueCountryKeys.length,
+            phase:
+              "Resolving countries...",
+          });
+          continue;
+        }
+
+        const sourceRow =
+          importAnalysis.players.find(
+            ({ source }) =>
+              normalizeEntityName(
+                source?.countryName || ""
+              ) === countryKey
+          );
+
+        const countryName =
+          sourceRow?.source?.countryName?.trim();
+
+        if (!countryName) {
+          continue;
+        }
+
+        const createdCountry =
+          await base44.entities.Country.create(
+            {
               name: countryName,
-              code: generateImportedCountryCode(countryName),
-              continent: inferImportedCountryContinent(countryName),
+              code:
+                generateImportedCountryCode(
+                  countryName
+                ),
+              continent:
+                inferImportedCountryContinent(
+                  countryName
+                ),
               flag: "",
               is_active: true,
-            });
-            const countryData = created?.data || created;
-            const countryId = countryData?.id || countryData?._id || created?.id || created?._id || "";
-            if (!countryId) throw new Error(`El país "${countryName}" se creó pero no devolvió ID.`);
-            countryCache.set(countryKey, { ...countryData, id: countryId, name: countryData?.name || countryName });
-            result.countriesCreated += 1;
-          }
-        }
-        setImportProgress({ current: index + 1, total: uniqueCountryKeys.length, phase: "Resolving countries..." });
-      }
-
-      // Teams: match by team name. A club is independent of the player's nationality.
-      const uniqueTeamKeys = Array.from(new Set(importAnalysis.players.map(({ source }) => normalizeEntityName(source?.teamName || "")).filter(Boolean)));
-      setImportProgress({ current: 0, total: uniqueTeamKeys.length, phase: "Resolving teams..." });
-
-      for (let index = 0; index < uniqueTeamKeys.length; index += 1) {
-        const teamKey = uniqueTeamKeys[index];
-        if (!teamCache.has(teamKey)) {
-          const sourceRow = importAnalysis.players.find(({ source }) => normalizeEntityName(source?.teamName || "") === teamKey);
-          const teamName = sourceRow?.source?.teamName?.trim();
-          if (teamName) {
-            if (!selectedLeagueId) {
-              result.errors.push(`Falta seleccionar una liga para el nuevo equipo "${teamName}".`);
-            } else {
-              const created = await base44.entities.Team.create({
-                name: teamName,
-                short_name: generateImportedTeamShortName(teamName),
-                code: generateImportedTeamShortName(teamName),
-                continent: "Europe",
-                country_id: selectedLeagueCountryId,
-                league_id: selectedLeagueId,
-                city: "",
-                logo: "",
-                is_active: true,
-              });
-              const teamData = created?.data || created;
-              const teamId = teamData?.id || teamData?._id || created?.id || created?._id || "";
-              if (!teamId) throw new Error(`El equipo "${teamName}" se creó pero no devolvió ID.`);
-              teamCache.set(teamKey, { ...teamData, id: teamId, name: teamData?.name || teamName });
-              result.teamsCreated += 1;
             }
-          }
+          );
+
+        const countryId =
+          getEntityId(
+            createdCountry
+          );
+
+        if (!countryId) {
+          throw new Error(
+            `El país "${countryName}" se creó pero Base44 no devolvió un ID.`
+          );
         }
-        setImportProgress({ current: index + 1, total: uniqueTeamKeys.length, phase: "Resolving teams..." });
+
+        const countryData =
+          createdCountry?.data ||
+          createdCountry;
+
+        countryCache.set(
+          countryKey,
+          {
+            ...countryData,
+            id: countryId,
+            name:
+              countryData?.name ||
+              countryName,
+            code:
+              countryData?.code ||
+              generateImportedCountryCode(
+                countryName
+              ),
+            continent:
+              countryData?.continent ||
+              inferImportedCountryContinent(
+                countryName
+              ),
+          }
+        );
+
+        result.countriesCreated += 1;
+
+        setImportProgress({
+          current: index + 1,
+          total:
+            uniqueCountryKeys.length,
+          phase:
+            "Resolving countries...",
+        });
       }
 
-      // Players / duplicates
-      const existingPlayerKeys = new Set();
-      players.forEach((existingPlayer) => {
-        existingPlayerKeys.add([
-          normalizeEntityName(existingPlayer.name),
-          String(existingPlayer.dateOfBirth || "").trim(),
-          String(existingPlayer.teamId || ""),
-        ].join("::"));
+      /*
+       * 2. Resolve/create teams.
+       *
+       * IMPORTANT:
+       * A player's country is NOT the team's country.
+       * Existing teams are matched by their own name.
+       * For a new team, we use the selected default league:
+       * its country_id becomes the team's country_id and
+       * its id becomes the team's league_id.
+       */
+      const uniqueTeamKeys =
+        Array.from(
+          new Set(
+            importAnalysis.players
+              .map(({ source }) =>
+                normalizeEntityName(
+                  source?.teamName || ""
+                )
+              )
+              .filter(Boolean)
+          )
+        );
+
+      const selectedDefaultLeague =
+        leagues.find(
+          (league) =>
+            String(league.id) ===
+            String(
+              defaultImportLeagueId
+            )
+        ) || null;
+
+      setImportProgress({
+        current: 0,
+        total:
+          uniqueTeamKeys.length,
+        phase:
+          "Resolving teams...",
       });
-      const seenImportKeys = new Set();
 
-      setImportProgress({ current: 0, total: importAnalysis.players.length, phase: "Importing players..." });
+      for (
+        let index = 0;
+        index < uniqueTeamKeys.length;
+        index += 1
+      ) {
+        const teamKey =
+          uniqueTeamKeys[index];
 
-      for (let index = 0; index < importAnalysis.players.length; index += 1) {
-        const { player, source } = importAnalysis.players[index];
-        const playerName = String(player?.name || "").trim();
+        if (
+          teamCache.has(teamKey)
+        ) {
+          setImportProgress({
+            current: index + 1,
+            total:
+              uniqueTeamKeys.length,
+            phase:
+              "Resolving teams...",
+          });
+          continue;
+        }
+
+        const sourceRow =
+          importAnalysis.players.find(
+            ({ source }) =>
+              normalizeEntityName(
+                source?.teamName || ""
+              ) === teamKey
+          );
+
+        const teamName =
+          sourceRow?.source?.teamName?.trim();
+
+        if (!teamName) {
+          continue;
+        }
+
+        const existingTeam =
+          teams.find(
+            (team) =>
+              normalizeEntityName(
+                team.name
+              ) === teamKey
+          );
+
+        if (existingTeam?.id) {
+          teamCache.set(
+            teamKey,
+            existingTeam
+          );
+
+          setImportProgress({
+            current: index + 1,
+            total:
+              uniqueTeamKeys.length,
+            phase:
+              "Resolving teams...",
+          });
+
+          continue;
+        }
+
+        if (!selectedDefaultLeague?.id) {
+          result.errors.push(
+            `El club "${teamName}" no existe y no se ha seleccionado una liga para crear nuevos equipos.`
+          );
+
+          setImportProgress({
+            current: index + 1,
+            total:
+              uniqueTeamKeys.length,
+            phase:
+              "Resolving teams...",
+          });
+
+          continue;
+        }
+
+        const teamCountryId =
+          selectedDefaultLeague.countryId ||
+          selectedDefaultLeague.country_id ||
+          "";
+
+        if (!teamCountryId) {
+          result.errors.push(
+            `La liga "${selectedDefaultLeague.name}" no tiene un country_id válido. No se puede crear el club "${teamName}".`
+          );
+
+          setImportProgress({
+            current: index + 1,
+            total:
+              uniqueTeamKeys.length,
+            phase:
+              "Resolving teams...",
+          });
+
+          continue;
+        }
+
+        const teamCountry =
+          Array.from(
+            countryCache.values()
+          ).find(
+            (country) =>
+              String(country.id) ===
+              String(teamCountryId)
+          ) ||
+          countries.find(
+            (country) =>
+              String(country.id) ===
+              String(teamCountryId)
+          ) ||
+          null;
+
+        const shortName =
+          generateImportedTeamShortName(
+            teamName
+          );
+
+        const generatedCode =
+          shortName;
+
+        const createdTeam =
+          await base44.entities.Team.create(
+            {
+              name: teamName,
+              short_name: shortName,
+              code: generatedCode,
+              continent:
+                teamCountry?.continent ||
+                "Europe",
+              country_id:
+                teamCountryId,
+              league_id:
+                selectedDefaultLeague.id,
+              city: "",
+              logo: "",
+              is_active: true,
+            }
+          );
+
+        const createdTeamId =
+          getEntityId(
+            createdTeam
+          );
+
+        if (!createdTeamId) {
+          throw new Error(
+            `El club "${teamName}" se creó pero Base44 no devolvió un ID.`
+          );
+        }
+
+        const teamData =
+          createdTeam?.data ||
+          createdTeam;
+
+        const normalizedTeam = {
+          ...teamData,
+          id: createdTeamId,
+          name:
+            teamData?.name ||
+            teamName,
+          countryId:
+            teamData?.country_id ||
+            teamCountryId,
+          logo:
+            teamData?.logo || "",
+        };
+
+        teamCache.set(
+          teamKey,
+          normalizedTeam
+        );
+
+        result.teamsCreated += 1;
+
+        setImportProgress({
+          current: index + 1,
+          total:
+            uniqueTeamKeys.length,
+          phase:
+            "Resolving teams...",
+        });
+      }
+
+      /*
+       * 3. Import players and avoid obvious duplicates.
+       */
+      const existingPlayerKeys =
+        new Set();
+
+      players.forEach(
+        (existingPlayer) => {
+          const team =
+            teamById[
+              existingPlayer.teamId
+            ];
+
+          existingPlayerKeys.add(
+            [
+              normalizeEntityName(
+                existingPlayer.name
+              ),
+              String(
+                existingPlayer
+                  .dateOfBirth || ""
+              ).trim(),
+              String(
+                existingPlayer.teamId ||
+                  ""
+              ),
+            ].join("::")
+          );
+
+          if (
+            !existingPlayer.dateOfBirth ||
+            !existingPlayer.teamId
+          ) {
+            existingPlayerKeys.add(
+              [
+                normalizeEntityName(
+                  existingPlayer.name
+                ),
+                normalizeEntityName(
+                  team?.name || ""
+                ),
+              ].join("::")
+            );
+          }
+        }
+      );
+
+      const seenImportKeys =
+        new Set();
+
+      setImportProgress({
+        current: 0,
+        total:
+          importAnalysis.players.length,
+        phase:
+          "Importing players...",
+      });
+
+      for (
+        let index = 0;
+        index <
+        importAnalysis.players.length;
+        index += 1
+      ) {
+        const {
+          player,
+          source,
+        } =
+          importAnalysis.players[index];
+
+        const playerName =
+          String(
+            player?.name || ""
+          ).trim();
+
         if (!playerName) {
           result.skippedInvalid += 1;
-          result.errors.push(`Fila ${index + 2}: jugador sin nombre.`);
-          setImportProgress({ current: index + 1, total: importAnalysis.players.length, phase: "Importing players..." });
+
+          result.errors.push(
+            `Fila ${
+              index + 2
+            }: jugador sin nombre.`
+          );
+
+          setImportProgress({
+            current: index + 1,
+            total:
+              importAnalysis.players.length,
+            phase:
+              "Importing players...",
+          });
+
           continue;
         }
 
-        const country = countryCache.get(normalizeEntityName(source?.countryName || ""));
-        const teamName = source?.teamName || "";
-        const team = teamCache.get(normalizeEntityName(teamName));
-        const finalPlayer = { ...player, team_id: team?.id || "", country_id: country?.id || "" };
+        const countryName =
+          source?.countryName || "";
 
-        if (teamName.trim() && !team?.id) {
+        const teamName =
+          source?.teamName || "";
+
+        const countryKey =
+          normalizeEntityName(
+            countryName
+          );
+
+        const teamKey =
+          normalizeEntityName(
+            teamName
+          );
+
+        const country =
+          countryCache.get(
+            countryKey
+          );
+
+        const team =
+          teamName.trim()
+            ? teamCache.get(teamKey)
+            : null;
+
+        if (
+          teamName.trim() &&
+          !team?.id
+        ) {
           result.skippedInvalid += 1;
-          result.errors.push(`${playerName}: no se pudo resolver el club "${teamName}".`);
-          setImportProgress({ current: index + 1, total: importAnalysis.players.length, phase: "Importing players..." });
+
+          result.errors.push(
+            `${playerName}: no se pudo resolver el club "${teamName}".`
+          );
+
+          setImportProgress({
+            current: index + 1,
+            total:
+              importAnalysis.players.length,
+            phase:
+              "Importing players...",
+          });
+
           continue;
         }
 
-        const duplicateKey = [normalizeEntityName(finalPlayer.name), String(finalPlayer.date_of_birth || "").trim(), String(finalPlayer.team_id || "")].join("::");
-        if (existingPlayerKeys.has(duplicateKey) || seenImportKeys.has(duplicateKey)) {
+        const finalPlayer = {
+          ...player,
+          team_id:
+            team?.id || "",
+          country_id:
+            country?.id || "",
+        };
+
+        const strictDuplicateKey = [
+          normalizeEntityName(
+            finalPlayer.name
+          ),
+          String(
+            finalPlayer.date_of_birth ||
+              ""
+          ).trim(),
+          String(
+            finalPlayer.team_id ||
+              ""
+          ),
+        ].join("::");
+
+        const weakDuplicateKey = [
+          normalizeEntityName(
+            finalPlayer.name
+          ),
+          normalizeEntityName(
+            teamName
+          ),
+        ].join("::");
+
+        if (
+          existingPlayerKeys.has(
+            strictDuplicateKey
+          ) ||
+          seenImportKeys.has(
+            strictDuplicateKey
+          ) ||
+          (
+            (!finalPlayer.date_of_birth ||
+              !finalPlayer.team_id) &&
+            existingPlayerKeys.has(
+              weakDuplicateKey
+            )
+          )
+        ) {
           result.skippedDuplicates += 1;
-          seenImportKeys.add(duplicateKey);
-          setImportProgress({ current: index + 1, total: importAnalysis.players.length, phase: "Importing players..." });
+
+          seenImportKeys.add(
+            strictDuplicateKey
+          );
+
+          setImportProgress({
+            current: index + 1,
+            total:
+              importAnalysis.players.length,
+            phase:
+              "Importing players...",
+          });
+
           continue;
         }
 
         try {
-          await base44.entities.Player.create(finalPlayer);
+          await base44.entities.Player.create(
+            finalPlayer
+          );
+
           result.imported += 1;
-          existingPlayerKeys.add(duplicateKey);
-          seenImportKeys.add(duplicateKey);
+
+          existingPlayerKeys.add(
+            strictDuplicateKey
+          );
+          seenImportKeys.add(
+            strictDuplicateKey
+          );
         } catch (error) {
-          result.errors.push(`${playerName}: ${error?.response?.data?.message || error?.response?.data?.error || error?.message || "Error desconocido."}`);
+          console.error(
+            `Error importing player ${playerName}:`,
+            error
+          );
+
+          result.errors.push(
+            `${playerName}: ${
+              error?.response?.data?.message ||
+              error?.response?.data?.error ||
+              error?.message ||
+              "Error desconocido."
+            }`
+          );
         }
 
-        setImportProgress({ current: index + 1, total: importAnalysis.players.length, phase: "Importing players..." });
+        setImportProgress({
+          current: index + 1,
+          total:
+            importAnalysis.players.length,
+          phase:
+            "Importing players...",
+        });
       }
 
       await loadData();
+
       setImportResult(result);
     } catch (error) {
-      console.error("CSV import failed:", error);
-      setImportError(error?.response?.data?.message || error?.response?.data?.error || error?.message || "No se ha podido completar la importación.");
+      console.error(
+        "CSV import failed:",
+        error
+      );
+
+      setImportError(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "No se ha podido completar la importación."
+      );
+
       setImportResult(result);
     } finally {
       setIsImporting(false);
@@ -3005,29 +3614,6 @@ export default function Players() {
                       </div>
                     </div>
 
-                    {importPreview.newTeams > 0 && (
-                      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                        <p className="text-xs font-extrabold text-amber-900">Liga para los equipos nuevos</p>
-                        <p className="mt-1 text-[11px] leading-relaxed text-amber-800/80">El CSV trae el club, pero no la liga. Los equipos que ya existen se reutilizan. Selecciona la liga que corresponde a los equipos nuevos.</p>
-                        <select
-                          value={defaultImportLeagueId}
-                          onChange={(event) => setDefaultImportLeagueId(event.target.value)}
-                          disabled={isImporting}
-                          className={`${inputClassName} mt-3`}
-                        >
-                          <option value="">Selecciona una liga...</option>
-                          {leagues.map((league) => (
-                            <option key={league.id || league._id} value={league.id || league._id}>
-                              {league.name}
-                            </option>
-                          ))}
-                        </select>
-                        {leagues.length === 0 && (
-                          <p className="mt-2 text-[11px] font-semibold text-red-700">No se han podido cargar ligas.</p>
-                        )}
-                      </div>
-                    )}
-
                     {(importPreview.missingNames > 0 ||
                       importPreview.missingCountries > 0 ||
                       importPreview.missingTeams > 0) && (
@@ -3049,6 +3635,63 @@ export default function Players() {
                             {importPreview.missingTeams} jugador(es) sin equipo.
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {importPreview.newTeams > 0 && (
+                      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="flex flex-col gap-3">
+                          <div>
+                            <p className="text-xs font-extrabold text-amber-900">
+                              Liga para los nuevos equipos
+                            </p>
+
+                            <p className="mt-1 text-[11px] leading-relaxed text-amber-800/80">
+                              El CSV indica el club, pero no la liga. Los equipos que ya existen se reutilizan automáticamente. Para crear un equipo nuevo necesitamos saber a qué liga pertenece.
+                            </p>
+                          </div>
+
+                          <select
+                            value={defaultImportLeagueId}
+                            onChange={(event) =>
+                              setDefaultImportLeagueId(
+                                event.target.value
+                              )
+                            }
+                            disabled={isImporting}
+                            className={inputClassName}
+                          >
+                            <option value="">
+                              Selecciona una liga para los equipos nuevos
+                            </option>
+
+                            {leagues.map((league) => {
+                              const leagueCountry = countries.find(
+                                (country) =>
+                                  String(country.id) ===
+                                  String(league.countryId || "")
+                              );
+
+                              return (
+                                <option
+                                  key={league.id}
+                                  value={league.id}
+                                >
+                                  {league.name}
+                                  {leagueCountry?.name
+                                    ? ` · ${leagueCountry.name}`
+                                    : ""}
+                                </option>
+                              );
+                            })}
+                          </select>
+
+                          {leagues.length === 0 && (
+                            <p className="text-[11px] font-semibold text-red-700">
+                              No hay ligas disponibles. Crea al menos una League antes de importar equipos nuevos.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -3284,7 +3927,8 @@ export default function Players() {
                         isImporting ||
                         !importAnalysis ||
                         !importAnalysis.players.length ||
-                        (Number(importPreview?.newTeams || 0) > 0 && !defaultImportLeagueId)
+                        (Number(importPreview?.newTeams || 0) > 0 &&
+                          !defaultImportLeagueId)
                       }
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -3300,7 +3944,9 @@ export default function Players() {
                         <>
                           <Upload size={16} />
                           Import{" "}
-                          {importAnalysis?.total_rows || 0}{" "}
+                          {importAnalysis?.total_rows ??
+                            importAnalysis?.players?.length ??
+                            0}{" "}
                           players
                         </>
                       )}
