@@ -1,96 +1,32 @@
-{
-  "name": "Player",
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": "Nombre completo del jugador"
-    },
-    "date_of_birth": {
-      "type": "string",
-      "description": "Fecha de nacimiento en formato DD/MM/YYYY"
-    },
-    "team_id": {
-      "type": "string",
-      "description": "ID del club asociado al jugador"
-    },
-    "country_id": {
-      "type": "string",
-      "description": "ID del país asociado al jugador"
-    },
-    "photo_url": {
-      "type": "string",
-      "description": "URL de la fotografía del jugador para el perfil individual"
-    },
-    "card_photo_url": {
-      "type": "string",
-      "description": "URL de la fotografía del jugador utilizada en las tarjetas del listado de jugadores cuando se muestran en contexto de club"
-    },
-    "national_card_photo_url": {
-      "type": "string",
-      "description": "URL de la fotografía del jugador con la camiseta de su selección nacional, utilizada en las tarjetas del listado cuando los jugadores se agrupan por países"
-    },
-    "ca": {
-      "type": "number",
-      "description": "Current Ability (CA) del jugador"
-    },
-    "cp": {
-      "type": "number",
-      "description": "Potential Ability (CP) del jugador"
-    },
-    "position_ratings": {
-      "type": "object",
-      "properties": {
-        "GK": {
           "type": "number",
-          "description": "Valoración como portero (0-20)"
-        },
-        "DFC": {
-          "type": "number",
-          "description": "Valoración como defensa central (0-20)"
-        },
-        "LD": {
-          "type": "number",
-          "description": "Valoración como lateral derecho (0-20)"
-        },
-        "LI": {
-          "type": "number",
-          "description": "Valoración como lateral izquierdo (0-20)"
-        },
-        "CRD": {
-          "type": "number",
-          "description": "Valoración como carrilero derecho (0-20)"
-        },
-        "CRI": {
-          "type": "number",
-          "description": "Valoración como carrilero izquierdo (0-20)"
+          "description": "Valoración del jugador como carrilero izquierdo de 0 a 20"
         },
         "CDM": {
           "type": "number",
-          "description": "Valoración como mediocentro defensivo (0-20)"
+          "description": "Valoración del jugador como mediocentro defensivo de 0 a 20"
         },
         "CM": {
           "type": "number",
-          "description": "Valoración como mediocentro (0-20)"
+          "description": "Valoración del jugador como mediocentro de 0 a 20"
         },
         "CAM": {
           "type": "number",
-          "description": "Valoración como mediapunta (0-20)"
+          "description": "Valoración del jugador como mediapunta de 0 a 20"
         },
         "EI": {
           "type": "number",
-          "description": "Valoración como extremo izquierdo (0-20)"
+          "description": "Valoración del jugador como extremo izquierdo de 0 a 20"
         },
         "ED": {
           "type": "number",
-          "description": "Valoración como extremo derecho (0-20)"
+          "description": "Valoración del jugador como extremo derecho de 0 a 20"
         },
         "DC": {
           "type": "number",
-          "description": "Valoración como delantero centro (0-20)"
+          "description": "Valoración del jugador como delantero centro de 0 a 20"
         }
       },
-      "description": "Valoración del jugador en cada posición del campo"
+      "description": "Valoraciones por posición. El CSV proporciona las posiciones principal y secundaria, pero no estos valores numéricos; podrán calcularse posteriormente. Todos utilizan escala 0-20, donde 20 es el mejor valor."
     },
     "stats": {
       "type": "object",
@@ -98,351 +34,87 @@
         "mental": {
           "type": "object",
           "properties": {
-            "agresividad": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Agresividad (0-20)"
-            },
-            "anticipacion": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Anticipación (0-20)"
-            },
-            "valentia": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Valentía (0-20)"
-            },
-            "serenidad": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Serenidad (0-20)"
-            },
-            "concentracion": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Concentración (0-20)"
-            },
-            "consistencia": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Consistencia (0-20)"
-            },
-            "decisiones": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Decisiones (0-20)"
-            },
-            "determinacion": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Determinación (0-20)"
-            },
-            "juego_sucio": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Juego sucio (0-20)"
-            },
-            "talento": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Talento (0-20)"
-            },
-            "partidos_importantes": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Partidos importantes (0-20)"
-            },
-            "liderazgo": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Liderazgo (0-20)"
-            },
-            "movimiento": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Movimiento (0-20)"
-            },
-            "colocacion": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Colocación (0-20)"
-            },
-            "trabajo_de_equipo": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Trabajo de equipo (0-20)"
-            },
-            "vision": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Visión (0-20)"
-            }
+            "agresividad": { "type": "number", "description": "Agresividad, 0-20" },
+            "anticipacion": { "type": "number", "description": "Anticipación, 0-20" },
+            "valentia": { "type": "number", "description": "Valentía, 0-20" },
+            "serenidad": { "type": "number", "description": "Serenidad, 0-20" },
+            "concentracion": { "type": "number", "description": "Concentración, 0-20" },
+            "consistencia": { "type": "number", "description": "Consistencia, 0-20" },
+            "decisiones": { "type": "number", "description": "Decisiones, 0-20" },
+            "determinacion": { "type": "number", "description": "Determinación, 0-20" },
+            "juego_sucio": { "type": "number", "description": "Juego sucio, 0-20 según la escala de MF LEGACY" },
+            "talento": { "type": "number", "description": "Talento, 0-20" },
+            "partidos_importantes": { "type": "number", "description": "Rendimiento en partidos importantes, 0-20" },
+            "liderazgo": { "type": "number", "description": "Liderazgo, 0-20" },
+            "movimiento": { "type": "number", "description": "Movimiento/desmarques, 0-20" },
+            "colocacion": { "type": "number", "description": "Colocación, 0-20" },
+            "trabajo_de_equipo": { "type": "number", "description": "Trabajo de equipo, 0-20" },
+            "vision": { "type": "number", "description": "Visión, 0-20" },
+            "sacrificio": { "type": "number", "description": "Sacrificio, 0-20" }
           },
-          "description": "Atributos mentales del jugador. Todas las estadísticas tienen un rango de 0 a 20."
+          "description": "Atributos mentales del jugador. Todos utilizan una escala de 0 a 20, donde 20 es el mejor valor."
         },
         "physical": {
           "type": "object",
           "properties": {
-            "aceleracion": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Aceleración (0-20)"
-            },
-            "agilidad": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Agilidad (0-20)"
-            },
-            "balance": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Balance (0-20)"
-            },
-            "tendencia_a_lesionarse": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Tendencia a lesionarse (0-20)"
-            },
-            "alcance_de_salto": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Alcance de salto (0-20)"
-            },
-            "alcance_de_salto_recomendado_altura": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Alcance de salto recomendado basándose en la altura (0-20)"
-            },
-            "recuperacion_fisica": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Recuperación física (0-20)"
-            },
-            "velocidad": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Velocidad (0-20)"
-            },
-            "resistencia": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Resistencia (0-20)"
-            },
-            "fuerza": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Fuerza (0-20)"
-            }
+            "aceleracion": { "type": "number", "description": "Aceleración, 0-20" },
+            "agilidad": { "type": "number", "description": "Agilidad, 0-20" },
+            "balance": { "type": "number", "description": "Equilibrio, 0-20" },
+            "tendencia_a_lesionarse": { "type": "number", "description": "Tendencia a lesionarse, 0-20 según la escala de MF LEGACY" },
+            "alcance_de_salto": { "type": "number", "description": "Alcance de salto, 0-20" },
+            "alcance_de_salto_recomendado_altura": { "type": "number", "description": "Valor ajustado por altura para alcance de salto; reservado para cálculo posterior y no presente directamente en el export actual" },
+            "recuperacion_fisica": { "type": "number", "description": "Recuperación física, 0-20" },
+            "velocidad": { "type": "number", "description": "Velocidad, 0-20" },
+            "resistencia": { "type": "number", "description": "Resistencia, 0-20" },
+            "fuerza": { "type": "number", "description": "Fuerza, 0-20" }
           },
-          "description": "Atributos físicos del jugador. Todas las estadísticas tienen un rango de 0 a 20."
+          "description": "Atributos físicos del jugador. Todos utilizan una escala de 0 a 20, donde 20 es el mejor valor."
         },
         "technical": {
           "type": "object",
           "properties": {
-            "saques_de_esquina": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Saques de esquina (0-20)"
-            },
-            "centros": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Centros (0-20)"
-            },
-            "regate": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Regate (0-20)"
-            },
-            "remate": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Remate (0-20)"
-            },
-            "control": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Control (0-20)"
-            },
-            "tiros_libres": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Tiros libres (0-20)"
-            },
-            "cabeceo": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Cabeceo (0-20)"
-            },
-            "tiros_lejanos": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Tiros lejanos (0-20)"
-            },
-            "saques_largos": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Saques largos (0-20)"
-            },
-            "marcaje": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Marcaje (0-20)"
-            },
-            "pases": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Pases (0-20)"
-            },
-            "penaltis": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Penaltis (0-20)"
-            },
-            "entradas": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Entradas (0-20)"
-            },
-            "tecnica": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Técnica (0-20)"
-            },
-            "polivalencia": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Polivalencia (0-20)"
-            }
+            "saques_de_esquina": { "type": "number", "description": "Saques de esquina, 0-20" },
+            "centros": { "type": "number", "description": "Centros, 0-20" },
+            "regate": { "type": "number", "description": "Regate, 0-20" },
+            "remate": { "type": "number", "description": "Remate, 0-20" },
+            "control": { "type": "number", "description": "Control, 0-20" },
+            "tiros_libres": { "type": "number", "description": "Tiros libres, 0-20" },
+            "cabeceo": { "type": "number", "description": "Cabeceo, 0-20" },
+            "tiros_lejanos": { "type": "number", "description": "Tiros lejanos, 0-20" },
+            "saques_largos": { "type": "number", "description": "Saques largos, 0-20" },
+            "marcaje": { "type": "number", "description": "Marcaje, 0-20" },
+            "pases": { "type": "number", "description": "Pases, 0-20" },
+            "penaltis": { "type": "number", "description": "Penaltis, 0-20" },
+            "entradas": { "type": "number", "description": "Entradas, 0-20" },
+            "tecnica": { "type": "number", "description": "Técnica, 0-20" },
+            "polivalencia": { "type": "number", "description": "Polivalencia, 0-20" }
           },
-          "description": "Atributos técnicos del jugador. Todas las estadísticas tienen un rango de 0 a 20."
+          "description": "Atributos técnicos del jugador. Todos utilizan una escala de 0 a 20, donde 20 es el mejor valor."
         },
         "goalkeeping": {
           "type": "object",
           "properties": {
-            "balones_aereos": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Balones aéreos (0-20)"
-            },
-            "balones_aereos_recomendado_altura": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Balones aéreos recomendado basándose en la altura (0-20)"
-            },
-            "mando_en_el_area": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Mando en el área (0-20)"
-            },
-            "comunicacion": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Comunicación (0-20)"
-            },
-            "excentricidad": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Excentricidad (0-20)"
-            },
-            "blocaje": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Blocaje (0-20)"
-            },
-            "saques_de_puerta": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Saques de puerta (0-20)"
-            },
-            "uno_contra_uno": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Uno contra uno (0-20)"
-            },
-            "reflejos": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Reflejos (0-20)"
-            },
-            "salidas_tendencia": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Salidas (tendencia) (0-20)"
-            },
-            "salida_de_puños": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Salida de puños (0-20)"
-            },
-            "saque_con_la_mano": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Saque con la mano (0-20)"
-            }
+            "balones_aereos": { "type": "number", "description": "Alcance aéreo, 0-20" },
+            "balones_aereos_recomendado_altura": { "type": "number", "description": "Valor ajustado por altura para alcance aéreo; reservado para cálculo posterior y no presente directamente en el export actual" },
+            "mando_en_el_area": { "type": "number", "description": "Mando en el área, 0-20" },
+            "comunicacion": { "type": "number", "description": "Comunicación, 0-20" },
+            "excentricidad": { "type": "number", "description": "Excentricidad, 0-20" },
+            "blocaje": { "type": "number", "description": "Blocaje, 0-20" },
+            "saques_de_puerta": { "type": "number", "description": "Saques de puerta, 0-20" },
+            "uno_contra_uno": { "type": "number", "description": "Uno contra uno, 0-20" },
+            "reflejos": { "type": "number", "description": "Reflejos, 0-20" },
+            "salidas_tendencia": { "type": "number", "description": "Salidas (tendencia), 0-20" },
+            "salida_de_puños": { "type": "number", "description": "Puños/salida de puños, 0-20" },
+            "saque_con_la_mano": { "type": "number", "description": "Saque con la mano, 0-20" }
           },
-          "description": "Atributos de portero del jugador. Todas las estadísticas tienen un rango de 0 a 20."
+          "description": "Atributos específicos de portero. Todos utilizan una escala de 0 a 20, donde 20 es el mejor valor."
         }
       },
-      "description": "Estadísticas del jugador agrupadas en atributos mentales, físicos, técnicos y de portero. Todas las estadísticas utilizan una escala de 0 a 20, donde 0 es el mínimo y 20 el máximo."
+      "description": "Estadísticas del jugador agrupadas en atributos mentales, físicos, técnicos y de portero. Todas las estadísticas utilizan una escala de 0 a 20, donde 20 es el mejor valor."
     },
     "description": {
       "type": "string",
-      "description": "Perfil o descripción del jugador"
+      "description": "Perfil o descripción del jugador en MF LEGACY"
     }
   },
   "required": [
