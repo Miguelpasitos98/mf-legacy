@@ -1063,7 +1063,7 @@ function PlayerCard({
       type="button"
       onClick={onClick}
       className={`group w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] ${
-        compact ? "max-w-[230px]" : ""
+        compact ? "" : ""
       }`}
     >
       {/* PHOTO */}
@@ -3275,7 +3275,7 @@ export default function Players() {
 
   return (
     <div className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
-      <div className="mx-auto max-w-[1800px]">
+      <div className="w-full">
 
         {/* HEADER */}
         <div className="mb-4 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
@@ -3470,7 +3470,7 @@ export default function Players() {
 
         {/* LOADING */}
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
             {Array.from({ length: 8 }).map(
               (_, index) => (
                 <div
@@ -3487,7 +3487,7 @@ export default function Players() {
 
             {/* ALL PLAYERS */}
             {viewMode === "all" && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
                 {filteredPlayers.map(
                   (player) => (
                     <PlayerCard
