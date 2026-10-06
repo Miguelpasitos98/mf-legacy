@@ -149,6 +149,27 @@ const getPrimaryPosition = (player) => {
     .sort((a, b) => b.rating - a.rating || a.key.localeCompare(b.key))[0]?.key || "";
 };
 
+// Only positions with a strong FM rating are shown on player cards.
+// 16+ keeps the cards compact while still showing the player's meaningful roles.
+const PLAYER_CARD_POSITION_THRESHOLD = 16;
+
+const getPlayerCardPositions = (player) => {
+  const ratings = player?.positionRatings || player?.position_ratings || {};
+
+  return Object.entries(ratings)
+    .map(([key, value]) => ({
+      key,
+      rating: Number(value),
+      label: POSITION_LABELS[key] || key,
+    }))
+    .filter(
+      ({ rating }) =>
+        Number.isFinite(rating) &&
+        rating >= PLAYER_CARD_POSITION_THRESHOLD
+    )
+    .sort((a, b) => b.rating - a.rating || a.key.localeCompare(b.key));
+};
+
 const computePlayerDescription = (player) => player?.description || "";
 
 const SPECIAL_LEGACY_TITLES = {
@@ -970,24 +991,6 @@ const POSITION_LABELS = {
   delantero: "DL (C)",
 };
 
-const getDisplayPositions = (player) => {
-  const ratings = player?.positionRatings || player?.position_ratings || {};
-
-  return Object.entries(ratings)
-    .map(([key, value]) => ({
-      key,
-      rating: Number(value),
-      label: POSITION_LABELS[key] || key,
-    }))
-    .filter(
-      ({ rating }) => Number.isFinite(rating) && rating >= 15
-    )
-    .sort((a, b) =>
-      b.rating - a.rating ||
-      a.key.localeCompare(b.key)
-    );
-};
-
 const POSITION_GROUPS = POSITION_RATING_GROUPS.flatMap((group) =>
   group.positions.map(([id, name]) => ({ id, name }))
 );
@@ -1044,7 +1047,7 @@ function PlayerCard({
     age: age ?? undefined,
   });
   const primaryPosition = getPrimaryPosition(player);
-  const displayPositions = getDisplayPositions(player);
+  const cardPositions = getPlayerCardPositions(player);
   const description = computePlayerDescription(player);
 
   const countryFlagUrl = normalizeImageUrl(country?.flag);
@@ -1134,10 +1137,10 @@ function PlayerCard({
           </span>
         </div>
 
-        {/* AGE + POSITION + DESCRIPTION */}
-        <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 items-center gap-1.5 text-xs`}>
+        {/* AGE + POSITION RATINGS */}
+        <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 items-start gap-1.5 text-xs`}>
           <span
-            className={`h-2.5 w-2.5 shrink-0 rounded-full ${ageCircleColor(
+            className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${ageCircleColor(
               age
             )}`}
           />
@@ -1146,33 +1149,27 @@ function PlayerCard({
             {age ?? "—"}
           </span>
 
-          <span className="shrink-0 text-slate-300">|</span>
-
-          <span className="min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-semibold text-slate-700">
-            {displayPositions.length > 0
-              ? displayPositions.map((position, index) => (
-                  <React.Fragment key={position.key}>
-                    {index > 0 && (
-                      <span className="text-slate-300">·</span>
-                    )}
-                    <span className="shrink-0">
-                      {position.label}
-                    </span>
-                  </React.Fragment>
-                ))
-              : "—"}
-          </span>
-
-          {description && (
+          {cardPositions.length > 0 && (
             <>
               <span className="shrink-0 text-slate-300">|</span>
 
-              <span className="min-w-0 truncate font-medium text-slate-500">
-                {description}
-              </span>
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5 font-semibold text-slate-700">
+                {cardPositions.map(({ key, label }) => (
+                  <span key={key} className="shrink-0 whitespace-nowrap">
+                    {label}
+                  </span>
+                ))}
+              </div>
             </>
           )}
         </div>
+
+        {/* DESCRIPTION */}
+        {description && (
+          <div className={`${compact ? "mt-1" : "mt-1.5"} min-w-0 break-words text-xs font-medium leading-4 text-slate-500`}>
+            {description}
+          </div>
+        )}
 
         {/* CLUB */}
         {!hideTeam && (
