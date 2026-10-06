@@ -140,9 +140,9 @@ const PLAYER_DESCRIPTIONS = [
 const getPrimaryPosition = (player) => {
   const ratings = player?.positionRatings || player?.position_ratings || {};
   return Object.entries(ratings)
-    .map(([code, value]) => ({ code, rating: Number(value) }))
+    .map(([key, value]) => ({ key, rating: Number(value) }))
     .filter(({ rating }) => Number.isFinite(rating) && rating > 0)
-    .sort((a, b) => b.rating - a.rating || a.code.localeCompare(b.code))[0]?.code || "";
+    .sort((a, b) => b.rating - a.rating || a.key.localeCompare(b.key))[0]?.key || "";
 };
 
 const computePlayerDescription = (player) => player?.description || "";
@@ -271,62 +271,51 @@ const inputClassName =
 
 const POSITION_RATING_GROUPS = [
   {
-    title: "Delantero",
+    title: "Portero / Defensa",
     positions: [
-      ["DC", "DC"],
-    ],
-  },
-  {
-    title: "Extremo",
-    positions: [
-      ["EI", "EI"],
-      ["ED", "ED"],
+      ["portero", "Portero"],
+      ["defensa_izquierdo", "Defensa izquierdo"],
+      ["defensa_central", "Defensa central"],
+      ["defensa_derecho", "Defensa derecho"],
+      ["carrilero_izquierdo", "Carrilero izquierdo"],
+      ["carrilero_derecho", "Carrilero derecho"],
     ],
   },
   {
     title: "Centrocampista",
     positions: [
-      ["CAM", "CAM"],
-      ["CM", "CM"],
-      ["CDM", "CDM"],
+      ["mediocentro", "Mediocentro"],
+      ["centrocampista_izquierdo", "Centrocampista izquierdo"],
+      ["centrocampista", "Centrocampista"],
+      ["centrocampista_derecho", "Centrocampista derecho"],
     ],
   },
   {
-    title: "Central",
+    title: "Mediapunta / Delantero",
     positions: [
-      ["DFC", "DFC"],
-    ],
-  },
-  {
-    title: "Lateral",
-    positions: [
-      ["LD", "LD"],
-      ["LI", "LI"],
-      ["CRD", "CRD"],
-      ["CRI", "CRI"],
-    ],
-  },
-  {
-    title: "Portero",
-    positions: [
-      ["GK", "GK"],
+      ["mediapunta_por_la_izquierda", "Mediapunta por la izquierda"],
+      ["mediapunta_central", "Mediapunta central"],
+      ["mediapunta_por_la_derecha", "Mediapunta por la derecha"],
+      ["delantero", "Delantero"],
     ],
   },
 ];
 
 const POSITION_RATING_DEFAULTS = {
-  GK: "0",
-  DFC: "0",
-  LD: "0",
-  LI: "0",
-  CRD: "0",
-  CRI: "0",
-  CDM: "0",
-  CM: "0",
-  CAM: "0",
-  EI: "0",
-  ED: "0",
-  DC: "0",
+  portero: "0",
+  defensa_izquierdo: "0",
+  defensa_central: "0",
+  defensa_derecho: "0",
+  mediocentro: "0",
+  carrilero_izquierdo: "0",
+  carrilero_derecho: "0",
+  centrocampista_izquierdo: "0",
+  centrocampista: "0",
+  centrocampista_derecho: "0",
+  mediapunta_por_la_izquierda: "0",
+  mediapunta_central: "0",
+  mediapunta_por_la_derecha: "0",
+  delantero: "0",
 };
 
 const emptyPlayerForm = {
@@ -961,34 +950,25 @@ function ageCircleColor(age) {
 }
 
 const POSITION_LABELS = {
-  GK: "GK",
-  DFC: "DFC",
-  LD: "LD",
-  LI: "LI",
-  CRD: "CRD",
-  CRI: "CRI",
-  CDM: "CDM",
-  CM: "CM",
-  CAM: "CAM",
-  EI: "EI",
-  ED: "ED",
-  DC: "DC",
+  portero: "Portero",
+  defensa_izquierdo: "Defensa izquierdo",
+  defensa_central: "Defensa central",
+  defensa_derecho: "Defensa derecho",
+  mediocentro: "Mediocentro",
+  carrilero_izquierdo: "Carrilero izquierdo",
+  carrilero_derecho: "Carrilero derecho",
+  centrocampista_izquierdo: "Centrocampista izquierdo",
+  centrocampista: "Centrocampista",
+  centrocampista_derecho: "Centrocampista derecho",
+  mediapunta_por_la_izquierda: "Mediapunta por la izquierda",
+  mediapunta_central: "Mediapunta central",
+  mediapunta_por_la_derecha: "Mediapunta por la derecha",
+  delantero: "Delantero",
 };
 
-const POSITION_GROUPS = [
-  { id: "GK", name: "Portero" },
-  { id: "DFC", name: "Defensa central" },
-  { id: "LD", name: "Lateral derecho" },
-  { id: "LI", name: "Lateral izquierdo" },
-  { id: "CRD", name: "Carrilero derecho" },
-  { id: "CRI", name: "Carrilero izquierdo" },
-  { id: "CDM", name: "Mediocentro defensivo" },
-  { id: "CM", name: "Mediocentro" },
-  { id: "CAM", name: "Mediapunta" },
-  { id: "EI", name: "Extremo izquierdo" },
-  { id: "ED", name: "Extremo derecho" },
-  { id: "DC", name: "Delantero centro" },
-];
+const POSITION_GROUPS = POSITION_RATING_GROUPS.flatMap((group) =>
+  group.positions.map(([id, name]) => ({ id, name }))
+);
 
 const AGE_GROUPS = [
   { id: "age_0_18", name: "18 años o menos", test: (age) => age != null && age <= 18 },
@@ -2545,17 +2525,17 @@ export default function Players() {
           date_of_birth:
             finalPlayer.date_of_birth || "",
 
-          position:
-            finalPlayer.position || "",
+          fm_position:
+            finalPlayer.fm_position || "",
 
-          secondary_position:
-            finalPlayer.secondary_position || "",
+          best_positions:
+            finalPlayer.best_positions || "",
 
-          position_raw:
-            finalPlayer.position_raw || "",
+          role_used_to_fill_empty_attributes:
+            finalPlayer.role_used_to_fill_empty_attributes || "",
 
-          secondary_position_raw:
-            finalPlayer.secondary_position_raw || "",
+          preferred_central_position:
+            finalPlayer.preferred_central_position || "",
 
           style:
             finalPlayer.style || "",
