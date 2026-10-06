@@ -2522,7 +2522,117 @@ export default function Players() {
         const country = countryCache.get(normalizeEntityName(source?.countryName || ""));
         const teamName = source?.teamName || "";
         const team = teamCache.get(normalizeEntityName(teamName));
-        const finalPlayer = { ...player, team_id: team?.id || "", country_id: country?.id || "" };
+        const finalPlayer = {
+          ...player,
+          team_id:
+            team?.id || "",
+          country_id:
+            country?.id || "",
+        };
+
+        /*
+         * Persistimos TODO el contenido que devuelve el CSV importer.
+         * Antes solo se guardaban los campos básicos y por eso
+         * altura, piernas, dorsal, salario, posiciones y stats se
+         * perdían antes de llegar a Base44.
+         */
+        const playerToCreate = {
+          ...finalPlayer,
+
+          name:
+            finalPlayer.name?.trim() || "",
+
+          date_of_birth:
+            finalPlayer.date_of_birth || "",
+
+          position:
+            finalPlayer.position || "",
+
+          secondary_position:
+            finalPlayer.secondary_position || "",
+
+          position_raw:
+            finalPlayer.position_raw || "",
+
+          secondary_position_raw:
+            finalPlayer.secondary_position_raw || "",
+
+          style:
+            finalPlayer.style || "",
+
+          height:
+            Number.isFinite(
+              Number(finalPlayer.height)
+            )
+              ? Number(finalPlayer.height)
+              : 0,
+
+          right_foot:
+            finalPlayer.right_foot || "",
+
+          left_foot:
+            finalPlayer.left_foot || "",
+
+          shirt_number:
+            Number.isFinite(
+              Number(
+                finalPlayer.shirt_number
+              )
+            )
+              ? Number(
+                  finalPlayer.shirt_number
+                )
+              : 0,
+
+          salary:
+            Number.isFinite(
+              Number(
+                finalPlayer.salary
+              )
+            )
+              ? Number(
+                  finalPlayer.salary
+                )
+              : 0,
+
+          photo_url:
+            finalPlayer.photo_url || "",
+
+          card_photo_url:
+            finalPlayer.card_photo_url || "",
+
+          national_card_photo_url:
+            finalPlayer.national_card_photo_url ||
+            "",
+
+          ca:
+            Number.isFinite(
+              Number(finalPlayer.ca)
+            )
+              ? Number(finalPlayer.ca)
+              : 0,
+
+          cp:
+            Number.isFinite(
+              Number(finalPlayer.cp)
+            )
+              ? Number(finalPlayer.cp)
+              : 0,
+
+          position_ratings:
+            finalPlayer.position_ratings || {},
+
+          stats:
+            finalPlayer.stats || {
+              mental: {},
+              physical: {},
+              technical: {},
+              goalkeeping: {},
+            },
+
+          description:
+            finalPlayer.description || "",
+        };
 
         if (teamName.trim() && !team?.id) {
           result.skippedInvalid += 1;
@@ -2540,7 +2650,9 @@ export default function Players() {
         }
 
         try {
-          await base44.entities.Player.create(finalPlayer);
+          await base44.entities.Player.create(
+            playerToCreate
+          );
           result.imported += 1;
           existingPlayerKeys.add(duplicateKey);
           seenImportKeys.add(duplicateKey);
