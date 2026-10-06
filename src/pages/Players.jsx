@@ -1153,11 +1153,23 @@ function PlayerCard({
             <>
               <span className="shrink-0 text-slate-300">|</span>
 
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5 font-semibold text-slate-700">
-                {cardPositions.map(({ key, label }) => (
-                  <span key={key} className="shrink-0 whitespace-nowrap">
-                    {label}
-                  </span>
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-slate-700">
+                {cardPositions.map(({ key, label, rating }, index) => (
+                  <React.Fragment key={key}>
+                    {index > 0 && (
+                      <span className="shrink-0 text-slate-300">·</span>
+                    )}
+                    <span
+                      className={`shrink-0 whitespace-nowrap ${
+                        rating === 20
+                          ? "font-extrabold text-slate-800"
+                          : "font-normal text-slate-500"
+                      }`}
+                      title={`${label}: ${rating}/20`}
+                    >
+                      {label}
+                    </span>
+                  </React.Fragment>
                 ))}
               </div>
             </>
