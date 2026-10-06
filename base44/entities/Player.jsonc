@@ -1,123 +1,96 @@
-          "type": "number",
-          "description": "Valoración del jugador como carrilero izquierdo de 0 a 20"
-        },
-        "CDM": {
-          "type": "number",
-          "description": "Valoración del jugador como mediocentro defensivo de 0 a 20"
-        },
-        "CM": {
-          "type": "number",
-          "description": "Valoración del jugador como mediocentro de 0 a 20"
-        },
-        "CAM": {
-          "type": "number",
-          "description": "Valoración del jugador como mediapunta de 0 a 20"
-        },
-        "EI": {
-          "type": "number",
-          "description": "Valoración del jugador como extremo izquierdo de 0 a 20"
-        },
-        "ED": {
-          "type": "number",
-          "description": "Valoración del jugador como extremo derecho de 0 a 20"
-        },
-        "DC": {
-          "type": "number",
-          "description": "Valoración del jugador como delantero centro de 0 a 20"
-        }
-      },
-      "description": "Valoraciones por posición. El CSV proporciona las posiciones principal y secundaria, pero no estos valores numéricos; podrán calcularse posteriormente. Todos utilizan escala 0-20, donde 20 es el mejor valor."
+{
+  "name": "Player",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre completo del jugador"
     },
-    "stats": {
+    "date_of_birth": {
+      "type": "string",
+      "description": "Fecha de nacimiento normalizada a DD/MM/YYYY"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "ID del Team asociado. Se resuelve automáticamente buscando el nombre del equipo y el país; si no existe, se crea el Team y se usa su nuevo ID."
+    },
+    "country_id": {
+      "type": "string",
+      "description": "ID del Country asociado. Se resuelve automáticamente por nombre; si no existe, se crea el Country y se usa su nuevo ID."
+    },
+    "position_raw": {
+      "type": "string",
+      "description": "Posición principal exactamente como aparece en el export de Football Manager, conservada para trazabilidad"
+    },
+    "position": {
+      "type": "string",
+      "description": "Posición principal normalizada al catálogo MF LEGACY (GK, DFC, LD, LI, CRD, CRI, CDM, CM, CAM, EI, ED, DC)"
+    },
+    "secondary_position_raw": {
+      "type": "string",
+      "description": "Posición alternativa exactamente como aparece en el export de Football Manager, conservada para trazabilidad"
+    },
+    "secondary_position": {
+      "type": "string",
+      "description": "Posición alternativa normalizada al catálogo MF LEGACY"
+    },
+    "style": {
+      "type": "string",
+      "description": "Estilo exportado desde Football Manager"
+    },
+    "height": {
+      "type": "number",
+      "description": "Altura del jugador en centímetros. Ejemplo: '173 cm' -> 173"
+    },
+    "right_foot": {
+      "type": "string",
+      "description": "Nivel de pierna derecha según el export de Football Manager"
+    },
+    "left_foot": {
+      "type": "string",
+      "description": "Nivel de pierna izquierda según el export de Football Manager"
+    },
+    "shirt_number": {
+      "type": "number",
+      "description": "Número de camiseta"
+    },
+    "salary": {
+      "type": "number",
+      "description": "Sueldo anual normalizado a número en la moneda del export. Ejemplo: '12,78M € p/a' -> 12780000"
+    },
+    "photo_url": {
+      "type": "string",
+      "description": "URL de la fotografía del jugador para el perfil individual"
+    },
+    "card_photo_url": {
+      "type": "string",
+      "description": "URL de la fotografía del jugador utilizada en las tarjetas del listado cuando se muestran en contexto de club"
+    },
+    "national_card_photo_url": {
+      "type": "string",
+      "description": "URL de la fotografía del jugador con la camiseta de su selección nacional, utilizada en las tarjetas del listado cuando se agrupan por países"
+    },
+    "ca": {
+      "type": "number",
+      "description": "Current Ability (CA) de Football Manager"
+    },
+    "cp": {
+      "type": "number",
+      "description": "Potential Ability (CP) de Football Manager"
+    },
+    "position_ratings": {
       "type": "object",
       "properties": {
-        "mental": {
-          "type": "object",
-          "properties": {
-            "agresividad": { "type": "number", "description": "Agresividad, 0-20" },
-            "anticipacion": { "type": "number", "description": "Anticipación, 0-20" },
-            "valentia": { "type": "number", "description": "Valentía, 0-20" },
-            "serenidad": { "type": "number", "description": "Serenidad, 0-20" },
-            "concentracion": { "type": "number", "description": "Concentración, 0-20" },
-            "consistencia": { "type": "number", "description": "Consistencia, 0-20" },
-            "decisiones": { "type": "number", "description": "Decisiones, 0-20" },
-            "determinacion": { "type": "number", "description": "Determinación, 0-20" },
-            "juego_sucio": { "type": "number", "description": "Juego sucio, 0-20 según la escala de MF LEGACY" },
-            "talento": { "type": "number", "description": "Talento, 0-20" },
-            "partidos_importantes": { "type": "number", "description": "Rendimiento en partidos importantes, 0-20" },
-            "liderazgo": { "type": "number", "description": "Liderazgo, 0-20" },
-            "movimiento": { "type": "number", "description": "Movimiento/desmarques, 0-20" },
-            "colocacion": { "type": "number", "description": "Colocación, 0-20" },
-            "trabajo_de_equipo": { "type": "number", "description": "Trabajo de equipo, 0-20" },
-            "vision": { "type": "number", "description": "Visión, 0-20" },
-            "sacrificio": { "type": "number", "description": "Sacrificio, 0-20" }
-          },
-          "description": "Atributos mentales del jugador. Todos utilizan una escala de 0 a 20, donde 20 es el mejor valor."
-        },
-        "physical": {
-          "type": "object",
-          "properties": {
-            "aceleracion": { "type": "number", "description": "Aceleración, 0-20" },
-            "agilidad": { "type": "number", "description": "Agilidad, 0-20" },
-            "balance": { "type": "number", "description": "Equilibrio, 0-20" },
-            "tendencia_a_lesionarse": { "type": "number", "description": "Tendencia a lesionarse, 0-20 según la escala de MF LEGACY" },
-            "alcance_de_salto": { "type": "number", "description": "Alcance de salto, 0-20" },
-            "alcance_de_salto_recomendado_altura": { "type": "number", "description": "Valor ajustado por altura para alcance de salto; reservado para cálculo posterior y no presente directamente en el export actual" },
-            "recuperacion_fisica": { "type": "number", "description": "Recuperación física, 0-20" },
-            "velocidad": { "type": "number", "description": "Velocidad, 0-20" },
-            "resistencia": { "type": "number", "description": "Resistencia, 0-20" },
-            "fuerza": { "type": "number", "description": "Fuerza, 0-20" }
-          },
-          "description": "Atributos físicos del jugador. Todos utilizan una escala de 0 a 20, donde 20 es el mejor valor."
-        },
-        "technical": {
-          "type": "object",
-          "properties": {
-            "saques_de_esquina": { "type": "number", "description": "Saques de esquina, 0-20" },
-            "centros": { "type": "number", "description": "Centros, 0-20" },
-            "regate": { "type": "number", "description": "Regate, 0-20" },
-            "remate": { "type": "number", "description": "Remate, 0-20" },
-            "control": { "type": "number", "description": "Control, 0-20" },
-            "tiros_libres": { "type": "number", "description": "Tiros libres, 0-20" },
-            "cabeceo": { "type": "number", "description": "Cabeceo, 0-20" },
-            "tiros_lejanos": { "type": "number", "description": "Tiros lejanos, 0-20" },
-            "saques_largos": { "type": "number", "description": "Saques largos, 0-20" },
-            "marcaje": { "type": "number", "description": "Marcaje, 0-20" },
-            "pases": { "type": "number", "description": "Pases, 0-20" },
-            "penaltis": { "type": "number", "description": "Penaltis, 0-20" },
-            "entradas": { "type": "number", "description": "Entradas, 0-20" },
-            "tecnica": { "type": "number", "description": "Técnica, 0-20" },
-            "polivalencia": { "type": "number", "description": "Polivalencia, 0-20" }
-          },
-          "description": "Atributos técnicos del jugador. Todos utilizan una escala de 0 a 20, donde 20 es el mejor valor."
-        },
-        "goalkeeping": {
-          "type": "object",
-          "properties": {
-            "balones_aereos": { "type": "number", "description": "Alcance aéreo, 0-20" },
-            "balones_aereos_recomendado_altura": { "type": "number", "description": "Valor ajustado por altura para alcance aéreo; reservado para cálculo posterior y no presente directamente en el export actual" },
-            "mando_en_el_area": { "type": "number", "description": "Mando en el área, 0-20" },
-            "comunicacion": { "type": "number", "description": "Comunicación, 0-20" },
-            "excentricidad": { "type": "number", "description": "Excentricidad, 0-20" },
-            "blocaje": { "type": "number", "description": "Blocaje, 0-20" },
-            "saques_de_puerta": { "type": "number", "description": "Saques de puerta, 0-20" },
-            "uno_contra_uno": { "type": "number", "description": "Uno contra uno, 0-20" },
-            "reflejos": { "type": "number", "description": "Reflejos, 0-20" },
-            "salidas_tendencia": { "type": "number", "description": "Salidas (tendencia), 0-20" },
-            "salida_de_puños": { "type": "number", "description": "Puños/salida de puños, 0-20" },
-            "saque_con_la_mano": { "type": "number", "description": "Saque con la mano, 0-20" }
-          },
-          "description": "Atributos específicos de portero. Todos utilizan una escala de 0 a 20, donde 20 es el mejor valor."
-        }
+        "GK": { "type": "number", "description": "Valoración 0-20 como portero" },
+        "DFC": { "type": "number", "description": "Valoración 0-20 como defensa central" },
+        "LD": { "type": "number", "description": "Valoración 0-20 como lateral derecho" },
+        "LI": { "type": "number", "description": "Valoración 0-20 como lateral izquierdo" },
+        "CRD": { "type": "number", "description": "Valoración 0-20 como carrilero derecho" },
+        "CRI": { "type": "number", "description": "Valoración 0-20 como carrilero izquierdo" },
+        "CDM": { "type": "number", "description": "Valoración 0-20 como mediocentro defensivo" },
+        "CM": { "type": "number", "description": "Valoración 0-20 como mediocentro" },
+        "CAM": { "type": "number", "description": "Valoración 0-20 como mediapunta" },
+        "EI": { "type": "number", "description": "Valoración 0-20 como extremo izquierdo" },
+        "ED": { "type": "number", "description": "Valoración 0-20 como extremo derecho" },
+        "DC": { "type": "number", "description": "Valoración 0-20 como delantero centro" }
       },
-      "description": "Estadísticas del jugador agrupadas en atributos mentales, físicos, técnicos y de portero. Todas las estadísticas utilizan una escala de 0 a 20, donde 20 es el mejor valor."
-    },
-    "description": {
-      "type": "string",
-      "description": "Perfil o descripción del jugador en MF LEGACY"
-    }
-  },
-  "required": [
-    "name"
-  ]
-}
