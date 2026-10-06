@@ -210,24 +210,35 @@ const STAT_GROUPS = {
   ],
 };
 
-const createEmptyStats = () => ({
+const EMPTY_STATS = {
   mental: Object.fromEntries(STAT_GROUPS.mental.map(([key]) => [key, 0])),
   physical: Object.fromEntries(STAT_GROUPS.physical.map(([key]) => [key, 0])),
   technical: Object.fromEntries(STAT_GROUPS.technical.map(([key]) => [key, 0])),
   goalkeeping: Object.fromEntries(STAT_GROUPS.goalkeeping.map(([key]) => [key, 0])),
-});
+};
 
-const normalizeStats = (player) => {
+const getPlayerStats = (player) => {
   const source = player?.stats || {};
-  const empty = createEmptyStats();
-
   return {
-    mental: { ...empty.mental, ...(source.mental || {}) },
-    physical: { ...empty.physical, ...(source.physical || {}) },
-    technical: { ...empty.technical, ...(source.technical || {}) },
-    goalkeeping: { ...empty.goalkeeping, ...(source.goalkeeping || {}) },
+    mental: {
+      ...EMPTY_STATS.mental,
+      ...(source.mental || {}),
+    },
+    physical: {
+      ...EMPTY_STATS.physical,
+      ...(source.physical || {}),
+    },
+    technical: {
+      ...EMPTY_STATS.technical,
+      ...(source.technical || {}),
+    },
+    goalkeeping: {
+      ...EMPTY_STATS.goalkeeping,
+      ...(source.goalkeeping || {}),
+    },
   };
 };
+
 
 const INPUT_CLASS =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
@@ -643,15 +654,24 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         "",
       teamId: player?.teamId || player?.team_id || "",
       countryId: player?.countryId || player?.country_id || "",
-      position: player?.position || player?.position_raw || "",
+      position:
+        player?.position ||
+        player?.position_raw ||
+        "",
       secondaryPosition:
         player?.secondary_position ||
         player?.secondary_position_raw ||
         "",
       style: player?.style || "",
       height: player?.height ?? "",
-      rightFoot: player?.right_foot || player?.rightFoot || "",
-      leftFoot: player?.left_foot || player?.leftFoot || "",
+      rightFoot:
+        player?.right_foot ||
+        player?.rightFoot ||
+        "",
+      leftFoot:
+        player?.left_foot ||
+        player?.leftFoot ||
+        "",
       shirtNumber:
         player?.shirt_number ??
         player?.shirtNumber ??
@@ -661,7 +681,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       cp: player?.cp ?? "",
       description: player?.description || "",
       positionRatings: initialPositionRatings,
-      stats: normalizeStats(player),
+      stats: getPlayerStats(player),
     }),
     [player, initialPositionRatings]
   );
@@ -760,10 +780,14 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
     Object.entries(STAT_GROUPS).forEach(([group, fields]) => {
       fields.forEach(([key]) => {
-        const value = Number(form.stats?.[group]?.[key] ?? 0);
-        normalizedStats[group][key] = Number.isFinite(value)
-          ? Math.min(20, Math.max(0, value))
-          : 0;
+        const value = Number(
+          form.stats?.[group]?.[key] ?? 0
+        );
+
+        normalizedStats[group][key] =
+          Number.isFinite(value)
+            ? Math.min(20, Math.max(0, value))
+            : 0;
       });
     });
 
@@ -834,7 +858,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         cardPhotoUrl: form.cardPhotoUrl.trim(),
         card_photo_url: form.cardPhotoUrl.trim(),
         nationalCardPhotoUrl: form.nationalCardPhotoUrl.trim(),
-        national_card_photo_url: form.nationalCardPhotoUrl.trim(),
+        national_card_photo_url:
+          form.nationalCardPhotoUrl.trim(),
         ca: numericCA,
         cp: numericCP,
         positionRatings,
@@ -1085,272 +1110,6 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
             </div>
 
             <form onSubmit={handleSave} className="space-y-5 p-5">
-              {editError && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {editError}
-                </div>
-              )}
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  Player name
-                </label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                  className={INPUT_CLASS}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  Date of birth
-                </label>
-                <input
-                  type="text"
-                  value={form.dateOfBirth}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      dateOfBirth: event.target.value,
-                    }))
-                  }
-                  placeholder="DD/MM/YYYY"
-                  className={INPUT_CLASS}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  Country
-                </label>
-
-                <SearchableEntitySelect
-                  value={form.countryId}
-                  onChange={(value) =>
-                    setForm((current) => ({
-                      ...current,
-                      countryId: value,
-                    }))
-                  }
-                  options={countries}
-                  kind="country"
-                  placeholder="Select country"
-                  searchPlaceholder="Search country..."
-                  emptyOption={{
-                    value: "",
-                    label: "Select country",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  Associated club
-                </label>
-
-                <SearchableEntitySelect
-                  value={form.teamId}
-                  onChange={(value) =>
-                    setForm((current) => ({
-                      ...current,
-                      teamId: value,
-                    }))
-                  }
-                  options={teams}
-                  kind="team"
-                  placeholder="No club"
-                  searchPlaceholder="Search club..."
-                  emptyOption={{
-                    value: "",
-                    label: "No club",
-                  }}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    CA
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={200}
-                    step={1}
-                    value={form.ca}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        ca: event.target.value,
-                      }))
-                    }
-                    className={INPUT_CLASS}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    CP
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={200}
-                    step={1}
-                    value={form.cp}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        cp: event.target.value,
-                      }))
-                    }
-                    className={INPUT_CLASS}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  Description
-                </label>
-
-                <select
-                  value={form.description}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      description: event.target.value,
-                    }))
-                  }
-                  className={INPUT_CLASS}
-                >
-                  <option value="">Sin descripción</option>
-
-                  {DESCRIPTION_OPTIONS.map((group) => (
-                    <optgroup key={group.group} label={group.group}>
-                      {group.options.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  Profile photo URL
-                </label>
-                <input
-                  type="url"
-                  value={form.photoUrl}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      photoUrl: event.target.value,
-                    }))
-                  }
-                  placeholder="https://..."
-                  className={INPUT_CLASS}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  Card photo URL
-                </label>
-                <input
-                  type="url"
-                  value={form.cardPhotoUrl}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      cardPhotoUrl: event.target.value,
-                    }))
-                  }
-                  placeholder="https://..."
-                  className={INPUT_CLASS}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                  National team card photo URL
-                </label>
-                <input
-                  type="url"
-                  value={form.nationalCardPhotoUrl}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      nationalCardPhotoUrl: event.target.value,
-                    }))
-                  }
-                  placeholder="https://..."
-                  className={INPUT_CLASS}
-                />
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700">
-                      Position ratings
-                    </label>
-                    <p className="mt-1 text-[11px] text-slate-400">
-                      Valora cada posición de 0 a 20.
-                    </p>
-                  </div>
-
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                    0-20
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {POSITION_CODES.map((code) => (
-                    <div key={code}>
-                      <label className="mb-1 block text-[11px] font-semibold text-slate-600">
-                        {code}
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={20}
-                        step={1}
-                        value={form.positionRatings?.[code] ?? 0}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            positionRatings: {
-                              ...current.positionRatings,
-                              [code]: event.target.value,
-                            },
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-
-              {editError && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {editError}
-                </div>
-              )}
-
               <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1">
                 {[
                   ["general", "General"],
@@ -1555,54 +1314,6 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Position
-                      </label>
-                      <select
-                        value={form.position}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            position: event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      >
-                        <option value="">No position</option>
-                        {POSITION_CODES.map((code) => (
-                          <option key={code} value={code}>
-                            {code}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Secondary position
-                      </label>
-                      <select
-                        value={form.secondaryPosition}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            secondaryPosition: event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      >
-                        <option value="">No secondary position</option>
-                        {POSITION_CODES.map((code) => (
-                          <option key={code} value={code}>
-                            {code}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="mb-1.5 block text-xs font-semibold text-slate-700">
@@ -1645,23 +1356,53 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                     </div>
                   </div>
 
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                      Salary
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={form.salary}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          salary: event.target.value,
-                        }))
-                      }
-                      className={INPUT_CLASS}
-                    />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        Position
+                      </label>
+                      <select
+                        value={form.position}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            position: event.target.value,
+                          }))
+                        }
+                        className={INPUT_CLASS}
+                      >
+                        <option value="">No position</option>
+                        {POSITION_CODES.map((code) => (
+                          <option key={code} value={code}>
+                            {code}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        Secondary position
+                      </label>
+                      <select
+                        value={form.secondaryPosition}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            secondaryPosition:
+                              event.target.value,
+                          }))
+                        }
+                        className={INPUT_CLASS}
+                      >
+                        <option value="">No secondary position</option>
+                        {POSITION_CODES.map((code) => (
+                          <option key={code} value={code}>
+                            {code}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div>
@@ -1691,60 +1432,64 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                     </select>
                   </div>
 
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                      Salary
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={form.salary}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          salary: event.target.value,
+                        }))
+                      }
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                      Source positions
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      {player?.position_raw || "—"}
+                      {player?.secondary_position_raw
+                        ? ` · ${player.secondary_position_raw}`
+                        : ""}
+                    </p>
+                  </div>
+
                   <div className="space-y-3">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Profile photo URL
-                      </label>
-                      <input
-                        type="url"
-                        value={form.photoUrl}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            photoUrl: event.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Card photo URL
-                      </label>
-                      <input
-                        type="url"
-                        value={form.cardPhotoUrl}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            cardPhotoUrl: event.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        National team card photo URL
-                      </label>
-                      <input
-                        type="url"
-                        value={form.nationalCardPhotoUrl}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            nationalCardPhotoUrl: event.target.value,
-                          }))
-                        }
-                        placeholder="https://..."
-                        className={INPUT_CLASS}
-                      />
-                    </div>
+                    {[
+                      ["photoUrl", "Profile photo URL"],
+                      ["cardPhotoUrl", "Card photo URL"],
+                      [
+                        "nationalCardPhotoUrl",
+                        "National team card photo URL",
+                      ],
+                    ].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                          {label}
+                        </label>
+                        <input
+                          type="url"
+                          value={form[key] || ""}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              [key]: event.target.value,
+                            }))
+                          }
+                          placeholder="https://..."
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -1753,11 +1498,11 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700">
+                      <p className="text-xs font-semibold text-slate-700">
                         Position ratings
-                      </label>
+                      </p>
                       <p className="mt-1 text-[11px] text-slate-400">
-                        Valora cada posición de 0 a 20.
+                        Cada posición se valora de 0 a 20.
                       </p>
                     </div>
                     <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
@@ -1794,11 +1539,11 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 </div>
               )}
 
-              {STAT_GROUPS[editTab] && (
+              {["mental", "physical", "technical", "goalkeeping"].includes(editTab) && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700">
+                      <p className="text-xs font-semibold text-slate-700">
                         {editTab === "mental"
                           ? "Mental"
                           : editTab === "physical"
@@ -1806,12 +1551,11 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                             : editTab === "technical"
                               ? "Technical"
                               : "Goalkeeping"}
-                      </label>
+                      </p>
                       <p className="mt-1 text-[11px] text-slate-400">
                         Todos los atributos utilizan una escala de 0 a 20.
                       </p>
                     </div>
-
                     <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                       0-20
                     </span>
@@ -1868,6 +1612,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                   {isSaving ? "Saving..." : "Save changes"}
                 </button>
               </div>
+
             </form>
           </div>
             </div>,
