@@ -1064,8 +1064,67 @@ export function convertCsvToPlayers(
   };
 }
 
+/**
+ * Devuelve un análisis del CSV con la forma que espera Players.jsx:
+ *
+ * {
+ *   delimiter,
+ *   headers,
+ *   total_rows,
+ *   players: [{ row_number, player, source: { teamName, countryName }, warnings }]
+ * }
+ *
+ * Es un adaptador sobre `convertCsvToPlayers` que expone los datos
+ * originales del club/país bajo `source` con nombres en camelCase.
+ */
+export function parseFootballManagerCsv(
+  csvText
+) {
+  const result = convertCsvToPlayers(
+    csvText
+  );
+
+  const players = result.players.map(
+    (entry) => {
+      const source = {
+        teamName:
+          entry?.player?._source
+            ?.team_name || "",
+        countryName:
+          entry?.player?._source
+            ?.country_name || "",
+      };
+
+      const player = {
+        ...entry.player,
+      };
+
+      /*
+       * Eliminamos `_source` del jugador final
+       * para no enviarlo a Base44 al crear el Player.
+       */
+      delete player._source;
+
+      return {
+        row_number: entry.row_number,
+        player,
+        source,
+        warnings: entry.warnings || [],
+      };
+    }
+  );
+
+  return {
+    delimiter: result.delimiter,
+    headers: result.headers,
+    total_rows: result.total_rows,
+    players,
+  };
+}
+
 export default {
   parseSemicolonCsv,
   mapPlayerRow,
   convertCsvToPlayers,
+  parseFootballManagerCsv,
 };

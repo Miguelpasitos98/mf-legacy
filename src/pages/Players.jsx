@@ -1979,7 +1979,7 @@ export default function Players() {
           new Set(
             importAnalysis.players
               .map(
-                ({ player }) =>
+                ({ source }) =>
                   normalizeEntityName(
                     source?.countryName || ""
                   )
