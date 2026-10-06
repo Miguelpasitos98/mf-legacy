@@ -15,36 +15,22 @@ import {
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
-const POSITION_CODES = [
-  "GK",
-  "DFC",
-  "LD",
-  "LI",
-  "CRD",
-  "CRI",
-  "CDM",
-  "CM",
-  "CAM",
-  "EI",
-  "ED",
-  "DC",
+const POSITION_RATING_FIELDS = [
+  ["portero", "Portero"],
+  ["defensa_izquierdo", "Defensa izquierdo"],
+  ["defensa_central", "Defensa central"],
+  ["defensa_derecho", "Defensa derecho"],
+  ["mediocentro", "Mediocentro"],
+  ["carrilero_izquierdo", "Carrilero izquierdo"],
+  ["carrilero_derecho", "Carrilero derecho"],
+  ["centrocampista_izquierdo", "Centrocampista izquierdo"],
+  ["centrocampista", "Centrocampista"],
+  ["centrocampista_derecho", "Centrocampista derecho"],
+  ["mediapunta_por_la_izquierda", "Mediapunta por la izquierda"],
+  ["mediapunta_central", "Mediapunta central"],
+  ["mediapunta_por_la_derecha", "Mediapunta por la derecha"],
+  ["delantero", "Delantero"],
 ];
-
-const buildPositionOptions = (...values) =>
-  [...new Set([...POSITION_CODES, ...values.filter(Boolean)])];
-
-const formatSalaryDisplay = (value) => {
-  const numeric = Number(String(value ?? "").replace(/\D/g, ""));
-  if (!Number.isFinite(numeric) || numeric <= 0) return "";
-  return `${Math.round(numeric).toLocaleString("en-US")} (€ / Year)`;
-};
-
-const parseSalaryInput = (value) => {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  if (!digits) return 0;
-  const numeric = Number(digits);
-  return Number.isFinite(numeric) ? numeric : 0;
-};
 
 const DESCRIPTION_OPTIONS = [
   {
@@ -616,16 +602,21 @@ const getContrastTextColor = (hex) => {
 const getBestPosition = (ratings) => {
   if (!ratings || typeof ratings !== "object") return "—";
 
-  const valid = POSITION_CODES
-    .map((code) => ({ code, value: Number(ratings[code]) }))
+  const valid = POSITION_RATING_FIELDS
+    .map(([key, label], index) => ({
+      key,
+      label,
+      value: Number(ratings[key]),
+      index,
+    }))
     .filter((item) => Number.isFinite(item.value))
     .sort((a, b) => {
       if (b.value !== a.value) return b.value - a.value;
-      return POSITION_CODES.indexOf(a.code) - POSITION_CODES.indexOf(b.code);
+      return a.index - b.index;
     });
 
   if (!valid.length || valid[0].value <= 0) return "—";
-  return `${valid[0].code} · ${valid[0].value}/20`;
+  return `${valid[0].label} · ${valid[0].value}/20`;
 };
 
 const PlayerStatCard = ({ background, grow = 1 }) => {
@@ -641,18 +632,7 @@ const PlayerStatCard = ({ background, grow = 1 }) => {
 export default function PlayerDetail({ player, team, country, teams = [], countries = [], onBack, onPlayerUpdated }) {
   const initialPositionRatings = useMemo(
     () => ({
-      GK: 0,
-      DFC: 0,
-      LD: 0,
-      LI: 0,
-      CRD: 0,
-      CRI: 0,
-      CDM: 0,
-      CM: 0,
-      CAM: 0,
-      EI: 0,
-      ED: 0,
-      DC: 0,
+      ...Object.fromEntries(POSITION_RATING_FIELDS.map(([key]) => [key, 0])),
       ...(player?.position_ratings || player?.positionRatings || {}),
     }),
     [player]
@@ -670,13 +650,13 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         "",
       teamId: player?.teamId || player?.team_id || "",
       countryId: player?.countryId || player?.country_id || "",
-      position:
-        player?.position ||
-        player?.position_raw ||
+      fmPosition: player?.fm_position || "",
+      bestPositions: player?.best_positions || "",
+      roleUsedToFillEmptyAttributes:
+        player?.role_used_to_fill_empty_attributes ||
         "",
-      secondaryPosition:
-        player?.secondary_position ||
-        player?.secondary_position_raw ||
+      preferredCentralPosition:
+        player?.preferred_central_position ||
         "",
       style: player?.style || "",
       height: player?.height ?? "",
@@ -708,12 +688,6 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   const [editError, setEditError] = useState("");
   const [editablePlayer, setEditablePlayer] = useState(player);
   const [form, setForm] = useState(initialForm);
-  const [salaryFocused, setSalaryFocused] = useState(false);
-
-  const positionOptions = useMemo(
-    () => buildPositionOptions(form.position, form.secondaryPosition),
-    [form.position, form.secondaryPosition]
-  );
 
   useEffect(() => {
     setEditablePlayer(player);
@@ -785,9 +759,9 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       return;
     }
 
-    const positionRatings = POSITION_CODES.reduce((result, code) => {
-      const value = Number(form.positionRatings?.[code] ?? 0);
-      result[code] = Number.isFinite(value)
+    const positionRatings = POSITION_RATING_FIELDS.reduce((result, [key]) => {
+      const value = Number(form.positionRatings?.[key] ?? 0);
+      result[key] = Number.isFinite(value)
         ? Math.min(20, Math.max(0, value))
         : 0;
       return result;
@@ -815,7 +789,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
     const numericHeight = Number(form.height);
     const numericShirtNumber = Number(form.shirtNumber);
-    const numericSalary = parseSalaryInput(form.salary);
+    const numericSalary = Number(form.salary);
 
     setIsSaving(true);
     setEditError("");
@@ -826,8 +800,12 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         date_of_birth: form.dateOfBirth.trim(),
         team_id: form.teamId || "",
         country_id: form.countryId || "",
-        position: form.position || "",
-        secondary_position: form.secondaryPosition || "",
+        fm_position: form.fmPosition || "",
+        best_positions: form.bestPositions || "",
+        role_used_to_fill_empty_attributes:
+          form.roleUsedToFillEmptyAttributes || "",
+        preferred_central_position:
+          form.preferredCentralPosition || "",
         style: form.style || "",
         height: Number.isFinite(numericHeight) ? numericHeight : 0,
         right_foot: form.rightFoot || "",
@@ -860,9 +838,12 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         team_id: form.teamId || "",
         countryId: form.countryId || "",
         country_id: form.countryId || "",
-        position: form.position || "",
-        secondary_position: form.secondaryPosition || "",
-        secondaryPosition: form.secondaryPosition || "",
+        fm_position: form.fmPosition || "",
+        best_positions: form.bestPositions || "",
+        role_used_to_fill_empty_attributes:
+          form.roleUsedToFillEmptyAttributes || "",
+        preferred_central_position:
+          form.preferredCentralPosition || "",
         style: form.style || "",
         height: Number.isFinite(numericHeight) ? numericHeight : 0,
         right_foot: form.rightFoot || "",
@@ -1379,52 +1360,35 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Position
-                      </label>
-                      <select
-                        value={form.position}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            position: event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      >
-                        <option value="">No position</option>
-                        {positionOptions.map((code) => (
-                          <option key={code} value={code}>
-                            {code}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Secondary position
-                      </label>
-                      <select
-                        value={form.secondaryPosition}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            secondaryPosition:
-                              event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      >
-                        <option value="">No secondary position</option>
-                        {POSITION_CODES.map((code) => (
-                          <option key={code} value={code}>
-                            {code}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {[
+                      ["fmPosition", "Posición"],
+                      ["bestPositions", "Mejores puestos"],
+                      [
+                        "roleUsedToFillEmptyAttributes",
+                        "Rol utilizado para rellenar atributos vacíos",
+                      ],
+                      [
+                        "preferredCentralPosition",
+                        "Posición central preferida",
+                      ],
+                    ].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                          {label}
+                        </label>
+                        <input
+                          type="text"
+                          value={form[key] || ""}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              [key]: event.target.value,
+                            }))
+                          }
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                    ))}
                   </div>
 
                   <div>
@@ -1459,49 +1423,18 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                       Salary
                     </label>
                     <input
-                      type="text"
-                      inputMode="numeric"
-                      value={
-                        salaryFocused
-                          ? String(form.salary ?? "").replace(/\D/g, "")
-                          : formatSalaryDisplay(form.salary)
-                      }
-                      onFocus={(event) => {
-                        setSalaryFocused(true);
-                        setForm((current) => ({
-                          ...current,
-                          salary: String(current.salary ?? "").replace(/\D/g, ""),
-                        }));
-                        event.target.select();
-                      }}
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={form.salary}
                       onChange={(event) =>
                         setForm((current) => ({
                           ...current,
-                          salary: event.target.value.replace(/\D/g, ""),
+                          salary: event.target.value,
                         }))
                       }
-                      onBlur={(event) => {
-                        setSalaryFocused(false);
-                        setForm((current) => ({
-                          ...current,
-                          salary: parseSalaryInput(event.target.value),
-                        }));
-                      }}
-                      placeholder="0 (€ / Year)"
                       className={INPUT_CLASS}
                     />
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                      Source positions
-                    </p>
-                    <p className="mt-1 text-xs text-slate-600">
-                      {player?.position_raw || "—"}
-                      {player?.secondary_position_raw
-                        ? ` · ${player.secondary_position_raw}`
-                        : ""}
-                    </p>
                   </div>
 
                   <div className="space-y-3">
@@ -1552,23 +1485,23 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {POSITION_CODES.map((code) => (
-                      <div key={code}>
+                    {POSITION_RATING_FIELDS.map(([key, label]) => (
+                      <div key={key}>
                         <label className="mb-1 block text-[11px] font-semibold text-slate-600">
-                          {code}
+                          {label}
                         </label>
                         <input
                           type="number"
                           min={0}
                           max={20}
                           step={1}
-                          value={form.positionRatings?.[code] ?? 0}
+                          value={form.positionRatings?.[key] ?? 0}
                           onChange={(event) =>
                             setForm((current) => ({
                               ...current,
                               positionRatings: {
                                 ...current.positionRatings,
-                                [code]: event.target.value,
+                                [key]: event.target.value,
                               },
                             }))
                           }
