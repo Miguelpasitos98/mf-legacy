@@ -1,1122 +1,710 @@
 /**
  * MF LEGACY
- * Football Manager CSV -> Player mapper
+ * Football Manager CSV -> Player importer utilities
  *
- * Este módulo NO crea ni actualiza entidades en Base44.
- * Su única función es:
- * 1. Leer el CSV de Football Manager.
- * 2. Convertir cada fila en el formato de Player.
- * 3. Dejar preparados los datos de Country y Team para resolver sus IDs después.
+ * Responsibility of this module:
+ * - Parse the CSV exported by Football Manager/Moneyball.
+ * - Normalize and convert one CSV row into the MF LEGACY Player shape.
+ * - Preserve original position strings for traceability.
+ * - Return source metadata needed later to resolve Country/Team IDs.
+ *
+ * This module does NOT create Base44 entities.
+ * Players.jsx (or a future service layer) will handle Country/Team/Player persistence.
  */
 
-const POSITION_MAP = {
-  GK: "GK",
-  PO: "GK",
-  POR: "GK",
+const DELIMITER = ";";
 
-  DFC: "DFC",
-  DF: "DFC",
-  "DF(C)": "DFC",
-  "DFC (C)": "DFC",
+const POSITION_CODES = new Set([
+  "GK",
+  "DFC",
+  "LD",
+  "LI",
+  "CRD",
+  "CRI",
+  "CDM",
+  "CM",
+  "CAM",
+  "EI",
+  "ED",
+  "DC",
+]);
 
-  DFD: "LD",
-  "DF(D)": "LD",
-  LD: "LD",
+const PLAYER_CSV_COLUMNS = Object.freeze({
+  name: "Jugador",
+  position: "Posición",
+  secondaryPosition: "Posición alternativa",
+  style: "Estilo",
+  dateOfBirth: "Nacim.",
+  country: "País",
+  ca: "CA",
+  cp: "CP",
+  height: "Altura",
+  rightFoot: "Pierna derecha",
+  leftFoot: "Pierna izquierda",
+  aggression: "Agresividad",
+  anticipation: "Anticipación",
+  bravery: "Valentía",
+  composure: "Serenidad",
+  concentration: "Concentración",
+  decisions: "Decisiones",
+  determination: "Determinación",
+  flair: "Talento",
+  leadership: "Liderazgo",
+  offTheBall: "Desmarques",
+  positioning: "Colocación",
+  teamwork: "Trabajo de equipo",
+  vision: "Visión",
+  sacrifice: "Sacrificio",
+  acceleration: "Aceleración",
+  agility: "Agilidad",
+  balance: "Equilibrio",
+  jumpingReach: "Alcance de salto",
+  naturalFitness: "Recuperación física",
+  pace: "Velocidad",
+  stamina: "Resistencia",
+  strength: "Fuerza",
+  corners: "Saques de esquina",
+  crossing: "Centros",
+  dribbling: "Regate",
+  finishing: "Remate",
+  firstTouch: "Control",
+  freeKickTaking: "Tiros libres",
+  heading: "Cabeceo",
+  longShots: "Tiros lejanos",
+  longThrows: "Saques largos",
+  marking: "Marcaje",
+  passing: "Pases",
+  penaltyTaking: "Penaltis",
+  tackling: "Entradas",
+  technique: "Técnica",
+  aerialReach: "Alcance aéreo",
+  commandOfArea: "Mando en el área",
+  communication: "Comunicación",
+  eccentricity: "Excentricidad",
+  handling: "Blocaje",
+  goalKicks: "Saques de puerta",
+  oneOnOnes: "Uno contra uno",
+  punching: "Puños",
+  reflexes: "Reflejos",
+  rushingOut: "Salidas (tendencia)",
+  throwing: "Saque con la mano",
+  salary: "Sueldo",
+  shirtNumber: "Nº",
+  importantMatches: "Partidos importantes",
+  injuryProneness: "Tendencia a lesionarse",
+  consistency: "Consistencia",
+  dirtiness: "Juego sucio",
+  versatility: "Polivalencia",
+});
 
-  DFI: "LI",
-  "DF(I)": "LI",
-  LI: "LI",
+const OPTIONAL_TEAM_HEADERS = [
+  "Equipo",
+  "Club",
+  "Team",
+  "Club actual",
+  "Equipo actual",
+  "Team name",
+  "Club name",
+];
 
-  CDM: "CDM",
-
-  MC: "CM",
-  MEC: "CM",
-  "ME(C)": "CM",
-
-  CAM: "CAM",
-
-  EI: "EI",
-  MI: "EI",
-  "MP(I)": "EI",
-
-  ED: "ED",
-  MD: "ED",
-  "MP(D)": "ED",
-
-  DC: "DC",
-  DLC: "DC",
-  "DLC (C)": "DC",
-
-  "MP(C)": "CAM",
-};
-
-const MENTAL_FIELDS = {
-  Agresividad: "agresividad",
-  Anticipación: "anticipacion",
-  Valentía: "valentia",
-  Serenidad: "serenidad",
-  Concentración: "concentracion",
-  Consistencia: "consistencia",
-  Decisiones: "decisiones",
-  Determinación: "determinacion",
-  "Juego sucio": "juego_sucio",
-  Talento: "talento",
-  "Partidos importantes": "partidos_importantes",
-  Liderazgo: "liderazgo",
-  Desmarques: "movimiento",
-  Colocación: "colocacion",
-  "Trabajo de equipo": "trabajo_de_equipo",
-  Visión: "vision",
-  Sacrificio: "sacrificio",
-};
-
-const PHYSICAL_FIELDS = {
-  Aceleración: "aceleracion",
-  Agilidad: "agilidad",
-  Equilibrio: "balance",
-  "Tendencia a lesionarse": "tendencia_a_lesionarse",
-  "Alcance de salto": "alcance_de_salto",
-  "Recuperación física": "recuperacion_fisica",
-  Velocidad: "velocidad",
-  Resistencia: "resistencia",
-  Fuerza: "fuerza",
-};
-
-const TECHNICAL_FIELDS = {
-  "Saques de esquina": "saques_de_esquina",
-  Centros: "centros",
-  Regate: "regate",
-  Remate: "remate",
-  Control: "control",
-  "Tiros libres": "tiros_libres",
-  Cabeceo: "cabeceo",
-  "Tiros lejanos": "tiros_lejanos",
-  "Saques largos": "saques_largos",
-  Marcaje: "marcaje",
-  Pases: "pases",
-  Penaltis: "penaltis",
-  Entradas: "entradas",
-  Técnica: "tecnica",
-  Polivalencia: "polivalencia",
-};
-
-const GOALKEEPING_FIELDS = {
-  "Alcance aéreo": "balones_aereos",
-  "Mando en el área": "mando_en_el_area",
-  Comunicación: "comunicacion",
-  Excentricidad: "excentricidad",
-  Blocaje: "blocaje",
-  "Saques de puerta": "saques_de_puerta",
-  "Uno contra uno": "uno_contra_uno",
-  Puños: "salida_de_puños",
-  Reflejos: "reflejos",
-  "Salidas (tendencia)": "salidas_tendencia",
-  "Saque con la mano": "saque_con_la_mano",
-};
-
-const HEADER_ALIASES = {
-  team: [
-    "Equipo",
-    "Club",
-    "Team",
-    "Club actual",
-    "Current team",
-  ],
-
-  country: [
-    "País",
-    "Pais",
-    "Country",
-  ],
-
-  name: [
-    "Jugador",
-    "Player",
-    "Name",
-  ],
-
-  birthDate: [
-    "Nacim.",
-    "Nacim",
-    "Fecha de nacimiento",
-    "Date of birth",
-  ],
-
-  primaryPosition: [
-    "Posición",
-    "Posicion",
-    "Position",
-  ],
-
-  secondaryPosition: [
-    "Posición alternativa",
-    "Posicion alternativa",
-    "Secondary position",
-    "Posición secundaria",
-  ],
-
-  style: [
-    "Estilo",
-    "Style",
-  ],
-
-  ca: [
-    "CA",
-    "Current Ability",
-  ],
-
-  cp: [
-    "CP",
-    "Potential Ability",
-  ],
-
-  height: [
-    "Altura",
-    "Height",
-  ],
-
-  rightFoot: [
-    "Pierna derecha",
-    "Right foot",
-  ],
-
-  leftFoot: [
-    "Pierna izquierda",
-    "Left foot",
-  ],
-
-  salary: [
-    "Sueldo",
-    "Salario",
-    "Salary",
-    "Wage",
-  ],
-
-  shirtNumber: [
-    "Nº",
-    "No",
-    "N°",
-    "Numero",
-    "Número",
-    "Shirt number",
-  ],
-};
-
-function normalizeKey(value) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+const normalizeHeader = (value) =>
+  String(value ?? "")
+    .replace(/^\uFEFF/, "")
     .trim()
-    .toLowerCase();
-}
+    .toLocaleLowerCase("es-ES")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
-function clamp20(value) {
-  const number = Number(value);
+const HEADER_ALIASES = (() => {
+  const aliases = {};
+
+  Object.entries(PLAYER_CSV_COLUMNS).forEach(([key, header]) => {
+    aliases[normalizeHeader(header)] = key;
+  });
+
+  OPTIONAL_TEAM_HEADERS.forEach((header) => {
+    aliases[normalizeHeader(header)] = "team";
+  });
+
+  return aliases;
+})();
+
+const normalizeText = (value) => String(value ?? "").trim();
+
+const parseNumeric = (value, fallback = 0) => {
+  const raw = normalizeText(value);
+  if (!raw) return fallback;
+
+  const cleaned = raw
+    .replace(/\s+/g, "")
+    .replace(/[€$£¥]/g, "")
+    .replace(/p\/a/gi, "");
+
+  const rangeMatch = cleaned.match(
+    /^(-?\d+(?:[.,]\d+)?)[\-–—](-?\d+(?:[.,]\d+)?)$/
+  );
+
+  if (rangeMatch) {
+    const first = Number(
+      rangeMatch[1].replace(",", ".")
+    );
+    const second = Number(
+      rangeMatch[2].replace(",", ".")
+    );
+
+    if (
+      Number.isFinite(first) &&
+      Number.isFinite(second)
+    ) {
+      return (first + second) / 2;
+    }
+  }
+
+  const match = cleaned.match(/-?\d+(?:[.,]\d+)?/);
+  if (!match) return fallback;
+
+  const numeric = Number(
+    match[0].replace(",", ".")
+  );
+
+  return Number.isFinite(numeric)
+    ? numeric
+    : fallback;
+};
+
+const parseInteger = (value, fallback = 0) => {
+  const numeric = parseNumeric(
+    value,
+    Number.NaN
+  );
+
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+
+  return Math.round(numeric);
+};
+
+const parseDateOfBirth = (value) => {
+  const raw = normalizeText(value);
+  if (!raw) return "";
+
+  const match = raw.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+  if (!match) return raw;
+
+  const [, day, month, year] = match;
+  return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+};
+
+const parseHeight = (value) => {
+  const raw = normalizeText(value);
+  if (!raw) return 0;
+
+  const match = raw.match(/\d+(?:[.,]\d+)?/);
+  if (!match) return 0;
+
+  const height = Number(match[0].replace(",", "."));
+  return Number.isFinite(height) ? Math.round(height) : 0;
+};
+
+const parseSalary = (value) => {
+  const raw = normalizeText(value);
+  if (!raw) return 0;
+
+  const normalized = raw
+    .replace(/\u00A0/g, " ")
+    .replace(/€/g, "")
+    .replace(/p\/a/gi, "")
+    .trim()
+    .replace(/\s+/g, "");
+
+  const rangeMatch = normalized.match(
+    /(-?\d+(?:[.,]\d+)?)[\-–—](-?\d+(?:[.,]\d+)?)([KMB])?/i
+  );
+
+  const multiplierFor = (suffix) => {
+    const normalizedSuffix = String(
+      suffix || ""
+    ).toUpperCase();
+
+    if (normalizedSuffix === "K") return 1_000;
+    if (normalizedSuffix === "M") return 1_000_000;
+    if (normalizedSuffix === "B") return 1_000_000_000;
+
+    return 1;
+  };
+
+  if (rangeMatch) {
+    const first = Number(
+      rangeMatch[1].replace(",", ".")
+    );
+    const second = Number(
+      rangeMatch[2].replace(",", ".")
+    );
+
+    if (
+      !Number.isFinite(first) ||
+      !Number.isFinite(second)
+    ) {
+      return 0;
+    }
+
+    const multiplier =
+      multiplierFor(rangeMatch[3]);
+
+    return Math.round(
+      ((first + second) / 2) *
+        multiplier
+    );
+  }
+
+  const match = normalized.match(
+    /(-?\d+(?:[.,]\d+)?)([KMB])?/i
+  );
+
+  if (!match) return 0;
+
+  let number = Number(
+    match[1].replace(",", ".")
+  );
 
   if (!Number.isFinite(number)) {
     return 0;
   }
 
-  return Math.max(
-    0,
-    Math.min(20, Math.round(number))
-  );
-}
-
-function parseNumber(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
-
-  const text = String(value)
-    .trim()
-    .replace(/\s/g, "")
-    .replace(/"/g, "");
-
-  if (!text) {
-    return 0;
-  }
-
-  const normalized = text
-    .replace(/\./g, "")
-    .replace(",", ".");
-
-  const number = Number(normalized);
-
-  return Number.isFinite(number)
-    ? number
-    : 0;
-}
-
-function parseInteger(value) {
-  const number = parseNumber(value);
-
-  return Number.isFinite(number)
-    ? Math.round(number)
-    : 0;
-}
-
-function parseHeight(value) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return 0;
-  }
-
-  const match = String(value).match(
-    /[\d]+(?:[.,]\d+)?/
+  number *= multiplierFor(
+    match[2]
   );
 
-  if (!match) {
-    return 0;
+  return Math.round(number);
+};
+
+const normalizePositionAtom = (value) => {
+  const raw = normalizeHeader(value).replace(/[()]/g, "");
+
+  if (!raw) return "";
+
+  if (["por", "p", "gk", "goalkeeper", "portero"].includes(raw)) return "GK";
+
+  if ([
+    "dfc",
+    "dfc c",
+    "df c",
+    "df c c",
+    "defensa central",
+    "central",
+    "libero",
+  ].includes(raw)) {
+    return "DFC";
   }
 
-  return Math.round(
-    Number(
-      match[0].replace(",", ".")
+  if (["dfd", "df d", "ld", "ltd", "lateral derecho"].includes(raw)) {
+    return "LD";
+  }
+
+  if (["dfi", "df i", "li", "lti", "lateral izquierdo"].includes(raw)) {
+    return "LI";
+  }
+
+  if (["crd", "cr d", "carrilero derecho"].includes(raw)) return "CRD";
+  if (["cri", "cr i", "carrilero izquierdo"].includes(raw)) return "CRI";
+
+  if (["mcd", "mdc", "mc d", "pivote", "mediocentro defensivo", "dm", "cdm"].includes(raw)) {
+    return "CDM";
+  }
+
+  if (["mc", "m c", "mec", "mediocentro", "cm"].includes(raw)) {
+    return "CM";
+  }
+
+  if (["mp c", "mpc", "mp centro", "mediapunta centro", "cam"].includes(raw)) {
+    return "CAM";
+  }
+
+  if (["mp d", "mp derecho", "ed", "extremo derecho"].includes(raw)) return "ED";
+  if (["mp i", "mp izquierdo", "ei", "extremo izquierdo"].includes(raw)) return "EI";
+
+  if (["dc", "dl c", "dlc", "delantero centro", "st", "striker"].includes(raw)) return "DC";
+
+  // Generic side-specific / multi-position FM forms.
+  if (raw.startsWith("mp ")) {
+    const side = raw.replace(/^mp\s+/, "");
+    if (side.includes("d") && !side.includes("i") && !side.includes("c")) return "ED";
+    if (side.includes("i") && !side.includes("d") && !side.includes("c")) return "EI";
+    if (side.includes("c")) return "CAM";
+  }
+
+  if (raw.startsWith("dl ") || raw.startsWith("dl")) {
+    if (raw.includes("c")) return "DC";
+    if (raw.includes("d")) return "DC";
+    if (raw.includes("i")) return "DC";
+  }
+
+  // Generic defensive forms.
+  if (raw.startsWith("df ")) {
+    if (raw.includes("c")) return "DFC";
+    if (raw.includes("d")) return "LD";
+    if (raw.includes("i")) return "LI";
+  }
+
+  // Generic central midfield forms.
+  if (raw.startsWith("m ") || raw === "m") {
+    if (raw.includes("d")) return "CDM";
+    if (raw.includes("c")) return "CM";
+    if (raw.includes("i")) return "CM";
+  }
+
+  return POSITION_CODES.has(raw.toUpperCase()) ? raw.toUpperCase() : "";
+};
+
+const normalizePosition = (value) => {
+  const original = normalizeText(value);
+  if (!original) return "";
+
+  const normalized = normalizeHeader(
+    original
+  );
+
+  /*
+   * Football Manager can export several positions
+   * in one cell, e.g.:
+   *   MC, ME/MP (C)
+   *   MC, ME (DC), MP (C)
+   *
+   * We take the first position we can map.
+   */
+  const parts = normalized
+    .split(/[,/;]+/)
+    .map((part) =>
+      part
+        .replace(/[()]/g, "")
+        .trim()
     )
-  );
-}
-
-function parseSalary(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return 0;
-  }
-
-  const text = String(value)
-    .trim()
-    .replace(/\s/g, "")
-    .replace(/€/g, "")
-    .replace("/a", "")
-    .replace("/pa", "");
-
-  if (!text) {
-    return 0;
-  }
-
-  const match = text.match(
-    /([\d.,]+)([KkMmBb])?/
-  );
-
-  if (!match) {
-    return 0;
-  }
-
-  const base = Number(
-    match[1]
-      .replace(/\./g, "")
-      .replace(",", ".")
-  );
-
-  if (!Number.isFinite(base)) {
-    return 0;
-  }
-
-  const suffix = String(
-    match[2] || ""
-  ).toUpperCase();
-
-  if (suffix === "K") {
-    return Math.round(
-      base * 1000
-    );
-  }
-
-  if (suffix === "M") {
-    return Math.round(
-      base * 1000000
-    );
-  }
-
-  if (suffix === "B") {
-    return Math.round(
-      base * 1000000000
-    );
-  }
-
-  return Math.round(base);
-}
-
-function normalizeDate(value) {
-  const text = String(value ?? "").trim();
-
-  if (!text) {
-    return "";
-  }
-
-  let match = text.match(
-    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
-  );
-
-  if (match) {
-    const [
-      ,
-      day,
-      month,
-      year,
-    ] = match;
-
-    return `${day.padStart(
-      2,
-      "0"
-    )}/${month.padStart(
-      2,
-      "0"
-    )}/${year}`;
-  }
-
-  match = text.match(
-    /^(\d{1,2})[-.](\d{1,2})[-.](\d{4})$/
-  );
-
-  if (match) {
-    const [
-      ,
-      day,
-      month,
-      year,
-    ] = match;
-
-    return `${day.padStart(
-      2,
-      "0"
-    )}/${month.padStart(
-      2,
-      "0"
-    )}/${year}`;
-  }
-
-  return text;
-}
-
-function cleanCsvCell(value) {
-  return String(value ?? "")
-    .replace(/^\uFEFF/, "")
-    .trim();
-}
-
-function findColumn(headers, aliases) {
-  const normalizedHeaders =
-    new Map(
-      headers.map((header) => [
-        normalizeKey(header),
-        header,
-      ])
-    );
-
-  for (const alias of aliases) {
-    const realHeader =
-      normalizedHeaders.get(
-        normalizeKey(alias)
-      );
-
-    if (
-      realHeader !== undefined
-    ) {
-      return realHeader;
-    }
-  }
-
-  return "";
-}
-
-function getField(
-  row,
-  headers,
-  aliases
-) {
-  const header = findColumn(
-    headers,
-    aliases
-  );
-
-  return header
-    ? cleanCsvCell(row[header])
-    : "";
-}
-
-function normalizePosition(value) {
-  const raw = cleanCsvCell(value);
-
-  if (!raw) {
-    return "";
-  }
-
-  const key = normalizeKey(raw)
-    .replace(/\s+/g, "")
-    .toUpperCase();
-
-  if (POSITION_MAP[key]) {
-    return POSITION_MAP[key];
-  }
-
-  const parts = raw
-    .split(/[\/,;]+/)
-    .map((part) => part.trim())
     .filter(Boolean);
 
   for (const part of parts) {
     const mapped =
-      POSITION_MAP[
-        normalizeKey(part)
-          .replace(/\s+/g, "")
-          .toUpperCase()
-      ];
+      normalizePositionAtom(
+        part
+      );
 
     if (mapped) {
       return mapped;
     }
   }
 
-  if (/\bDIC\b/i.test(raw)) {
-    return "DC";
+  const direct =
+    normalizePositionAtom(
+      normalized
+    );
+
+  if (direct) {
+    return direct;
   }
 
-  if (/\bDC\b/i.test(raw)) {
-    return "DC";
-  }
+  if (normalized.startsWith("mp")) {
+    const inside =
+      normalized
+        .replace(/^mp\s*/, "");
 
-  if (
-    /\bD\b/i.test(raw) &&
-    !/\bI\b/i.test(raw)
-  ) {
-    return "ED";
-  }
+    if (
+      inside.includes("c")
+    ) {
+      return "CAM";
+    }
 
-  if (
-    /\bI\b/i.test(raw) &&
-    !/\bD\b/i.test(raw)
-  ) {
-    return "EI";
-  }
+    if (
+      inside.includes("d") &&
+      !inside.includes("i")
+    ) {
+      return "ED";
+    }
 
-  if (/\bC\b/i.test(raw)) {
+    if (
+      inside.includes("i") &&
+      !inside.includes("d")
+    ) {
+      return "EI";
+    }
+
     return "CAM";
   }
 
-  return raw;
-}
-
-function mapStats(row, headers) {
-  const mental = {
-    agresividad: 0,
-    anticipacion: 0,
-    valentia: 0,
-    serenidad: 0,
-    concentracion: 0,
-    consistencia: 0,
-    decisiones: 0,
-    determinacion: 0,
-    juego_sucio: 0,
-    talento: 0,
-    partidos_importantes: 0,
-    liderazgo: 0,
-    movimiento: 0,
-    colocacion: 0,
-    trabajo_de_equipo: 0,
-    vision: 0,
-    sacrificio: 0,
-  };
-
-  const physical = {
-    aceleracion: 0,
-    agilidad: 0,
-    balance: 0,
-    tendencia_a_lesionarse: 0,
-    alcance_de_salto: 0,
-    alcance_de_salto_recomendado_altura: 0,
-    recuperacion_fisica: 0,
-    velocidad: 0,
-    resistencia: 0,
-    fuerza: 0,
-  };
-
-  const technical = {
-    saques_de_esquina: 0,
-    centros: 0,
-    regate: 0,
-    remate: 0,
-    control: 0,
-    tiros_libres: 0,
-    cabeceo: 0,
-    tiros_lejanos: 0,
-    saques_largos: 0,
-    marcaje: 0,
-    pases: 0,
-    penaltis: 0,
-    entradas: 0,
-    tecnica: 0,
-    polivalencia: 0,
-  };
-
-  const goalkeeping = {
-    balones_aereos: 0,
-    balones_aereos_recomendado_altura: 0,
-    mando_en_el_area: 0,
-    comunicacion: 0,
-    excentricidad: 0,
-    blocaje: 0,
-    saques_de_puerta: 0,
-    uno_contra_uno: 0,
-    reflejos: 0,
-    salidas_tendencia: 0,
-    salida_de_puños: 0,
-    saque_con_la_mano: 0,
-  };
-
-  for (
-    const [
-      csvName,
-      playerKey,
-    ] of Object.entries(
-      MENTAL_FIELDS
-    )
+  if (
+    normalized.startsWith("dl")
   ) {
-    const value = getField(
-      row,
-      headers,
-      [csvName]
-    );
-
-    mental[playerKey] =
-      clamp20(value);
+    return "DC";
   }
 
-  for (
-    const [
-      csvName,
-      playerKey,
-    ] of Object.entries(
-      PHYSICAL_FIELDS
-    )
+  if (
+    normalized.startsWith("df")
   ) {
-    const value = getField(
-      row,
-      headers,
-      [csvName]
-    );
-
-    /*
-     * En MF LEGACY hemos decidido que:
-     *
-     * 20 = mejor resistencia a lesiones
-     * 0  = mayor propensión a lesionarse
-     *
-     * Por eso invertimos el atributo
-     * de Football Manager.
-     */
     if (
-      playerKey ===
-      "tendencia_a_lesionarse"
+      normalized.includes("c")
     ) {
-      const fmValue =
-        clamp20(value);
-
-      physical[playerKey] =
-        20 - fmValue;
-    } else {
-      physical[playerKey] =
-        clamp20(value);
+      return "DFC";
     }
+
+    if (
+      normalized.includes("d")
+    ) {
+      return "LD";
+    }
+
+    if (
+      normalized.includes("i")
+    ) {
+      return "LI";
+    }
+
+    return "DFC";
   }
 
-  for (
-    const [
-      csvName,
-      playerKey,
-    ] of Object.entries(
-      TECHNICAL_FIELDS
-    )
-  ) {
-    technical[playerKey] =
-      clamp20(
-        getField(
-          row,
-          headers,
-          [csvName]
-        )
-      );
-  }
+  return "";
+};
 
-  for (
-    const [
-      csvName,
-      playerKey,
-    ] of Object.entries(
-      GOALKEEPING_FIELDS
-    )
-  ) {
-    goalkeeping[playerKey] =
-      clamp20(
-        getField(
-          row,
-          headers,
-          [csvName]
-        )
-      );
-  }
-
-  return {
-    mental,
-    physical,
-    technical,
-    goalkeeping,
-  };
-}
+const invertInjuryProneness = (value) => {
+  const fmValue = parseInteger(value, 0);
+  if (!fmValue) return 0;
+  return Math.max(0, Math.min(20, 20 - fmValue));
+};
 
 /**
- * Analiza un CSV separado por ;
- *
- * Devuelve:
- * {
- *   headers: [],
- *   rows: []
- * }
+ * Parse a semicolon-delimited CSV, including quoted values containing
+ * delimiters/newlines. Returns an array of row arrays.
  */
-export function parseSemicolonCsv(
-  text
-) {
-  const source = String(
-    text ?? ""
-  ).replace(/^\uFEFF/, "");
-
+export function parseCsvText(csvText, delimiter = DELIMITER) {
+  const text = String(csvText ?? "").replace(/^\uFEFF/, "");
   const rows = [];
-
   let row = [];
-  let cell = "";
+  let field = "";
   let inQuotes = false;
 
-  for (
-    let i = 0;
-    i < source.length;
-    i += 1
-  ) {
-    const char = source[i];
-    const next =
-      source[i + 1];
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const nextChar = text[index + 1];
 
     if (char === '"') {
-      if (
-        inQuotes &&
-        next === '"'
-      ) {
-        cell += '"';
-        i += 1;
-      } else {
-        inQuotes =
-          !inQuotes;
+      if (inQuotes && nextChar === '"') {
+        field += '"';
+        index += 1;
+        continue;
       }
 
+      inQuotes = !inQuotes;
       continue;
     }
 
-    if (
-      char === ";" &&
-      !inQuotes
-    ) {
-      row.push(cell);
-      cell = "";
+    if (!inQuotes && char === delimiter) {
+      row.push(field);
+      field = "";
       continue;
     }
 
-    if (
-      (char === "\n" ||
-        char === "\r") &&
-      !inQuotes
-    ) {
-      if (
-        char === "\r" &&
-        next === "\n"
-      ) {
-        i += 1;
-      }
+    if (!inQuotes && (char === "\n" || char === "\r")) {
+      if (char === "\r" && nextChar === "\n") index += 1;
 
-      row.push(cell);
-      cell = "";
+      row.push(field);
+      field = "";
 
-      if (
-        row.some(
-          (value) =>
-            String(
-              value
-            ).trim() !== ""
-        )
-      ) {
+      if (row.some((value) => String(value).trim() !== "")) {
         rows.push(row);
       }
 
       row = [];
-
       continue;
     }
 
-    cell += char;
+    field += char;
   }
 
-  row.push(cell);
+  row.push(field);
+  if (row.some((value) => String(value).trim() !== "")) rows.push(row);
 
-  if (
-    row.some(
-      (value) =>
-        String(value).trim() !== ""
-    )
-  ) {
-    rows.push(row);
-  }
-
-  if (rows.length === 0) {
-    return {
-      headers: [],
-      rows: [],
-    };
-  }
-
-  const headers =
-    rows[0].map(
-      cleanCsvCell
-    );
-
-  const dataRows =
-    rows
-      .slice(1)
-      .map((values) => {
-        const object = {};
-
-        headers.forEach(
-          (
-            header,
-            index
-          ) => {
-            object[header] =
-              cleanCsvCell(
-                values[index] ??
-                  ""
-              );
-          }
-        );
-
-        return object;
-      });
-
-  return {
-    headers,
-    rows: dataRows,
-  };
+  return rows;
 }
 
-export function mapPlayerRow(
-  row,
-  headers = Object.keys(row)
-) {
-  const teamName =
-    getField(
-      row,
-      headers,
-      HEADER_ALIASES.team
-    );
+const rowsToObjects = (rows) => {
+  if (!rows.length) return { headers: [], rows: [] };
 
-  const countryName =
-    getField(
-      row,
-      headers,
-      HEADER_ALIASES.country
-    );
+  const rawHeaders = rows[0].map((header) => normalizeText(header));
+  const headers = rawHeaders.map((header) => HEADER_ALIASES[normalizeHeader(header)] || header);
 
-  const primaryRaw =
-    getField(
-      row,
-      headers,
-      HEADER_ALIASES.primaryPosition
-    );
-
-  const secondaryRaw =
-    getField(
-      row,
-      headers,
-      HEADER_ALIASES.secondaryPosition
-    );
+  const objects = rows.slice(1).map((values) => {
+    const object = {};
+    headers.forEach((header, index) => {
+      object[header] = normalizeText(values[index] ?? "");
+    });
+    return object;
+  });
 
   return {
-    name: getField(
-      row,
-      headers,
-      HEADER_ALIASES.name
-    ),
+    headers: rawHeaders,
+    rows: objects,
+  };
+};
 
-    date_of_birth:
-      normalizeDate(
-        getField(
-          row,
-          headers,
-          HEADER_ALIASES.birthDate
-        )
-      ),
+const createEmptyPositionRatings = () => ({
+  GK: 0,
+  DFC: 0,
+  LD: 0,
+  LI: 0,
+  CRD: 0,
+  CRI: 0,
+  CDM: 0,
+  CM: 0,
+  CAM: 0,
+  EI: 0,
+  ED: 0,
+  DC: 0,
+});
 
-    /*
-     * Los IDs se resolverán después
-     * contra las entidades Country y Team.
-     */
+export function convertFootballManagerRow(row) {
+  const get = (key) => normalizeText(row?.[key]);
+
+  const positionRaw = get("position");
+  const secondaryPositionRaw = get("secondaryPosition");
+
+  const teamName = get("team");
+  const countryName = get("country");
+
+  const player = {
+    name: get("name"),
+    date_of_birth: parseDateOfBirth(get("dateOfBirth")),
+
+    // Resolved later by Players.jsx/import service.
     team_id: "",
     country_id: "",
 
-    position:
-      normalizePosition(
-        primaryRaw
-      ),
+    position_raw: positionRaw,
+    position: normalizePosition(positionRaw),
+    secondary_position_raw: secondaryPositionRaw,
+    secondary_position: normalizePosition(secondaryPositionRaw),
 
-    secondary_position:
-      normalizePosition(
-        secondaryRaw
-      ),
-
-    /*
-     * Conservamos también
-     * los valores originales de FM.
-     */
-    position_raw:
-      primaryRaw,
-
-    secondary_position_raw:
-      secondaryRaw,
-
-    style: getField(
-      row,
-      headers,
-      HEADER_ALIASES.style
-    ),
-
-    height:
-      parseHeight(
-        getField(
-          row,
-          headers,
-          HEADER_ALIASES.height
-        )
-      ),
-
-    right_foot:
-      getField(
-        row,
-        headers,
-        HEADER_ALIASES.rightFoot
-      ),
-
-    left_foot:
-      getField(
-        row,
-        headers,
-        HEADER_ALIASES.leftFoot
-      ),
-
-    shirt_number:
-      parseInteger(
-        getField(
-          row,
-          headers,
-          HEADER_ALIASES.shirtNumber
-        )
-      ),
-
-    salary:
-      parseSalary(
-        getField(
-          row,
-          headers,
-          HEADER_ALIASES.salary
-        )
-      ),
-
-    ca:
-      parseInteger(
-        getField(
-          row,
-          headers,
-          HEADER_ALIASES.ca
-        )
-      ),
-
-    cp:
-      parseInteger(
-        getField(
-          row,
-          headers,
-          HEADER_ALIASES.cp
-        )
-      ),
-
-    position_ratings: {
-      GK: 0,
-      DFC: 0,
-      LD: 0,
-      LI: 0,
-      CRD: 0,
-      CRI: 0,
-      CDM: 0,
-      CM: 0,
-      CAM: 0,
-      EI: 0,
-      ED: 0,
-      DC: 0,
-    },
-
-    stats: mapStats(
-      row,
-      headers
-    ),
+    style: get("style"),
+    height: parseHeight(get("height")),
+    right_foot: get("rightFoot"),
+    left_foot: get("leftFoot"),
+    shirt_number: parseInteger(get("shirtNumber"), 0),
+    salary: parseSalary(get("salary")),
 
     photo_url: "",
     card_photo_url: "",
     national_card_photo_url: "",
-    description: "",
 
-    /*
-     * Datos originales necesarios
-     * para resolver Country y Team.
-     * Posteriormente podremos eliminarlos
-     * del objeto final antes de guardar.
-     */
-    _source: {
-      team_name: teamName,
-      country_name:
-        countryName,
+    ca: parseInteger(get("ca"), 0),
+    cp: parseInteger(get("cp"), 0),
+
+    position_ratings: createEmptyPositionRatings(),
+
+    stats: {
+      mental: {
+        agresividad: parseInteger(get("aggression")),
+        anticipacion: parseInteger(get("anticipation")),
+        valentia: parseInteger(get("bravery")),
+        serenidad: parseInteger(get("composure")),
+        concentracion: parseInteger(get("concentration")),
+        consistencia: parseInteger(get("consistency")),
+        decisiones: parseInteger(get("decisions")),
+        determinacion: parseInteger(get("determination")),
+        juego_sucio: parseInteger(get("dirtiness")),
+        talento: parseInteger(get("flair")),
+        partidos_importantes: parseInteger(get("importantMatches")),
+        liderazgo: parseInteger(get("leadership")),
+        movimiento: parseInteger(get("offTheBall")),
+        colocacion: parseInteger(get("positioning")),
+        trabajo_de_equipo: parseInteger(get("teamwork")),
+        vision: parseInteger(get("vision")),
+        sacrificio: parseInteger(get("sacrifice")),
+      },
+
+      physical: {
+        aceleracion: parseInteger(get("acceleration")),
+        agilidad: parseInteger(get("agility")),
+        balance: parseInteger(get("balance")),
+        tendencia_a_lesionarse: invertInjuryProneness(get("injuryProneness")),
+        alcance_de_salto: parseInteger(get("jumpingReach")),
+        alcance_de_salto_recomendado_altura: 0,
+        recuperacion_fisica: parseInteger(get("naturalFitness")),
+        velocidad: parseInteger(get("pace")),
+        resistencia: parseInteger(get("stamina")),
+        fuerza: parseInteger(get("strength")),
+      },
+
+      technical: {
+        saques_de_esquina: parseInteger(get("corners")),
+        centros: parseInteger(get("crossing")),
+        regate: parseInteger(get("dribbling")),
+        remate: parseInteger(get("finishing")),
+        control: parseInteger(get("firstTouch")),
+        tiros_libres: parseInteger(get("freeKickTaking")),
+        cabeceo: parseInteger(get("heading")),
+        tiros_lejanos: parseInteger(get("longShots")),
+        saques_largos: parseInteger(get("longThrows")),
+        marcaje: parseInteger(get("marking")),
+        pases: parseInteger(get("passing")),
+        penaltis: parseInteger(get("penaltyTaking")),
+        entradas: parseInteger(get("tackling")),
+        tecnica: parseInteger(get("technique")),
+        polivalencia: parseInteger(get("versatility")),
+      },
+
+      goalkeeping: {
+        balones_aereos: parseInteger(get("aerialReach")),
+        balones_aereos_recomendado_altura: 0,
+        mando_en_el_area: parseInteger(get("commandOfArea")),
+        comunicacion: parseInteger(get("communication")),
+        excentricidad: parseInteger(get("eccentricity")),
+        blocaje: parseInteger(get("handling")),
+        saques_de_puerta: parseInteger(get("goalKicks")),
+        uno_contra_uno: parseInteger(get("oneOnOnes")),
+        salidas_tendencia: parseInteger(get("rushingOut")),
+        salida_de_puños: parseInteger(get("punching")),
+        reflejos: parseInteger(get("reflexes")),
+        saque_con_la_mano: parseInteger(get("throwing")),
+      },
     },
+
+    description: "",
   };
-}
 
-export function convertCsvToPlayers(
-  csvText
-) {
-  const {
-    headers,
-    rows,
-  } = parseSemicolonCsv(
-    csvText
-  );
+  const warnings = [];
 
-  const players = rows.map(
-    (row, index) => {
-      const player =
-        mapPlayerRow(
-          row,
-          headers
-        );
-
-      const warnings = [];
-
-      if (!player.name) {
-        warnings.push(
-          "Missing player name."
-        );
-      }
-
-      if (
-        !player._source
-          .country_name
-      ) {
-        warnings.push(
-          "Missing country."
-        );
-      }
-
-      if (
-        !player._source
-          .team_name
-      ) {
-        warnings.push(
-          "Missing team/club column or team value."
-        );
-      }
-
-      return {
-        row_number:
-          index + 2,
-
-        player,
-
-        warnings,
-      };
-    }
-  );
+  if (!player.name) warnings.push("Missing player name");
+  if (!countryName) warnings.push("Missing country");
+  if (!teamName) warnings.push("Missing team/club column or value");
+  if (!player.position) warnings.push(`Unknown primary position: ${positionRaw || "(empty)"}`);
+  if (secondaryPositionRaw && !player.secondary_position) {
+    warnings.push(`Unknown secondary position: ${secondaryPositionRaw}`);
+  }
 
   return {
-    delimiter: ";",
-    headers,
-    total_rows:
-      rows.length,
-    players,
+    player,
+    source: {
+      countryName,
+      teamName,
+    },
+    warnings,
+    raw: row,
   };
 }
 
-/**
- * Devuelve un análisis del CSV con la forma que espera Players.jsx:
- *
- * {
- *   delimiter,
- *   headers,
- *   total_rows,
- *   players: [{ row_number, player, source: { teamName, countryName }, warnings }]
- * }
- *
- * Es un adaptador sobre `convertCsvToPlayers` que expone los datos
- * originales del club/país bajo `source` con nombres en camelCase.
- */
-export function parseFootballManagerCsv(
-  csvText
-) {
-  const result = convertCsvToPlayers(
-    csvText
-  );
+export async function readCsvFile(file) {
+  if (!(file instanceof File)) {
+    throw new TypeError("readCsvFile expects a File object.");
+  }
 
-  const players = result.players.map(
-    (entry) => {
-      const source = {
-        teamName:
-          entry?.player?._source
-            ?.team_name || "",
-        countryName:
-          entry?.player?._source
-            ?.country_name || "",
-      };
+  const text = await file.text();
+  return parseCsvText(text, DELIMITER);
+}
 
-      const player = {
-        ...entry.player,
-      };
-
-      /*
-       * Eliminamos `_source` del jugador final
-       * para no enviarlo a Base44 al crear el Player.
-       */
-      delete player._source;
-
-      return {
-        row_number: entry.row_number,
-        player,
-        source,
-        warnings: entry.warnings || [],
-      };
-    }
-  );
+export function parseFootballManagerCsv(csvText) {
+  const rows = parseCsvText(csvText, DELIMITER);
+  const { headers, rows: objectRows } = rowsToObjects(rows);
 
   return {
-    delimiter: result.delimiter,
-    headers: result.headers,
-    total_rows: result.total_rows,
-    players,
+    headers,
+    rows: objectRows,
+    players: objectRows.map(convertFootballManagerRow),
   };
 }
-
-export default {
-  parseSemicolonCsv,
-  mapPlayerRow,
-  convertCsvToPlayers,
-  parseFootballManagerCsv,
-};
