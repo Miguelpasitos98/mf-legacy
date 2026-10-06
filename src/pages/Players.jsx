@@ -2733,7 +2733,7 @@ export default function Players() {
 
         const country = countryCache.get(normalizeEntityName(source?.countryName || ""));
         const teamName = source?.teamName || "";
-        const team = teamCache.get(normalizeEntityName(teamName));
+        const team = teamCache.get(normalizeTeamName(teamName));
         const finalPlayer = {
           ...player,
           team_id:
