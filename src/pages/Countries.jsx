@@ -8,6 +8,7 @@ import {
   Shield,
   Trophy,
   CalendarDays,
+  Pencil,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -286,6 +287,22 @@ export default function Countries() {
   const [selectedCountryId, setSelectedCountryId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [editCountryOpen, setEditCountryOpen] = useState(false);
+  const [editCountryForm, setEditCountryForm] = useState({
+    flag: "",
+    continent: "Europe",
+  });
+  const [isSavingCountry, setIsSavingCountry] = useState(false);
+  const [countryEditError, setCountryEditError] = useState("");
+
+  const CONTINENT_OPTIONS = [
+    { value: "Europe", label: "Europa" },
+    { value: "South America", label: "Sudamérica" },
+    { value: "North America", label: "Norteamérica" },
+    { value: "Asia", label: "Asia" },
+    { value: "Africa", label: "África" },
+    { value: "Oceania", label: "Oceanía" },
+  ];
 
   useEffect(() => {
     const loadData = async () => {
@@ -400,6 +417,73 @@ export default function Countries() {
   const selectedCountry = selectedCountryId
     ? countryById[selectedCountryId]
     : null;
+
+  const handleOpenEditCountry = () => {
+    if (!selectedCountry) return;
+
+    setEditCountryForm({
+      flag:
+        /^(https?:|data:|blob:)/i.test(String(selectedCountry.flag || "").trim())
+          ? String(selectedCountry.flag || "").trim()
+          : "",
+      continent: selectedCountry.continent || "Europe",
+    });
+    setCountryEditError("");
+    setEditCountryOpen(true);
+  };
+
+  const handleCloseEditCountry = () => {
+    if (isSavingCountry) return;
+    setEditCountryOpen(false);
+    setCountryEditError("");
+  };
+
+  const handleSaveCountry = async () => {
+    if (!selectedCountry?.id || isSavingCountry) return;
+
+    const continent = String(editCountryForm.continent || "").trim();
+    const flag = String(editCountryForm.flag || "").trim();
+
+    if (!CONTINENT_OPTIONS.some((option) => option.value === continent)) {
+      setCountryEditError("Selecciona un continente válido.");
+      return;
+    }
+
+    if (flag && !/^(https?:|data:|blob:)/i.test(flag)) {
+      setCountryEditError("La bandera debe ser una URL de imagen válida.");
+      return;
+    }
+
+    setIsSavingCountry(true);
+    setCountryEditError("");
+
+    try {
+      await base44.entities.Country.update(selectedCountry.id, {
+        flag,
+        continent,
+      });
+
+      setCountries((current) =>
+        current.map((country) =>
+          String(country.id) === String(selectedCountry.id)
+            ? { ...country, flag, continent }
+            : country
+        )
+      );
+
+      setEditCountryOpen(false);
+    } catch (error) {
+      console.error("Error updating country:", error);
+      setCountryEditError(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "No se ha podido actualizar el país."
+      );
+    } finally {
+      setIsSavingCountry(false);
+    }
+  };
 
   const selectedCountryPlayers = useMemo(() => {
     if (!selectedCountryId) return [];
@@ -615,7 +699,16 @@ export default function Countries() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleOpenEditCountry}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                <Pencil size={15} />
+                Editar
+              </button>
+
               <div className="rounded-xl bg-[#F1F5F9] px-4 py-3 text-center">
                 <div className="text-lg font-extrabold text-slate-900">
                   {selectedCountryPlayers.length}
@@ -730,6 +823,124 @@ export default function Countries() {
               </div>
             )}
           </section>
+
+          {editCountryOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]">
+              <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                      MF LEGACY
+                    </p>
+                    <h2 className="mt-1 text-xl font-extrabold text-slate-900">
+                      Editar {selectedCountry.name}
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Modifica la bandera y el continente del país.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleCloseEditCountry}
+                    className="rounded-xl border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
+                    aria-label="Cerrar"
+                  >
+                    <ChevronRight size={16} className="rotate-45" />
+                  </button>
+                </div>
+
+                <div className="space-y-5 px-6 py-6">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                      Bandera
+                    </label>
+
+                    <div className="flex gap-3">
+                      <div className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F1F5F9]">
+                        {editCountryForm.flag ? (
+                          <img
+                            src={editCountryForm.flag}
+                            alt={`Vista previa de la bandera de ${selectedCountry.name}`}
+                            className="h-full w-full object-contain"
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <span className="text-2xl">🏳️</span>
+                        )}
+                      </div>
+
+                      <input
+                        type="url"
+                        value={editCountryForm.flag}
+                        onChange={(event) =>
+                          setEditCountryForm((current) => ({
+                            ...current,
+                            flag: event.target.value,
+                          }))
+                        }
+                        placeholder="https://.../flag.png"
+                        className={`${inputClassName} flex-1`}
+                      />
+                    </div>
+
+                    <p className="mt-1.5 text-[11px] text-slate-400">
+                      Introduce la URL de la imagen de la bandera.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                      Continente
+                    </label>
+                    <select
+                      value={editCountryForm.continent}
+                      onChange={(event) =>
+                        setEditCountryForm((current) => ({
+                          ...current,
+                          continent: event.target.value,
+                        }))
+                      }
+                      className={inputClassName}
+                    >
+                      {CONTINENT_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {countryEditError && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {countryEditError}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+                  <button
+                    type="button"
+                    onClick={handleCloseEditCountry}
+                    disabled={isSavingCountry}
+                    className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveCountry}
+                    disabled={isSavingCountry}
+                    className="rounded-xl bg-[#003399] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isSavingCountry ? "Guardando..." : "Guardar cambios"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
