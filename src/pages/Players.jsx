@@ -3,6 +3,11 @@ import {
   Search,
   Plus,
   X,
+  Upload,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
   Users,
   CalendarDays,
   Building2,
@@ -11,6 +16,7 @@ import {
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
 import { useLocation, useSearchParams } from "react-router-dom";
+import { parseFootballManagerCsv } from "@/utils/playerCsvImporter";
 
 import { base44 } from "@/api/base44Client";
 
@@ -1217,6 +1223,112 @@ function GroupHeader({
   );
 }
 
+
+const normalizeEntityName = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+
+const getEntityId = (result) => {
+  const data = result?.data || result;
+
+  return (
+    data?.id ||
+    data?._id ||
+    result?.id ||
+    result?._id ||
+    ""
+  );
+};
+
+const generateImportedCountryCode = (name) => {
+  const normalized = String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+
+  return normalized.slice(0, 3).padEnd(3, "X");
+};
+
+const generateImportedTeamShortName = (name) => {
+  const normalized = String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+  return normalized.slice(0, 12) || `TEAM${Date.now()}`;
+};
+
+const COUNTRY_CONTINENT_MAP = {
+  espana: "Europe",
+  england: "Europe",
+  inglaterra: "Europe",
+  escocia: "Europe",
+  scotland: "Europe",
+  gales: "Europe",
+  wales: "Europe",
+  "irlanda del norte": "Europe",
+  "northern ireland": "Europe",
+  irlanda: "Europe",
+  ireland: "Europe",
+  francia: "Europe",
+  france: "Europe",
+  alemania: "Europe",
+  germany: "Europe",
+  italia: "Europe",
+  italy: "Europe",
+  portugal: "Europe",
+  holanda: "Europe",
+  netherlands: "Europe",
+  belgica: "Europe",
+  belgium: "Europe",
+  brasil: "South America",
+  brazil: "South America",
+  argentina: "South America",
+  uruguay: "South America",
+  colombia: "South America",
+  chile: "South America",
+  peru: "South America",
+  ecuador: "South America",
+  bolivia: "South America",
+  paraguay: "South America",
+  venezuela: "South America",
+  mexico: "North America",
+  "estados unidos": "North America",
+  "united states": "North America",
+  canada: "North America",
+  "costa rica": "North America",
+  japon: "Asia",
+  japan: "Asia",
+  "corea del sur": "Asia",
+  "south korea": "Asia",
+  china: "Asia",
+  australia: "Oceania",
+  marruecos: "Africa",
+  morocco: "Africa",
+  argelia: "Africa",
+  algeria: "Africa",
+  tunez: "Africa",
+  tunisia: "Africa",
+  egipto: "Africa",
+  egypt: "Africa",
+  nigeria: "Africa",
+  ghana: "Africa",
+  senegal: "Africa",
+};
+
+const inferImportedCountryContinent = (countryName) =>
+  COUNTRY_CONTINENT_MAP[
+    normalizeEntityName(countryName)
+  ] || "Europe";
+
 export default function Players() {
   const [players, setPlayers] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -1239,6 +1351,27 @@ export default function Players() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+
+  const [importModalOpen, setImportModalOpen] =
+    useState(false);
+  const [importFileName, setImportFileName] =
+    useState("");
+  const [importAnalysis, setImportAnalysis] =
+    useState(null);
+  const [isImporting, setIsImporting] =
+    useState(false);
+  const [importProgress, setImportProgress] =
+    useState({
+      current: 0,
+      total: 0,
+      phase: "",
+    });
+  const [importResult, setImportResult] =
+    useState(null);
+  const [importError, setImportError] =
+    useState("");
+  const [importFileKey, setImportFileKey] =
+    useState(0);
 
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -1585,6 +1718,833 @@ export default function Players() {
     });
 
     setAddModalOpen(true);
+  };
+
+  const handleOpenImport = () => {
+    setImportModalOpen(true);
+    setImportFileName("");
+    setImportAnalysis(null);
+    setImportResult(null);
+    setImportError("");
+    setImportProgress({
+      current: 0,
+      total: 0,
+      phase: "",
+    });
+    setImportFileKey((current) => current + 1);
+  };
+
+  const handleCloseImport = () => {
+    if (isImporting) return;
+
+    setImportModalOpen(false);
+    setImportFileName("");
+    setImportAnalysis(null);
+    setImportResult(null);
+    setImportError("");
+    setImportProgress({
+      current: 0,
+      total: 0,
+      phase: "",
+    });
+    setImportFileKey((current) => current + 1);
+  };
+
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setImportError("");
+    setImportResult(null);
+    setImportAnalysis(null);
+    setImportFileName(file.name);
+
+    try {
+      const csvText = await file.text();
+
+      if (!csvText.trim()) {
+        throw new Error(
+          "El archivo CSV está vacío."
+        );
+      }
+
+      const analysis =
+        parseFootballManagerCsv(csvText);
+
+      if (!analysis.total_rows) {
+        throw new Error(
+          "No se encontraron jugadores en el CSV."
+        );
+      }
+
+      setImportAnalysis(analysis);
+    } catch (error) {
+      console.error(
+        "Error reading CSV:",
+        error
+      );
+
+      setImportError(
+        error?.message ||
+          "No se ha podido leer el archivo CSV."
+      );
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const importPreview = useMemo(() => {
+    if (!importAnalysis) {
+      return null;
+    }
+
+    const countryMap = new Map(
+      countries.map((country) => [
+        normalizeEntityName(country.name),
+        country,
+      ])
+    );
+
+    const teamKeys = new Set(
+      teams.map((team) => {
+        const countryName =
+          countries.find(
+            (country) =>
+              String(country.id) ===
+              String(team.countryId || "")
+          )?.name || "";
+
+        return `${normalizeEntityName(
+          team.name
+        )}::${normalizeEntityName(
+          countryName
+        )}`;
+      })
+    );
+
+    const uniqueCountries =
+      new Set();
+    const uniqueTeams =
+      new Set();
+
+    let missingNames = 0;
+    let missingCountries = 0;
+    let missingTeams = 0;
+
+    importAnalysis.players.forEach(
+      ({ player, source }) => {
+        const countryName =
+          source?.countryName ||
+          "";
+
+        const teamName =
+          source?.teamName ||
+          "";
+
+        const countryKey =
+          normalizeEntityName(
+            countryName
+          );
+
+        if (!player?.name?.trim()) {
+          missingNames += 1;
+        }
+
+        if (!countryKey) {
+          missingCountries += 1;
+        } else {
+          uniqueCountries.add(
+            countryKey
+          );
+        }
+
+        if (!teamName.trim()) {
+          missingTeams += 1;
+        } else {
+          uniqueTeams.add(
+            `${normalizeEntityName(
+              teamName
+            )}::${countryKey}`
+          );
+        }
+      }
+    );
+
+    const existingCountries =
+      Array.from(
+        uniqueCountries
+      ).filter((key) =>
+        countryMap.has(key)
+      ).length;
+
+    const existingTeams =
+      Array.from(
+        uniqueTeams
+      ).filter((key) =>
+        teamKeys.has(key)
+      ).length;
+
+    return {
+      total:
+        importAnalysis.total_rows,
+      uniqueCountries:
+        uniqueCountries.size,
+      newCountries:
+        uniqueCountries.size -
+        existingCountries,
+      existingCountries,
+      uniqueTeams:
+        uniqueTeams.size,
+      newTeams:
+        uniqueTeams.size -
+        existingTeams,
+      existingTeams,
+      missingNames,
+      missingCountries,
+      missingTeams,
+      warningRows:
+        importAnalysis.players.filter(
+          ({ warnings }) =>
+            warnings.length > 0
+        ).length,
+    };
+  }, [
+    importAnalysis,
+    countries,
+    teams,
+  ]);
+
+  const handleStartImport = async () => {
+    if (
+      !importAnalysis ||
+      !importAnalysis.players.length ||
+      isImporting
+    ) {
+      return;
+    }
+
+    setIsImporting(true);
+    setImportError("");
+    setImportResult(null);
+
+    const result = {
+      total:
+        importAnalysis.players.length,
+      imported: 0,
+      skippedDuplicates: 0,
+      skippedInvalid: 0,
+      countriesCreated: 0,
+      teamsCreated: 0,
+      errors: [],
+    };
+
+    try {
+      const countryCache = new Map(
+        countries.map((country) => [
+          normalizeEntityName(
+            country.name
+          ),
+          country,
+        ])
+      );
+
+      const teamCache = new Map();
+
+      teams.forEach((team) => {
+        const countryName =
+          countries.find(
+            (country) =>
+              String(country.id) ===
+              String(
+                team.countryId || ""
+              )
+          )?.name || "";
+
+        teamCache.set(
+          `${normalizeEntityName(
+            team.name
+          )}::${normalizeEntityName(
+            countryName
+          )}`,
+          team
+        );
+      });
+
+      /*
+       * 1. Resolve/create countries.
+       */
+      const uniqueCountryKeys =
+        Array.from(
+          new Set(
+            importAnalysis.players
+              .map(
+                ({ player }) =>
+                  normalizeEntityName(
+                    source?.countryName || ""
+                  )
+              )
+              .filter(Boolean)
+          )
+        );
+
+      setImportProgress({
+        current: 0,
+        total:
+          uniqueCountryKeys.length,
+        phase:
+          "Resolving countries...",
+      });
+
+      for (
+        let index = 0;
+        index < uniqueCountryKeys.length;
+        index += 1
+      ) {
+        const countryKey =
+          uniqueCountryKeys[index];
+
+        if (
+          countryCache.has(
+            countryKey
+          )
+        ) {
+          setImportProgress({
+            current: index + 1,
+            total:
+              uniqueCountryKeys.length,
+            phase:
+              "Resolving countries...",
+          });
+          continue;
+        }
+
+        const sourceRow =
+          importAnalysis.players.find(
+            ({ source }) =>
+              normalizeEntityName(
+                source?.countryName || ""
+              ) === countryKey
+          );
+
+        const countryName =
+          sourceRow?.source?.countryName?.trim();
+
+        if (!countryName) {
+          continue;
+        }
+
+        const createdCountry =
+          await base44.entities.Country.create(
+            {
+              name: countryName,
+              code:
+                generateImportedCountryCode(
+                  countryName
+                ),
+              continent:
+                inferImportedCountryContinent(
+                  countryName
+                ),
+              flag: "",
+              is_active: true,
+            }
+          );
+
+        const countryId =
+          getEntityId(
+            createdCountry
+          );
+
+        if (!countryId) {
+          throw new Error(
+            `El país "${countryName}" se creó pero Base44 no devolvió un ID.`
+          );
+        }
+
+        const countryData =
+          createdCountry?.data ||
+          createdCountry;
+
+        countryCache.set(
+          countryKey,
+          {
+            ...countryData,
+            id: countryId,
+            name:
+              countryData?.name ||
+              countryName,
+            code:
+              countryData?.code ||
+              generateImportedCountryCode(
+                countryName
+              ),
+            continent:
+              countryData?.continent ||
+              inferImportedCountryContinent(
+                countryName
+              ),
+          }
+        );
+
+        result.countriesCreated += 1;
+
+        setImportProgress({
+          current: index + 1,
+          total:
+            uniqueCountryKeys.length,
+          phase:
+            "Resolving countries...",
+        });
+      }
+
+      /*
+       * 2. Resolve/create teams.
+       */
+      const uniqueTeamKeys =
+        Array.from(
+          new Set(
+            importAnalysis.players
+              .map(({ source }) => {
+                const teamName =
+                  source?.teamName || "";
+                const countryName =
+                  source?.countryName || "";
+
+                if (!teamName.trim()) {
+                  return "";
+                }
+
+                return `${normalizeEntityName(
+                  teamName
+                )}::${normalizeEntityName(
+                  countryName
+                )}`;
+              })
+              .filter(Boolean)
+          )
+        );
+
+      setImportProgress({
+        current: 0,
+        total:
+          uniqueTeamKeys.length,
+        phase:
+          "Resolving teams...",
+      });
+
+      for (
+        let index = 0;
+        index < uniqueTeamKeys.length;
+        index += 1
+      ) {
+        const teamKey =
+          uniqueTeamKeys[index];
+
+        if (
+          teamCache.has(teamKey)
+        ) {
+          setImportProgress({
+            current: index + 1,
+            total:
+              uniqueTeamKeys.length,
+            phase:
+              "Resolving teams...",
+          });
+          continue;
+        }
+
+        const [teamNameKey] =
+          teamKey.split("::");
+
+        const countryNameKey =
+          teamKey.slice(
+            teamNameKey.length + 2
+          );
+
+        const sourceRow =
+          importAnalysis.players.find(
+            ({ source }) => {
+              const sourceTeam =
+                source?.teamName || "";
+              const sourceCountry =
+                source?.countryName || "";
+
+              return (
+                normalizeEntityName(
+                  sourceTeam
+                ) === teamNameKey &&
+                normalizeEntityName(
+                  sourceCountry
+                ) ===
+                  countryNameKey
+              );
+            }
+          );
+
+        const teamName =
+          sourceRow?.source?.teamName?.trim();
+
+        const country =
+          countryCache.get(
+            countryNameKey
+          );
+
+        if (!teamName) {
+          continue;
+        }
+
+        const countryId =
+          country?.id || "";
+
+        const existingTeam =
+          teams.find(
+            (team) => {
+              if (
+                normalizeEntityName(
+                  team.name
+                ) !==
+                normalizeEntityName(
+                  teamName
+                )
+              ) {
+                return false;
+              }
+
+              return (
+                String(
+                  team.countryId ||
+                    ""
+                ) ===
+                String(
+                  countryId
+                )
+              );
+            }
+          );
+
+        if (existingTeam?.id) {
+          teamCache.set(
+            teamKey,
+            existingTeam
+          );
+
+          setImportProgress({
+            current: index + 1,
+            total:
+              uniqueTeamKeys.length,
+            phase:
+              "Resolving teams...",
+          });
+
+          continue;
+        }
+
+        const createdTeam =
+          await base44.entities.Team.create(
+            {
+              name: teamName,
+              short_name:
+                generateImportedTeamShortName(
+                  teamName
+                ),
+              country_id:
+                countryId,
+              continent:
+                country?.continent ||
+                "Europe",
+              city: "",
+              logo: "",
+              is_active: true,
+            }
+          );
+
+        const createdTeamId =
+          getEntityId(
+            createdTeam
+          );
+
+        if (!createdTeamId) {
+          throw new Error(
+            `El club "${teamName}" se creó pero Base44 no devolvió un ID.`
+          );
+        }
+
+        const teamData =
+          createdTeam?.data ||
+          createdTeam;
+
+        const normalizedTeam = {
+          ...teamData,
+          id: createdTeamId,
+          name:
+            teamData?.name ||
+            teamName,
+          countryId:
+            teamData?.country_id ||
+            countryId,
+          logo:
+            teamData?.logo || "",
+        };
+
+        teamCache.set(
+          teamKey,
+          normalizedTeam
+        );
+
+        result.teamsCreated += 1;
+
+        setImportProgress({
+          current: index + 1,
+          total:
+            uniqueTeamKeys.length,
+          phase:
+            "Resolving teams...",
+        });
+      }
+
+      /*
+       * 3. Import players and avoid obvious duplicates.
+       */
+      const existingPlayerKeys =
+        new Set();
+
+      players.forEach(
+        (existingPlayer) => {
+          const team =
+            teamById[
+              existingPlayer.teamId
+            ];
+
+          existingPlayerKeys.add(
+            [
+              normalizeEntityName(
+                existingPlayer.name
+              ),
+              String(
+                existingPlayer
+                  .dateOfBirth || ""
+              ).trim(),
+              String(
+                existingPlayer.teamId ||
+                  ""
+              ),
+            ].join("::")
+          );
+
+          if (
+            !existingPlayer.dateOfBirth ||
+            !existingPlayer.teamId
+          ) {
+            existingPlayerKeys.add(
+              [
+                normalizeEntityName(
+                  existingPlayer.name
+                ),
+                normalizeEntityName(
+                  team?.name || ""
+                ),
+              ].join("::")
+            );
+          }
+        }
+      );
+
+      const seenImportKeys =
+        new Set();
+
+      setImportProgress({
+        current: 0,
+        total:
+          importAnalysis.players.length,
+        phase:
+          "Importing players...",
+      });
+
+      for (
+        let index = 0;
+        index <
+        importAnalysis.players.length;
+        index += 1
+      ) {
+        const {
+          player,
+          source,
+        } =
+          importAnalysis.players[index];
+
+        const playerName =
+          String(
+            player?.name || ""
+          ).trim();
+
+        if (!playerName) {
+          result.skippedInvalid += 1;
+
+          result.errors.push(
+            `Fila ${
+              index + 2
+            }: jugador sin nombre.`
+          );
+
+          setImportProgress({
+            current: index + 1,
+            total:
+              importAnalysis.players.length,
+            phase:
+              "Importing players...",
+          });
+
+          continue;
+        }
+
+        const countryName =
+          source?.countryName || "";
+
+        const teamName =
+          source?.teamName || "";
+
+        const countryKey =
+          normalizeEntityName(
+            countryName
+          );
+
+        const teamKey =
+          `${normalizeEntityName(
+            teamName
+          )}::${countryKey}`;
+
+        const country =
+          countryCache.get(
+            countryKey
+          );
+
+        const team =
+          teamName.trim()
+            ? teamCache.get(teamKey)
+            : null;
+
+        const finalPlayer = {
+          ...player,
+          team_id:
+            team?.id || "",
+          country_id:
+            country?.id || "",
+        };
+
+        const strictDuplicateKey = [
+          normalizeEntityName(
+            finalPlayer.name
+          ),
+          String(
+            finalPlayer.date_of_birth ||
+              ""
+          ).trim(),
+          String(
+            finalPlayer.team_id ||
+              ""
+          ),
+        ].join("::");
+
+        const weakDuplicateKey = [
+          normalizeEntityName(
+            finalPlayer.name
+          ),
+          normalizeEntityName(
+            teamName
+          ),
+        ].join("::");
+
+        if (
+          existingPlayerKeys.has(
+            strictDuplicateKey
+          ) ||
+          seenImportKeys.has(
+            strictDuplicateKey
+          ) ||
+          (
+            (!finalPlayer.date_of_birth ||
+              !finalPlayer.team_id) &&
+            existingPlayerKeys.has(
+              weakDuplicateKey
+            )
+          )
+        ) {
+          result.skippedDuplicates += 1;
+
+          seenImportKeys.add(
+            strictDuplicateKey
+          );
+
+          setImportProgress({
+            current: index + 1,
+            total:
+              importAnalysis.players.length,
+            phase:
+              "Importing players...",
+          });
+
+          continue;
+        }
+
+        try {
+          await base44.entities.Player.create(
+            finalPlayer
+          );
+
+          result.imported += 1;
+
+          existingPlayerKeys.add(
+            strictDuplicateKey
+          );
+          seenImportKeys.add(
+            strictDuplicateKey
+          );
+        } catch (error) {
+          console.error(
+            `Error importing player ${playerName}:`,
+            error
+          );
+
+          result.errors.push(
+            `${playerName}: ${
+              error?.response?.data?.message ||
+              error?.response?.data?.error ||
+              error?.message ||
+              "Error desconocido."
+            }`
+          );
+        }
+
+        setImportProgress({
+          current: index + 1,
+          total:
+            importAnalysis.players.length,
+          phase:
+            "Importing players...",
+        });
+      }
+
+      await loadData();
+
+      setImportResult(result);
+    } catch (error) {
+      console.error(
+        "CSV import failed:",
+        error
+      );
+
+      setImportError(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "No se ha podido completar la importación."
+      );
+
+      setImportResult(result);
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleCloseAddPlayer = () => {
@@ -1969,6 +2929,20 @@ export default function Players() {
               title="Order by CP"
             >
               Top CP
+            </button>
+
+            {/* IMPORT CSV */}
+            <button
+              type="button"
+              onClick={handleOpenImport}
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+              aria-label="Import players from CSV"
+              title="Import players from CSV"
+            >
+              <Upload size={16} />
+              <span className="hidden sm:inline">
+                Import CSV
+              </span>
             </button>
 
             {/* ADD PLAYER */}
@@ -2367,6 +3341,469 @@ export default function Players() {
         )}
 
         {/* ADD PLAYER MODAL */}
+        {importModalOpen && (
+          <div
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
+            onMouseDown={(event) => {
+              if (
+                event.target === event.currentTarget &&
+                !isImporting
+              ) {
+                handleCloseImport();
+              }
+            }}
+          >
+            <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#003399]/[0.08] text-[#003399]">
+                    <Upload size={18} />
+                  </div>
+
+                  <div className="min-w-0">
+                    <h2 className="text-base font-extrabold text-slate-900">
+                      Import players from CSV
+                    </h2>
+
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      Importación masiva desde el export de Football Manager.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCloseImport}
+                  disabled={isImporting}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
+                  aria-label="Close"
+                >
+                  <X size={17} />
+                </button>
+              </div>
+
+              <div className="max-h-[calc(92vh-72px)] overflow-y-auto p-5">
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-6">
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <FileText
+                      size={30}
+                      strokeWidth={1.6}
+                      className="text-slate-300"
+                    />
+
+                    <p className="mt-3 text-sm font-extrabold text-slate-800">
+                      {importFileName ||
+                        "Selecciona el CSV de Football Manager"}
+                    </p>
+
+                    <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-400">
+                      Primero analizamos el archivo. Después se resuelven
+                      automáticamente Countries y Teams y se crean los Players.
+                    </p>
+
+                    <label className="mt-4 inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477]">
+                      <Upload size={16} />
+                      {importFileName
+                        ? "Seleccionar otro CSV"
+                        : "Seleccionar CSV"}
+
+                      <input
+                        key={importFileKey}
+                        type="file"
+                        accept=".csv,text/csv"
+                        className="hidden"
+                        onChange={
+                          handleImportFile
+                        }
+                        disabled={isImporting}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {importError && (
+                  <div className="mt-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <AlertCircle
+                      size={17}
+                      className="mt-0.5 shrink-0"
+                    />
+
+                    <div className="min-w-0">
+                      {importError}
+                    </div>
+                  </div>
+                )}
+
+                {importAnalysis && importPreview && (
+                  <>
+                    <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                          Players
+                        </p>
+
+                        <p className="mt-1 text-2xl font-extrabold text-slate-900">
+                          {importPreview.total}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                          Countries
+                        </p>
+
+                        <p className="mt-1 text-2xl font-extrabold text-slate-900">
+                          {importPreview.uniqueCountries}
+                        </p>
+
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          {importPreview.newCountries} nuevos
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                          Teams
+                        </p>
+
+                        <p className="mt-1 text-2xl font-extrabold text-slate-900">
+                          {importPreview.uniqueTeams}
+                        </p>
+
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          {importPreview.newTeams} nuevos
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                          Warnings
+                        </p>
+
+                        <p className="mt-1 text-2xl font-extrabold text-slate-900">
+                          {importPreview.warningRows}
+                        </p>
+
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          filas con avisos
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-extrabold text-slate-800">
+                            Columnas detectadas
+                          </p>
+
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            {importAnalysis.headers.length} columnas encontradas.
+                          </p>
+                        </div>
+
+                        <span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                          Delimitador ;
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {importAnalysis.headers.map(
+                          (header) => (
+                            <span
+                              key={header}
+                              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-medium text-slate-500"
+                            >
+                              {header}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    {(importPreview.missingNames > 0 ||
+                      importPreview.missingCountries > 0 ||
+                      importPreview.missingTeams > 0) && (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                        {importPreview.missingNames > 0 && (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
+                            {importPreview.missingNames} jugador(es) sin nombre.
+                          </div>
+                        )}
+
+                        {importPreview.missingCountries > 0 && (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
+                            {importPreview.missingCountries} jugador(es) sin país.
+                          </div>
+                        )}
+
+                        {importPreview.missingTeams > 0 && (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
+                            {importPreview.missingTeams} jugador(es) sin equipo.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
+                      <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+                        <p className="text-xs font-extrabold text-slate-800">
+                          Preview
+                        </p>
+                      </div>
+
+                      <div className="divide-y divide-slate-100">
+                        {importAnalysis.players
+                          .slice(0, 8)
+                          .map(
+                            ({
+                              row_number,
+                              player,
+                              source,
+                              warnings,
+                            }) => (
+                              <div
+                                key={`${row_number}-${player.name}`}
+                                className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    {warnings.length === 0 ? (
+                                      <CheckCircle2
+                                        size={15}
+                                        className="shrink-0 text-emerald-500"
+                                      />
+                                    ) : (
+                                      <AlertCircle
+                                        size={15}
+                                        className="shrink-0 text-amber-500"
+                                      />
+                                    )}
+
+                                    <span className="truncate text-sm font-bold text-slate-800">
+                                      {player.name ||
+                                        `Row ${row_number}`}
+                                    </span>
+                                  </div>
+
+                                  <div className="mt-1 text-[11px] text-slate-400">
+                                    {source?.countryName ||
+                                      "Sin país"}
+                                    {" · "}
+                                    {source?.teamName ||
+                                      "Sin equipo"}
+                                    {" · CA "}
+                                    {player.ca || 0}
+                                    {" / CP "}
+                                    {player.cp || 0}
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0 text-right text-[10px] text-slate-400">
+                                  {warnings.length > 0
+                                    ? warnings.join(" ")
+                                    : `Fila ${row_number}`}
+                                </div>
+                              </div>
+                            )
+                          )}
+                      </div>
+
+                      {importAnalysis.players.length > 8 && (
+                        <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 text-center text-[11px] text-slate-400">
+                          Mostrando 8 de{" "}
+                          {importAnalysis.players.length} jugadores.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {isImporting && (
+                  <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Loader2
+                          size={16}
+                          className="shrink-0 animate-spin text-[#003399]"
+                        />
+
+                        <span className="truncate text-xs font-bold text-slate-700">
+                          {importProgress.phase ||
+                            "Importando..."}
+                        </span>
+                      </div>
+
+                      <span className="shrink-0 text-xs font-semibold text-slate-400">
+                        {importProgress.current} /{" "}
+                        {importProgress.total}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-[#003399] transition-all duration-300"
+                        style={{
+                          width:
+                            importProgress.total > 0
+                              ? `${Math.min(
+                                  100,
+                                  (importProgress.current /
+                                    importProgress.total) *
+                                    100
+                                )}%`
+                              : "0%",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {importResult && !isImporting && (
+                  <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2
+                        size={18}
+                        className="mt-0.5 shrink-0 text-emerald-600"
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-extrabold text-emerald-900">
+                          Import finished
+                        </p>
+
+                        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.08em] text-emerald-700/70">
+                              Imported
+                            </p>
+                            <p className="text-lg font-extrabold text-emerald-900">
+                              {importResult.imported}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.08em] text-emerald-700/70">
+                              Duplicates
+                            </p>
+                            <p className="text-lg font-extrabold text-emerald-900">
+                              {importResult.skippedDuplicates}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.08em] text-emerald-700/70">
+                              Countries
+                            </p>
+                            <p className="text-lg font-extrabold text-emerald-900">
+                              +{importResult.countriesCreated}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.08em] text-emerald-700/70">
+                              Teams
+                            </p>
+                            <p className="text-lg font-extrabold text-emerald-900">
+                              +{importResult.teamsCreated}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.08em] text-emerald-700/70">
+                              Errors
+                            </p>
+                            <p className="text-lg font-extrabold text-emerald-900">
+                              {importResult.errors.length +
+                                importResult.skippedInvalid}
+                            </p>
+                          </div>
+                        </div>
+
+                        {importResult.errors.length > 0 && (
+                          <div className="mt-4 rounded-lg border border-red-200 bg-white/70 p-3">
+                            <p className="text-xs font-extrabold text-red-700">
+                              Incidencias
+                            </p>
+
+                            <div className="mt-2 space-y-1">
+                              {importResult.errors
+                                .slice(0, 12)
+                                .map(
+                                  (error, index) => (
+                                    <p
+                                      key={`${index}-${error}`}
+                                      className="text-[11px] leading-relaxed text-red-600"
+                                    >
+                                      {error}
+                                    </p>
+                                  )
+                                )}
+
+                              {importResult.errors.length > 12 && (
+                                <p className="pt-1 text-[11px] font-semibold text-red-500">
+                                  +{" "}
+                                  {importResult.errors.length - 12}{" "}
+                                  incidencias más.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-5 flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCloseImport}
+                    disabled={isImporting}
+                    className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {importResult
+                      ? "Close"
+                      : "Cancel"}
+                  </button>
+
+                  {!importResult && (
+                    <button
+                      type="button"
+                      onClick={
+                        handleStartImport
+                      }
+                      disabled={
+                        isImporting ||
+                        !importAnalysis ||
+                        !importAnalysis.players.length
+                      }
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isImporting ? (
+                        <>
+                          <Loader2
+                            size={16}
+                            className="animate-spin"
+                          />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={16} />
+                          Import{" "}
+                          {importAnalysis?.total_rows || 0}{" "}
+                          players
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {addModalOpen && (
           <div
             className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
