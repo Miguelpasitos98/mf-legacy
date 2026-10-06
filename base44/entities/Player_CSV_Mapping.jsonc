@@ -1,0 +1,96 @@
+{
+  // Especificación de importación del CSV de Football Manager -> entidad Player de MF LEGACY.
+  // El export actual analizado contiene 65 columnas y usa ';' como separador.
+  "source": {
+    "delimiter": ";",
+    "encoding": "UTF-8",
+    "columns_expected": 65
+  },
+  "relations": {
+    "country": {
+      "source_column": "País",
+      "target_field": "country_id",
+      "strategy": "find_or_create",
+      "match": ["normalized_name"],
+      "create_defaults": {
+        "is_active": true
+      }
+    },
+    "team": {
+      "source_column": "Equipo",
+      "target_field": "team_id",
+      "strategy": "find_or_create",
+      "match": ["normalized_name", "country_id"],
+      "fallback_match": ["normalized_short_name", "country_id"],
+      "create_defaults": {
+        "is_active": true
+      },
+      "note": "La exportación actual todavía no incluye la columna Equipo. El importador debe exigirla para asociar el club automáticamente."
+    }
+  },
+  "direct_mappings": {
+    "Jugador": "name",
+    "Estilo": "style",
+    "Pierna derecha": "right_foot",
+    "Pierna izquierda": "left_foot",
+    "CA": "ca",
+    "CP": "cp",
+    "Agresividad": "stats.mental.agresividad",
+    "Anticipación": "stats.mental.anticipacion",
+    "Valentía": "stats.mental.valentia",
+    "Serenidad": "stats.mental.serenidad",
+    "Concentración": "stats.mental.concentracion",
+    "Decisiones": "stats.mental.decisiones",
+    "Determinación": "stats.mental.determinacion",
+    "Talento": "stats.mental.talento",
+    "Liderazgo": "stats.mental.liderazgo",
+    "Desmarques": "stats.mental.movimiento",
+    "Colocación": "stats.mental.colocacion",
+    "Trabajo de equipo": "stats.mental.trabajo_de_equipo",
+    "Visión": "stats.mental.vision",
+    "Sacrificio": "stats.mental.sacrificio",
+    "Aceleración": "stats.physical.aceleracion",
+    "Agilidad": "stats.physical.agilidad",
+    "Equilibrio": "stats.physical.balance",
+    "Alcance de salto": "stats.physical.alcance_de_salto",
+    "Recuperación física": "stats.physical.recuperacion_fisica",
+    "Velocidad": "stats.physical.velocidad",
+    "Resistencia": "stats.physical.resistencia",
+    "Fuerza": "stats.physical.fuerza",
+    "Saques de esquina": "stats.technical.saques_de_esquina",
+    "Centros": "stats.technical.centros",
+    "Regate": "stats.technical.regate",
+    "Remate": "stats.technical.remate",
+    "Control": "stats.technical.control",
+    "Tiros libres": "stats.technical.tiros_libres",
+    "Cabeceo": "stats.technical.cabeceo",
+    "Tiros lejanos": "stats.technical.tiros_lejanos",
+    "Saques largos": "stats.technical.saques_largos",
+    "Marcaje": "stats.technical.marcaje",
+    "Pases": "stats.technical.pases",
+    "Penaltis": "stats.technical.penaltis",
+    "Entradas": "stats.technical.entradas",
+    "Técnica": "stats.technical.tecnica",
+    "Polivalencia": "stats.technical.polivalencia",
+    "Alcance aéreo": "stats.goalkeeping.balones_aereos",
+    "Mando en el área": "stats.goalkeeping.mando_en_el_area",
+    "Comunicación": "stats.goalkeeping.comunicacion",
+    "Excentricidad": "stats.goalkeeping.excentricidad",
+    "Blocaje": "stats.goalkeeping.blocaje",
+    "Saques de puerta": "stats.goalkeeping.saques_de_puerta",
+    "Uno contra uno": "stats.goalkeeping.uno_contra_uno",
+    "Puños": "stats.goalkeeping.salida_de_puños",
+    "Reflejos": "stats.goalkeeping.reflejos",
+    "Salidas (tendencia)": "stats.goalkeeping.salidas_tendencia",
+    "Saque con la mano": "stats.goalkeeping.saque_con_la_mano",
+    "Partidos importantes": "stats.mental.partidos_importantes",
+    "Consistencia": "stats.mental.consistencia",
+    "Juego sucio": "stats.mental.juego_sucio"
+  },
+  "transformations": {
+    "Nacim.": {
+      "target_field": "date_of_birth",
+      "rule": "Parse D/M/YYYY and format as DD/MM/YYYY"
+    },
+    "Altura": {
+      "target_field": "height",
