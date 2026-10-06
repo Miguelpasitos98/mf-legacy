@@ -8,15 +8,55 @@
     },
     "date_of_birth": {
       "type": "string",
-      "description": "Fecha de nacimiento en formato DD/MM/YYYY"
+      "description": "Fecha de nacimiento normalizada a DD/MM/YYYY"
     },
     "team_id": {
       "type": "string",
-      "description": "ID del club asociado al jugador"
+      "description": "ID del Team asociado. Se resuelve automáticamente buscando el nombre del equipo y el país; si no existe, se crea el Team y se usa su nuevo ID."
     },
     "country_id": {
       "type": "string",
-      "description": "ID del país asociado al jugador"
+      "description": "ID del Country asociado. Se resuelve automáticamente por nombre; si no existe, se crea el Country y se usa su nuevo ID."
+    },
+    "fm_position": {
+      "type": "string",
+      "description": "Posición del jugador exactamente como aparece en la pantalla POSICIONES del Football Manager Editor. No se interpreta ni se normaliza."
+    },
+    "best_positions": {
+      "type": "string",
+      "description": "Mejores puestos exactamente como aparecen en el Football Manager Editor."
+    },
+    "role_used_to_fill_empty_attributes": {
+      "type": "string",
+      "description": "Rol utilizado para rellenar atributos vacíos, exactamente como aparece en el Football Manager Editor."
+    },
+    "preferred_central_position": {
+      "type": "string",
+      "description": "Posición central preferida exactamente como aparece en el Football Manager Editor."
+    },
+    "style": {
+      "type": "string",
+      "description": "Estilo exportado desde Football Manager"
+    },
+    "height": {
+      "type": "number",
+      "description": "Altura del jugador en centímetros. Ejemplo: '173 cm' -> 173"
+    },
+    "right_foot": {
+      "type": "string",
+      "description": "Nivel de pierna derecha según el export de Football Manager"
+    },
+    "left_foot": {
+      "type": "string",
+      "description": "Nivel de pierna izquierda según el export de Football Manager"
+    },
+    "shirt_number": {
+      "type": "number",
+      "description": "Número de camiseta"
+    },
+    "salary": {
+      "type": "number",
+      "description": "Sueldo anual normalizado a número en la moneda del export. Ejemplo: '12,78M € p/a' -> 12780000"
     },
     "photo_url": {
       "type": "string",
@@ -24,113 +64,109 @@
     },
     "card_photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del jugador utilizada en las tarjetas del listado de jugadores cuando se muestran en contexto de club"
+      "description": "URL de la fotografía del jugador utilizada en las tarjetas del listado cuando se muestran en contexto de club"
     },
     "national_card_photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del jugador con la camiseta de su selección nacional, utilizada en las tarjetas del listado cuando los jugadores se agrupan por países"
+      "description": "URL de la fotografía del jugador con la camiseta de su selección nacional, utilizada en las tarjetas del listado cuando se agrupan por países"
     },
     "ca": {
       "type": "number",
-      "description": "Current Ability (CA) del jugador"
+      "description": "Current Ability (CA) de Football Manager"
     },
     "cp": {
       "type": "number",
-      "description": "Potential Ability (CP) del jugador"
-    },
-    "style": {
-      "type": "string",
-      "description": "Estilo de juego del jugador"
-    },
-    "height": {
-      "type": "number",
-      "description": "Altura del jugador en centímetros"
-    },
-    "right_foot": {
-      "type": "string",
-      "description": "Nivel de uso de la pierna derecha"
-    },
-    "left_foot": {
-      "type": "string",
-      "description": "Nivel de uso de la pierna izquierda"
-    },
-    "shirt_number": {
-      "type": "number",
-      "description": "Dorsal del jugador"
-    },
-    "salary": {
-      "type": "number",
-      "description": "Salario anual del jugador"
-    },
-    "position_raw": {
-      "type": "string",
-      "description": "Posición original tal como aparece en Football Manager"
-    },
-    "position": {
-      "type": "string",
-      "description": "Posición principal normalizada de MF LEGACY"
-    },
-    "secondary_position_raw": {
-      "type": "string",
-      "description": "Posición secundaria original tal como aparece en Football Manager"
-    },
-    "secondary_position": {
-      "type": "string",
-      "description": "Posición secundaria normalizada de MF LEGACY"
+      "description": "Potential Ability (CP) de Football Manager"
     },
     "position_ratings": {
       "type": "object",
       "properties": {
-        "GK": {
+        "portero": {
           "type": "number",
-          "description": "Valoración como portero (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Portero (0-20), copiada de la pantalla POSICIONES del Editor."
         },
-        "DFC": {
+        "defensa_izquierdo": {
           "type": "number",
-          "description": "Valoración como defensa central (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Defensa izquierdo (0-20)."
         },
-        "LD": {
+        "defensa_central": {
           "type": "number",
-          "description": "Valoración como lateral derecho (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Defensa central (0-20)."
         },
-        "LI": {
+        "defensa_derecho": {
           "type": "number",
-          "description": "Valoración como lateral izquierdo (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Defensa derecho (0-20)."
         },
-        "CRD": {
+        "mediocentro": {
           "type": "number",
-          "description": "Valoración como carrilero derecho (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Mediocentro (0-20)."
         },
-        "CRI": {
+        "carrilero_izquierdo": {
           "type": "number",
-          "description": "Valoración como carrilero izquierdo (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Carrilero izquierdo (0-20)."
         },
-        "CDM": {
+        "carrilero_derecho": {
           "type": "number",
-          "description": "Valoración como mediocentro defensivo (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Carrilero derecho (0-20)."
         },
-        "CM": {
+        "centrocampista_izquierdo": {
           "type": "number",
-          "description": "Valoración como mediocentro (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Centrocampista izquierdo (0-20)."
         },
-        "CAM": {
+        "centrocampista": {
           "type": "number",
-          "description": "Valoración como mediapunta (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Centrocampista (0-20)."
         },
-        "EI": {
+        "centrocampista_derecho": {
           "type": "number",
-          "description": "Valoración como extremo izquierdo (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Centrocampista derecho (0-20)."
         },
-        "ED": {
+        "mediapunta_por_la_izquierda": {
           "type": "number",
-          "description": "Valoración como extremo derecho (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Mediapunta por la izquierda (0-20)."
         },
-        "DC": {
+        "mediapunta_central": {
           "type": "number",
-          "description": "Valoración como delantero centro (0-20)"
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Mediapunta central (0-20)."
+        },
+        "mediapunta_por_la_derecha": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Mediapunta por la derecha (0-20)."
+        },
+        "delantero": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Valoración de Delantero (0-20)."
         }
       },
-      "description": "Valoración del jugador en cada posición del campo"
+      "description": "Valoraciones por posición tomadas directamente de la pantalla POSICIONES del Football Manager Editor. Los nombres y valores se conservan sin interpretación."
     },
     "stats": {
       "type": "object",
@@ -140,349 +176,247 @@
           "properties": {
             "agresividad": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Agresividad (0-20)"
+              "description": "Agresividad, 0-20; copia directa del export"
             },
             "anticipacion": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Anticipación (0-20)"
+              "description": "Anticipación, 0-20; copia directa del export"
             },
             "valentia": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Valentía (0-20)"
+              "description": "Valentía, 0-20; copia directa del export"
             },
             "serenidad": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Serenidad (0-20)"
+              "description": "Serenidad, 0-20; copia directa del export"
             },
             "concentracion": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Concentración (0-20)"
+              "description": "Concentración, 0-20; copia directa del export"
             },
             "consistencia": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Consistencia (0-20)"
+              "description": "Consistencia, 0-20; copia directa del export"
             },
             "decisiones": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Decisiones (0-20)"
+              "description": "Decisiones, 0-20; copia directa del export"
             },
             "determinacion": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Determinación (0-20)"
+              "description": "Determinación, 0-20; copia directa del export"
             },
             "juego_sucio": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Juego sucio (0-20)"
+              "description": "Juego sucio, 0-20; se conserva el valor de Football Manager y no se interpreta como una métrica de 'mejor'"
             },
             "talento": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Talento (0-20)"
+              "description": "Talento, 0-20; copia directa del export"
             },
             "partidos_importantes": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Partidos importantes (0-20)"
+              "description": "Partidos importantes, 0-20; copia directa del export"
             },
             "liderazgo": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Liderazgo (0-20)"
+              "description": "Liderazgo, 0-20; copia directa del export"
             },
             "movimiento": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Movimiento (0-20)"
+              "description": "Movimiento/desmarques, 0-20; se alimenta desde la columna Desmarques"
             },
             "colocacion": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Colocación (0-20)"
+              "description": "Colocación, 0-20; copia directa del export"
             },
             "trabajo_de_equipo": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Trabajo de equipo (0-20)"
+              "description": "Trabajo de equipo, 0-20; copia directa del export"
             },
             "vision": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Visión (0-20)"
+              "description": "Visión, 0-20; copia directa del export"
+            },
+            "sacrificio": {
+              "type": "number",
+              "description": "Sacrificio, 0-20; copia directa del export"
             }
           },
-          "description": "Atributos mentales del jugador. Todas las estadísticas tienen un rango de 0 a 20."
+          "description": "Atributos mentales extraídos del export de Football Manager."
         },
         "physical": {
           "type": "object",
           "properties": {
             "aceleracion": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Aceleración (0-20)"
+              "description": "Aceleración, 0-20; copia directa"
             },
             "agilidad": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Agilidad (0-20)"
+              "description": "Agilidad, 0-20; copia directa"
             },
             "balance": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Balance (0-20)"
+              "description": "Equilibrio, 0-20; copia directa"
             },
             "tendencia_a_lesionarse": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Tendencia a lesionarse (0-20)"
+              "description": "Tendencia a lesionarse normalizada para MF LEGACY: el importador invierte el valor de FM para que 20 represente mayor resistencia a lesiones y 0 mayor propensión"
             },
             "alcance_de_salto": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Alcance de salto (0-20)"
+              "description": "Alcance de salto, 0-20; copia directa"
             },
             "alcance_de_salto_recomendado_altura": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Alcance de salto recomendado basándose en la altura (0-20)"
+              "description": "Valor ajustado por altura. Reservado para cálculo posterior; no aparece directamente en el export actual"
             },
             "recuperacion_fisica": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Recuperación física (0-20)"
+              "description": "Recuperación física, 0-20; copia directa"
             },
             "velocidad": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Velocidad (0-20)"
+              "description": "Velocidad, 0-20; copia directa"
             },
             "resistencia": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Resistencia (0-20)"
+              "description": "Resistencia, 0-20; copia directa"
             },
             "fuerza": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Fuerza (0-20)"
+              "description": "Fuerza, 0-20; copia directa"
             }
           },
-          "description": "Atributos físicos del jugador. Todas las estadísticas tienen un rango de 0 a 20."
+          "description": "Atributos físicos extraídos del export de Football Manager."
         },
         "technical": {
           "type": "object",
           "properties": {
             "saques_de_esquina": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Saques de esquina (0-20)"
+              "description": "Saques de esquina, 0-20; copia directa"
             },
             "centros": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Centros (0-20)"
+              "description": "Centros, 0-20; copia directa"
             },
             "regate": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Regate (0-20)"
+              "description": "Regate, 0-20; copia directa"
             },
             "remate": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Remate (0-20)"
+              "description": "Remate, 0-20; copia directa"
             },
             "control": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Control (0-20)"
+              "description": "Control, 0-20; copia directa"
             },
             "tiros_libres": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Tiros libres (0-20)"
+              "description": "Tiros libres, 0-20; copia directa"
             },
             "cabeceo": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Cabeceo (0-20)"
+              "description": "Cabeceo, 0-20; copia directa"
             },
             "tiros_lejanos": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Tiros lejanos (0-20)"
+              "description": "Tiros lejanos, 0-20; copia directa"
             },
             "saques_largos": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Saques largos (0-20)"
+              "description": "Saques largos, 0-20; copia directa"
             },
             "marcaje": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Marcaje (0-20)"
+              "description": "Marcaje, 0-20; copia directa"
             },
             "pases": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Pases (0-20)"
+              "description": "Pases, 0-20; copia directa"
             },
             "penaltis": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Penaltis (0-20)"
+              "description": "Penaltis, 0-20; copia directa"
             },
             "entradas": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Entradas (0-20)"
+              "description": "Entradas, 0-20; copia directa"
             },
             "tecnica": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Técnica (0-20)"
+              "description": "Técnica, 0-20; copia directa"
             },
             "polivalencia": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Polivalencia (0-20)"
+              "description": "Polivalencia, 0-20; copia directa"
             }
           },
-          "description": "Atributos técnicos del jugador. Todas las estadísticas tienen un rango de 0 a 20."
+          "description": "Atributos técnicos extraídos del export de Football Manager."
         },
         "goalkeeping": {
           "type": "object",
           "properties": {
             "balones_aereos": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Balones aéreos (0-20)"
+              "description": "Alcance aéreo, 0-20; copia directa"
             },
             "balones_aereos_recomendado_altura": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Balones aéreos recomendado basándose en la altura (0-20)"
+              "description": "Valor ajustado por altura. Reservado para cálculo posterior; no aparece directamente en el export actual"
             },
             "mando_en_el_area": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Mando en el área (0-20)"
+              "description": "Mando en el área, 0-20; copia directa"
             },
             "comunicacion": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Comunicación (0-20)"
+              "description": "Comunicación, 0-20; copia directa"
             },
             "excentricidad": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Excentricidad (0-20)"
+              "description": "Excentricidad, 0-20; se conserva el valor de Football Manager"
             },
             "blocaje": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Blocaje (0-20)"
+              "description": "Blocaje, 0-20; copia directa"
             },
             "saques_de_puerta": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Saques de puerta (0-20)"
+              "description": "Saques de puerta, 0-20; copia directa"
             },
             "uno_contra_uno": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Uno contra uno (0-20)"
+              "description": "Uno contra uno, 0-20; copia directa"
             },
             "reflejos": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Reflejos (0-20)"
+              "description": "Reflejos, 0-20; copia directa"
             },
             "salidas_tendencia": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Salidas (tendencia) (0-20)"
+              "description": "Salidas (tendencia), 0-20; se conserva el valor de Football Manager"
             },
             "salida_de_puños": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Salida de puños (0-20)"
+              "description": "Puños/salida de puños, 0-20; copia directa"
             },
             "saque_con_la_mano": {
               "type": "number",
-              "minimum": 0,
-              "maximum": 20,
-              "description": "Saque con la mano (0-20)"
+              "description": "Saque con la mano, 0-20; copia directa"
             }
           },
-          "description": "Atributos de portero del jugador. Todas las estadísticas tienen un rango de 0 a 20."
+          "description": "Atributos específicos de portero extraídos del export de Football Manager."
         }
       },
-      "description": "Estadísticas del jugador agrupadas en atributos mentales, físicos, técnicos y de portero. Todas las estadísticas utilizan una escala de 0 a 20, donde 0 es el mínimo y 20 el máximo."
+      "description": "Estadísticas del jugador agrupadas en mental, físico, técnico y portero."
     },
     "description": {
       "type": "string",
-      "description": "Perfil o descripción del jugador"
+      "description": "Perfil o descripción del jugador en MF LEGACY; no procede del CSV actual"
     }
   },
   "required": [
