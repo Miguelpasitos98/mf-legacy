@@ -3278,8 +3278,54 @@ export default function Players() {
       <div className="mx-auto max-w-[1800px]">
 
         {/* HEADER */}
-        <div className="mb-4 flex items-center justify-end">
-          <div className="flex items-center gap-2">
+        <div className="mb-4 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+          {/* PERSISTENT FILTERS — LEFT */}
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="w-[220px] sm:w-[250px]">
+              <SearchableEntitySelect
+                value={teamFilterId}
+                onChange={setTeamFilterId}
+                options={teams}
+                placeholder="Todos los equipos"
+                searchPlaceholder="Buscar equipo..."
+                kind="team"
+              />
+            </div>
+
+            <div className="w-[190px] sm:w-[210px]">
+              <select
+                value={positionFilter}
+                onChange={(event) => setPositionFilter(event.target.value)}
+                className={`${inputClassName} cursor-pointer`}
+                aria-label="Filtrar por posición"
+              >
+                <option value="">Todas las posiciones</option>
+                {POSITION_GROUPS.map((position) => (
+                  <option key={position.id} value={position.id}>
+                    {position.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {(teamFilterId || positionFilter) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTeamFilterId("");
+                  setPositionFilter("");
+                }}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
+                title="Limpiar filtros"
+              >
+                <X size={14} />
+                Limpiar
+              </button>
+            )}
+          </div>
+
+          {/* ACTIONS */}
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
 
             {/* SEARCH */}
             {searchOpen && (
@@ -3400,51 +3446,6 @@ export default function Players() {
               <Plus size={18} />
             </button>
           </div>
-        </div>
-
-        {/* PERSISTENT FILTERS */}
-        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-2.5 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1 sm:max-w-[280px]">
-            <SearchableEntitySelect
-              value={teamFilterId}
-              onChange={setTeamFilterId}
-              options={teams}
-              placeholder="Todos los equipos"
-              searchPlaceholder="Buscar equipo..."
-              kind="team"
-            />
-          </div>
-
-          <div className="min-w-0 flex-1 sm:max-w-[240px]">
-            <select
-              value={positionFilter}
-              onChange={(event) => setPositionFilter(event.target.value)}
-              className={`${inputClassName} cursor-pointer`}
-              aria-label="Filtrar por posición"
-            >
-              <option value="">Todas las posiciones</option>
-              {POSITION_GROUPS.map((position) => (
-                <option key={position.id} value={position.id}>
-                  {position.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {(teamFilterId || positionFilter) && (
-            <button
-              type="button"
-              onClick={() => {
-                setTeamFilterId("");
-                setPositionFilter("");
-              }}
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
-              title="Limpiar filtros"
-            >
-              <X size={14} />
-              Limpiar
-            </button>
-          )}
         </div>
 
         {/* ERROR */}
