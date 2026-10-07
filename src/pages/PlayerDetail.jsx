@@ -15,53 +15,22 @@ import {
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
-const POSITION_CODES = [
-  "portero",
-  "defensa_izquierdo",
-  "defensa_central",
-  "defensa_derecho",
-  "mediocentro",
-  "carrilero_izquierdo",
-  "carrilero_derecho",
-  "centrocampista_izquierdo",
-  "centrocampista",
-  "centrocampista_derecho",
-  "mediapunta_por_la_izquierda",
-  "mediapunta_central",
-  "mediapunta_por_la_derecha",
-  "delantero",
+const POSITION_RATING_FIELDS = [
+  ["portero", "Portero"],
+  ["defensa_izquierdo", "Defensa izquierdo"],
+  ["defensa_central", "Defensa central"],
+  ["defensa_derecho", "Defensa derecho"],
+  ["mediocentro", "Mediocentro"],
+  ["carrilero_izquierdo", "Carrilero izquierdo"],
+  ["carrilero_derecho", "Carrilero derecho"],
+  ["centrocampista_izquierdo", "Centrocampista izquierdo"],
+  ["centrocampista", "Centrocampista"],
+  ["centrocampista_derecho", "Centrocampista derecho"],
+  ["mediapunta_por_la_izquierda", "Mediapunta por la izquierda"],
+  ["mediapunta_central", "Mediapunta central"],
+  ["mediapunta_por_la_derecha", "Mediapunta por la derecha"],
+  ["delantero", "Delantero"],
 ];
-
-const POSITION_LABELS = {
-  portero: "Portero",
-  defensa_izquierdo: "Defensa izquierdo",
-  defensa_central: "Defensa central",
-  defensa_derecho: "Defensa derecho",
-  mediocentro: "Mediocentro",
-  carrilero_izquierdo: "Carrilero izquierdo",
-  carrilero_derecho: "Carrilero derecho",
-  centrocampista_izquierdo: "Centrocampista izquierdo",
-  centrocampista: "Centrocampista",
-  centrocampista_derecho: "Centrocampista derecho",
-  mediapunta_por_la_izquierda: "Mediapunta por la izquierda",
-  mediapunta_central: "Mediapunta central",
-  mediapunta_por_la_derecha: "Mediapunta por la derecha",
-  delantero: "Delantero",
-};
-
-
-const formatSalaryDisplay = (value) => {
-  const numeric = Number(String(value ?? "").replace(/\D/g, ""));
-  if (!Number.isFinite(numeric) || numeric <= 0) return "";
-  return `${Math.round(numeric).toLocaleString("en-US")} (€ / Year)`;
-};
-
-const parseSalaryInput = (value) => {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  if (!digits) return 0;
-  const numeric = Number(digits);
-  return Number.isFinite(numeric) ? numeric : 0;
-};
 
 const DESCRIPTION_OPTIONS = [
   {
@@ -633,16 +602,21 @@ const getContrastTextColor = (hex) => {
 const getBestPosition = (ratings) => {
   if (!ratings || typeof ratings !== "object") return "—";
 
-  const valid = POSITION_CODES
-    .map((code) => ({ code, value: Number(ratings[code]) }))
+  const valid = POSITION_RATING_FIELDS
+    .map(([key, label], index) => ({
+      key,
+      label,
+      value: Number(ratings[key]),
+      index,
+    }))
     .filter((item) => Number.isFinite(item.value))
     .sort((a, b) => {
       if (b.value !== a.value) return b.value - a.value;
-      return POSITION_CODES.indexOf(a.code) - POSITION_CODES.indexOf(b.code);
+      return a.index - b.index;
     });
 
   if (!valid.length || valid[0].value <= 0) return "—";
-  return `${valid[0].code} · ${valid[0].value}/20`;
+  return `${valid[0].label} · ${valid[0].value}/20`;
 };
 
 const PlayerStatCard = ({ background, grow = 1 }) => {
@@ -658,20 +632,7 @@ const PlayerStatCard = ({ background, grow = 1 }) => {
 export default function PlayerDetail({ player, team, country, teams = [], countries = [], onBack, onPlayerUpdated }) {
   const initialPositionRatings = useMemo(
     () => ({
-      portero: 0,
-      defensa_izquierdo: 0,
-      defensa_central: 0,
-      defensa_derecho: 0,
-      mediocentro: 0,
-      carrilero_izquierdo: 0,
-      carrilero_derecho: 0,
-      centrocampista_izquierdo: 0,
-      centrocampista: 0,
-      centrocampista_derecho: 0,
-      mediapunta_por_la_izquierda: 0,
-      mediapunta_central: 0,
-      mediapunta_por_la_derecha: 0,
-      delantero: 0,
+      ...Object.fromEntries(POSITION_RATING_FIELDS.map(([key]) => [key, 0])),
       ...(player?.position_ratings || player?.positionRatings || {}),
     }),
     [player]
@@ -689,13 +650,13 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         "",
       teamId: player?.teamId || player?.team_id || "",
       countryId: player?.countryId || player?.country_id || "",
-      position:
-        player?.position ||
-        player?.position_raw ||
+      fmPosition: player?.fm_position || "",
+      bestPositions: player?.best_positions || "",
+      roleUsedToFillEmptyAttributes:
+        player?.role_used_to_fill_empty_attributes ||
         "",
-      secondaryPosition:
-        player?.secondary_position ||
-        player?.secondary_position_raw ||
+      preferredCentralPosition:
+        player?.preferred_central_position ||
         "",
       style: player?.style || "",
       height: player?.height ?? "",
@@ -727,12 +688,10 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   const [editError, setEditError] = useState("");
   const [editablePlayer, setEditablePlayer] = useState(player);
   const [form, setForm] = useState(initialForm);
-  const [salaryFocused, setSalaryFocused] = useState(false);
 
   useEffect(() => {
     setEditablePlayer(player);
     setForm(initialForm);
-    setSalaryFocused(false);
   }, [player, initialForm]);
 
   const playerName = editablePlayer?.name || "Unnamed player";
@@ -800,16 +759,13 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       return;
     }
 
-    const positionRatings = Object.entries(form.positionRatings || {}).reduce(
-      (result, [code, value]) => {
-        const numericValue = Number(value);
-        result[code] = Number.isFinite(numericValue)
-          ? Math.min(20, Math.max(0, numericValue))
-          : 0;
-        return result;
-      },
-      {}
-    );
+    const positionRatings = POSITION_RATING_FIELDS.reduce((result, [key]) => {
+      const value = Number(form.positionRatings?.[key] ?? 0);
+      result[key] = Number.isFinite(value)
+        ? Math.min(20, Math.max(0, value))
+        : 0;
+      return result;
+    }, {});
 
     const normalizedStats = {
       mental: {},
@@ -833,7 +789,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
     const numericHeight = Number(form.height);
     const numericShirtNumber = Number(form.shirtNumber);
-    const numericSalary = parseSalaryInput(form.salary);
+    const numericSalary = Number(form.salary);
 
     setIsSaving(true);
     setEditError("");
@@ -844,8 +800,12 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         date_of_birth: form.dateOfBirth.trim(),
         team_id: form.teamId || "",
         country_id: form.countryId || "",
-        position: form.position || "",
-        secondary_position: form.secondaryPosition || "",
+        fm_position: form.fmPosition || "",
+        best_positions: form.bestPositions || "",
+        role_used_to_fill_empty_attributes:
+          form.roleUsedToFillEmptyAttributes || "",
+        preferred_central_position:
+          form.preferredCentralPosition || "",
         style: form.style || "",
         height: Number.isFinite(numericHeight) ? numericHeight : 0,
         right_foot: form.rightFoot || "",
@@ -878,9 +838,12 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         team_id: form.teamId || "",
         countryId: form.countryId || "",
         country_id: form.countryId || "",
-        position: form.position || "",
-        secondary_position: form.secondaryPosition || "",
-        secondaryPosition: form.secondaryPosition || "",
+        fm_position: form.fmPosition || "",
+        best_positions: form.bestPositions || "",
+        role_used_to_fill_empty_attributes:
+          form.roleUsedToFillEmptyAttributes || "",
+        preferred_central_position:
+          form.preferredCentralPosition || "",
         style: form.style || "",
         height: Number.isFinite(numericHeight) ? numericHeight : 0,
         right_foot: form.rightFoot || "",
@@ -1397,52 +1360,35 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Position
-                      </label>
-                      <select
-                        value={form.position}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            position: event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      >
-                        <option value="">No position</option>
-                        {POSITION_CODES.map((code) => (
-                          <option key={code} value={code}>
-                            {code}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Secondary position
-                      </label>
-                      <select
-                        value={form.secondaryPosition}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            secondaryPosition:
-                              event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      >
-                        <option value="">No secondary position</option>
-                        {POSITION_CODES.map((code) => (
-                          <option key={code} value={code}>
-                            {code}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {[
+                      ["fmPosition", "Posición"],
+                      ["bestPositions", "Mejores puestos"],
+                      [
+                        "roleUsedToFillEmptyAttributes",
+                        "Rol utilizado para rellenar atributos vacíos",
+                      ],
+                      [
+                        "preferredCentralPosition",
+                        "Posición central preferida",
+                      ],
+                    ].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                          {label}
+                        </label>
+                        <input
+                          type="text"
+                          value={form[key] || ""}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              [key]: event.target.value,
+                            }))
+                          }
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                    ))}
                   </div>
 
                   <div>
@@ -1477,49 +1423,18 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                       Salary
                     </label>
                     <input
-                      type="text"
-                      inputMode="numeric"
-                      value={
-                        salaryFocused
-                          ? String(form.salary ?? "").replace(/\D/g, "")
-                          : formatSalaryDisplay(form.salary)
-                      }
-                      onFocus={(event) => {
-                        setSalaryFocused(true);
-                        setForm((current) => ({
-                          ...current,
-                          salary: String(current.salary ?? "").replace(/\D/g, ""),
-                        }));
-                        event.target.select();
-                      }}
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={form.salary}
                       onChange={(event) =>
                         setForm((current) => ({
                           ...current,
-                          salary: event.target.value.replace(/\D/g, ""),
+                          salary: event.target.value,
                         }))
                       }
-                      onBlur={(event) => {
-                        setSalaryFocused(false);
-                        setForm((current) => ({
-                          ...current,
-                          salary: parseSalaryInput(event.target.value),
-                        }));
-                      }}
-                      placeholder="0 (€ / Year)"
                       className={INPUT_CLASS}
                     />
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                      Source positions
-                    </p>
-                    <p className="mt-1 text-xs text-slate-600">
-                      {player?.position_raw || "—"}
-                      {player?.secondary_position_raw
-                        ? ` · ${player.secondary_position_raw}`
-                        : ""}
-                    </p>
                   </div>
 
                   <div className="space-y-3">
@@ -1555,45 +1470,79 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
               {editTab === "positions" && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold text-slate-700">
                         Position ratings
                       </p>
                       <p className="mt-1 text-[11px] text-slate-400">
-                        Cada posición se valora de 0 a 20.
+                        Introduce cada valor directamente sobre un campo de juego.
                       </p>
                     </div>
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                    <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                       0-20
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {POSITION_CODES.map((code) => (
-                      <div key={code}>
-                        <label className="mb-1 block text-[11px] font-semibold text-slate-600">
-                          {POSITION_LABELS[code] || code}
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={20}
-                          step={1}
-                          value={form.positionRatings?.[code] ?? 0}
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              positionRatings: {
-                                ...current.positionRatings,
-                                [code]: event.target.value,
-                              },
-                            }))
-                          }
-                          className={INPUT_CLASS}
-                        />
+                  <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-[#d9efdf] px-3 py-4 sm:px-5 sm:py-5">
+                    <div className="pointer-events-none absolute inset-0">
+                      <div className="absolute inset-3 rounded-xl border border-white/80" />
+                      <div className="absolute left-1/2 top-3 bottom-3 w-px -translate-x-1/2 bg-white/80" />
+                      <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/80" />
+                      <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
+                      <div className="absolute left-1/2 top-3 h-10 w-32 -translate-x-1/2 rounded-b-xl border-x border-b border-white/80" />
+                      <div className="absolute left-1/2 bottom-3 h-10 w-32 -translate-x-1/2 rounded-t-xl border-x border-t border-white/80" />
+                    </div>
+
+                    {[
+                      ["delantero", "DL (C)", "Delantero", "left-1/2 top-[4%] -translate-x-1/2"],
+                      ["mediapunta_por_la_izquierda", "EI", "Mediapunta por la izquierda", "left-[8%] top-[13%] -translate-y-1/2"],
+                      ["mediapunta_central", "MP (C)", "Mediapunta central", "left-1/2 top-[13%] -translate-x-1/2 -translate-y-1/2"],
+                      ["mediapunta_por_la_derecha", "ED", "Mediapunta por la derecha", "right-[8%] top-[13%] -translate-y-1/2"],
+                      ["centrocampista_izquierdo", "MC (I)", "Centrocampista izquierdo", "left-[19%] top-[31%] -translate-y-1/2"],
+                      ["centrocampista", "MC", "Centrocampista", "left-1/2 top-[29%] -translate-x-1/2 -translate-y-1/2"],
+                      ["centrocampista_derecho", "MC (D)", "Centrocampista derecho", "right-[19%] top-[31%] -translate-y-1/2"],
+                      ["carrilero_izquierdo", "CR (I)", "Carrilero izquierdo", "left-[5%] top-[48%] -translate-y-1/2"],
+                      ["mediocentro", "MCD", "Mediocentro", "left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2"],
+                      ["carrilero_derecho", "CR (D)", "Carrilero derecho", "right-[5%] top-[48%] -translate-y-1/2"],
+                      ["defensa_izquierdo", "DF (I)", "Defensa izquierdo", "left-[20%] top-[68%] -translate-y-1/2"],
+                      ["defensa_central", "DF (C)", "Defensa central", "left-1/2 top-[68%] -translate-x-1/2 -translate-y-1/2"],
+                      ["defensa_derecho", "DF (D)", "Defensa derecho", "right-[20%] top-[68%] -translate-y-1/2"],
+                      ["portero", "POR", "Portero", "left-1/2 bottom-[3%] -translate-x-1/2"],
+                    ].map(([key, shortLabel, fullLabel, positionClass]) => (
+                      <div key={key} className={`absolute z-10 w-[88px] sm:w-[104px] ${positionClass}`} title={fullLabel}>
+                        <div className="rounded-xl border border-white/90 bg-white/95 p-1.5 shadow-sm backdrop-blur-sm">
+                          <div className="mb-1 truncate px-1 text-center text-[9px] font-extrabold uppercase tracking-tight text-slate-700 sm:text-[10px]">
+                            {shortLabel}
+                          </div>
+                          <input
+                            aria-label={fullLabel}
+                            type="number"
+                            min={0}
+                            max={20}
+                            step={1}
+                            value={form.positionRatings?.[key] ?? 0}
+                            onChange={(event) =>
+                              setForm((current) => ({
+                                ...current,
+                                positionRatings: {
+                                  ...current.positionRatings,
+                                  [key]: event.target.value,
+                                },
+                              }))
+                            }
+                            className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-center text-sm font-extrabold text-slate-800 outline-none transition focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10"
+                          />
+                        </div>
                       </div>
                     ))}
+
+                    <div className="relative z-10 mt-[350px] grid grid-cols-2 gap-2 border-t border-white/60 pt-3 sm:mt-[385px] sm:grid-cols-4">
+                      <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">EI / ED</strong> · bandas</div>
+                      <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">MC</strong> · medio</div>
+                      <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">MCD</strong> · pivote</div>
+                      <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">DF / CR</strong> · defensa</div>
+                    </div>
                   </div>
                 </div>
               )}
