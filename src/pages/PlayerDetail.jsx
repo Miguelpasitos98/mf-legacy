@@ -15,6 +15,14 @@ import {
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
+// MF LEGACY: logos de estado integrados, sin dependencias externas.
+const CAREER_STATUS_LOGOS = {
+  free_agent: `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#243F71"/><stop offset="1" stop-color="#07182F"/></linearGradient></defs><path d="M48 5 85 20v30c0 19-15 32-37 41C26 82 11 69 11 50V20z" fill="url(#g)" stroke="#9EB7E4" stroke-width="3"/><rect x="27" y="36" width="42" height="32" rx="5" fill="none" stroke="#D9E9FF" stroke-width="5"/><path d="M39 36v-7c0-5 4-8 9-8s9 3 9 8v7M27 48h42M44 46v6h8v-6" fill="none" stroke="#D9E9FF" stroke-width="5" stroke-linecap="round"/></svg>`)}`,
+  retired: `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#725A29"/><stop offset="1" stop-color="#251A0B"/></linearGradient></defs><path d="M48 5 85 20v30c0 19-15 32-37 41C26 82 11 69 11 50V20z" fill="url(#g)" stroke="#E9C77B" stroke-width="3"/><path d="M32 28h32v13c0 12-6 20-16 20S32 53 32 41V28zm0 6H23v5c0 9 6 13 14 13m27-18h9v5c0 9-6 13-14 13M48 61v9m-12 5h24" fill="none" stroke="#FFE3A5" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`)}`,
+};
+const careerStatusLogo = (status) => CAREER_STATUS_LOGOS[status] || "";
+
+
 const POSITION_RATING_FIELDS = [
   ["portero", "Portero"],
   ["defensa_izquierdo", "Defensa izquierdo"],
@@ -730,8 +738,10 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   const photoUrl = normalizeImageUrl(
     editablePlayer?.photoUrl || editablePlayer?.photo_url
   );
-  const teamLogo = normalizeImageUrl(team?.logo || team?.logo_url);
-  const teamName = team?.name || "No club associated";
+  const currentCareerStatus = editablePlayer?.career_status || (editablePlayer?.team_id || editablePlayer?.teamId ? "active" : "free_agent");
+  const teamLogo = currentCareerStatus !== "active" ? careerStatusLogo(currentCareerStatus) : normalizeImageUrl(team?.logo || team?.logo_url);
+  const teamName = currentCareerStatus === "retired" ? "Retirado" : currentCareerStatus === "free_agent" ? "Agente libre" : (team?.name || "No club associated");
+  const lastTeam = teams.find(t => String(t.id) === String(editablePlayer?.last_team_id || ""));
   const dateOfBirth =
     editablePlayer?.dateOfBirth ||
     editablePlayer?.date_of_birth ||
@@ -1081,7 +1091,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         <aside className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0">
           <div className="rounded-2xl border border-white/70 bg-white/70 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.07)] backdrop-blur-sm">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
-              Current club
+              {currentCareerStatus === "active" ? "Current club" : "Situación del jugador"}
             </p>
 
             <div className="mt-5 flex items-center gap-4">
@@ -1098,7 +1108,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                   {teamName}
                 </p>
                 <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
-                  Official club
+                  {currentCareerStatus === "active" ? "Official club" : (lastTeam ? `Último club: ${lastTeam.name}` : "Sin último club registrado")}
                 </p>
               </div>
             </div>
@@ -1257,11 +1267,11 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                               <SearchableEntitySelect
                                 value={form.careerStatus === "retired" ? "__retired__" : form.careerStatus === "free_agent" ? "__free_agent__" : form.teamId}
                                 onChange={(value) => setForm((current) => ({ ...current, careerStatus: value === "__retired__" ? "retired" : value === "__free_agent__" ? "free_agent" : "active", teamId: value.startsWith("__") ? current.teamId : value, lastTeamId: value.startsWith("__") ? (current.teamId || current.lastTeamId) : current.lastTeamId }))}
-                                options={[{id:"__free_agent__",name:"Agente libre"},{id:"__retired__",name:"Retirado"},...teams]}
+                                options={[{id:"__free_agent__",name:"Agente libre",logo:careerStatusLogo("free_agent"),short_name:"LIB"},{id:"__retired__",name:"Retirado",logo:careerStatusLogo("retired"),short_name:"RET"},...teams]}
                                 kind="team"
                                 placeholder="Selecciona equipo o situación"
                                 searchPlaceholder="Buscar club o estado..."
-                                emptyOption={{ value: "", label: "Agente libre" }}
+                                emptyOption={null}
                               />
                               {form.careerStatus !== "active" && <div className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600"><label className="block font-semibold">Último club (opcional)<select value={form.lastTeamId || form.teamId || ""} onChange={e=>setForm(f=>({...f,lastTeamId:e.target.value,teamId:""}))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-normal"><option value="">Sin último club registrado</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>{form.careerStatus === "retired" && <label className="flex items-center gap-2">Año de retirada <input type="number" min="1900" max="2100" placeholder="2024" className="w-24 rounded-lg border border-slate-200 px-2 py-1" value={form.retirementYear} onChange={e=>setForm(f=>({...f,retirementYear:e.target.value}))}/></label>}</div>}
                             </div>
