@@ -1,189 +1,38 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
-  Search,
-  Plus,
-  X,
-  Upload,
-  FileText,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Users,
+  ArrowLeft,
   CalendarDays,
   Building2,
-  Globe2,
+  UserRound,
+  X,
+  Save,
+  Pencil,
+  Search,
   ChevronDown,
+  Globe2,
+  Plus,
 } from "lucide-react";
-import PlayersDetail from "@/pages/PlayerDetail";
-import { useLocation, useSearchParams } from "react-router-dom";
-
-import { parseFootballManagerCsv } from "@/utils/playerCsvImporter";
-import { parsePositionCsv, findPlayerForPositionRow } from "@/utils/positionCsvImporter";
 import { base44 } from "@/api/base44Client";
 
-const FM26_POSITION_MAP = {
-  "portero": "gk",
-  "defensa_izquierdo": "dl",
-  "defensa_central": "dc",
-  "defensa_derecho": "dr",
-  "mediocentro": "dm",
-  "carrilero_izquierdo": "wbl",
-  "carrilero_derecho": "wbr",
-  "centrocampista_izquierdo": "ml",
-  "centrocampista": "mc",
-  "centrocampista_derecho": "mr",
-  "mediapunta_por_la_izquierda": "aml",
-  "mediapunta_central": "amc",
-  "mediapunta_por_la_derecha": "amr",
-  "delantero": "stc"
-};
-const FM26_ATTRIBUTE_MAP = {
-  "mental": {
-    "agresividad": "aggression",
-    "anticipacion": "anticipation",
-    "valentia": "bravery",
-    "serenidad": "composure",
-    "concentracion": "concentration",
-    "consistencia": "consistency",
-    "decisiones": "decisions",
-    "determinacion": "determination",
-    "juego_sucio": "dirtiness",
-    "talento": "flair",
-    "partidos_importantes": "important_matches",
-    "liderazgo": "leadership",
-    "movimiento": "off_the_ball",
-    "colocacion": "positioning",
-    "trabajo_de_equipo": "teamwork",
-    "vision": "vision",
-    "sacrificio": "work_rate"
-  },
-  "physical": {
-    "aceleracion": "acceleration",
-    "agilidad": "agility",
-    "balance": "balance",
-    "alcance_de_salto": "jumping_reach",
-    "recuperacion_fisica": "natural_fitness",
-    "velocidad": "pace",
-    "resistencia": "stamina",
-    "fuerza": "strength"
-  },
-  "technical": {
-    "saques_de_esquina": "corners",
-    "centros": "crossing",
-    "regate": "dribbling",
-    "remate": "finishing",
-    "control": "first_touch",
-    "tiros_libres": "free_kick_taking",
-    "cabeceo": "heading",
-    "tiros_lejanos": "long_shots",
-    "saques_largos": "long_throws",
-    "marcaje": "marking",
-    "pases": "passing",
-    "penaltis": "penalty_taking",
-    "entradas": "tackling",
-    "tecnica": "technique",
-    "polivalencia": "versatility"
-  },
-  "goalkeeping": {
-    "balones_aereos": "aerial_reach",
-    "mando_en_el_area": "command_of_area",
-    "comunicacion": "communication",
-    "excentricidad": "eccentricity",
-    "blocaje": "handling",
-    "saques_de_puerta": "kicking",
-    "uno_contra_uno": "one_on_ones",
-    "reflejos": "reflexes",
-    "salidas_tendencia": "rushing_out",
-    "salida_de_puños": "punching",
-    "saque_con_la_mano": "throwing"
-  }
-};
+const POSITION_RATING_FIELDS = [
+  ["portero", "Portero"],
+  ["defensa_izquierdo", "Defensa izquierdo"],
+  ["defensa_central", "Defensa central"],
+  ["defensa_derecho", "Defensa derecho"],
+  ["mediocentro", "Mediocentro"],
+  ["carrilero_izquierdo", "Carrilero izquierdo"],
+  ["carrilero_derecho", "Carrilero derecho"],
+  ["centrocampista_izquierdo", "Centrocampista izquierdo"],
+  ["centrocampista", "Centrocampista"],
+  ["centrocampista_derecho", "Centrocampista derecho"],
+  ["mediapunta_por_la_izquierda", "Mediapunta por la izquierda"],
+  ["mediapunta_central", "Mediapunta central"],
+  ["mediapunta_por_la_derecha", "Mediapunta por la derecha"],
+  ["delantero", "Delantero"],
+];
 
-// Club suggestions are advisory: only an explicit user choice is imported.
-const fm26ClubKey = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(football club|futbol club|f\.?c\.?)\b/g, " ").replace(/[^a-z0-9]/g, "");
-const fm26ClubToken = row => `${String(row.club_uid ?? "unknown")}|${String(row.club_name || row.club_short_name || "Sin club")}`;
-const fm26Similarity = (a,b) => {
-  const x=fm26ClubKey(a), y=fm26ClubKey(b);
-  if (!x || !y) return 0;
-  if(x===y) return 100;
-  if(x.includes(y) || y.includes(x)) return 78;
-  const distance = Array.from({length:y.length+1},(_,j)=>j);
-  for(let i=1;i<=x.length;i++) {let diagonal=distance[0]; distance[0]=i;
-    for(let j=1;j<=y.length;j++){const previous=distance[j];distance[j]=Math.min(distance[j]+1,distance[j-1]+1,diagonal+(x[i-1]===y[j-1]?0:1));diagonal=previous;}}
-  return Math.round(100*(1-distance[y.length]/Math.max(x.length,y.length)));
-};
-const fm26Normalize = (name) => String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-const fm26Date = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? `${value.slice(8,10)}/${value.slice(5,7)}/${value.slice(0,4)}` : "";
-const fm26Number = (value) => typeof value === "number" && Number.isFinite(value) ? value : null;
-const fm26PlayerName = (row) => String(row.common_name || row.name || row.full_name || "").trim();
-const fm26PositionString = (row) => [...(row.natural_positions || []), ...(row.accomplished_positions || [])].filter(Boolean).join(", ");
-const FM26_PRIMARY_CODES = { GK: "GK", DC: "DFC", DL: "LI", DR: "LD", WBL: "CRI", WBR: "CRD", DM: "CDM", MC: "CM", AMC: "CAM", AML: "EI", AMR: "ED", STC: "DC", ML: "MI", MR: "MD" };
-const fm26PositionRatings = (row) => Object.fromEntries(Object.entries(FM26_POSITION_MAP).filter(([,key]) => fm26Number(row.positions?.[key]) !== null).map(([target, key]) => [target, row.positions[key]]));
-const fm26Stats = (row, existing = {}) => {
-  const stats = Object.fromEntries(["mental", "physical", "technical", "goalkeeping"].map(group => [group, { ...(existing[group] || {}) }]));
-  for (const [group, fields] of Object.entries(FM26_ATTRIBUTE_MAP)) {
-    for (const [target, source] of Object.entries(fields)) {
-      if (fm26Number(row.attributes?.[source]) !== null) stats[group][target] = row.attributes[source];
-    }
-  }
-  // The existing MF LEGACY field means resistance; FM measures susceptibility.
-  if (fm26Number(row.attributes?.injury_proneness) !== null) stats.physical.tendencia_a_lesionarse = 21 - row.attributes.injury_proneness;
-  return stats;
-};
-const fm26Payload = (row, existing = {}) => {
-  const update = {
-    fm26_uid: String(row.uid), fm26_unique_id: String(row.unique_id ?? ""),
-    fm26_club_uid: String(row.club_uid ?? ""), fm26_nation_id: String(row.nation_id ?? ""),
-    fm26_second_nation_ids: (row.second_nation_ids || []).map(String),
-    fm26_natural_positions: row.natural_positions || [],
-    fm26_accomplished_positions: row.accomplished_positions || [],
-    fm26_raw_positions: row.positions || {},
-    fm26_raw_attributes: row.raw_attributes || {},
-    fm26_personality: row.personality || {},
-    fm26_traits: row.traits || [], fm26_trait_codes: row.traits_code || [],
-    fm26_reputation: row.reputation || {},
-    fm26_contract: row.contract || {}, fm26_transfer_value: row.transfer_value ?? null,
-    fm26_weekly_wage: row.contract?.wage ?? null,
-    fm26_save_club_name: row.club_name || "", fm26_team_slot: row.team_slot ?? null,
-    fm26_loan_details: { on_loan: Boolean(row.on_loan), parent_club_uid: row.loan_parent_club_uid ?? null, parent_club_name: row.loan_parent_club_name || "", start: row.loan_start || "", end: row.loan_end || "" },
-    fm26_condition: row.raw_condition ?? null,
-    fm26_match_sharpness: row.raw_match_sharpness ?? null,
-    fm26_source: "fmsave FM26",
-    fm26_source_record: row,
-    position_ratings: { ...(existing.position_ratings || existing.positionRatings || {}), ...fm26PositionRatings(row) },
-    stats: fm26Stats(row, existing.stats || {}),
-  };
-  const name = fm26PlayerName(row);
-  if (name) update.name = name;
-  const date = fm26Date(row.birth_date);
-  if (date) update.date_of_birth = date;
-  if (fm26Number(row.height_cm) !== null) update.height = row.height_cm;
-  if (fm26Number(row.left_foot) !== null) update.left_foot = String(row.left_foot);
-  if (fm26Number(row.right_foot) !== null) update.right_foot = String(row.right_foot);
-  if (fm26Number(row.ability?.current) !== null) update.ca = row.ability.current;
-  if (fm26Number(row.ability?.potential) !== null) update.cp = row.ability.potential;
-  const positions = fm26PositionString(row);
-  if (positions) {
-    update.fm_position = positions;
-    update.best_positions = (row.natural_positions || []).join(", ");
-    const natural = row.natural_positions || [];
-    const accomplished = row.accomplished_positions || [];
-    const primary = natural[0] || accomplished[0];
-    if (primary && FM26_PRIMARY_CODES[primary]) {
-      update.position = FM26_PRIMARY_CODES[primary];
-      update.position_raw = primary;
-    }
-    const secondary = [...natural.slice(1), ...accomplished].find(code => FM26_PRIMARY_CODES[code]);
-    if (secondary) { update.secondary_position = FM26_PRIMARY_CODES[secondary]; update.secondary_position_raw = secondary; }
-  }
-  for (const [key, value] of Object.entries(update)) { if (value === null || value === undefined) delete update[key]; }
-  return update;
-};
-
-
-
-
-const PLAYER_DESCRIPTIONS = [
+const DESCRIPTION_OPTIONS = [
   {
     group: "Goalkeepers",
     options: [
@@ -298,230 +147,107 @@ const PLAYER_DESCRIPTIONS = [
   },
 ];
 
-const getPrimaryPosition = (player) => {
-  const ratings = player?.positionRatings || player?.position_ratings || {};
-  return Object.entries(ratings)
-    .map(([key, value]) => ({ key, rating: Number(value) }))
-    .filter(({ rating }) => Number.isFinite(rating) && rating > 0)
-    .sort((a, b) => b.rating - a.rating || a.key.localeCompare(b.key))[0]?.key || "";
+const STAT_GROUPS = {
+  mental: [
+    ["agresividad", "Agresividad"],
+    ["anticipacion", "Anticipación"],
+    ["valentia", "Valentía"],
+    ["serenidad", "Serenidad"],
+    ["concentracion", "Concentración"],
+    ["consistencia", "Consistencia"],
+    ["decisiones", "Decisiones"],
+    ["determinacion", "Determinación"],
+    ["juego_sucio", "Juego sucio"],
+    ["talento", "Talento"],
+    ["partidos_importantes", "Partidos importantes"],
+    ["liderazgo", "Liderazgo"],
+    ["movimiento", "Movimiento / Desmarques"],
+    ["colocacion", "Colocación"],
+    ["trabajo_de_equipo", "Trabajo de equipo"],
+    ["vision", "Visión"],
+    ["sacrificio", "Sacrificio"],
+  ],
+  physical: [
+    ["aceleracion", "Aceleración"],
+    ["agilidad", "Agilidad"],
+    ["balance", "Equilibrio"],
+    ["tendencia_a_lesionarse", "Resistencia a lesiones"],
+    ["alcance_de_salto", "Alcance de salto"],
+    ["alcance_de_salto_recomendado_altura", "Salto ajustado por altura"],
+    ["recuperacion_fisica", "Recuperación física"],
+    ["velocidad", "Velocidad"],
+    ["resistencia", "Resistencia"],
+    ["fuerza", "Fuerza"],
+  ],
+  technical: [
+    ["saques_de_esquina", "Saques de esquina"],
+    ["centros", "Centros"],
+    ["regate", "Regate"],
+    ["remate", "Remate"],
+    ["control", "Control / Primer toque"],
+    ["tiros_libres", "Tiros libres"],
+    ["cabeceo", "Cabeceo"],
+    ["tiros_lejanos", "Tiros lejanos"],
+    ["saques_largos", "Saques largos"],
+    ["marcaje", "Marcaje"],
+    ["pases", "Pases"],
+    ["penaltis", "Penaltis"],
+    ["entradas", "Entradas"],
+    ["tecnica", "Técnica"],
+    ["polivalencia", "Polivalencia"],
+  ],
+  goalkeeping: [
+    ["balones_aereos", "Alcance aéreo"],
+    ["balones_aereos_recomendado_altura", "Alcance aéreo ajustado por altura"],
+    ["mando_en_el_area", "Mando en el área"],
+    ["comunicacion", "Comunicación"],
+    ["excentricidad", "Excentricidad"],
+    ["blocaje", "Blocaje"],
+    ["saques_de_puerta", "Saques de puerta"],
+    ["uno_contra_uno", "Uno contra uno"],
+    ["reflejos", "Reflejos"],
+    ["salidas_tendencia", "Salidas (tendencia)"],
+    ["salida_de_puños", "Puños"],
+    ["saque_con_la_mano", "Saque con la mano"],
+  ],
 };
 
-// Only positions with a strong FM rating are shown on player cards.
-// 16+ keeps the cards compact while still showing the player's meaningful roles.
-const PLAYER_CARD_POSITION_THRESHOLD = 16;
-
-const getPlayerCardPositions = (player) => {
-  const ratings = player?.positionRatings || player?.position_ratings || {};
-
-  return Object.entries(ratings)
-    .map(([key, value]) => ({
-      key,
-      rating: Number(value),
-      label: POSITION_LABELS[key] || key,
-    }))
-    .filter(
-      ({ rating }) =>
-        Number.isFinite(rating) &&
-        rating >= PLAYER_CARD_POSITION_THRESHOLD
-    )
-    .sort((a, b) => b.rating - a.rating || a.key.localeCompare(b.key));
+const EMPTY_STATS = {
+  mental: Object.fromEntries(STAT_GROUPS.mental.map(([key]) => [key, 0])),
+  physical: Object.fromEntries(STAT_GROUPS.physical.map(([key]) => [key, 0])),
+  technical: Object.fromEntries(STAT_GROUPS.technical.map(([key]) => [key, 0])),
+  goalkeeping: Object.fromEntries(STAT_GROUPS.goalkeeping.map(([key]) => [key, 0])),
 };
 
-const computePlayerDescription = (player) => player?.description || "";
-
-const SPECIAL_LEGACY_TITLES = {
-  "Kylian Mbappé": "🐢 La Tortuga",
-  "Neymar Jr": "🪄 O Magico",
-  "Cristiano Ronaldo": "🐞 El Bicho",
-  "Erling Haaland": "🤖 The Cyborg",
-  "Luis Suárez": "🔫 El Pistolero",
-  "Pedri": "🪄 El Mago",
-  "Antoine Griezman": "👑 El Principito",
-  "Lionel Messi": "🛐 D10S",
-  "Thibaut Courtois": "🧱 The Belgian Wall",
-  "Frenkie de Jong": "🎩 El Filósofo",
-  "Paulo Dybala": "💎 La Joya",
-  "José Morales": "🪖 Comandante Morales",
-  "Ferran Torres": "🦈 El Tiburón",
-  "Franco Vázquez": "😶 Mudo Vázquez",
-  "Julián Álvarez": "🕷️ La Araña",
-  "Cole Palmer": "🧊 Cold Palmer",
-  "Claude Beacons": "🔥 Torch",
-  "Jordan Greenway": "🟩 Janus",
-  "Ousmane Dembélé": "🦟 Mosquito",
+const getPlayerStats = (player) => {
+  const source = player?.stats || {};
+  return {
+    mental: {
+      ...EMPTY_STATS.mental,
+      ...(source.mental || {}),
+    },
+    physical: {
+      ...EMPTY_STATS.physical,
+      ...(source.physical || {}),
+    },
+    technical: {
+      ...EMPTY_STATS.technical,
+      ...(source.technical || {}),
+    },
+    goalkeeping: {
+      ...EMPTY_STATS.goalkeeping,
+      ...(source.goalkeeping || {}),
+    },
+  };
 };
 
-function computeLegacyTitle(player) {
-  const name = String(player?.name || "").trim();
-  if (SPECIAL_LEGACY_TITLES[name]) return SPECIAL_LEGACY_TITLES[name];
 
-  const ca = Number(player?.ca);
-  const cp = Number(player?.cp);
-  const age = Number(player?.age);
-  if (!Number.isFinite(ca) || !Number.isFinite(cp) || !Number.isFinite(age)) {
-    return "⚠️ Perfil indefinido";
-  }
-
-  if (cp >= 195) {
-    if (age <= 21) return "🪄 Heredero al trono";
-    if (cp >= 192) {
-      if (ca <= 191) return "🔱 Trono Dorado";
-      if (ca > 191) return "👑 Rey absoluto";
-    }
-  }
-
-  if (cp > 180) {
-    if (age <= 21) {
-      if (ca >= 160) return "🌠 Talento Generacional";
-      if (ca < 160) return "⭐ Future Star";
-    }
-    if (age <= 25) {
-      if (ca >= 175) return "🛰️ Élite Consolidada";
-      if (ca < 180) return "🧬 Generación Alfa";
-    }
-    if (age < 30) {
-      if (ca > 188) return "👑 Referente Mundial Absoluto";
-      if (ca >= 185) return "📅 Marcador de Época";
-      if (ca > 180) return "⚔️ Aspirante al Trono";
-      if (ca <= 175) return "🕯️ Vestigio de grandeza";
-      if (ca < 185) return "🏛️ Herencia de una generación";
-      if (ca <= 188) return "🥋 Fenómeno Generacional";
-    }
-    if (age >= 30) return "🧠 Leyenda en Activo";
-    return "❌ Sin margen competitivo";
-  }
-
-  if (cp > 170) {
-    if (age <= 21) {
-      if (ca >= 150) return "💫 Promesa Élite";
-      if (ca < 150) return "🔮 Potencial Especial";
-    }
-    if (age <= 25) {
-      if (ca >= 165) return "💥 Prodigio Generacional";
-      if (ca < 170) return "🪙 Generación Beta";
-    }
-    if (age < 30) {
-      if (ca >= 180) return "🎯 Titular de Élite";
-      if (ca > 175) return "🗿 Estatura de élite";
-      if (ca >= 170) return "🧿 Alta cuna futbolística";
-      if (ca < 170) return "🦉 Maestro del Juego";
-      if (ca < 175) return "⚙️ Pilar de Élite";
-      if (ca <= 180) return "🧩 Elemento Crucial";
-    }
-    if (age >= 30) return "🧓 Estrella Veterana";
-    return "❌ Sin margen competitivo";
-  }
-
-  if (cp >= 165) {
-    if (age <= 21) {
-      if (ca >= 140) return "🌟 Promesa Diferencial";
-      if (ca < 140) return "⚡ Proyección de Estrella";
-    }
-    if (age <= 25) {
-      if (ca >= 160) return "🦅 Referencia Generacional";
-      if (ca < 160) return "🔥 Forjador del futuro";
-    }
-    if (age < 30) {
-      if (ca >= 160) return "📏 Estándar de Élite";
-      if (ca < 160) return "🥷 Élite Silenciosa";
-    }
-    if (age >= 30) return "🦅 Último emperador";
-    return "❌ Sin margen competitivo";
-  }
-
-  if (cp < 165) {
-    if (age <= 21) {
-      if (ca >= 130) return "🌱 Promesa Proyectable";
-      if (ca < 130) return "🎯 Jugador a Observar";
-    }
-    if (age <= 25) {
-      if (ca >= 150) return "🧃 Talento a Seguir";
-      if (ca < 150) return "🔬 Potencial Real";
-    }
-    if (age < 30) {
-      if (ca >= 150) return "🧱 Perfil Competitivo";
-      if (ca < 150) return "🧩 Jugador de Buen Nivel";
-    }
-    if (age >= 30) return "🧓 Veterano Competitivo";
-    return "❌ Sin margen competitivo";
-  }
-  return "⚠️ Perfil indefinido";
-}
-
-const inputClassName =
-  "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
-
-const POSITION_RATING_GROUPS = [
-  {
-    title: "Portero / Defensa",
-    positions: [
-      ["portero", "Portero"],
-      ["defensa_izquierdo", "Defensa izquierdo"],
-      ["defensa_central", "Defensa central"],
-      ["defensa_derecho", "Defensa derecho"],
-      ["carrilero_izquierdo", "Carrilero izquierdo"],
-      ["carrilero_derecho", "Carrilero derecho"],
-    ],
-  },
-  {
-    title: "Centrocampista",
-    positions: [
-      ["mediocentro", "Mediocentro"],
-      ["centrocampista_izquierdo", "Centrocampista izquierdo"],
-      ["centrocampista", "Centrocampista"],
-      ["centrocampista_derecho", "Centrocampista derecho"],
-    ],
-  },
-  {
-    title: "Mediapunta / Delantero",
-    positions: [
-      ["mediapunta_por_la_izquierda", "Mediapunta por la izquierda"],
-      ["mediapunta_central", "Mediapunta central"],
-      ["mediapunta_por_la_derecha", "Mediapunta por la derecha"],
-      ["delantero", "Delantero"],
-    ],
-  },
-];
-
-const POSITION_RATING_DEFAULTS = {
-  portero: "0",
-  defensa_izquierdo: "0",
-  defensa_central: "0",
-  defensa_derecho: "0",
-  mediocentro: "0",
-  carrilero_izquierdo: "0",
-  carrilero_derecho: "0",
-  centrocampista_izquierdo: "0",
-  centrocampista: "0",
-  centrocampista_derecho: "0",
-  mediapunta_por_la_izquierda: "0",
-  mediapunta_central: "0",
-  mediapunta_por_la_derecha: "0",
-  delantero: "0",
-};
-
-const emptyPlayerForm = {
-  name: "",
-  dateOfBirth: "",
-  teamId: "",
-  countryId: "",
-  photoUrl: "",
-  cardPhotoUrl: "",
-  nationalCardPhotoUrl: "",
-  ca: "",
-  cp: "",
-  positionRatings: { ...POSITION_RATING_DEFAULTS },
-  description: "",
-  newTeamName: "",
-  newCountryName: "",
-  newCountryContinent: "Europe",
-};
+const INPUT_CLASS =
+  "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
 
 const getCountryFlagUrl = (country) => {
   const directFlag = normalizeImageUrl(
-    country?.flag ||
-      country?.flag_url ||
-      country?.flagUrl
+    country?.flag || country?.flag_url || country?.flagUrl
   );
 
   if (directFlag) return directFlag;
@@ -580,17 +306,12 @@ function SearchableEntitySelect({
     };
 
     document.addEventListener("mousedown", handleOutsideClick);
-
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleOutsideClick
-      );
+      document.removeEventListener("mousedown", handleOutsideClick);
     };
   }, [open]);
 
   const getLabel = (item) => item?.name || "Unnamed";
-
   const getMeta = (item) =>
     kind === "country"
       ? item?.code || ""
@@ -611,9 +332,7 @@ function SearchableEntitySelect({
       .join(" ")
       .toLowerCase();
 
-    return searchText.includes(
-      query.trim().toLowerCase()
-    );
+    return searchText.includes(query.trim().toLowerCase());
   });
 
   const selected =
@@ -652,15 +371,9 @@ function SearchableEntitySelect({
             }}
           />
         ) : kind === "country" ? (
-          <Globe2
-            size={15}
-            className="text-slate-300"
-          />
+          <Globe2 size={15} className="text-slate-300" />
         ) : (
-          <Building2
-            size={15}
-            className="text-slate-300"
-          />
+          <Building2 size={15} className="text-slate-300" />
         )}
       </span>
     );
@@ -674,35 +387,21 @@ function SearchableEntitySelect({
           setOpen((current) => !current);
           setQuery("");
         }}
-        className={`${inputClassName} flex items-center gap-3 text-left`}
+        className={`${INPUT_CLASS} flex items-center gap-3 text-left`}
         aria-expanded={open}
       >
-        {selected ? (
-          renderVisual(selected)
-        ) : (
+        {selected ? renderVisual(selected) : (
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50">
             {kind === "country" ? (
-              <Globe2
-                size={15}
-                className="text-slate-300"
-              />
+              <Globe2 size={15} className="text-slate-300" />
             ) : (
-              <Building2
-                size={15}
-                className="text-slate-300"
-              />
+              <Building2 size={15} className="text-slate-300" />
             )}
           </span>
         )}
 
         <span className="min-w-0 flex-1 truncate">
-          <span
-            className={
-              selected
-                ? "block text-slate-800"
-                : "block text-slate-400"
-            }
-          >
+          <span className={selected ? "block text-slate-800" : "block text-slate-400"}>
             {selected
               ? getLabel(selected)
               : isEmptySelected
@@ -731,16 +430,11 @@ function SearchableEntitySelect({
         <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[80] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
           <div className="border-b border-slate-100 p-2">
             <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3">
-              <Search
-                size={15}
-                className="shrink-0 text-slate-400"
-              />
+              <Search size={15} className="shrink-0 text-slate-400" />
               <input
                 type="text"
                 value={query}
-                onChange={(event) =>
-                  setQuery(event.target.value)
-                }
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder={searchPlaceholder}
                 autoFocus
                 className="h-9 min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
@@ -752,9 +446,7 @@ function SearchableEntitySelect({
             {emptyOption && (
               <button
                 type="button"
-                onClick={() =>
-                  selectValue(emptyOption.value)
-                }
+                onClick={() => selectValue(emptyOption.value)}
                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition ${
                   value === emptyOption.value
                     ? "bg-[#003399]/[0.06] text-[#003399]"
@@ -763,20 +455,12 @@ function SearchableEntitySelect({
               >
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-50">
                   {kind === "country" ? (
-                    <Globe2
-                      size={15}
-                      className="text-slate-300"
-                    />
+                    <Globe2 size={15} className="text-slate-300" />
                   ) : (
-                    <Building2
-                      size={15}
-                      className="text-slate-300"
-                    />
+                    <Building2 size={15} className="text-slate-300" />
                   )}
                 </span>
-                <span className="font-medium">
-                  {emptyOption.label}
-                </span>
+                <span className="font-medium">{emptyOption.label}</span>
               </button>
             )}
 
@@ -814,9 +498,7 @@ function SearchableEntitySelect({
             {specialOption && (
               <button
                 type="button"
-                onClick={() =>
-                  selectValue(specialOption.value)
-                }
+                onClick={() => selectValue(specialOption.value)}
                 className={`mt-1 flex w-full items-center gap-3 rounded-lg border-t border-slate-100 px-3 py-2.5 text-left text-sm font-semibold text-[#003399] transition hover:bg-[#003399]/[0.04] ${
                   value === specialOption.value
                     ? "bg-[#003399]/[0.06]"
@@ -836,4174 +518,831 @@ function SearchableEntitySelect({
   );
 }
 
-const NEW_TEAM_VALUE = "__new_team__";
-const NEW_COUNTRY_VALUE = "__new_country__";
+function normalizeImageUrl(value) {
+  if (!value) return "";
+  const url = String(value).trim();
+  if (!url) return "";
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  if (url.startsWith("//")) return `https:${url}`;
+  return `https://${url}`;
+}
 
-const getList = (result) => {
-  if (Array.isArray(result)) return result;
-  if (Array.isArray(result?.data)) return result.data;
-  if (Array.isArray(result?.items)) return result.items;
-  if (Array.isArray(result?.results)) return result.results;
-  return [];
-};
-
-const normalizeImageUrl = (value) => {
-  const trimmed = String(value || "").trim();
-
-  if (!trimmed) return "";
-
-  if (trimmed.startsWith("//")) {
-    return `https:${trimmed}`;
-  }
-
-  if (/^(https?:|data:|blob:)/i.test(trimmed)) {
-    return trimmed;
-  }
-
-  return `https://${trimmed}`;
-};
-
-const normalizePlayer = (player) => ({
-  ...player,
-
-  id:
-    player?.id ||
-    player?._id ||
-    player?.data?.id ||
-    "",
-
-  name:
-    player?.name ||
-    player?.full_name ||
-    player?.fullName ||
-    "",
-
-  dateOfBirth:
-    player?.date_of_birth ||
-    player?.dateOfBirth ||
-    player?.birth_date ||
-    player?.birthDate ||
-    "",
-
-  teamId:
-    player?.team_id ||
-    player?.teamId ||
-    player?.club_id ||
-    player?.clubId ||
-    "",
-
-  countryId:
-    player?.country_id ||
-    player?.countryId ||
-    "",
-
-  photoUrl:
-    player?.photo_url ||
-    player?.photoUrl ||
-    player?.image_url ||
-    player?.imageUrl ||
-    "",
-
-  cardPhotoUrl:
-    player?.card_photo_url ||
-    player?.cardPhotoUrl ||
-    "",
-
-  nationalCardPhotoUrl:
-    player?.national_card_photo_url ||
-    player?.nationalCardPhotoUrl ||
-    "",
-
-  ca: player?.ca ?? "",
-
-  cp: player?.cp ?? "",
-
-  positionRatings: {
-    ...POSITION_RATING_DEFAULTS,
-    ...(player?.position_ratings || {}),
-  },
-
-  description: player?.description || "",
-});
-
-const normalizeTeam = (team) => ({
-  ...team,
-
-  id:
-    team?.id ||
-    team?._id ||
-    team?.data?.id ||
-    "",
-
-  name:
-    team?.name ||
-    "",
-
-  shortName:
-    team?.short_name ||
-    team?.shortName ||
-    "",
-
-  logo:
-    team?.logo ||
-    team?.logo_url ||
-    team?.logoUrl ||
-    "",
-
-  countryId:
-    team?.country_id ||
-    team?.countryId ||
-    "",
-
-  leagueId:
-    team?.league_id ||
-    team?.leagueId ||
-    "",
-
-  reputation: Number.isFinite(
-    Number(
-      team?.reputation ??
-      team?.data?.reputation ??
-      team?.data?.team?.reputation
-    )
-  )
-    ? Number(
-        team?.reputation ??
-        team?.data?.reputation ??
-        team?.data?.team?.reputation
-      )
-    : 0,
-});
-
-const normalizeCountry = (country) => ({
-  ...country,
-
-  id:
-    country?.id ||
-    country?._id ||
-    country?.data?.id ||
-    "",
-
-  name:
-    country?.name ||
-    "",
-
-  code:
-    country?.code ||
-    country?.country_code ||
-    "",
-
-  flag:
-    country?.flag ||
-    country?.flag_url ||
-    country?.flagUrl ||
-    "",
-});
-
-const normalizeDateOfBirth = (value) => {
-  const trimmed = String(value || "").trim();
-
-  if (!trimmed) {
-    return "";
-  }
-
-  const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-
-  if (!match) {
-    return trimmed;
-  }
-
-  const [, dayValue, monthValue, yearValue] = match;
-
-  const day = Number(dayValue);
-  const month = Number(monthValue);
-  const year = Number(yearValue);
-
-  const date = new Date(year, month - 1, day);
-
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    return trimmed;
-  }
-
-  return [
-    String(day).padStart(2, "0"),
-    String(month).padStart(2, "0"),
-    String(year),
-  ].join("/");
-};
-
-const formatDate = (value) => {
+function formatDate(value) {
   if (!value) return "—";
-
-  const stringValue = String(value).trim();
-
-  const normalizedDate = normalizeDateOfBirth(stringValue);
-
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalizedDate)) {
-    return normalizedDate;
-  }
-
-  const date = new Date(stringValue);
-
-  if (Number.isNaN(date.getTime())) {
-    return stringValue;
-  }
-
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   }).format(date);
-};
-
-const isValidDateOfBirth = (value) => {
-  const trimmed = String(value || "").trim();
-
-  if (!trimmed) {
-    return true;
-  }
-
-  const normalizedDate = normalizeDateOfBirth(trimmed);
-
-  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(normalizedDate)) {
-    return false;
-  }
-
-  return true;
-};
+}
 
 function calculateAge(value) {
-  const trimmed = String(value || "").trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
-  let birthDate = null;
-
-  const ddmmyyyy = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-
-  if (ddmmyyyy) {
-    const [, day, month, year] = ddmmyyyy;
-    birthDate = new Date(
-      Number(year),
-      Number(month) - 1,
-      Number(day)
-    );
-  } else {
-    const parsedDate = new Date(trimmed);
-
-    if (!Number.isNaN(parsedDate.getTime())) {
-      birthDate = parsedDate;
-    }
-  }
-
-  if (!birthDate || Number.isNaN(birthDate.getTime())) {
-    return null;
-  }
+  if (!value) return null;
+  const birth = new Date(value);
+  if (Number.isNaN(birth.getTime())) return null;
 
   const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
+  let age = today.getFullYear() - birth.getFullYear();
+  const month = today.getMonth() - birth.getMonth();
 
-  const hasHadBirthday =
-    today.getMonth() > birthDate.getMonth() ||
-    (today.getMonth() === birthDate.getMonth() &&
-      today.getDate() >= birthDate.getDate());
-
-  if (!hasHadBirthday) {
+  if (month < 0 || (month === 0 && today.getDate() < birth.getDate())) {
     age -= 1;
   }
 
-  return age >= 0 && age < 120 ? age : null;
-}
-
-function ageCircleColor(age) {
-  if (age == null) return "bg-slate-300";
-  if (age <= 18) return "bg-purple-500";
-  if (age <= 21) return "bg-blue-500";
-  if (age <= 25) return "bg-green-500";
-  if (age <= 29) return "bg-yellow-500";
-  if (age <= 33) return "bg-orange-500";
-  return "bg-red-500";
-}
-
-const POSITION_LABELS = {
-  portero: "POR",
-  defensa_izquierdo: "DF (I)",
-  defensa_central: "DF (C)",
-  defensa_derecho: "DF (D)",
-  mediocentro: "MCD",
-  carrilero_izquierdo: "CR (I)",
-  carrilero_derecho: "CR (D)",
-  centrocampista_izquierdo: "MC (I)",
-  centrocampista: "MC",
-  centrocampista_derecho: "MC (D)",
-  mediapunta_por_la_izquierda: "EI",
-  mediapunta_central: "MP (C)",
-  mediapunta_por_la_derecha: "ED",
-  delantero: "DL (C)",
-};
-
-const POSITION_GROUPS = POSITION_RATING_GROUPS.flatMap((group) =>
-  group.positions.map(([id, name]) => ({ id, name }))
-);
-
-const AGE_GROUPS = [
-  { id: "age_0_18", name: "18 años o menos", test: (age) => age != null && age <= 18 },
-  { id: "age_19_21", name: "19–21 años", test: (age) => age != null && age >= 19 && age <= 21 },
-  { id: "age_22_25", name: "22–25 años", test: (age) => age != null && age >= 22 && age <= 25 },
-  { id: "age_26_29", name: "26–29 años", test: (age) => age != null && age >= 26 && age <= 29 },
-  { id: "age_30_33", name: "30–33 años", test: (age) => age != null && age >= 30 && age <= 33 },
-  { id: "age_34_plus", name: "34 años o más", test: (age) => age != null && age >= 34 },
-];
-
-const DESCRIPTION_GROUPS = PLAYER_DESCRIPTIONS.flatMap((group, groupIndex) =>
-  group.options.map((description, optionIndex) => ({
-    id: `description_${groupIndex}_${optionIndex}`,
-    name: description,
-    category: group.group,
-    description,
-  }))
-);
-
-const PLAYER_VIEW_MODES = [
-  "all",
-  "teams",
-  "countries",
-  "positions",
-  "age",
-  "description",
-];
-
-function PlayerCard({
-  player,
-  team,
-  country,
-  onClick,
-  selectionMode = false,
-  selected = false,
-  onToggleSelection,
-  compact = false,
-  hideTeam = false,
-  useNationalCardPhoto = false,
-}) {
-  const preferredCardPhoto = useNationalCardPhoto
-    ? player.nationalCardPhotoUrl ||
-      player.cardPhotoUrl ||
-      player.photoUrl
-    : player.cardPhotoUrl ||
-      player.photoUrl;
-
-  const photoUrl = normalizeImageUrl(preferredCardPhoto);
-  const teamLogo = normalizeImageUrl(team?.logo);
-
-  const age = calculateAge(player.dateOfBirth);
-  const legacyTitle = computeLegacyTitle({
-    ...player,
-    age: age ?? undefined,
-  });
-  const primaryPosition = getPrimaryPosition(player);
-  const cardPositions = getPlayerCardPositions(player);
-  const description = computePlayerDescription(player);
-
-  const countryFlagUrl = normalizeImageUrl(country?.flag);
-  const countryCode = String(country?.code || "").trim().toLowerCase();
-
-  const fallbackFlagUrl =
-    !countryFlagUrl && countryCode.length === 2
-      ? `https://flagcdn.com/${countryCode}.svg`
-      : "";
-
-  return (
-    <button
-      type="button"
-      onClick={selectionMode ? () => onToggleSelection?.(player.id) : onClick}
-      className={`group w-full overflow-hidden rounded-2xl border ${selected ? "border-blue-700 ring-2 ring-blue-300" : "border-slate-200"} bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] ${
-        compact ? "" : ""
-      }`}
-    >
-      {selectionMode && <div className="flex items-center gap-2 border-b border-slate-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-900"><span className={`inline-flex h-4 w-4 items-center justify-center rounded border ${selected ? "bg-blue-700 text-white border-blue-700" : "border-slate-400 bg-white"}`}>{selected ? "✓" : ""}</span>{selected ? "Seleccionado" : "Seleccionar jugador"}</div>}
-      {/* PHOTO */}
-      <div
-        className={`relative w-full overflow-hidden bg-slate-50 ${
-          compact ? "aspect-[5/4]" : "aspect-[4/3]"
-        }`}
-      >
-        {photoUrl ? (
-          <img
-            src={photoUrl}
-            alt={player.name || "Player"}
-            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.025]"
-            onError={(event) => {
-              event.currentTarget.style.display = "none";
-            }}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <Users
-              size={56}
-              strokeWidth={1.25}
-              className="text-slate-200"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* INFO */}
-      <div
-        className={`border-t border-slate-100 ${
-          compact ? "px-3 pb-3 pt-2.5" : "px-4 pb-4 pt-3"
-        }`}
-      >
-        {/* NAME + FLAG */}
-        <div className="flex min-w-0 items-center gap-2">
-          {countryFlagUrl || fallbackFlagUrl ? (
-            <img
-              src={countryFlagUrl || fallbackFlagUrl}
-              alt={country?.name || ""}
-              className="h-4 w-6 shrink-0 rounded-[2px] object-cover"
-              loading="lazy"
-            />
-          ) : null}
-
-          <h3
-            className={`player-display-title min-w-0 truncate ${
-              compact ? "text-sm" : "text-base"
-            }`}
-          >
-            {player.name || "Unnamed player"}
-          </h3>
-        </div>
-
-        {/* LEGACY TITLE + CA/CP */}
-        <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 items-center gap-1.5 text-xs`}>
-          <span className="shrink-0 font-semibold text-slate-900">
-            {legacyTitle}
-          </span>
-
-          <span className="shrink-0 text-slate-300">|</span>
-
-          <span className="shrink-0 font-semibold text-slate-500">
-            {player.ca !== "" && player.ca != null
-              ? player.ca
-              : "—"}{" "}
-            /{" "}
-            {player.cp !== "" && player.cp != null
-              ? player.cp
-              : "—"}
-          </span>
-        </div>
-
-        {/* AGE + POSITION RATINGS */}
-        <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 items-start gap-1.5 text-xs`}>
-          <span
-            className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${ageCircleColor(
-              age
-            )}`}
-          />
-
-          <span className="shrink-0 font-semibold text-slate-700">
-            {age ?? "—"}
-          </span>
-
-          {cardPositions.length > 0 && (
-            <>
-              <span className="shrink-0 text-slate-300">|</span>
-
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-slate-700">
-                {cardPositions.map(({ key, label, rating }, index) => (
-                  <React.Fragment key={key}>
-                    {index > 0 && (
-                      <span className="shrink-0 text-slate-300">·</span>
-                    )}
-                    <span
-                      className={`shrink-0 whitespace-nowrap ${
-                        rating === 20
-                          ? "font-extrabold text-slate-800"
-                          : "font-normal text-slate-500"
-                      }`}
-                      title={`${label}: ${rating}/20`}
-                    >
-                      {label}
-                    </span>
-                  </React.Fragment>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* DESCRIPTION */}
-        {description && (
-          <div className={`${compact ? "mt-1" : "mt-1.5"} min-w-0 break-words text-xs font-medium leading-4 text-slate-500`}>
-            {description}
-          </div>
-        )}
-
-        {/* CLUB */}
-        {!hideTeam && (
-          <div className={`${compact ? "mt-2" : "mt-3"} flex min-w-0 items-center gap-2 text-xs text-slate-400`}>
-            {teamLogo ? (
-              <img
-                src={teamLogo}
-                alt=""
-                className="h-4 w-4 shrink-0 object-contain"
-                loading="lazy"
-              />
-            ) : (
-              <Building2
-                size={14}
-                strokeWidth={1.7}
-                className="shrink-0"
-              />
-            )}
-
-            <span className="truncate">
-              {team?.name || "No club associated"}
-            </span>
-          </div>
-        )}
-      </div>
-    </button>
-  );
-}
-
-function GroupHeader({
-  type,
-  name,
-  logo,
-  code,
-  count,
-}) {
-  const normalizedLogo = normalizeImageUrl(logo);
-
-  return (
-    <div className="mb-3 flex items-center justify-between border-b border-slate-200 pb-3">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white">
-          {normalizedLogo ? (
-            <img
-              src={normalizedLogo}
-              alt=""
-              className="h-7 w-7 object-contain"
-            />
-          ) : type === "team" ? (
-            <Building2 size={18} className="text-slate-400" />
-          ) : (
-            <Globe2 size={18} className="text-slate-400" />
-          )}
-        </div>
-
-        <div className="min-w-0">
-          <h2 className="truncate text-base font-extrabold tracking-tight text-slate-900">
-            {name}
-          </h2>
-          {code && (
-            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
-              {code}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-        {count} {count === 1 ? "player" : "players"}
-      </div>
-    </div>
-  );
+  return age >= 0 ? age : null;
 }
 
 
-const normalizeEntityName = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/[’']/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ");
-
-
-const TEAM_NAME_NOISE_WORDS = new Set([
-  "fc",
-  "f.c",
-  "cf",
-  "c.f",
-  "afc",
-  "a.f.c",
-  "sc",
-  "s.c",
-  "ac",
-  "a.c",
-  "bc",
-  "b.c",
-  "fk",
-  "f.k",
-  "sk",
-  "s.k",
-  "nk",
-  "dk",
-  "club",
-  "football",
-  "futbol",
-  "futbol",
-  "club",
-  "footballclub",
-  "futbolclub",
-  "de",
-  "del",
-  "da",
-  "do",
-  "dos",
-  "das",
-]);
-
-const normalizeTeamName = (value) => {
-  const normalized = normalizeEntityName(value)
-    .replace(/\bf c\b/g, " ")
-    .replace(/\bc f\b/g, " ")
-    .replace(/\ba f c\b/g, " ")
-    .replace(/\ba c\b/g, " ")
-    .replace(/\bs c\b/g, " ")
-    .replace(/\bb c\b/g, " ")
-    .replace(/\bf k\b/g, " ")
-    .replace(/\bs k\b/g, " ")
-    .replace(/\bn k\b/g, " ")
-    .replace(/\bfootball club\b/g, " ")
-    .replace(/\bfootballclub\b/g, " ")
-    .replace(/\bfutbol club\b/g, " ")
-    .replace(/\bfutbolclub\b/g, " ")
-    .replace(/\bclub de futbol\b/g, " ")
-    .replace(/\bclub football\b/g, " ")
-    .replace(/\bclub\b/g, " ");
-
-  return normalized
-    .split(" ")
-    .filter(Boolean)
-    .filter((token) => !TEAM_NAME_NOISE_WORDS.has(token))
-    .join(" ")
-    .trim();
+const normalizeHexColor = (value, fallback) => {
+  const normalized = String(value || "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return normalized.toUpperCase();
+  return fallback;
 };
 
-const compactTeamName = (value) =>
-  normalizeTeamName(value).replace(/\s+/g, "");
-
-const teamTokens = (value) =>
-  normalizeTeamName(value)
-    .split(" ")
-    .filter(Boolean);
-
-const tokenOverlapScore = (a, b) => {
-  const aTokens = new Set(teamTokens(a));
-  const bTokens = new Set(teamTokens(b));
-
-  if (!aTokens.size || !bTokens.size) return 0;
-
-  let common = 0;
-  aTokens.forEach((token) => {
-    if (bTokens.has(token)) common += 1;
-  });
-
-  const union = new Set([
-    ...aTokens,
-    ...bTokens,
-  ]).size;
-
-  return union > 0 ? common / union : 0;
-};
-
-const levenshteinDistance = (a, b) => {
-  const left = String(a || "");
-  const right = String(b || "");
-
-  if (left === right) return 0;
-  if (!left.length) return right.length;
-  if (!right.length) return left.length;
-
-  const previous = Array.from(
-    { length: right.length + 1 },
-    (_, index) => index
-  );
-
-  for (let i = 1; i <= left.length; i += 1) {
-    const current = [i];
-
-    for (let j = 1; j <= right.length; j += 1) {
-      const insertCost = current[j - 1] + 1;
-      const deleteCost = previous[j] + 1;
-      const substituteCost =
-        previous[j - 1] +
-        (left[i - 1] === right[j - 1] ? 0 : 1);
-
-      current[j] = Math.min(
-        insertCost,
-        deleteCost,
-        substituteCost
-      );
-    }
-
-    for (let j = 0; j < current.length; j += 1) {
-      previous[j] = current[j];
-    }
-  }
-
-  return previous[right.length];
-};
-
-const teamStringSimilarity = (a, b) => {
-  const normalizedA = normalizeTeamName(a);
-  const normalizedB = normalizeTeamName(b);
-
-  if (!normalizedA || !normalizedB) return 0;
-  if (normalizedA === normalizedB) return 1;
-  if (
-    compactTeamName(a) ===
-    compactTeamName(b)
-  ) {
-    return 0.99;
-  }
-
-  const overlap = tokenOverlapScore(
-    normalizedA,
-    normalizedB
-  );
-
-  const compactA = compactTeamName(a);
-  const compactB = compactTeamName(b);
-
-  const maxLength = Math.max(
-    compactA.length,
-    compactB.length
-  );
-
-  const editSimilarity =
-    maxLength > 0
-      ? 1 -
-        levenshteinDistance(
-          compactA,
-          compactB
-        ) /
-          maxLength
-      : 0;
-
-  const containment =
-    compactA.includes(compactB) ||
-    compactB.includes(compactA)
-      ? Math.min(
-          compactA.length,
-          compactB.length
-        ) /
-        Math.max(
-          compactA.length,
-          compactB.length
-        )
-      : 0;
-
-  return Math.max(
-    overlap,
-    editSimilarity,
-    containment
-  );
-};
-
-/**
- * Finds an existing Team even when the CSV name is a shortened
- * or expanded form, e.g.:
- *
- * Arsenal -> Arsenal FC
- * FC Barcelona -> Barcelona
- * Manchester United FC -> Manchester United
- *
- * The existing short_name is also considered.
- */
-const findBestExistingTeam = (
-  csvTeamName,
-  teams,
-  preferredLeagueId = ""
-) => {
-  const sourceName = String(
-    csvTeamName || ""
-  ).trim();
-
-  if (!sourceName) {
-    return {
-      team: null,
-      confidence: 0,
-      ambiguous: false,
-      candidates: [],
-    };
-  }
-
-  const sourceNormalized =
-    normalizeTeamName(sourceName);
-
-  const sourceCompact =
-    compactTeamName(sourceName);
-
-  const scored = teams
-    .filter((team) => team?.id && team?.name)
-    .map((team) => {
-      const nameNormalized =
-        normalizeTeamName(
-          team.name
-        );
-
-      const shortNormalized =
-        normalizeTeamName(
-          team.shortName ||
-            team.short_name ||
-            ""
-        );
-
-      let score = 0;
-      let method = "fuzzy";
-
-      if (
-        sourceNormalized &&
-        sourceNormalized ===
-          nameNormalized
-      ) {
-        score = 1;
-        method =
-          "normalized-name";
-      } else if (
-        sourceCompact &&
-        sourceCompact ===
-          compactTeamName(
-            team.name
-          )
-      ) {
-        score = 0.99;
-        method =
-          "compact-name";
-      } else if (
-        shortNormalized &&
-        (
-          sourceNormalized ===
-            shortNormalized ||
-          sourceCompact ===
-            compactTeamName(
-              team.shortName ||
-                team.short_name
-            )
-        )
-      ) {
-        score = 0.985;
-        method =
-          "short-name";
-      } else {
-        const nameScore =
-          teamStringSimilarity(
-            sourceName,
-            team.name
-          );
-
-        const shortScore =
-          shortNormalized
-            ? teamStringSimilarity(
-                sourceName,
-                team.shortName ||
-                  team.short_name
-              )
-            : 0;
-
-        score = Math.max(
-          nameScore,
-          shortScore
-        );
-      }
-
-      if (
-        preferredLeagueId &&
-        String(
-          team.leagueId ||
-            team.league_id ||
-            ""
-        ) ===
-          String(
-            preferredLeagueId
-          )
-      ) {
-        score +=
-          score >= 0.82
-            ? 0.015
-            : 0;
-      }
-
-      return {
-        team,
-        score,
-        method,
-      };
-    })
-    .sort(
-      (a, b) =>
-        b.score - a.score
-    );
-
-  const top =
-    scored[0] || null;
-
-  if (!top) {
-    return {
-      team: null,
-      confidence: 0,
-      ambiguous: false,
-      candidates: [],
-    };
-  }
-
-  const second =
-    scored[1] || null;
-
-  // Auto-match only high-confidence candidates.
-  // This avoids dangerous guesses such as two different clubs
-  // with nearly identical names.
-  const strongEnough =
-    top.score >= 0.92 ||
-    (
-      top.score >= 0.84 &&
-      (
-        !second ||
-        top.score -
-          second.score >=
-          0.08
-      )
-    );
-
-  const ambiguous =
-    !strongEnough ||
-    (
-      second &&
-      top.score >= 0.84 &&
-      top.score -
-        second.score <
-        0.08
-    );
-
+const hexToRgb = (hex) => {
+  const normalized = normalizeHexColor(hex, "#003399").slice(1);
   return {
-    team: strongEnough
-      ? top.team
-      : null,
-    confidence: top.score,
-    ambiguous,
-    candidates: scored
-      .slice(0, 3)
-      .map((candidate) => ({
-        team:
-          candidate.team,
-        score:
-          candidate.score,
-        method:
-          candidate.method,
-      })),
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
   };
 };
 
-const getEntityId = (result) => {
-  const data = result?.data || result;
+const rgbToHex = (r, g, b) =>
+  `#${[r, g, b]
+    .map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0"))
+    .join("")}`.toUpperCase();
 
-  return (
-    data?.id ||
-    data?._id ||
-    result?.id ||
-    result?._id ||
-    ""
+const mixHexColors = (first, second, firstWeight = 0.5) => {
+  const a = hexToRgb(first);
+  const b = hexToRgb(second);
+  const weight = Math.max(0, Math.min(1, firstWeight));
+
+  return rgbToHex(
+    a.r * weight + b.r * (1 - weight),
+    a.g * weight + b.g * (1 - weight),
+    a.b * weight + b.b * (1 - weight)
   );
 };
 
-const generateImportedCountryCode = (name) => {
-  const normalized = String(name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z]/g, "");
-
-  return normalized.slice(0, 3).padEnd(3, "X");
+const darkenHex = (hex, amount = 0.25) => {
+  const rgb = hexToRgb(hex);
+  const factor = Math.max(0, Math.min(1, 1 - amount));
+  return rgbToHex(rgb.r * factor, rgb.g * factor, rgb.b * factor);
 };
 
-const generateImportedTeamShortName = (name) => {
-  const normalized = String(name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
-
-  return normalized.slice(0, 12) || `TEAM${Date.now()}`;
+const getContrastTextColor = (hex) => {
+  const { r, g, b } = hexToRgb(hex);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.62 ? "#0C1321" : "#FFFFFF";
 };
 
-const COUNTRY_CONTINENT_MAP = {
-  espana: "Europe",
-  england: "Europe",
-  inglaterra: "Europe",
-  escocia: "Europe",
-  scotland: "Europe",
-  gales: "Europe",
-  wales: "Europe",
-  "irlanda del norte": "Europe",
-  "northern ireland": "Europe",
-  irlanda: "Europe",
-  ireland: "Europe",
-  francia: "Europe",
-  france: "Europe",
-  alemania: "Europe",
-  germany: "Europe",
-  italia: "Europe",
-  italy: "Europe",
-  portugal: "Europe",
-  holanda: "Europe",
-  netherlands: "Europe",
-  belgica: "Europe",
-  belgium: "Europe",
-  brasil: "South America",
-  brazil: "South America",
-  argentina: "South America",
-  uruguay: "South America",
-  colombia: "South America",
-  chile: "South America",
-  peru: "South America",
-  ecuador: "South America",
-  bolivia: "South America",
-  paraguay: "South America",
-  venezuela: "South America",
-  mexico: "North America",
-  "estados unidos": "North America",
-  "united states": "North America",
-  canada: "North America",
-  "costa rica": "North America",
-  japon: "Asia",
-  japan: "Asia",
-  "corea del sur": "Asia",
-  "south korea": "Asia",
-  china: "Asia",
-  australia: "Oceania",
-  marruecos: "Africa",
-  morocco: "Africa",
-  argelia: "Africa",
-  algeria: "Africa",
-  tunez: "Africa",
-  tunisia: "Africa",
-  egipto: "Africa",
-  egypt: "Africa",
-  nigeria: "Africa",
-  ghana: "Africa",
-  senegal: "Africa",
+const getBestPosition = (ratings) => {
+  if (!ratings || typeof ratings !== "object") return "—";
+
+  const valid = POSITION_RATING_FIELDS
+    .map(([key, label], index) => ({
+      key,
+      label,
+      value: Number(ratings[key]),
+      index,
+    }))
+    .filter((item) => Number.isFinite(item.value))
+    .sort((a, b) => {
+      if (b.value !== a.value) return b.value - a.value;
+      return a.index - b.index;
+    });
+
+  if (!valid.length || valid[0].value <= 0) return "—";
+  return `${valid[0].label} · ${valid[0].value}/20`;
 };
 
-const inferImportedCountryContinent = (countryName) =>
-  COUNTRY_CONTINENT_MAP[
-    normalizeEntityName(countryName)
-  ] || "Europe";
+const PlayerStatCard = ({ background, grow = 1 }) => {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex h-[190px] min-w-0 flex-1 rounded-[16px] border border-black/10 px-6 py-5 shadow-[0_24px_52px_rgba(15,23,42,0.22)]"
+      style={{ backgroundColor: background, flex: grow }}
+    />
+  );
+};
 
-export default function Players() {
-  const [players, setPlayers] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [countries, setCountries] = useState([]);
-  const [leagues, setLeagues] = useState([]);
+export default function PlayerDetail({ player, team, country, teams = [], countries = [], onBack, onPlayerUpdated }) {
+  const initialPositionRatings = useMemo(
+    () => ({
+      ...Object.fromEntries(POSITION_RATING_FIELDS.map(([key]) => [key, 0])),
+      ...(player?.position_ratings || player?.positionRatings || {}),
+    }),
+    [player]
+  );
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  const initialForm = useMemo(
+    () => ({
+      name: player?.name || "",
+      dateOfBirth: player?.dateOfBirth || player?.date_of_birth || "",
+      photoUrl: player?.photoUrl || player?.photo_url || "",
+      cardPhotoUrl: player?.cardPhotoUrl || player?.card_photo_url || "",
+      nationalCardPhotoUrl:
+        player?.nationalCardPhotoUrl ||
+        player?.national_card_photo_url ||
+        "",
+      teamId: player?.teamId || player?.team_id || "",
+      countryId: player?.countryId || player?.country_id || "",
+      fmPosition: player?.fm_position || "",
+      bestPositions: player?.best_positions || "",
+      roleUsedToFillEmptyAttributes:
+        player?.role_used_to_fill_empty_attributes ||
+        "",
+      preferredCentralPosition:
+        player?.preferred_central_position ||
+        "",
+      style: player?.style || "",
+      height: player?.height ?? "",
+      rightFoot:
+        player?.right_foot ||
+        player?.rightFoot ||
+        "",
+      leftFoot:
+        player?.left_foot ||
+        player?.leftFoot ||
+        "",
+      shirtNumber:
+        player?.shirt_number ??
+        player?.shirtNumber ??
+        "",
+      salary: player?.salary ?? "",
+      ca: player?.ca ?? "",
+      cp: player?.cp ?? "",
+      description: player?.description || "",
+      positionRatings: initialPositionRatings,
+      stats: getPlayerStats(player),
+    }),
+    [player, initialPositionRatings]
+  );
 
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const [sortBy, setSortBy] = useState("");
-
-  // Persistent player filters. They remain active when opening/closing a player.
-  const [teamFilterId, setTeamFilterId] = useState("");
-  const [positionFilter, setPositionFilter] = useState("");
-
-  const [addModalOpen, setAddModalOpen] = useState(false);
-
-  const [form, setForm] = useState({
-    ...emptyPlayerForm,
-  });
-
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTab, setEditTab] = useState("general");
   const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editablePlayer, setEditablePlayer] = useState(player);
+  const [form, setForm] = useState(initialForm);
 
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
-  const [fm26Import, setFm26Import] = useState(null);
-  const [fm26FileName, setFm26FileName] = useState("");
-  const [fm26Busy, setFm26Busy] = useState(false);
-  const [fm26Message, setFm26Message] = useState("");
-  const [fm26Error, setFm26Error] = useState("");
-  const [fm26CreateMissing, setFm26CreateMissing] = useState(true);
-  const [fm26ImportOpen, setFm26ImportOpen] = useState(false);
-  const [fm26NationMapping, setFm26NationMapping] = useState({});
-  const [fm26ClubChoices, setFm26ClubChoices] = useState({});
-  const [fm26ClubSearch, setFm26ClubSearch] = useState({});
-  const [fm26CreatingClub, setFm26CreatingClub] = useState("");
-  const [fm26NewClubName, setFm26NewClubName] = useState("");
-  const [fm26NewClubCountry, setFm26NewClubCountry] = useState("");
-  const [fm26NewClubLeague, setFm26NewClubLeague] = useState("");
-  const [fm26Leagues, setFm26Leagues] = useState([]);
-  const [fm26ProgressCurrent, setFm26ProgressCurrent] = useState(0);
-  const [fm26ProgressTotal, setFm26ProgressTotal] = useState(0);
-  const [fm26ProgressLabel, setFm26ProgressLabel] = useState("");
-  const [bulkMode, setBulkMode] = useState(false);
-  const [bulkIds, setBulkIds] = useState([]);
-  const [bulkAction, setBulkAction] = useState("team_id");
-  const [bulkValue, setBulkValue] = useState("");
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const [bulkFeedback, setBulkFeedback] = useState("");
-  const [bulkConfirm, setBulkConfirm] = useState("");
+  useEffect(() => {
+    setEditablePlayer(player);
+    setForm(initialForm);
+  }, [player, initialForm]);
 
+  const playerName = editablePlayer?.name || "Unnamed player";
+  const photoUrl = normalizeImageUrl(
+    editablePlayer?.photoUrl || editablePlayer?.photo_url
+  );
+  const teamLogo = normalizeImageUrl(team?.logo || team?.logo_url);
+  const teamName = team?.name || "No club associated";
+  const dateOfBirth =
+    editablePlayer?.dateOfBirth ||
+    editablePlayer?.date_of_birth ||
+    "";
+  const age = calculateAge(dateOfBirth);
 
-  const [importModalOpen, setImportModalOpen] =
-    useState(false);
-  const [importFileName, setImportFileName] =
-    useState("");
-  const [importAnalysis, setImportAnalysis] =
-    useState(null);
-  const [isImporting, setIsImporting] =
-    useState(false);
-  const [importProgress, setImportProgress] =
-    useState({
-      current: 0,
-      total: 0,
-      phase: "",
-    });
-  const [importResult, setImportResult] =
-    useState(null);
-  const [importError, setImportError] =
-    useState("");
-  const [importFileKey, setImportFileKey] =
-    useState(0);
-  const [defaultImportLeagueId, setDefaultImportLeagueId] = useState("");
+  const [firstName, ...rest] = playerName.split(" ");
+  const lastName = rest.join(" ");
 
-  // POSITIONS CSV import (updates existing players only)
-  const [positionImportModalOpen, setPositionImportModalOpen] = useState(false);
-  const [positionImportFileName, setPositionImportFileName] = useState("");
-  const [positionImportAnalysis, setPositionImportAnalysis] = useState(null);
-  const [positionImportResult, setPositionImportResult] = useState(null);
-  const [positionImportError, setPositionImportError] = useState("");
-  const [positionImporting, setPositionImporting] = useState(false);
-  const [positionImportFileKey, setPositionImportFileKey] = useState(0);
-  const [positionImportProgress, setPositionImportProgress] = useState({
-    current: 0,
-    total: 0,
-    phase: "",
-  });
-
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-
-  const rawViewMode = searchParams.get("view");
-  const viewMode = PLAYER_VIEW_MODES.includes(rawViewMode)
-    ? rawViewMode
-    : "all";
-
-  const fm26Clubs = useMemo(() => {
-    const groups = new Map();
-    for (const row of fm26Import || []) {
-      const key=fm26ClubToken(row);
-      if(!groups.has(key)) groups.set(key,{key,uid:row.club_uid,name:String(row.club_name || row.club_short_name || "Sin club"),count:0});
-      groups.get(key).count++;
-    }
-    return [...groups.values()].map(group=>({ ...group,
-      suggestions: [...teams].map(t=>({...t,score:Math.max(fm26Similarity(group.name,t.name),fm26Similarity(group.name,t.shortName))}))
-        .filter(t=>t.score>=40).sort((a,b)=>b.score-a.score).slice(0,3)
-    }));
-  }, [fm26Import,teams]);
-
-  const fm26Preview = useMemo(() => {
-    if (!fm26Import) return null;
-    const byUid = new Map(players.filter(p => p.fm26_uid).map(p => [String(p.fm26_uid), p]));
-    const byName = new Map();
-    for(const p of players){const key=`${p.teamId}|${fm26Normalize(p.name)}`;byName.set(key,[...(byName.get(key)||[]),p]);}
-    const seen=new Set();
-    const rows=fm26Import.map(row=>{
-      const uid=String(row.uid??"");
-      const chosenId=fm26ClubChoices[fm26ClubToken(row)];
-      const club=teams.find(t=>String(t.id)===String(chosenId)) || null;
-      const sameUid=byUid.get(uid);
-      const possible=club?(byName.get(`${club.id}|${fm26Normalize(fm26PlayerName(row))}`)||[]):[];
-      const match=sameUid||(possible.length===1?possible[0]:null);
-      const invalid=!uid||!fm26PlayerName(row)||!row.positions||!row.attributes||seen.has(uid);
-      seen.add(uid);
-      const status=invalid?"invalid":!club?"club_missing":(!sameUid&&possible.length>1)?"ambiguous":match?"update":"create";
-      return {row,club,match,status};
-    });
-    return {rows,update:rows.filter(r=>r.status==="update").length,create:rows.filter(r=>r.status==="create").length,skipped:rows.filter(r=>!["update","create"].includes(r.status)).length,unmapped:rows.filter(r=>r.status==="club_missing").length};
-  },[fm26Import,players,teams,fm26ClubChoices]);
-
-  const handleCreateFm26Club = async (group) => {
-    if(fm26Busy) return;
-    const name=fm26NewClubName.trim();
-    if(!name || !fm26NewClubCountry || !fm26NewClubLeague){setFm26Error("Para crear un club introduce nombre, país y liga.");return;}
-    if(teams.some(t=>fm26ClubKey(t.name)===fm26ClubKey(name))){setFm26Error("Ya existe un club con nombre equivalente. Selecciónalo en el buscador.");return;}
-    setFm26Busy(true);setFm26Error("");
-    try{
-      const country=countries.find(c=>String(c.id)===String(fm26NewClubCountry));
-      const league=fm26Leagues.find(l=>String(l.id||l._id)===String(fm26NewClubLeague));
-      const created=await base44.entities.Team.create({name,short_name:generateImportedTeamShortName(name),code:generateImportedTeamShortName(name),country_id:country.id,league_id:fm26NewClubLeague,continent:country.continent||league?.continent||"Europe",city:"",logo:"",is_active:true});
-      const data=created?.data||created;
-      const id=data?.id||data?._id;
-      if(!id) throw new Error("Base44 no devolvió el ID del nuevo equipo.");
-      setTeams(old=>[...old,normalizeTeam({...data,id,name})]);
-      setFm26ClubChoices(old=>({...old,[group.key]:String(id)}));
-      setFm26CreatingClub("");setFm26Message(`Club ${name} creado y vinculado a ${group.count} jugadores.`);
-    }catch(error){setFm26Error(`No se pudo crear el equipo: ${error?.message||"error"}`);}
-    finally{setFm26Busy(false);}
+  const openEditor = () => {
+    setForm(initialForm);
+    setEditError("");
+    setEditTab("general");
+    setEditOpen(true);
   };
 
-  const handleFm26File = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    setFm26Error(""); setFm26Message(""); setFm26Import(null);
-    setFm26FileName(file.name);
-    setFm26NationMapping({});
-    setFm26ClubChoices({});
-    setFm26ClubSearch({});
-    setFm26CreatingClub("");
-    setFm26ProgressCurrent(0);
-    setFm26ProgressTotal(0);
-    setFm26ProgressLabel("");
-    setFm26Leagues([]);
-    try {
-      const payload = JSON.parse(await file.text());
-      if (!Array.isArray(payload) || !payload.length) throw new Error("Se esperaba un JSON con una lista de jugadores.");
-      if (payload.length > 150000) throw new Error("El archivo supera 150.000 jugadores. Divide la exportación por clubes o ligas.");
-      if (!payload.some(p => p && p.positions && p.attributes && p.uid != null)) throw new Error("No parece una exportación 'players' de fmsave FM26.");
-      setFm26Import(payload);
-      try {const result=await base44.entities.League.list();setFm26Leagues(Array.isArray(result)?result:(result?.data||[]));} catch(error) {console.warn("No se pudieron cargar las ligas disponibles",error);}
-    } catch (err) { setFm26Error(err.message || "No se ha podido abrir el JSON"); }
+  const closeEditor = () => {
+    if (isSaving) return;
+    setForm(initialForm);
+    setEditError("");
+    setEditOpen(false);
   };
 
-  const handleFm26Import = async () => {
-    if (!fm26Preview || fm26Busy) return;
-    if (fm26Preview.unmapped) {
-      setFm26Error(`Quedan ${fm26Preview.unmapped} jugadores sin club asignado. Vincula todos los grupos antes de importar.`);
+  const handleSave = async (event) => {
+    event.preventDefault();
+
+    if (!editablePlayer?.id) {
+      setEditError("No se ha encontrado el ID del jugador.");
       return;
     }
-    const actionableRows = fm26Preview.rows.filter(({ status }) => status === "update" || (status === "create" && fm26CreateMissing));
-    if (!actionableRows.length) {
-      setFm26Error("No hay jugadores listos para importar con la configuración actual.");
+
+    if (!form.name.trim()) {
+      setEditError("El nombre del jugador es obligatorio.");
       return;
     }
-    setFm26Busy(true);
-    setFm26Error("");
-    setFm26ProgressCurrent(0);
-    setFm26ProgressTotal(actionableRows.length);
-    setFm26ProgressLabel("Preparando importación...");
-    let updated=0, created=0, failed=0; const failures=[];
-    try {
-      for (let processed = 0; processed < actionableRows.length; processed++) {
-        const {row, club, match} = actionableRows[processed];
-        const playerName = fm26PlayerName(row);
-        setFm26ProgressCurrent(processed);
-        setFm26ProgressLabel(`Importando ${processed + 1}/${actionableRows.length}: ${playerName}`);
-        try {
-          const data = fm26Payload(row, match || {});
-          const mappedCountryId = fm26NationMapping[String(row.nation_id)] || "";
-          if (mappedCountryId) data.country_id = mappedCountryId;
-          data.team_id = club.id;
-          if (match) { await base44.entities.Player.update(match.id, data); updated++; }
-          else { await base44.entities.Player.create(data); created++; }
-        } catch (error) {
-          failed++;
-          if (failures.length < 8) failures.push(`${playerName}: ${error?.message || "error"}`);
-        }
-        setFm26ProgressCurrent(processed + 1);
-        if ((processed + 1) % 3 === 0 || processed + 1 === actionableRows.length) {
-          setFm26Message(`Importando ${processed + 1}/${actionableRows.length}...`);
-        }
-      }
-      setFm26Import(null);
-      setFm26ProgressLabel(`Importación completada · ${updated} actualizados · ${created} creados · ${failed} errores`);
-      setFm26Message(`Completado: ${updated} actualizados, ${created} creados, ${failed} errores, ${fm26Preview.skipped} omitidos por ambigüedad o datos incompletos.${failures.length ? " Ejemplos de errores: " + failures.join(" | ") : ""}`);
-      await loadData();
-    } catch(error) { setFm26Error(error?.message || "Error inesperado"); }
-    finally { setFm26Busy(false); }
-  };
 
-  const toggleBulkPlayer = (id) => {
-    const key = String(id);
-    setBulkIds(old => old.includes(key) ? old.filter(x => x !== key) : [...old, key]);
-    setBulkConfirm("");
-  };
-  const applyBulkAction = async (deleting = false) => {
-    const selected = players.filter(p => bulkIds.includes(String(p.id)));
-    if (!selected.length || bulkBusy) return;
-    if (deleting && bulkConfirm !== "ELIMINAR") { setBulkFeedback("Escribe ELIMINAR para confirmar el borrado."); return; }
-    if (!deleting && (!bulkValue || (bulkAction !== "team_id" && (!Number.isFinite(Number(bulkValue)) || Number(bulkValue) < (bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? 1 : 0) || Number(bulkValue) > (bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? 20 : 200))))) { setBulkFeedback("Introduce un equipo o un valor numérico válido."); return; }
-    setBulkBusy(true); setBulkFeedback("");
-    let succeeded = 0; const errors = [];
-    for (const player of selected) {
-      try {
-        if (deleting) await base44.entities.Player.delete(player.id);
-        else {
-          let payload;
-          if (bulkAction === "team_id") payload = { team_id: bulkValue };
-          else if (bulkAction.startsWith("stat:")) {
-            const [,group,field] = bulkAction.split(":");
-            payload = { stats: { ...(player.stats || {}), [group]: { ...(player.stats?.[group] || {}), [field]: Number(bulkValue) } } };
-          } else if (bulkAction.startsWith("position:")) {
-            const field = bulkAction.slice("position:".length);
-            payload = { position_ratings: { ...(player.position_ratings || {}), [field]: Number(bulkValue) } };
-          } else payload = { [bulkAction]: Number(bulkValue) };
-          await base44.entities.Player.update(player.id, payload);
-        }
-        succeeded++;
-      } catch(err) { errors.push(`${player.name}: ${err.message || "Error"}`); }
+    const numericCA = Number(form.ca);
+    const numericCP = Number(form.cp);
+
+    if (
+      form.ca === "" ||
+      !Number.isFinite(numericCA) ||
+      numericCA < 0 ||
+      numericCA > 200
+    ) {
+      setEditError("El CA debe estar entre 0 y 200.");
+      return;
     }
-    setBulkFeedback(`${succeeded}/${selected.length} ${deleting ? "eliminados" : "actualizados"}.${errors.length ? " Errores: " + errors.slice(0,3).join(" · ") : ""}`);
-    setBulkIds(errors.length ? selected.filter(p => errors.some(x => x.startsWith(p.name+":"))).map(p => String(p.id)) : []);
-    setBulkConfirm(""); setBulkBusy(false);
-    await loadData();
-  };
 
-  const loadData = async () => {
-    setIsLoading(true);
-    setErrorMessage("");
-
-    try {
-      const [
-        playersResult,
-        teamsResult,
-        countriesResult,
-      ] = await Promise.all([
-        base44.entities.Player.list(),
-        base44.entities.Team.list(),
-        base44.entities.Country.list(),
-      ]);
-
-      const loadedPlayers = getList(playersResult)
-        .map(normalizePlayer)
-        .filter((player) => player.id || player.name);
-
-      const loadedTeams = getList(teamsResult)
-        .map(normalizeTeam)
-        .filter((team) => team.id && team.name)
-        .sort((a, b) =>
-          a.name.localeCompare(b.name, "es", {
-            sensitivity: "base",
-          })
-        );
-
-      const loadedCountries = getList(countriesResult)
-        .map(normalizeCountry)
-        .filter((country) => country.id && country.name)
-        .sort((a, b) =>
-          a.name.localeCompare(b.name, "es", {
-            sensitivity: "base",
-          })
-        );
-
-      setPlayers(loadedPlayers);
-      setTeams(loadedTeams);
-      setCountries(loadedCountries);
-    } catch (error) {
-      console.error("Error loading players:", error);
-
-      setErrorMessage(
-        "No se han podido cargar los jugadores, equipos o países. Comprueba que las entidades Player, Team y Country existen en Base44."
-      );
-    } finally {
-      setIsLoading(false);
+    if (
+      form.cp === "" ||
+      !Number.isFinite(numericCP) ||
+      numericCP < 0 ||
+      numericCP > 200
+    ) {
+      setEditError("El CP debe estar entre 0 y 200.");
+      return;
     }
-  };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    if (location.state?.mfPlayerViewChange) {
-      setSelectedPlayer(null);
-    }
-  }, [location.key, location.state]);
-
-  useEffect(() => {
-    setSelectedPlayer(null);
-  }, [viewMode]);
-
-  const teamById = useMemo(() => {
-    return teams.reduce((map, team) => {
-      map[team.id] = team;
-      return map;
+    const positionRatings = POSITION_RATING_FIELDS.reduce((result, [key]) => {
+      const value = Number(form.positionRatings?.[key] ?? 0);
+      result[key] = Number.isFinite(value)
+        ? Math.min(20, Math.max(0, value))
+        : 0;
+      return result;
     }, {});
-  }, [teams]);
 
-  const countryById = useMemo(() => {
-    return countries.reduce((map, country) => {
-      map[country.id] = country;
-      return map;
-    }, {});
-  }, [countries]);
-
-  const filteredPlayers = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return players
-      .filter((player) => {
-        const team = teamById[player.teamId];
-        const country = countryById[player.countryId];
-
-        if (teamFilterId && String(player.teamId || "") !== String(teamFilterId)) {
-          return false;
-        }
-
-        if (positionFilter && getPrimaryPosition(player) !== positionFilter) {
-          return false;
-        }
-
-        if (!query) {
-          return true;
-        }
-
-        return (
-          (player.name || "")
-            .toLowerCase()
-            .includes(query) ||
-          (team?.name || "")
-            .toLowerCase()
-            .includes(query) ||
-          (country?.name || "")
-            .toLowerCase()
-            .includes(query)
-        );
-      })
-      .sort((a, b) => {
-        if (sortBy === "ca") {
-          return Number(b.ca || 0) - Number(a.ca || 0);
-        }
-
-        if (sortBy === "cp") {
-          return Number(b.cp || 0) - Number(a.cp || 0);
-        }
-
-        return (a.name || "").localeCompare(
-          b.name || "",
-          "es",
-          { sensitivity: "base" }
-        );
-      });
-  }, [
-    players,
-    search,
-    teamById,
-    countryById,
-    sortBy,
-    teamFilterId,
-    positionFilter,
-  ]);
-
-
-
-  const groupedByTeam = useMemo(() => {
-    const groups = {};
-
-    filteredPlayers.forEach((player) => {
-      const key = player.teamId || "__no_team__";
-
-      if (!groups[key]) {
-        groups[key] = {
-          id: key,
-          team: teamById[player.teamId] || null,
-          players: [],
-        };
-      }
-
-      groups[key].players.push(player);
-    });
-
-    const getTeamReputation = (team) => {
-      const rawValue =
-        team?.reputation ??
-        team?.data?.reputation ??
-        team?.data?.team?.reputation ??
-        0;
-
-      const normalizedValue = String(rawValue)
-        .replace(/,/g, "")
-        .replace(/\s+/g, "")
-        .trim();
-
-      const numericValue = Number(normalizedValue);
-
-      return Number.isFinite(numericValue) ? numericValue : 0;
+    const normalizedStats = {
+      mental: {},
+      physical: {},
+      technical: {},
+      goalkeeping: {},
     };
 
-    // Orden de posiciones dentro de cada equipo:
-    // portero → defensas → mediocentro → centrocampistas →
-    // mediapuntas/extremos → delanteros → sin posición.
-    const getTeamPositionOrder = (player) => {
-      const primaryPosition = getPrimaryPosition(player);
+    Object.entries(STAT_GROUPS).forEach(([group, fields]) => {
+      fields.forEach(([key]) => {
+        const value = Number(
+          form.stats?.[group]?.[key] ?? 0
+        );
 
-      const positionOrder = {
-        portero: 0,
+        normalizedStats[group][key] =
+          Number.isFinite(value)
+            ? Math.min(20, Math.max(0, value))
+            : 0;
+      });
+    });
 
-        defensa_izquierdo: 1,
-        defensa_central: 1,
-        defensa_derecho: 1,
-        carrilero_izquierdo: 1,
-        carrilero_derecho: 1,
+    const numericHeight = Number(form.height);
+    const numericShirtNumber = Number(form.shirtNumber);
+    const numericSalary = Number(form.salary);
 
-        mediocentro: 2,
+    setIsSaving(true);
+    setEditError("");
 
-        centrocampista_izquierdo: 3,
-        centrocampista: 3,
-        centrocampista_derecho: 3,
+    try {
+      await base44.entities.Player.update(editablePlayer.id, {
+        name: form.name.trim(),
+        date_of_birth: form.dateOfBirth.trim(),
+        team_id: form.teamId || "",
+        country_id: form.countryId || "",
+        fm_position: form.fmPosition || "",
+        best_positions: form.bestPositions || "",
+        role_used_to_fill_empty_attributes:
+          form.roleUsedToFillEmptyAttributes || "",
+        preferred_central_position:
+          form.preferredCentralPosition || "",
+        style: form.style || "",
+        height: Number.isFinite(numericHeight) ? numericHeight : 0,
+        right_foot: form.rightFoot || "",
+        left_foot: form.leftFoot || "",
+        shirt_number:
+          Number.isFinite(numericShirtNumber)
+            ? numericShirtNumber
+            : 0,
+        salary:
+          Number.isFinite(numericSalary)
+            ? numericSalary
+            : 0,
+        photo_url: normalizeImageUrl(form.photoUrl),
+        card_photo_url: normalizeImageUrl(form.cardPhotoUrl),
+        national_card_photo_url:
+          normalizeImageUrl(form.nationalCardPhotoUrl),
+        ca: numericCA,
+        cp: numericCP,
+        position_ratings: positionRatings,
+        stats: normalizedStats,
+        description: form.description || "",
+      });
 
-        mediapunta_por_la_izquierda: 4,
-        mediapunta_central: 4,
-        mediapunta_por_la_derecha: 4,
-
-        delantero: 5,
+      const updatedPlayer = {
+        ...editablePlayer,
+        name: form.name.trim(),
+        dateOfBirth: form.dateOfBirth.trim(),
+        date_of_birth: form.dateOfBirth.trim(),
+        teamId: form.teamId || "",
+        team_id: form.teamId || "",
+        countryId: form.countryId || "",
+        country_id: form.countryId || "",
+        fm_position: form.fmPosition || "",
+        best_positions: form.bestPositions || "",
+        role_used_to_fill_empty_attributes:
+          form.roleUsedToFillEmptyAttributes || "",
+        preferred_central_position:
+          form.preferredCentralPosition || "",
+        style: form.style || "",
+        height: Number.isFinite(numericHeight) ? numericHeight : 0,
+        right_foot: form.rightFoot || "",
+        left_foot: form.leftFoot || "",
+        shirt_number:
+          Number.isFinite(numericShirtNumber)
+            ? numericShirtNumber
+            : 0,
+        salary:
+          Number.isFinite(numericSalary)
+            ? numericSalary
+            : 0,
+        photoUrl: form.photoUrl.trim(),
+        photo_url: form.photoUrl.trim(),
+        cardPhotoUrl: form.cardPhotoUrl.trim(),
+        card_photo_url: form.cardPhotoUrl.trim(),
+        nationalCardPhotoUrl: form.nationalCardPhotoUrl.trim(),
+        national_card_photo_url:
+          form.nationalCardPhotoUrl.trim(),
+        ca: numericCA,
+        cp: numericCP,
+        positionRatings,
+        position_ratings: positionRatings,
+        stats: normalizedStats,
+        description: form.description || "",
       };
 
-      return positionOrder[primaryPosition] ?? 6;
-    };
+      setEditablePlayer(updatedPlayer);
+      setForm((current) => ({
+        ...current,
+        positionRatings,
+      }));
+      setEditOpen(false);
 
-    const getPrimaryPositionRating = (player) => {
-      const primaryPosition = getPrimaryPosition(player);
-      const ratings =
-        player?.positionRatings ||
-        player?.position_ratings ||
-        {};
-
-      const rating = Number(ratings?.[primaryPosition]);
-      return Number.isFinite(rating) ? rating : 0;
-    };
-
-    Object.values(groups).forEach((group) => {
-      group.players.sort((a, b) => {
-        const positionOrderA = getTeamPositionOrder(a);
-        const positionOrderB = getTeamPositionOrder(b);
-
-        // 1. Posición en el orden táctico.
-        if (positionOrderA !== positionOrderB) {
-          return positionOrderA - positionOrderB;
-        }
-
-        // 2. Dentro de la misma posición, mayor valoración primero.
-        const ratingA = getPrimaryPositionRating(a);
-        const ratingB = getPrimaryPositionRating(b);
-
-        if (ratingA !== ratingB) {
-          return ratingB - ratingA;
-        }
-
-        // 3. En empate, nombre alfabético.
-        return (a.name || "").localeCompare(
-          b.name || "",
-          "es",
-          { sensitivity: "base" }
-        );
-      });
-    });
-
-    return Object.values(groups).sort((a, b) => {
-      const reputationA = getTeamReputation(a.team);
-      const reputationB = getTeamReputation(b.team);
-
-      // 1. Mayor reputación primero.
-      if (reputationA !== reputationB) {
-        return reputationB - reputationA;
+      if (onPlayerUpdated) {
+        onPlayerUpdated(updatedPlayer);
       }
-
-      // 2. En caso de empate, orden alfabético por equipo.
-      const nameA = a.team?.name || a.team?.data?.name || "No club";
-      const nameB = b.team?.name || b.team?.data?.name || "No club";
-
-      return nameA.localeCompare(nameB, "es", {
-        sensitivity: "base",
-      });
-    });
-  }, [filteredPlayers, teamById]);
-
-  const groupedByCountry = useMemo(() => {
-    const groups = {};
-
-    filteredPlayers.forEach((player) => {
-      const key = player.countryId || "__no_country__";
-
-      if (!groups[key]) {
-        groups[key] = {
-          id: key,
-          country: countryById[player.countryId] || null,
-          players: [],
-        };
-      }
-
-      groups[key].players.push(player);
-    });
-
-    return Object.values(groups).sort((a, b) => {
-      const nameA = a.country?.name || "No country";
-      const nameB = b.country?.name || "No country";
-
-      return nameA.localeCompare(nameB, "es", {
-        sensitivity: "base",
-      });
-    });
-  }, [filteredPlayers, countryById]);
-
-  const groupedByPosition = useMemo(() => {
-    const groups = POSITION_GROUPS.map((group) => ({
-      ...group,
-      players: [],
-    }));
-
-    const groupById = groups.reduce((map, group) => {
-      map[group.id] = group;
-      return map;
-    }, {});
-
-    const withoutPosition = {
-      id: "__no_position__",
-      name: "Sin posición",
-      players: [],
-    };
-
-    filteredPlayers.forEach((player) => {
-      const position = getPrimaryPosition(player);
-      const target = groupById[position] || withoutPosition;
-      target.players.push(player);
-    });
-
-    if (withoutPosition.players.length > 0) {
-      groups.push(withoutPosition);
-    }
-
-    return groups;
-  }, [filteredPlayers]);
-
-  const groupedByAge = useMemo(() => {
-    const groups = AGE_GROUPS.map((group) => ({
-      id: group.id,
-      name: group.name,
-      players: [],
-    }));
-
-    const groupById = groups.reduce((map, group) => {
-      map[group.id] = group;
-      return map;
-    }, {});
-
-    const noAgeGroup = {
-      id: "age_unknown",
-      name: "Edad no disponible",
-      players: [],
-    };
-
-    filteredPlayers.forEach((player) => {
-      const age = calculateAge(player.dateOfBirth);
-      const ageGroup = AGE_GROUPS.find((group) => group.test(age));
-
-      if (ageGroup) {
-        groupById[ageGroup.id].players.push(player);
-      } else {
-        noAgeGroup.players.push(player);
-      }
-    });
-
-    if (noAgeGroup.players.length > 0) {
-      groups.push(noAgeGroup);
-    }
-
-    return groups;
-  }, [filteredPlayers]);
-
-  const groupedByDescriptionCategories = useMemo(() => {
-    const playerGroups = new Map();
-
-    PLAYER_DESCRIPTIONS.forEach((category) => {
-      category.options.forEach((description) => {
-        playerGroups.set(description, []);
-      });
-    });
-
-    const noDescriptionPlayers = [];
-
-    filteredPlayers.forEach((player) => {
-      const description = String(player?.description || "").trim();
-
-      if (!description || !playerGroups.has(description)) {
-        noDescriptionPlayers.push(player);
-        return;
-      }
-
-      playerGroups.get(description).push(player);
-    });
-
-    const categories = PLAYER_DESCRIPTIONS.map((category, categoryIndex) => ({
-      id: `description_category_${categoryIndex}`,
-      name: category.group,
-      subgroups: category.options.map((description, optionIndex) => ({
-        id: `description_${categoryIndex}_${optionIndex}`,
-        name: description,
-        players: playerGroups.get(description) || [],
-      })),
-    }));
-
-    if (noDescriptionPlayers.length > 0) {
-      categories.push({
-        id: "description_category_unknown",
-        name: "Sin descripción",
-        subgroups: [
-          {
-            id: "description_unknown",
-            name: "Jugadores sin descripción",
-            players: noDescriptionPlayers,
-          },
-        ],
-      });
-    }
-
-    return categories;
-  }, [filteredPlayers]);
-
-  const handleOpenAddPlayer = () => {
-    setForm({
-      ...emptyPlayerForm,
-    });
-
-    setAddModalOpen(true);
-  };
-
-  const handleOpenPositionImport = () => {
-    setPositionImportModalOpen(true);
-    setPositionImportFileName("");
-    setPositionImportAnalysis(null);
-    setPositionImportResult(null);
-    setPositionImportError("");
-    setPositionImportProgress({
-      current: 0,
-      total: 0,
-      phase: "",
-    });
-    setPositionImportFileKey((current) => current + 1);
-  };
-
-  const handleClosePositionImport = () => {
-    if (positionImporting) return;
-
-    setPositionImportModalOpen(false);
-    setPositionImportFileName("");
-    setPositionImportAnalysis(null);
-    setPositionImportResult(null);
-    setPositionImportError("");
-    setPositionImportProgress({
-      current: 0,
-      total: 0,
-      phase: "",
-    });
-    setPositionImportFileKey((current) => current + 1);
-  };
-
-  const handlePositionImportFile = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setPositionImportError("");
-    setPositionImportResult(null);
-    setPositionImportAnalysis(null);
-    setPositionImportFileName(file.name);
-
-    try {
-      const csvText = await file.text();
-      if (!csvText.trim()) {
-        throw new Error("El archivo CSV de posiciones está vacío.");
-      }
-
-      const analysis = parsePositionCsv(csvText);
-
-      if (analysis.missingRequiredHeaders?.length) {
-        throw new Error(
-          `Faltan columnas obligatorias: ${analysis.missingRequiredHeaders.join(", ")}`
-        );
-      }
-
-      if (!analysis.players?.length) {
-        throw new Error("No se encontraron filas de jugadores en el CSV de posiciones.");
-      }
-
-      const rows = analysis.players.map((row) => {
-        const match = findPlayerForPositionRow(row, players, teams);
-        return { ...row, match };
-      });
-
-      setPositionImportAnalysis({
-        ...analysis,
-        rows,
-        matched: rows.filter((row) => row.match?.status === "matched").length,
-        ambiguous: rows.filter((row) => row.match?.status === "ambiguous").length,
-        notFound: rows.filter((row) => row.match?.status === "not_found").length,
-        invalid: rows.filter((row) => row.match?.status === "invalid").length,
-      });
     } catch (error) {
-      console.error("Error leyendo CSV de posiciones:", error);
-      setPositionImportError(
-        error?.message || "No se ha podido leer el CSV de posiciones."
-      );
-    } finally {
-      event.target.value = "";
-    }
-  };
-
-  const handleStartPositionImport = async () => {
-    const rows = positionImportAnalysis?.rows || [];
-    if (!rows.length || positionImporting) return;
-
-    const matchedRows = rows.filter((row) => row.match?.status === "matched");
-    if (!matchedRows.length) {
-      setPositionImportError("No hay ningún jugador válido para actualizar.");
-      return;
-    }
-
-    setPositionImporting(true);
-    setPositionImportError("");
-    setPositionImportResult(null);
-
-    const result = {
-      total: rows.length,
-      updated: 0,
-      notFound: 0,
-      ambiguous: 0,
-      invalid: 0,
-      errors: [],
-    };
-
-    try {
-      for (let index = 0; index < rows.length; index += 1) {
-        const row = rows[index];
-        setPositionImportProgress({
-          current: index + 1,
-          total: rows.length,
-          phase: "Actualizando posiciones...",
-        });
-
-        if (row.match?.status === "not_found") {
-          result.notFound += 1;
-          continue;
-        }
-        if (row.match?.status === "ambiguous") {
-          result.ambiguous += 1;
-          continue;
-        }
-        if (row.match?.status === "invalid") {
-          result.invalid += 1;
-          continue;
-        }
-
-        const player = row.match?.player;
-        if (!player?.id) {
-          result.invalid += 1;
-          continue;
-        }
-
-        const positionRatings = {
-          ...(player.position_ratings || player.positionRatings || {}),
-          ...row.position_ratings,
-        };
-
-        try {
-          const positionUpdate = {
-            position_ratings: positionRatings,
-          };
-
-          // A position CSV must never erase an existing text field just
-          // because that field is empty in a later import.
-          if (String(row.fm_position || "").trim()) {
-            positionUpdate.fm_position = row.fm_position.trim();
-          }
-
-          if (String(row.best_positions || "").trim()) {
-            positionUpdate.best_positions = row.best_positions.trim();
-          }
-
-          if (String(row.role_used_to_fill_empty_attributes || "").trim()) {
-            positionUpdate.role_used_to_fill_empty_attributes =
-              row.role_used_to_fill_empty_attributes.trim();
-          }
-
-          if (String(row.preferred_central_position || "").trim()) {
-            positionUpdate.preferred_central_position =
-              row.preferred_central_position.trim();
-          }
-
-          await base44.entities.Player.update(player.id, positionUpdate);
-          result.updated += 1;
-        } catch (error) {
-          result.errors.push(
-            `${row.name}: ${
-              error?.response?.data?.message ||
-              error?.response?.data?.error ||
-              error?.message ||
-              "Error desconocido."
-            }`
-          );
-        }
-      }
-
-      await loadData();
-      setPositionImportResult(result);
-    } catch (error) {
-      console.error("Error actualizando posiciones:", error);
-      setPositionImportError(
+      console.error("Error updating player:", error);
+      setEditError(
         error?.response?.data?.message ||
           error?.response?.data?.error ||
           error?.message ||
-          "No se ha podido completar la actualización de posiciones."
-      );
-      setPositionImportResult(result);
-    } finally {
-      setPositionImporting(false);
-    }
-  };
-
-  const handleOpenImport = async () => {
-    setImportModalOpen(true);
-    setDefaultImportLeagueId("");
-    setImportFileName("");
-    setImportAnalysis(null);
-    setImportResult(null);
-    setImportError("");
-    setImportProgress({
-      current: 0,
-      total: 0,
-      phase: "",
-    });
-    setImportFileKey((current) => current + 1);
-    await loadImportLeagues();
-  };
-
-  const handleCloseImport = () => {
-    if (isImporting) return;
-
-    setImportModalOpen(false);
-    setDefaultImportLeagueId("");
-    setImportFileName("");
-    setImportAnalysis(null);
-    setImportResult(null);
-    setImportError("");
-    setImportProgress({
-      current: 0,
-      total: 0,
-      phase: "",
-    });
-    setImportFileKey((current) => current + 1);
-  };
-
-  const handleImportFile = async (event) => {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    setImportError("");
-    setImportResult(null);
-    setImportAnalysis(null);
-    setImportFileName(file.name);
-
-    try {
-      const csvText = await file.text();
-
-      if (!csvText.trim()) {
-        throw new Error(
-          "El archivo CSV está vacío."
-        );
-      }
-
-      const rawAnalysis =
-        parseFootballManagerCsv(csvText);
-
-      const analysis = {
-        ...rawAnalysis,
-        total_rows:
-          rawAnalysis?.total_rows ??
-          rawAnalysis?.players?.length ??
-          rawAnalysis?.rows?.length ??
-          0,
-      };
-
-      if (!analysis.total_rows) {
-        throw new Error(
-          "No se encontraron jugadores en el CSV."
-        );
-      }
-
-      setImportAnalysis(analysis);
-    } catch (error) {
-      console.error(
-        "Error reading CSV:",
-        error
-      );
-
-      setImportError(
-        error?.message ||
-          "No se ha podido leer el archivo CSV."
-      );
-    } finally {
-      event.target.value = "";
-    }
-  };
-
-  const importPreview = useMemo(() => {
-    if (!importAnalysis) return null;
-
-    const countryMap = new Map(
-      countries.map((country) => [
-        normalizeEntityName(country.name),
-        country,
-      ])
-    );
-
-    const uniqueCountries = new Set();
-    const uniqueTeams = new Set();
-    let missingNames = 0;
-    let missingCountries = 0;
-    let missingTeams = 0;
-
-    importAnalysis.players.forEach(({ player, source }) => {
-      const countryKey = normalizeEntityName(source?.countryName || "");
-      const teamKey = normalizeTeamName(source?.teamName || "");
-
-      if (!player?.name?.trim()) missingNames += 1;
-      if (!countryKey) missingCountries += 1;
-      else uniqueCountries.add(countryKey);
-      if (!teamKey) missingTeams += 1;
-      else uniqueTeams.add(teamKey);
-    });
-
-    const existingCountries = Array.from(uniqueCountries).filter((key) => countryMap.has(key)).length;
-
-    const existingTeams = Array.from(uniqueTeams).filter((teamKey) =>
-      Boolean(
-        findBestExistingTeam(
-          teamKey,
-          teams,
-          defaultImportLeagueId
-        ).team
-      )
-    ).length;
-
-    return {
-      total: importAnalysis.total_rows ?? importAnalysis.players.length,
-      uniqueCountries: uniqueCountries.size,
-      existingCountries,
-      newCountries: uniqueCountries.size - existingCountries,
-      uniqueTeams: uniqueTeams.size,
-      existingTeams,
-      newTeams: uniqueTeams.size - existingTeams,
-      missingNames,
-      missingCountries,
-      missingTeams,
-      warningRows: importAnalysis.players.filter(({ warnings = [] }) => warnings.length > 0).length,
-    };
-  }, [
-    importAnalysis,
-    countries,
-    teams,
-    defaultImportLeagueId,
-  ]);
-
-  const loadImportLeagues = async () => {
-    try {
-      const result = await base44.entities.League.list();
-      const list = getList(result)
-        .filter((league) => (league?.id || league?._id) && league?.name)
-        .sort((a, b) => String(a.name).localeCompare(String(b.name), "es", { sensitivity: "base" }));
-      setLeagues(list);
-      return list;
-    } catch (error) {
-      console.error("Error loading leagues for CSV import:", error);
-      setLeagues([]);
-      setImportError("No se han podido cargar las ligas. Comprueba que la entidad League existe.");
-      return [];
-    }
-  };
-
-  const handleStartImport = async () => {
-    if (!importAnalysis?.players?.length || isImporting) return;
-
-    const newTeamCount = Number(importPreview?.newTeams || 0);
-    if (newTeamCount > 0 && !defaultImportLeagueId) {
-      setImportError("Hay equipos nuevos. Selecciona una liga antes de importar.");
-      return;
-    }
-
-    setIsImporting(true);
-    setImportError("");
-    setImportResult(null);
-
-    const result = {
-      total: importAnalysis.players.length,
-      imported: 0,
-      skippedDuplicates: 0,
-      skippedInvalid: 0,
-      countriesCreated: 0,
-      teamsCreated: 0,
-      errors: [],
-    };
-
-    try {
-      const countryCache = new Map(
-        countries.map((country) => [
-          normalizeEntityName(
-            country.name
-          ),
-          country,
-        ])
-      );
-
-      const teamCache = new Map();
-
-      teams.forEach((team) => {
-        const normalizedName =
-          normalizeTeamName(
-            team.name
-          );
-
-        if (normalizedName) {
-          teamCache.set(
-            normalizedName,
-            team
-          );
-        }
-
-        const normalizedShortName =
-          normalizeTeamName(
-            team.shortName ||
-              team.short_name ||
-              ""
-          );
-
-        if (
-          normalizedShortName &&
-          !teamCache.has(
-            normalizedShortName
-          )
-        ) {
-          teamCache.set(
-            normalizedShortName,
-            team
-          );
-        }
-      });
-
-      const selectedLeague = leagues.find((league) => String(league?.id || league?._id) === String(defaultImportLeagueId));
-      const selectedLeagueId = selectedLeague?.id || selectedLeague?._id || selectedLeague?.data?.id || "";
-      const selectedLeagueCountryId = selectedLeague?.country_id || selectedLeague?.countryId || "";
-
-      // Countries
-      const uniqueCountryKeys = Array.from(new Set(importAnalysis.players.map(({ source }) => normalizeEntityName(source?.countryName || "")).filter(Boolean)));
-      setImportProgress({ current: 0, total: uniqueCountryKeys.length, phase: "Resolving countries..." });
-
-      for (let index = 0; index < uniqueCountryKeys.length; index += 1) {
-        const countryKey = uniqueCountryKeys[index];
-        if (!countryCache.has(countryKey)) {
-          const sourceRow = importAnalysis.players.find(({ source }) => normalizeEntityName(source?.countryName || "") === countryKey);
-          const countryName = sourceRow?.source?.countryName?.trim();
-          if (countryName) {
-            const created = await base44.entities.Country.create({
-              name: countryName,
-              code: generateImportedCountryCode(countryName),
-              continent: inferImportedCountryContinent(countryName),
-              flag: "",
-              is_active: true,
-            });
-            const countryData = created?.data || created;
-            const countryId = countryData?.id || countryData?._id || created?.id || created?._id || "";
-            if (!countryId) throw new Error(`El país "${countryName}" se creó pero no devolvió ID.`);
-            countryCache.set(countryKey, { ...countryData, id: countryId, name: countryData?.name || countryName });
-            result.countriesCreated += 1;
-          }
-        }
-        setImportProgress({ current: index + 1, total: uniqueCountryKeys.length, phase: "Resolving countries..." });
-      }
-
-      // Teams: match by team name. A club is independent of the player's nationality.
-      const uniqueTeamKeys = Array.from(new Set(importAnalysis.players.map(({ source }) => normalizeEntityName(source?.teamName || "")).filter(Boolean)));
-      setImportProgress({ current: 0, total: uniqueTeamKeys.length, phase: "Resolving teams..." });
-
-      for (let index = 0; index < uniqueTeamKeys.length; index += 1) {
-        const teamKey = uniqueTeamKeys[index];
-
-        const sourceRow =
-          importAnalysis.players.find(
-            ({ source }) =>
-              normalizeTeamName(
-                source?.teamName || ""
-              ) === teamKey
-          );
-
-        const teamName =
-          sourceRow?.source?.teamName?.trim();
-
-        const existingMatch =
-          findBestExistingTeam(
-            teamName,
-            teams,
-            selectedLeagueId
-          );
-
-        if (
-          existingMatch.team?.id
-        ) {
-          const matchedTeam =
-            existingMatch.team;
-
-          teamCache.set(
-            teamKey,
-            matchedTeam
-          );
-
-          setImportProgress({
-            current: index + 1,
-            total:
-              uniqueTeamKeys.length,
-            phase:
-              `Resolving teams... ${teamName} → ${matchedTeam.name}`,
-          });
-
-          continue;
-        }
-
-        if (teamName) {
-          if (!selectedLeagueId) {
-            result.errors.push(
-              `Falta seleccionar una liga para el nuevo equipo "${teamName}".`
-            );
-          } else {
-            const created =
-              await base44.entities.Team.create({
-                name: teamName,
-                short_name:
-                  generateImportedTeamShortName(
-                    teamName
-                  ),
-                code:
-                  generateImportedTeamShortName(
-                    teamName
-                  ),
-                continent:
-                  "Europe",
-                country_id:
-                  selectedLeagueCountryId,
-                league_id:
-                  selectedLeagueId,
-                city: "",
-                logo: "",
-                is_active: true,
-              });
-
-            const teamData =
-              created?.data ||
-              created;
-
-            const teamId =
-              teamData?.id ||
-              teamData?._id ||
-              created?.id ||
-              created?._id ||
-              "";
-
-            if (!teamId) {
-              throw new Error(
-                `El equipo "${teamName}" se creó pero no devolvió ID.`
-              );
-            }
-
-            const normalizedCreatedTeam = {
-              ...teamData,
-              id: teamId,
-              name:
-                teamData?.name ||
-                teamName,
-              shortName:
-                teamData?.short_name ||
-                generateImportedTeamShortName(
-                  teamName
-                ),
-              leagueId:
-                teamData?.league_id ||
-                selectedLeagueId,
-            };
-
-            teamCache.set(
-              teamKey,
-              normalizedCreatedTeam
-            );
-
-            result.teamsCreated +=
-              1;
-          }
-        }
-
-        setImportProgress({
-          current: index + 1,
-          total:
-            uniqueTeamKeys.length,
-          phase:
-            "Resolving teams...",
-        });
-      }
-
-      // Players / duplicates
-      const existingPlayerKeys = new Set();
-      players.forEach((existingPlayer) => {
-        existingPlayerKeys.add([
-          normalizeEntityName(existingPlayer.name),
-          String(existingPlayer.dateOfBirth || "").trim(),
-          String(existingPlayer.teamId || ""),
-        ].join("::"));
-      });
-      const seenImportKeys = new Set();
-
-      setImportProgress({ current: 0, total: importAnalysis.players.length, phase: "Importing players..." });
-
-      for (let index = 0; index < importAnalysis.players.length; index += 1) {
-        const { player, source } = importAnalysis.players[index];
-        const playerName = String(player?.name || "").trim();
-        if (!playerName) {
-          result.skippedInvalid += 1;
-          result.errors.push(`Fila ${index + 2}: jugador sin nombre.`);
-          setImportProgress({ current: index + 1, total: importAnalysis.players.length, phase: "Importing players..." });
-          continue;
-        }
-
-        const country = countryCache.get(normalizeEntityName(source?.countryName || ""));
-        const teamName = source?.teamName || "";
-        const team = teamCache.get(normalizeTeamName(teamName));
-        const finalPlayer = {
-          ...player,
-          team_id:
-            team?.id || "",
-          country_id:
-            country?.id || "",
-        };
-
-        /*
-         * Persistimos TODO el contenido que devuelve el CSV importer.
-         * Antes solo se guardaban los campos básicos y por eso
-         * altura, piernas, dorsal, salario, posiciones y stats se
-         * perdían antes de llegar a Base44.
-         */
-        const playerToCreate = {
-          ...finalPlayer,
-
-          name:
-            finalPlayer.name?.trim() || "",
-
-          date_of_birth:
-            finalPlayer.date_of_birth || "",
-
-          fm_position:
-            finalPlayer.fm_position || "",
-
-          best_positions:
-            finalPlayer.best_positions || "",
-
-          role_used_to_fill_empty_attributes:
-            finalPlayer.role_used_to_fill_empty_attributes || "",
-
-          preferred_central_position:
-            finalPlayer.preferred_central_position || "",
-
-          style:
-            finalPlayer.style || "",
-
-          height:
-            Number.isFinite(
-              Number(finalPlayer.height)
-            )
-              ? Number(finalPlayer.height)
-              : 0,
-
-          right_foot:
-            finalPlayer.right_foot || "",
-
-          left_foot:
-            finalPlayer.left_foot || "",
-
-          shirt_number:
-            Number.isFinite(
-              Number(
-                finalPlayer.shirt_number
-              )
-            )
-              ? Number(
-                  finalPlayer.shirt_number
-                )
-              : 0,
-
-          salary:
-            Number.isFinite(
-              Number(
-                finalPlayer.salary
-              )
-            )
-              ? Number(
-                  finalPlayer.salary
-                )
-              : 0,
-
-          photo_url:
-            finalPlayer.photo_url || "",
-
-          card_photo_url:
-            finalPlayer.card_photo_url || "",
-
-          national_card_photo_url:
-            finalPlayer.national_card_photo_url ||
-            "",
-
-          ca:
-            Number.isFinite(
-              Number(finalPlayer.ca)
-            )
-              ? Number(finalPlayer.ca)
-              : 0,
-
-          cp:
-            Number.isFinite(
-              Number(finalPlayer.cp)
-            )
-              ? Number(finalPlayer.cp)
-              : 0,
-
-          position_ratings:
-            finalPlayer.position_ratings || {},
-
-          stats:
-            finalPlayer.stats || {
-              mental: {},
-              physical: {},
-              technical: {},
-              goalkeeping: {},
-            },
-
-          description:
-            finalPlayer.description || "",
-        };
-
-        if (teamName.trim() && !team?.id) {
-          result.skippedInvalid += 1;
-          result.errors.push(`${playerName}: no se pudo resolver el club "${teamName}".`);
-          setImportProgress({ current: index + 1, total: importAnalysis.players.length, phase: "Importing players..." });
-          continue;
-        }
-
-        const duplicateKey = [normalizeEntityName(finalPlayer.name), String(finalPlayer.date_of_birth || "").trim(), String(finalPlayer.team_id || "")].join("::");
-        if (existingPlayerKeys.has(duplicateKey) || seenImportKeys.has(duplicateKey)) {
-          result.skippedDuplicates += 1;
-          seenImportKeys.add(duplicateKey);
-          setImportProgress({ current: index + 1, total: importAnalysis.players.length, phase: "Importing players..." });
-          continue;
-        }
-
-        try {
-          await base44.entities.Player.create(
-            playerToCreate
-          );
-          result.imported += 1;
-          existingPlayerKeys.add(duplicateKey);
-          seenImportKeys.add(duplicateKey);
-        } catch (error) {
-          result.errors.push(`${playerName}: ${error?.response?.data?.message || error?.response?.data?.error || error?.message || "Error desconocido."}`);
-        }
-
-        setImportProgress({ current: index + 1, total: importAnalysis.players.length, phase: "Importing players..." });
-      }
-
-      await loadData();
-      setImportResult(result);
-    } catch (error) {
-      console.error("CSV import failed:", error);
-      setImportError(error?.response?.data?.message || error?.response?.data?.error || error?.message || "No se ha podido completar la importación.");
-      setImportResult(result);
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const handleCloseAddPlayer = () => {
-    if (isSaving) {
-      return;
-    }
-
-    setAddModalOpen(false);
-
-    setForm({
-      ...emptyPlayerForm,
-    });
-  };
-
-  const handleSavePlayer = async (event) => {
-    event.preventDefault();
-
-    if (!form.name.trim()) {
-      return;
-    }
-
-    if (!isValidDateOfBirth(form.dateOfBirth)) {
-      setErrorMessage(
-        "La fecha de nacimiento debe tener el formato DD/MM/YYYY. Ejemplo: 28/09/1998."
-      );
-      return;
-    }
-
-    if (
-      form.teamId === NEW_TEAM_VALUE &&
-      !form.newTeamName.trim()
-    ) {
-      setErrorMessage(
-        "Introduce el nombre del nuevo club."
-      );
-      return;
-    }
-
-    if (
-      form.countryId === NEW_COUNTRY_VALUE &&
-      !form.newCountryName.trim()
-    ) {
-      setErrorMessage(
-        "Introduce el nombre del nuevo país."
-      );
-      return;
-    }
-
-    if (form.ca === "" || form.ca == null || Number(form.ca) < 0 || Number(form.ca) > 200) {
-      setErrorMessage(
-        "El CA debe estar entre 0 y 200."
-      );
-      return;
-    }
-
-    if (form.cp === "" || form.cp == null || Number(form.cp) < 0 || Number(form.cp) > 200) {
-      setErrorMessage(
-        "El CP debe estar entre 0 y 200."
-      );
-      return;
-    }
-
-    const positionRatings = Object.entries(form.positionRatings).reduce(
-      (result, [code, value]) => {
-        const numericValue = Number(value);
-        result[code] = Number.isFinite(numericValue)
-          ? numericValue
-          : 0;
-        return result;
-      },
-      {}
-    );
-
-    const invalidPositionRating = Object.values(positionRatings).some(
-      (value) => value < 0 || value > 20
-    );
-
-    if (invalidPositionRating) {
-      setErrorMessage(
-        "Las valoraciones de posición deben estar entre 0 y 20."
-      );
-      return;
-    }
-
-    setIsSaving(true);
-    setErrorMessage("");
-
-    try {
-      let teamId = form.teamId || "";
-      let countryId = form.countryId || "";
-
-      /* CREATE NEW TEAM */
-      if (teamId === NEW_TEAM_VALUE) {
-        const newTeamName = form.newTeamName.trim();
-
-        const normalizedNewTeamName =
-          newTeamName.toLowerCase();
-
-        const existingTeam = teams.find(
-          (team) =>
-            String(team.name || "")
-              .trim()
-              .toLowerCase() ===
-            normalizedNewTeamName
-        );
-
-        if (existingTeam?.id) {
-          teamId = existingTeam.id;
-        } else {
-          const generatedShortName =
-            newTeamName
-              .toUpperCase()
-              .replace(/[^A-Z0-9À-ÿ]/g, "")
-              .slice(0, 12) ||
-            `TEAM${Date.now()}`;
-
-          const createdTeam =
-            await base44.entities.Team.create({
-              name: newTeamName,
-              short_name: generatedShortName,
-              country_id:
-                form.countryId || "",
-              continent: "Europe",
-              is_active: true,
-            });
-
-          const createdTeamData =
-            createdTeam?.data ||
-            createdTeam;
-
-          teamId =
-            createdTeamData?.id ||
-            createdTeamData?._id ||
-            createdTeam?.id ||
-            createdTeam?._id ||
-            "";
-
-          if (!teamId) {
-            throw new Error(
-              "El club se creó pero Base44 no devolvió su ID."
-            );
-          }
-        }
-      }
-
-      /* CREATE NEW COUNTRY */
-      if (countryId === NEW_COUNTRY_VALUE) {
-        const newCountryName =
-          form.newCountryName.trim();
-
-        const normalizedNewCountryName =
-          newCountryName.toLowerCase();
-
-        const existingCountry = countries.find(
-          (country) =>
-            String(country.name || "")
-              .trim()
-              .toLowerCase() ===
-            normalizedNewCountryName
-        );
-
-        if (existingCountry?.id) {
-          countryId = existingCountry.id;
-        } else {
-          const generatedCountryCode =
-            newCountryName
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .toUpperCase()
-              .replace(/[^A-Z]/g, "")
-              .slice(0, 3)
-              .padEnd(3, "X");
-
-          const createdCountry =
-            await base44.entities.Country.create({
-              name: newCountryName,
-              code: generatedCountryCode,
-              continent: form.newCountryContinent,
-              flag: "",
-              is_active: true,
-            });
-
-          const createdCountryData =
-            createdCountry?.data ||
-            createdCountry;
-
-          countryId =
-            createdCountryData?.id ||
-            createdCountryData?._id ||
-            createdCountry?.id ||
-            createdCountry?._id ||
-            "";
-
-          if (!countryId) {
-            throw new Error(
-              "El país se creó pero Base44 no devolvió su ID."
-            );
-          }
-        }
-      }
-
-      /* CREATE PLAYER */
-      await base44.entities.Player.create({
-        name: form.name.trim(),
-
-        date_of_birth:
-          normalizeDateOfBirth(
-            form.dateOfBirth
-          ),
-
-        team_id: teamId,
-
-        country_id:
-          countryId || "",
-
-        photo_url:
-          normalizeImageUrl(form.photoUrl),
-
-        card_photo_url:
-          normalizeImageUrl(form.cardPhotoUrl),
-
-        national_card_photo_url:
-          normalizeImageUrl(form.nationalCardPhotoUrl),
-
-        ca: Number(form.ca),
-
-        cp: Number(form.cp),
-
-        position_ratings: positionRatings,
-
-        description:
-          form.description || "",
-      });
-
-      setAddModalOpen(false);
-
-      setForm({
-        ...emptyPlayerForm,
-      });
-
-      await loadData();
-    } catch (error) {
-      console.error(
-        "Error creating player:",
-        error
-      );
-
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
-        "No se ha podido crear el jugador.";
-
-      setErrorMessage(
-        `Error al crear el jugador: ${errorMessage}`
+          "No se ha podido actualizar el jugador."
       );
     } finally {
       setIsSaving(false);
     }
   };
 
-  /*
-   * =========================================================
-   * PLAYER DETAIL
-   * =========================================================
-   *
-   * Cuando selectedPlayer tiene valor, dejamos la lista
-   * y mostramos directamente PlayerDetail.
-   *
-   * =========================================================
-   */
-
-  if (selectedPlayer) {
-    return (
-      <PlayersDetail
-        player={selectedPlayer}
-        team={teamById[selectedPlayer.teamId]}
-        country={countryById[selectedPlayer.countryId]}
-        teams={teams}
-        countries={countries}
-        onBack={() => {
-          setSelectedPlayer(null);
-        }}
-        onPlayerUpdated={(updatedPlayer) => {
-          setSelectedPlayer(updatedPlayer);
-
-          setPlayers((currentPlayers) =>
-            currentPlayers.map((currentPlayer) =>
-              currentPlayer.id === updatedPlayer.id
-                ? normalizePlayer(updatedPlayer)
-                : currentPlayer
-            )
-          );
-        }}
-      />
-    );
-  }
-
   return (
-    <div className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
-      <div className="w-full">
+    <main className="relative h-full min-h-0 overflow-visible bg-[#e2e6eb] text-slate-900">
+      <div className="absolute inset-0 bg-[#e2e6eb]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
 
-        {/* HEADER */}
-        <div className="mb-4 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          {/* PERSISTENT FILTERS — LEFT */}
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <div className="w-[220px] sm:w-[250px]">
-              <SearchableEntitySelect
-                value={teamFilterId}
-                onChange={setTeamFilterId}
-                options={teams}
-                placeholder="Todos los equipos"
-                searchPlaceholder="Buscar equipo..."
-                kind="team"
-              />
-            </div>
+      <div
+        className="pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(6rem,18vw,15rem)] font-bold leading-none tracking-[-0.065em] text-white"
+        style={{
+          fontFamily: '"Teko", sans-serif',
+          fontWeight: 400,
+          transform: "scaleX(0.72)",
+          transformOrigin: "center center",
+          textShadow: "0 0 16px rgba(255,255,255,0.18), 0 0 32px rgba(255,255,255,0.10)",
+          WebkitMaskImage: "linear-gradient(to bottom, #000 0%, #000 24%, rgba(0,0,0,0.92) 38%, rgba(0,0,0,0.45) 62%, transparent 88%, transparent 100%)",
+          maskImage: "linear-gradient(to bottom, #000 0%, #000 24%, rgba(0,0,0,0.92) 38%, rgba(0,0,0,0.45) 62%, transparent 88%, transparent 100%)",
+        }}
+      >
+        {teamName.toUpperCase()}
+      </div>
 
-            <div className="w-[190px] sm:w-[210px]">
-              <select
-                value={positionFilter}
-                onChange={(event) => setPositionFilter(event.target.value)}
-                className={`${inputClassName} cursor-pointer`}
-                aria-label="Filtrar por posición"
-              >
-                <option value="">Todas las posiciones</option>
-                {POSITION_GROUPS.map((position) => (
-                  <option key={position.id} value={position.id}>
-                    {position.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-6 py-5 md:px-10 lg:px-14">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 transition hover:text-[#003399]"
+        >
+          <ArrowLeft size={16} />
+          Back to players
+        </button>
 
-            {(teamFilterId || positionFilter) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setTeamFilterId("");
-                  setPositionFilter("");
-                }}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
-                title="Limpiar filtros"
-              >
-                <X size={14} />
-                Limpiar
-              </button>
-            )}
-          </div>
+        <button
+          type="button"
+          onClick={openEditor}
+          className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 transition hover:text-[#003399]"
+          aria-label="Edit player"
+        >
+          EDIT <Pencil size={15} />
+        </button>
+      </header>
 
-          {/* ACTIONS */}
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+      <section className="relative z-10 grid h-full min-h-0 grid-cols-1 items-center gap-4 overflow-visible px-6 pb-2 pt-20 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20">
+        <div className="pointer-events-none absolute bottom-[2%] left-[3%] select-none whitespace-nowrap text-[clamp(5rem,14vw,15rem)] font-black uppercase leading-[0.72] tracking-[-0.09em] text-slate-900/[0.055]">
+          {playerName}
+        </div>
 
-            {/* SEARCH */}
-            {searchOpen && (
-              <div className="w-[220px] sm:w-[280px]">
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(event) =>
-                    setSearch(event.target.value)
-                  }
-                  placeholder="Search players..."
-                  autoFocus
-                  className={inputClassName}
-                />
-              </div>
-            )}
+        <div className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0 lg:-translate-y-[184px]">
+          <h1 className="max-w-lg text-5xl font-bold leading-[0.9] tracking-[-0.045em] text-slate-950 md:text-6xl xl:text-7xl">
+            {playerName.split(/\s+/).filter(Boolean).map((word, index) => (
+              <span key={`${word}-${index}`} className="block">
+                {word}
+              </span>
+            ))}
+          </h1>
 
-            <button
-              type="button"
-              onClick={() => {
-                setSearchOpen(
-                  (open) => !open
-                );
-
-                if (searchOpen) {
-                  setSearch("");
-                }
-              }}
-              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
-                searchOpen
-                  ? "border-[#003399] bg-[#003399] text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-              }`}
-              aria-label="Search players"
-              title="Search players"
-            >
-              {searchOpen ? (
-                <X size={17} />
+          <div className="mt-6 space-y-4 text-sm">
+            <div className="flex items-center gap-3 text-slate-600">
+              {teamLogo ? (
+                <img src={teamLogo} alt="" className="h-6 w-6 object-contain" />
               ) : (
-                <Search size={17} />
+                <Building2 size={17} />
               )}
-            </button>
-
-            {/* TOP CA */}
-            <button
-              type="button"
-              onClick={() =>
-                setSortBy((current) =>
-                  current === "ca" ? "" : "ca"
-                )
-              }
-              className={`flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-extrabold transition ${
-                sortBy === "ca"
-                  ? "border-[#003399] bg-[#003399] text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-              }`}
-              aria-label="Order by CA"
-              title="Order by CA"
-            >
-              Top CA
-            </button>
-
-            {/* TOP CP */}
-            <button
-              type="button"
-              onClick={() =>
-                setSortBy((current) =>
-                  current === "cp" ? "" : "cp"
-                )
-              }
-              className={`flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-extrabold transition ${
-                sortBy === "cp"
-                  ? "border-[#003399] bg-[#003399] text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-              }`}
-              aria-label="Order by CP"
-              title="Order by CP"
-            >
-              Top CP
-            </button>
-
-            <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkConfirm(""); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
-            <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Error(""); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
-              <Upload size={16} /><span>Import FM26 JSON</span>
-            </button>
-
-            {/* ADD PLAYER */}
-            <button
-              type="button"
-              onClick={handleOpenAddPlayer}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003399] text-white transition hover:bg-[#002477]"
-              aria-label="Add player"
-              title="Add player"
-            >
-              <Plus size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* ERROR */}
-        {errorMessage && (
-          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
-          </div>
-        )}
-
-        {bulkMode && <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-blue-900">{bulkIds.length} jugadores seleccionados</strong><div className="flex gap-2"><button type="button" className="rounded-lg border bg-white px-3 py-1.5 text-xs" onClick={() => setBulkIds(old => [...new Set([...old,...filteredPlayers.map(p => String(p.id)).filter(Boolean)])])}>Seleccionar visibles ({filteredPlayers.length})</button><button type="button" className="rounded-lg border bg-white px-3 py-1.5 text-xs" onClick={() => setBulkIds([])}>Deseleccionar</button></div></div>
-          <div className="flex flex-wrap items-center gap-2"><select className="rounded-lg border p-2 text-sm" value={bulkAction} onChange={e=>{setBulkAction(e.target.value);setBulkValue("");}}><option value="team_id">Cambiar club</option><option value="ca">Cambiar CA</option><option value="cp">Cambiar PA / CP</option><option value="height">Cambiar altura (cm)</option><optgroup label="Atributos 1–20">{Object.entries(FM26_ATTRIBUTE_MAP).flatMap(([group, fields]) => Object.keys(fields).map(field => <option key={group+field} value={`stat:${group}:${field}`}>{group} · {field.replaceAll("_", " ")}</option>))}</optgroup><optgroup label="Posiciones 1–20">{Object.keys(FM26_POSITION_MAP).map(field => <option key={field} value={`position:${field}`}>{field.replaceAll("_", " ")}</option>)}</optgroup></select>
-          {bulkAction === "team_id" ? <select value={bulkValue} onChange={e=>setBulkValue(e.target.value)} className="min-w-[190px] rounded-lg border p-2 text-sm"><option value="">Selecciona club destino</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select> : <input className="w-32 rounded-lg border p-2 text-sm" type="number" min={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "1" : "0"} max={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "20" : "200"} value={bulkValue} onChange={e=>setBulkValue(e.target.value)} placeholder="Nuevo valor" />}
-          <button type="button" disabled={bulkBusy || !bulkIds.length} onClick={()=>applyBulkAction(false)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Aplicar a seleccionados</button></div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-blue-200 pt-3"><span className="text-xs font-bold text-red-700">Borrar definitivamente:</span><input aria-label="Confirmar eliminación" className="w-44 rounded-lg border border-red-200 p-2 text-sm" placeholder="Escribe ELIMINAR" value={bulkConfirm} onChange={e=>setBulkConfirm(e.target.value)} /><button type="button" disabled={bulkBusy || !bulkIds.length || bulkConfirm !== "ELIMINAR"} onClick={()=>applyBulkAction(true)} className="rounded-lg bg-red-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Eliminar {bulkIds.length} jugadores</button></div>
-          {bulkFeedback && <p className="text-sm text-blue-950" role="status">{bulkFeedback}</p>}
-        </div>}
-
-        {/* COUNTER */}
-        <div className="mb-4 flex items-center justify-between">
-          <div className="text-xs font-medium text-slate-400">
-            {isLoading
-              ? "Loading players..."
-              : `${filteredPlayers.length} ${
-                  filteredPlayers.length === 1
-                    ? "player"
-                    : "players"
-                }`}
-          </div>
-        </div>
-
-        {/* LOADING */}
-        {isLoading ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
-            {Array.from({ length: 8 }).map(
-              (_, index) => (
-                <div
-                  key={index}
-                  className="h-[106px] animate-pulse rounded-2xl border border-slate-200 bg-white"
-                />
-              )
-            )}
-          </div>
-        ) : filteredPlayers.length > 0 ? (
-
-          /* PLAYERS */
-          <div className="space-y-8">
-
-            {/* ALL PLAYERS */}
-            {viewMode === "all" && (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
-                {filteredPlayers.map(
-                  (player) => (
-                    <PlayerCard
-                          selectionMode={bulkMode}
-                          selected={bulkIds.includes(String(player.id))}
-                          onToggleSelection={toggleBulkPlayer}
-                      key={
-                        player.id ||
-                        `${player.name}-${player.dateOfBirth}`
-                      }
-                      player={player}
-                      team={
-                        teamById[player.teamId]
-                      }
-                      country={
-                        countryById[
-                          player.countryId
-                        ]
-                      }
-                      onClick={() => {
-                        console.log(
-                          "PLAYER CLICKED:",
-                          player
-                        );
-
-                        setSelectedPlayer(player);
-                      }}
-                    />
-                  )
-                )}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Club
+                </p>
+                <p className="font-bold text-slate-900">{teamName}</p>
               </div>
-            )}
-
-            {/* BY TEAMS */}
-            {viewMode === "teams" && (
-              <div className="space-y-6">
-                {groupedByTeam.map(
-                  (group) => (
-                    <section key={group.id}>
-                      <GroupHeader
-                        type="team"
-                        name={
-                          group.team?.name ||
-                          "No club"
-                        }
-                        logo={group.team?.logo}
-                        count={group.players.length}
-                      />
-
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
-                        {group.players.map(
-                          (player) => (
-                            <PlayerCard
-                          selectionMode={bulkMode}
-                          selected={bulkIds.includes(String(player.id))}
-                          onToggleSelection={toggleBulkPlayer}
-                              key={
-                                player.id ||
-                                `${player.name}-${player.dateOfBirth}`
-                              }
-                              player={player}
-                              team={
-                                teamById[player.teamId]
-                              }
-                              country={
-                                countryById[player.countryId]
-                              }
-                              compact
-                              hideTeam
-                              onClick={() => {
-                                console.log(
-                                  "PLAYER CLICKED:",
-                                  player
-                                );
-
-                                setSelectedPlayer(player);
-                              }}
-                            />
-                          )
-                        )}
-                      </div>
-                    </section>
-                  )
-                )}
-              </div>
-            )}
-
-            {/* BY COUNTRIES */}
-            {viewMode === "countries" && (
-              <div className="space-y-6">
-                {groupedByCountry.map(
-                  (group) => (
-                    <section key={group.id}>
-                      <GroupHeader
-                        type="country"
-                        name={
-                          group.country?.name ||
-                          "No country"
-                        }
-                        code={
-                          group.country?.code
-                        }
-                        count={group.players.length}
-                      />
-
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
-                        {group.players.map(
-                          (player) => (
-                            <PlayerCard
-                          selectionMode={bulkMode}
-                          selected={bulkIds.includes(String(player.id))}
-                          onToggleSelection={toggleBulkPlayer}
-                              key={
-                                player.id ||
-                                `${player.name}-${player.dateOfBirth}`
-                              }
-                              player={player}
-                              team={
-                                teamById[player.teamId]
-                              }
-                              country={
-                                countryById[player.countryId]
-                              }
-                              compact
-                              useNationalCardPhoto
-                              onClick={() => {
-                                console.log(
-                                  "PLAYER CLICKED:",
-                                  player
-                                );
-
-                                setSelectedPlayer(player);
-                              }}
-                            />
-                          )
-                        )}
-                      </div>
-                    </section>
-                  )
-                )}
-              </div>
-            )}
-
-
-            {/* BY POSITION */}
-            {viewMode === "positions" && (
-              <div className="space-y-6">
-                {groupedByPosition.map((group) => (
-                  <section key={group.id}>
-                    <GroupHeader
-                      type="position"
-                      name={group.name}
-                      count={group.players.length}
-                    />
-
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
-                      {group.players.map((player) => (
-                        <PlayerCard
-                          selectionMode={bulkMode}
-                          selected={bulkIds.includes(String(player.id))}
-                          onToggleSelection={toggleBulkPlayer}
-                          key={
-                            player.id ||
-                            `${player.name}-${player.dateOfBirth}`
-                          }
-                          player={player}
-                          team={teamById[player.teamId]}
-                          country={countryById[player.countryId]}
-                          compact
-                          onClick={() => setSelectedPlayer(player)}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            )}
-
-            {/* BY AGE */}
-            {viewMode === "age" && (
-              <div className="space-y-6">
-                {groupedByAge.map((group) => (
-                  <section key={group.id}>
-                    <GroupHeader
-                      type="age"
-                      name={group.name}
-                      count={group.players.length}
-                    />
-
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
-                      {group.players.map((player) => (
-                        <PlayerCard
-                          selectionMode={bulkMode}
-                          selected={bulkIds.includes(String(player.id))}
-                          onToggleSelection={toggleBulkPlayer}
-                          key={
-                            player.id ||
-                            `${player.name}-${player.dateOfBirth}`
-                          }
-                          player={player}
-                          team={teamById[player.teamId]}
-                          country={countryById[player.countryId]}
-                          compact
-                          onClick={() => setSelectedPlayer(player)}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            )}
-
-            {/* BY DESCRIPTION */}
-            {viewMode === "description" && (
-              <div className="space-y-4">
-                {groupedByDescriptionCategories.map((category) => {
-                  const categoryCount = category.subgroups.reduce(
-                    (total, subgroup) => total + subgroup.players.length,
-                    0
-                  );
-                  return (
-                    <section
-                      key={category.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
-                    >
-                      <div className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-3">
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
-                              <ChevronDown size={17} className="text-slate-500" />
-                            </span>
-
-                            <div className="min-w-0">
-                              <h2 className="truncate text-base font-extrabold tracking-tight text-slate-900">
-                                {category.name}
-                              </h2>
-                              <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
-                                {category.subgroups.length} subgroups
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                          {categoryCount} {
-                            categoryCount === 1 ? "player" : "players"
-                          }
-                        </div>
-                      </div>
-
-                      <div className="border-t border-slate-100 bg-slate-50/40 p-3">
-                          <div className="space-y-2">
-                            {category.subgroups.map((subgroup) => {
-                              return (
-                                <div
-                                  key={subgroup.id}
-                                  className="overflow-hidden rounded-xl border border-slate-200 bg-white"
-                                >
-                                  <div className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left">
-                                    <div className="flex min-w-0 items-center gap-3">
-                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50">
-                                        <ChevronDown
-                                          size={15}
-                                          className="text-slate-400"
-                                        />
-                                      </span>
-
-                                      <span className="min-w-0 truncate text-sm font-semibold text-slate-800">
-                                        {subgroup.name}
-                                      </span>
-                                    </div>
-
-                                    <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                                      {subgroup.players.length} {
-                                        subgroup.players.length === 1
-                                          ? "player"
-                                          : "players"
-                                      }
-                                    </span>
-                                  </div>
-
-                                  <div className="border-t border-slate-100 bg-slate-50/30 p-3">
-                                      {subgroup.players.length > 0 ? (
-                                        <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
-                                          {subgroup.players.map((player) => (
-                                            <PlayerCard
-                          selectionMode={bulkMode}
-                          selected={bulkIds.includes(String(player.id))}
-                          onToggleSelection={toggleBulkPlayer}
-                                              key={
-                                                player.id ||
-                                                `${player.name}-${player.dateOfBirth}`
-                                              }
-                                              player={player}
-                                              team={teamById[player.teamId]}
-                                              country={
-                                                countryById[player.countryId]
-                                              }
-                                              compact
-                                              onClick={() =>
-                                                setSelectedPlayer(player)
-                                              }
-                                            />
-                                          ))}
-                                        </div>
-                                      ) : (
-                                        <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-xs font-medium text-slate-400">
-                                          No players in this subgroup.
-                                        </div>
-                                      )}
-                                    </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                    </section>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-        ) : (
-
-          /* EMPTY STATE */
-          <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center">
-
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-300">
-              <Users size={24} />
             </div>
 
-            <h2 className="mt-4 text-sm font-extrabold text-slate-900">
-              {search
-                ? "No players found"
-                : "No players created yet"}
-            </h2>
+            <div className="flex items-center gap-3 text-slate-600">
+              <CalendarDays size={18} />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Date of birth
+                </p>
+                <p className="font-bold text-slate-900">
+                  {formatDate(dateOfBirth)}
+                  {age !== null ? ` · ${age} years` : ""}
+                </p>
+              </div>
+            </div>
 
-            <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-              {search
-                ? "Try another player, club or country name."
-                : "Create your first player using the + button."}
+            <div className="flex items-center gap-3 text-slate-600">
+              <UserRound size={18} />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  Player ID
+                </p>
+                <p className="max-w-[220px] truncate font-mono text-xs font-semibold text-slate-700">
+                  {player?.id || "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-20 flex h-full min-h-0 items-end justify-center overflow-visible">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[clamp(12rem,25vw,24rem)] font-black leading-none tracking-[-0.1em] text-[#003399]/[0.06]">
+            {age ?? ""}
+          </div>
+
+          {photoUrl ? (
+            typeof document !== "undefined"
+              ? createPortal(
+                  <img
+                    src={photoUrl}
+                    alt={playerName}
+                    className="
+                      fixed
+                      bottom-0
+                      left-1/2
+                      z-[60]
+                      pointer-events-none
+                      w-auto
+                      max-w-none
+                      -translate-x-1/2
+                      object-contain
+                      object-bottom
+                      drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
+
+                      h-[72vh]
+
+                      sm:h-[76vh]
+
+                      md:h-[80vh]
+
+                      lg:h-[88vh]
+                    "
+                  />,
+                  document.body
+                )
+              : null
+          ) : (
+            <div className="relative z-10 flex h-[420px] w-[320px] items-center justify-center rounded-[2rem] border border-slate-300 bg-white/60 text-slate-300">
+              <UsersPlaceholder />
+            </div>
+          )}
+        </div>
+
+        <aside className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0">
+          <div className="rounded-2xl border border-white/70 bg-white/70 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.07)] backdrop-blur-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+              Current club
             </p>
 
-            {!search && (
-              <button
-                type="button"
-                onClick={
-                  handleOpenAddPlayer
-                }
-                className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477]"
-              >
-                <Plus size={16} />
-                Add player
-              </button>
-            )}
-
-          </div>
-        )}
-
-        {/* IMPORT POSITIONS MODAL */}
-        {fm26ImportOpen && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={e => { if (e.target === e.currentTarget && !fm26Busy) setFm26ImportOpen(false); }}>
-            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-              <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-extrabold">Importar FM26 JSON</h2><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)}><X size={20}/></button></div>
-              <p className="mb-4 text-sm text-slate-600">Carga un JSON de fmsave (players). Detectamos y agrupamos sus clubes, sugerimos coincidencias y te pedimos confirmar el equipo de destino de cada grupo. No modifica fotografías ni salarios anuales.</p>
-              <input type="file" accept=".json,application/json" onChange={handleFm26File} disabled={fm26Busy} className="mb-4 w-full text-sm" />
-              {fm26FileName && <p className="mb-3 text-xs text-slate-500">Archivo: {fm26FileName}</p>}
-              {fm26Import && <div className="mb-4 space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                <div><p className="text-sm font-extrabold">Equipos detectados en FM26: {fm26Clubs.length}</p><p className="text-xs text-slate-600">Los jugadores están agrupados por ID de club de Football Manager. Elige su equivalente en MF LEGACY o crea uno nuevo. Las sugerencias no se aplican solas.</p></div>
-                {fm26Clubs.map(group=>{
-                  const picked=teams.find(t=>String(t.id)===String(fm26ClubChoices[group.key]));
-                  const search=fm26ClubSearch[group.key]||"";
-                  const matches=search.trim()?teams.filter(t=>fm26ClubKey(t.name).includes(fm26ClubKey(search))||fm26ClubKey(t.shortName).includes(fm26ClubKey(search))).slice(0,12):[];
-                  return <div key={group.key} className="rounded-xl border border-slate-200 bg-white p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-bold">FM26: {group.name}</p><p className="text-xs text-slate-500">ID {String(group.uid??"desconocido")} · {group.count} jugadores</p></div><span className={`rounded-full px-2 py-1 text-xs font-semibold ${picked?"bg-green-100 text-green-800":"bg-amber-100 text-amber-800"}`}>{picked?`Asignado a ${picked.name}`:"Pendiente de asignar"}</span></div>
-                    <p className="mt-3 text-xs font-semibold text-slate-600">¿Es alguno de estos equipos?</p>
-                    <div className="mt-1 flex flex-wrap gap-2">{group.suggestions.length?group.suggestions.map(t=><button key={t.id} type="button" disabled={fm26Busy} onClick={()=>{setFm26ClubChoices(old=>({...old,[group.key]:String(t.id)}));setFm26CreatingClub("");}} className={`rounded-lg border px-3 py-1.5 text-xs ${String(picked?.id)===String(t.id)?"border-green-500 bg-green-50 font-bold":"border-slate-200 hover:bg-blue-50"}`}>{t.name} · {t.score}%</button>):<span className="text-xs text-slate-500">Sin coincidencias cercanas</span>}</div>
-                    <label className="mt-3 block text-xs font-semibold text-slate-600">Buscar otro equipo</label>
-                    <input disabled={fm26Busy} value={search} onChange={e=>setFm26ClubSearch(old=>({...old,[group.key]:e.target.value}))} placeholder="Buscar por nombre..." className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" />
-                    {!!search.trim()&&<div className="mt-1 max-h-32 overflow-y-auto rounded-lg border">{matches.map(t=><button key={t.id} type="button" onClick={()=>{setFm26ClubChoices(old=>({...old,[group.key]:String(t.id)}));setFm26ClubSearch(old=>({...old,[group.key]:""}));setFm26CreatingClub("");}} className="block w-full border-b px-3 py-2 text-left text-xs hover:bg-blue-50">{t.name}</button>)}{!matches.length&&<p className="p-2 text-xs text-slate-500">No hay coincidencias</p>}</div>}
-                    <div className="mt-2 flex flex-wrap gap-3"><button type="button" className="text-xs font-semibold text-blue-700 underline" onClick={()=>{setFm26CreatingClub(group.key);setFm26NewClubName(group.name);setFm26NewClubCountry("");setFm26NewClubLeague("");}}>Ninguno: crear equipo</button>{picked&&<button type="button" className="text-xs text-slate-500 underline" onClick={()=>setFm26ClubChoices(old=>{const next={...old};delete next[group.key];return next;})}>Quitar asociación</button>}</div>
-                    {fm26CreatingClub===group.key&&<div className="mt-3 space-y-2 rounded-lg border bg-slate-50 p-3"><p className="text-xs font-bold">Crear equipo en MF LEGACY</p><input value={fm26NewClubName} onChange={e=>setFm26NewClubName(e.target.value)} placeholder="Nombre del equipo" className="w-full rounded border p-2 text-sm"/><select className="w-full rounded border p-2 text-sm" value={fm26NewClubCountry} onChange={e=>setFm26NewClubCountry(e.target.value)}><option value="">Selecciona país</option>{countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select className="w-full rounded border p-2 text-sm" value={fm26NewClubLeague} onChange={e=>setFm26NewClubLeague(e.target.value)}><option value="">Selecciona liga</option>{fm26Leagues.map(l=><option key={l.id||l._id} value={l.id||l._id}>{l.name}</option>)}</select><div className="flex gap-2"><button type="button" disabled={fm26Busy} onClick={()=>handleCreateFm26Club(group)} className="rounded bg-[#003399] px-3 py-2 text-xs font-bold text-white">Crear y asociar</button><button type="button" disabled={fm26Busy} onClick={()=>setFm26CreatingClub("")} className="rounded border px-3 py-2 text-xs">Cancelar</button></div></div>}
-                  </div>;
-                })}
-              </div>}
-              {fm26Preview && <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
-                <p className="font-bold">Vista previa de {fm26Preview.rows.length} jugadores</p>
-                <p>{fm26Preview.update} para actualizar · {fm26Preview.create} nuevos · {fm26Preview.skipped} omitidos ({fm26Preview.unmapped} sin asociación de club)</p>
-                <p className="mt-2 text-xs text-slate-500">Solo se importarán jugadores con grupo asociado. Las coincidencias ambiguas no se modifican. No se borra información que falte en el JSON.</p>
-                <details className="mt-3 rounded-lg border border-slate-200 bg-white p-3"><summary className="cursor-pointer text-sm font-bold">Vincular nacionalidades (opcional)</summary><p className="my-2 text-xs text-slate-500">FM26 usa IDs distintos a Base44. Los no vinculados conservan el país previo y su ID original.</p><div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">{[...new Set(fm26Import.map(p=>String(p.nation_id)).filter(x=>x!=="undefined"))].sort((a,b)=>Number(a)-Number(b)).map(id=><label key={id} className="flex items-center gap-2 text-xs"><span className="w-20 shrink-0">FM ID {id}</span><select value={fm26NationMapping[id] || ""} onChange={e=>setFm26NationMapping(old=>({...old,[id]:e.target.value}))} className="min-w-0 flex-1 rounded-md border p-1.5"><option value="">Sin vincular</option>{countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>)}</div></details>
-                <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={fm26CreateMissing} onChange={e=>setFm26CreateMissing(e.target.checked)}/> Crear jugadores que aún no existan</label>
-              </div>}
-              {fm26Error && <p className="mb-3 text-sm text-red-700">{fm26Error}</p>}
-              {fm26Message && <p className="mb-3 text-sm text-slate-700">{fm26Message}</p>}
-              {(fm26Busy || fm26ProgressTotal > 0) && (
-                <div className="sticky bottom-0 z-10 -mx-2 mb-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-[0_-10px_28px_rgba(15,23,42,0.08)] backdrop-blur">
-                  <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-700">
-                    <span>{fm26ProgressLabel || (fm26Busy ? "Importando jugadores..." : "Importación finalizada")}</span>
-                    <span>{Math.min(fm26ProgressCurrent, fm26ProgressTotal)}/{fm26ProgressTotal || 0}</span>
-                  </div>
-                  <div className="h-3 overflow-hidden rounded-full bg-slate-200">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-[#003399] via-[#1d4ed8] to-[#60a5fa] transition-all duration-300"
-                      style={{ width: `${fm26ProgressTotal ? (Math.min(fm26ProgressCurrent, fm26ProgressTotal) / fm26ProgressTotal) * 100 : 0}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>Progreso de importación jugador a jugador</span>
-                    <span>{fm26ProgressTotal ? `${Math.round((Math.min(fm26ProgressCurrent, fm26ProgressTotal) / fm26ProgressTotal) * 100)}%` : "0%"}</span>
-                  </div>
-                </div>
-              )}
-              <div className="flex justify-end gap-2"><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border px-4 py-2">Cerrar</button><button type="button" disabled={!fm26Preview || fm26Preview.unmapped > 0 || fm26Busy} onClick={handleFm26Import} className="rounded-lg bg-[#003399] px-4 py-2 font-semibold text-white disabled:opacity-40">{fm26Busy ? "Importando..." : "Confirmar importación"}</button></div>
-            </div>
-          </div>
-        )}
-
-        {/* ADD PLAYER MODAL */}
-        {false && importModalOpen && (
-          <div
-            className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
-            onMouseDown={(event) => {
-              if (
-                event.target === event.currentTarget &&
-                !isImporting
-              ) {
-                handleCloseImport();
-              }
-            }}
-          >
-            <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#003399]/[0.08] text-[#003399]">
-                    <Upload size={18} />
-                  </div>
-
-                  <div className="min-w-0">
-                    <h2 className="text-base font-extrabold text-slate-900">
-                      Import players from CSV
-                    </h2>
-
-                    <p className="mt-0.5 text-xs text-slate-400">
-                      Importación masiva desde el export de Football Manager.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleCloseImport}
-                  disabled={isImporting}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
-                  aria-label="Close"
-                >
-                  <X size={17} />
-                </button>
+            <div className="mt-5 flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-slate-50">
+                {teamLogo ? (
+                  <img src={teamLogo} alt="" className="h-12 w-12 object-contain" />
+                ) : (
+                  <Building2 size={25} className="text-slate-300" />
+                )}
               </div>
 
-              <div className="max-h-[calc(92vh-72px)] overflow-y-auto p-5">
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-6">
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <FileText
-                      size={30}
-                      strokeWidth={1.6}
-                      className="text-slate-300"
-                    />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black uppercase tracking-tight text-slate-900">
+                  {teamName}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
+                  Official club
+                </p>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
 
-                    <p className="mt-3 text-sm font-extrabold text-slate-800">
-                      {importFileName ||
-                        "Selecciona el CSV de Football Manager"}
-                    </p>
+      {(() => {
+        const primaryColor = normalizeHexColor(
+          team?.primary_color || team?.primaryColor,
+          "#003399"
+        );
+        const middleColor = darkenHex(primaryColor, 0.48);
 
-                    <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-400">
-                      Primero analizamos el archivo. Después se resuelven
-                      automáticamente Countries y Teams y se crean los Players.
-                    </p>
+        if (typeof document === "undefined") return null;
 
-                    <label className="mt-4 inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477]">
-                      <Upload size={16} />
-                      {importFileName
-                        ? "Seleccionar otro CSV"
-                        : "Seleccionar CSV"}
+        return createPortal(
+          <div className="pointer-events-none fixed bottom-20 left-1/2 z-[80] flex w-[min(1100px,calc(100vw-28px))] -translate-x-1/2 gap-4 sm:bottom-20 sm:gap-5">
+            <PlayerStatCard background={primaryColor} grow={1} />
+            <PlayerStatCard background={middleColor} grow={1.65} />
+            <PlayerStatCard background={primaryColor} grow={1} />
+          </div>,
+          document.body
+        );
+      })()}
 
-                      <input
-                        key={importFileKey}
-                        type="file"
-                        accept=".csv,text/csv"
-                        className="hidden"
-                        onChange={
-                          handleImportFile
-                        }
-                        disabled={isImporting}
-                      />
+      {editOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeEditor();
+            }
+          }}
+        >
+          <div className="max-h-[calc(100vh_-_32px)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-base font-extrabold text-slate-900">
+                  Edit player
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  Update the player's information.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeEditor}
+                disabled={isSaving}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-50"
+                aria-label="Close editor"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="space-y-5 p-5">
+              <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1">
+                {[
+                  ["general", "General"],
+                  ["positions", "Positions"],
+                  ["mental", "Mental"],
+                  ["physical", "Physical"],
+                  ["technical", "Technical"],
+                  ["goalkeeping", "Goalkeeping"],
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setEditTab(id)}
+                    className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition ${
+                      editTab === id
+                        ? "bg-white text-[#003399] shadow-sm"
+                        : "text-slate-500 hover:bg-white/70 hover:text-slate-800"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {editTab === "general" && (
+                <div className="space-y-5">
+                {editablePlayer?.fm26_uid && (
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+                    <p className="mb-2 text-xs font-bold text-blue-900">Datos importados de FM26</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                      <div><span className="text-slate-500">FM UID</span><p className="font-semibold">{editablePlayer.fm26_uid}</p></div>
+                      <div><span className="text-slate-500">Club de origen</span><p className="font-semibold">{editablePlayer.fm26_save_club_name || "—"}</p></div>
+                      <div><span className="text-slate-500">Valor de traspaso</span><p className="font-semibold">{editablePlayer.fm26_transfer_value == null ? "—" : Number(editablePlayer.fm26_transfer_value).toLocaleString("es-ES") + " (moneda de partida)"}</p></div>
+                      <div><span className="text-slate-500">Sueldo semanal</span><p className="font-semibold">{editablePlayer.fm26_weekly_wage == null ? "—" : Number(editablePlayer.fm26_weekly_wage).toLocaleString("es-ES") + " (moneda de partida)"}</p></div>
+                      <div><span className="text-slate-500">Posiciones naturales</span><p className="font-semibold">{(editablePlayer.fm26_natural_positions || []).join(", ") || "—"}</p></div>
+                      <div><span className="text-slate-500">Posiciones competentes</span><p className="font-semibold">{(editablePlayer.fm26_accomplished_positions || []).join(", ") || "—"}</p></div>
+                      <div><span className="text-slate-500">Fin contrato</span><p className="font-semibold">{editablePlayer.fm26_contract?.end || "—"}</p></div>
+                      <div><span className="text-slate-500">Reputación mundial</span><p className="font-semibold">{editablePlayer.fm26_reputation?.world ?? "—"}</p></div>
+                      <div><span className="text-slate-500">Nacionalidad FM</span><p className="font-semibold">ID {editablePlayer.fm26_nation_id || "—"}</p></div>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <section className="rounded-lg border border-blue-100 bg-white p-3"><h4 className="mb-2 text-xs font-bold text-blue-900">Personalidad FM26</h4><div className="grid grid-cols-2 gap-1.5 text-xs">{Object.entries(editablePlayer.fm26_personality || {}).map(([key,value])=><div key={key} className="flex justify-between gap-2"><span className="text-slate-500">{key.replaceAll("_", " ")}</span><strong>{value}</strong></div>)}</div></section>
+                      <section className="rounded-lg border border-blue-100 bg-white p-3"><h4 className="mb-2 text-xs font-bold text-blue-900">Contrato y economía</h4><div className="space-y-1 text-xs"><p>Inicio: {editablePlayer.fm26_contract?.start || "—"}</p><p>Fin: {editablePlayer.fm26_contract?.end || "—"}</p><p>Estatus: {(editablePlayer.fm26_contract?.squad_status || "—").replaceAll("_", " ")}</p><p>Cláusulas: {editablePlayer.fm26_contract?.clauses?.length || 0}</p><p>Cesión: {editablePlayer.fm26_loan_details?.on_loan ? "Sí" : "No"}</p></div></section>
+                      <section className="rounded-lg border border-blue-100 bg-white p-3 sm:col-span-2"><h4 className="mb-2 text-xs font-bold text-blue-900">Rasgos de jugador</h4><p className="text-xs text-slate-700">{(editablePlayer.fm26_traits || []).filter(x=>x !== "unknown").map(x=>x.replaceAll("_", " ")).join(" · ") || "Sin rasgos identificados"}</p></section>
+                    </div>
+                    <details className="mt-3 text-xs"><summary className="cursor-pointer font-semibold text-blue-900">Ver registro original completo de FM26</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-[11px]">{JSON.stringify(editablePlayer.fm26_source_record || {},null,2)}</pre></details>
+                  </div>
+                )}
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                      Player name
                     </label>
-                  </div>
-                </div>
-
-                {importError && (
-                  <div className="mt-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    <AlertCircle
-                      size={17}
-                      className="mt-0.5 shrink-0"
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          name: event.target.value,
+                        }))
+                      }
+                      className={INPUT_CLASS}
+                      required
                     />
+                  </div>
 
-                    <div className="min-w-0">
-                      {importError}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        Date of birth
+                      </label>
+                      <input
+                        type="text"
+                        value={form.dateOfBirth}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            dateOfBirth: event.target.value,
+                          }))
+                        }
+                        placeholder="DD/MM/YYYY"
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        Style
+                      </label>
+                      <input
+                        type="text"
+                        value={form.style}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            style: event.target.value,
+                          }))
+                        }
+                        placeholder="Ej. Creativo"
+                        className={INPUT_CLASS}
+                      />
                     </div>
                   </div>
-                )}
 
-                {importAnalysis && importPreview && (
-                  <>
-                    <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <div className="rounded-xl border border-slate-200 bg-white p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                          Players
-                        </p>
-
-                        <p className="mt-1 text-2xl font-extrabold text-slate-900">
-                          {importPreview.total}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-white p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                          Countries
-                        </p>
-
-                        <p className="mt-1 text-2xl font-extrabold text-slate-900">
-                          {importPreview.uniqueCountries}
-                        </p>
-
-                        <p className="mt-0.5 text-[11px] text-slate-400">
-                          {importPreview.newCountries} nuevos
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-white p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                          Teams
-                        </p>
-
-                        <p className="mt-1 text-2xl font-extrabold text-slate-900">
-                          {importPreview.uniqueTeams}
-                        </p>
-
-                        <p className="mt-0.5 text-[11px] text-slate-400">
-                          {importPreview.newTeams} nuevos
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-white p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                          Warnings
-                        </p>
-
-                        <p className="mt-1 text-2xl font-extrabold text-slate-900">
-                          {importPreview.warningRows}
-                        </p>
-
-                        <p className="mt-0.5 text-[11px] text-slate-400">
-                          filas con avisos
-                        </p>
-                      </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        Country
+                      </label>
+                      <SearchableEntitySelect
+                        value={form.countryId}
+                        onChange={(value) =>
+                          setForm((current) => ({
+                            ...current,
+                            countryId: value,
+                          }))
+                        }
+                        options={countries}
+                        kind="country"
+                        placeholder="Select country"
+                        searchPlaceholder="Search country..."
+                        emptyOption={{
+                          value: "",
+                          label: "Select country",
+                        }}
+                      />
                     </div>
 
-                    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="text-xs font-extrabold text-slate-800">
-                            Columnas detectadas
-                          </p>
-
-                          <p className="mt-1 text-[11px] text-slate-400">
-                            {importAnalysis.headers.length} columnas encontradas.
-                          </p>
-                        </div>
-
-                        <span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                          Delimitador ;
-                        </span>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {importAnalysis.headers.map(
-                          (header) => (
-                            <span
-                              key={header}
-                              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-medium text-slate-500"
-                            >
-                              {header}
-                            </span>
-                          )
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs font-extrabold text-slate-700">
-                        Team matching
-                      </p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                        Antes de crear un club, el importador compara también nombres abreviados, sufijos como FC/CF/AFC y el short name del Team existente. Solo crea un equipo cuando no encuentra una coincidencia suficientemente segura.
-                      </p>
-                    </div>
-
-                    {importPreview.newTeams > 0 && (
-                      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                        <p className="text-xs font-extrabold text-amber-900">Liga para los equipos nuevos</p>
-                        <p className="mt-1 text-[11px] leading-relaxed text-amber-800/80">El CSV trae el club, pero no la liga. Los equipos que ya existen se reutilizan. Selecciona la liga que corresponde a los equipos nuevos.</p>
-                        <select
-                          value={defaultImportLeagueId}
-                          onChange={(event) => setDefaultImportLeagueId(event.target.value)}
-                          disabled={isImporting}
-                          className={`${inputClassName} mt-3`}
-                        >
-                          <option value="">Selecciona una liga...</option>
-                          {leagues.map((league) => (
-                            <option key={league.id || league._id} value={league.id || league._id}>
-                              {league.name}
-                            </option>
-                          ))}
-                        </select>
-                        {leagues.length === 0 && (
-                          <p className="mt-2 text-[11px] font-semibold text-red-700">No se han podido cargar ligas.</p>
-                        )}
-                      </div>
-                    )}
-
-                    {(importPreview.missingNames > 0 ||
-                      importPreview.missingCountries > 0 ||
-                      importPreview.missingTeams > 0) && (
-                      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                        {importPreview.missingNames > 0 && (
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
-                            {importPreview.missingNames} jugador(es) sin nombre.
-                          </div>
-                        )}
-
-                        {importPreview.missingCountries > 0 && (
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
-                            {importPreview.missingCountries} jugador(es) sin país.
-                          </div>
-                        )}
-
-                        {importPreview.missingTeams > 0 && (
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
-                            {importPreview.missingTeams} jugador(es) sin equipo.
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
-                      <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
-                        <p className="text-xs font-extrabold text-slate-800">
-                          Preview
-                        </p>
-                      </div>
-
-                      <div className="divide-y divide-slate-100">
-                        {importAnalysis.players
-                          .slice(0, 8)
-                          .map(
-                            ({
-                              row_number,
-                              player,
-                              source,
-                              warnings,
-                            }) => (
-                              <div
-                                key={`${row_number}-${player.name}`}
-                                className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                              >
-                                <div className="min-w-0">
-                                  <div className="flex min-w-0 items-center gap-2">
-                                    {warnings.length === 0 ? (
-                                      <CheckCircle2
-                                        size={15}
-                                        className="shrink-0 text-emerald-500"
-                                      />
-                                    ) : (
-                                      <AlertCircle
-                                        size={15}
-                                        className="shrink-0 text-amber-500"
-                                      />
-                                    )}
-
-                                    <span className="truncate text-sm font-bold text-slate-800">
-                                      {player.name ||
-                                        `Row ${row_number}`}
-                                    </span>
-                                  </div>
-
-                                  <div className="mt-1 text-[11px] text-slate-400">
-                                    {source?.countryName ||
-                                      "Sin país"}
-                                    {" · "}
-                                    {source?.teamName ||
-                                      "Sin equipo"}
-                                    {" · CA "}
-                                    {player.ca || 0}
-                                    {" / CP "}
-                                    {player.cp || 0}
-                                  </div>
-                                </div>
-
-                                <div className="shrink-0 text-right text-[10px] text-slate-400">
-                                  {warnings.length > 0
-                                    ? warnings.join(" ")
-                                    : `Fila ${row_number}`}
-                                </div>
-                              </div>
-                            )
-                          )}
-                      </div>
-
-                      {importAnalysis.players.length > 8 && (
-                        <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 text-center text-[11px] text-slate-400">
-                          Mostrando 8 de{" "}
-                          {importAnalysis.players.length} jugadores.
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {isImporting && (
-                  <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Loader2
-                          size={16}
-                          className="shrink-0 animate-spin text-[#003399]"
-                        />
-
-                        <span className="truncate text-xs font-bold text-slate-700">
-                          {importProgress.phase ||
-                            "Importando..."}
-                        </span>
-                      </div>
-
-                      <span className="shrink-0 text-xs font-semibold text-slate-400">
-                        {importProgress.current} /{" "}
-                        {importProgress.total}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className="h-full rounded-full bg-[#003399] transition-all duration-300"
-                        style={{
-                          width:
-                            importProgress.total > 0
-                              ? `${Math.min(
-                                  100,
-                                  (importProgress.current /
-                                    importProgress.total) *
-                                    100
-                                )}%`
-                              : "0%",
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        Associated club
+                      </label>
+                      <SearchableEntitySelect
+                        value={form.teamId}
+                        onChange={(value) =>
+                          setForm((current) => ({
+                            ...current,
+                            teamId: value,
+                          }))
+                        }
+                        options={teams}
+                        kind="team"
+                        placeholder="No club"
+                        searchPlaceholder="Search club..."
+                        emptyOption={{
+                          value: "",
+                          label: "No club",
                         }}
                       />
                     </div>
                   </div>
-                )}
 
-                {importResult && !isImporting && (
-                  <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle2
-                        size={18}
-                        className="mt-0.5 shrink-0 text-emerald-600"
-                      />
-
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-extrabold text-emerald-900">
-                          Import finished
-                        </p>
-
-                        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.08em] text-emerald-700/70">
-                              Imported
-                            </p>
-                            <p className="text-lg font-extrabold text-emerald-900">
-                              {importResult.imported}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.08em] text-emerald-700/70">
-                              Duplicates
-                            </p>
-                            <p className="text-lg font-extrabold text-emerald-900">
-                              {importResult.skippedDuplicates}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.08em] text-emerald-700/70">
-                              Countries
-                            </p>
-                            <p className="text-lg font-extrabold text-emerald-900">
-                              +{importResult.countriesCreated}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.08em] text-emerald-700/70">
-                              Teams
-                            </p>
-                            <p className="text-lg font-extrabold text-emerald-900">
-                              +{importResult.teamsCreated}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[0.08em] text-emerald-700/70">
-                              Errors
-                            </p>
-                            <p className="text-lg font-extrabold text-emerald-900">
-                              {importResult.errors.length +
-                                importResult.skippedInvalid}
-                            </p>
-                          </div>
-                        </div>
-
-                        {importResult.errors.length > 0 && (
-                          <div className="mt-4 rounded-lg border border-red-200 bg-white/70 p-3">
-                            <p className="text-xs font-extrabold text-red-700">
-                              Incidencias
-                            </p>
-
-                            <div className="mt-2 space-y-1">
-                              {importResult.errors
-                                .slice(0, 12)
-                                .map(
-                                  (error, index) => (
-                                    <p
-                                      key={`${index}-${error}`}
-                                      className="text-[11px] leading-relaxed text-red-600"
-                                    >
-                                      {error}
-                                    </p>
-                                  )
-                                )}
-
-                              {importResult.errors.length > 12 && (
-                                <p className="pt-1 text-[11px] font-semibold text-red-500">
-                                  +{" "}
-                                  {importResult.errors.length - 12}{" "}
-                                  incidencias más.
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-5 flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    onClick={handleCloseImport}
-                    disabled={isImporting}
-                    className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    {importResult
-                      ? "Close"
-                      : "Cancel"}
-                  </button>
-
-                  {!importResult && (
-                    <button
-                      type="button"
-                      onClick={
-                        handleStartImport
-                      }
-                      disabled={
-                        isImporting ||
-                        !importAnalysis ||
-                        !importAnalysis.players.length ||
-                        (Number(importPreview?.newTeams || 0) > 0 && !defaultImportLeagueId)
-                      }
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {isImporting ? (
-                        <>
-                          <Loader2
-                            size={16}
-                            className="animate-spin"
-                          />
-                          Importing...
-                        </>
-                      ) : (
-                        <>
-                          <Upload size={16} />
-                          Import{" "}
-                          {importAnalysis?.total_rows || 0}{" "}
-                          players
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {addModalOpen && (
-          <div
-            className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
-            onMouseDown={(event) => {
-              if (
-                event.target ===
-                event.currentTarget
-              ) {
-                handleCloseAddPlayer();
-              }
-            }}
-          >
-            <div className="max-h-[calc(100%_-_32px)] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
-
-              {/* MODAL HEADER */}
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                <div>
-                  <h2 className="text-base font-extrabold text-slate-900">
-                    Add player
-                  </h2>
-
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Create a new player in the database.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={
-                    handleCloseAddPlayer
-                  }
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50"
-                  aria-label="Close"
-                >
-                  <X size={17} />
-                </button>
-              </div>
-
-              <form
-                onSubmit={
-                  handleSavePlayer
-                }
-                className="space-y-5 p-5"
-              >
-
-                {/* PLAYER NAME */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Player name
-                  </label>
-
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(event) =>
-                      setForm(
-                        (current) => ({
-                          ...current,
-                          name:
-                            event.target
-                              .value,
-                        })
-                      )
-                    }
-                    placeholder="e.g. Neymar Jr"
-                    className={
-                      inputClassName
-                    }
-                    required
-                  />
-                </div>
-
-                {/* DATE OF BIRTH */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Date of birth
-                  </label>
-
-                  <input
-                    type="text"
-                    value={
-                      form.dateOfBirth
-                    }
-                    onChange={(event) =>
-                      setForm(
-                        (current) => ({
-                          ...current,
-                          dateOfBirth:
-                            event.target
-                              .value,
-                        })
-                      )
-                    }
-                    placeholder="5/2/1999 o 05/02/1999"
-                    inputMode="numeric"
-                    maxLength={10}
-                    className={
-                      inputClassName
-                    }
-                  />
-
-                  <p className="mt-1.5 text-[11px] text-slate-400">
-                    Format: DD/MM/YYYY
-                  </p>
-                </div>
-
-                {/* COUNTRY */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Country
-                  </label>
-
-                  <SearchableEntitySelect
-                    value={form.countryId}
-                    onChange={(value) =>
-                      setForm((current) => ({
-                        ...current,
-                        countryId: value,
-                        newCountryName: "",
-                      }))
-                    }
-                    options={countries}
-                    kind="country"
-                    placeholder="Select country"
-                    searchPlaceholder="Search country..."
-                    emptyOption={{
-                      value: "",
-                      label: "Select country",
-                    }}
-                    specialOption={{
-                      value: NEW_COUNTRY_VALUE,
-                      label: "New country",
-                    }}
-                  />
-
-                  {form.countryId ===
-                    NEW_COUNTRY_VALUE && (
-                    <div className="mt-3 rounded-xl border border-[#003399]/15 bg-[#003399]/[0.035] p-4">
-
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div>
                       <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        New country
+                        Height (cm)
                       </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={250}
+                        value={form.height}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            height: event.target.value,
+                          }))
+                        }
+                        className={INPUT_CLASS}
+                      />
+                    </div>
 
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        Shirt number
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={99}
+                        value={form.shirtNumber}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            shirtNumber: event.target.value,
+                          }))
+                        }
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        Right foot
+                      </label>
                       <input
                         type="text"
-                        value={
-                          form.newCountryName
-                        }
+                        value={form.rightFoot}
                         onChange={(event) =>
-                          setForm(
-                            (current) => ({
-                              ...current,
-                              newCountryName:
-                                event.target.value,
-                            })
-                          )
-                        }
-                        placeholder="e.g. Argentina"
-                        className={
-                          inputClassName
-                        }
-                        autoFocus
-                      />
-
-                      <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
-                        The country will be created
-                        automatically when you save
-                        the player. Its 3-letter code
-                        will be generated automatically.
-                      </p>
-                    </div>
-                  )}
-
-                  {countries.length ===
-                    0 && (
-                    <p className="mt-1.5 text-[11px] text-slate-400">
-                      No countries have
-                      been created yet.
-                    </p>
-                  )}
-                </div>
-
-                {/* CLUB */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Associated club
-                  </label>
-
-                  <SearchableEntitySelect
-                    value={form.teamId}
-                    onChange={(value) =>
-                      setForm((current) => ({
-                        ...current,
-                        teamId: value,
-                        newTeamName: "",
-                      }))
-                    }
-                    options={teams}
-                    kind="team"
-                    placeholder="No club"
-                    searchPlaceholder="Search club..."
-                    emptyOption={{
-                      value: "",
-                      label: "No club",
-                    }}
-                    specialOption={{
-                      value: NEW_TEAM_VALUE,
-                      label: "+ Create new club",
-                    }}
-                  />
-                </div>
-
-                {/* NEW CLUB */}
-                {form.teamId ===
-                  NEW_TEAM_VALUE && (
-                  <div className="rounded-xl border border-[#003399]/15 bg-[#003399]/[0.035] p-4">
-
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                      New club
-                    </label>
-
-                    <input
-                      type="text"
-                      value={
-                        form.newTeamName
-                      }
-                      onChange={(event) =>
-                        setForm(
-                          (current) => ({
+                          setForm((current) => ({
                             ...current,
-                            newTeamName:
-                              event.target.value,
-                          })
-                        )
-                      }
-                      placeholder="e.g. Santos FC"
-                      className={
-                        inputClassName
-                      }
-                      autoFocus
-                    />
+                            rightFoot: event.target.value,
+                          }))
+                        }
+                        className={INPUT_CLASS}
+                      />
+                    </div>
 
-                    <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
-                      The club will be
-                      created automatically
-                      when you save the player.
-                      The selected country will be
-                      assigned to the new club.
-                    </p>
-
-                  </div>
-                )}
-
-                {/* CA / CP */}
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-xs font-semibold text-slate-700">
-                      Ratings
-                    </label>
-                    <span className="text-[11px] text-slate-400">
-                      CA / CP: 0-200
-                    </span>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        Left foot
+                      </label>
+                      <input
+                        type="text"
+                        value={form.leftFoot}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            leftFoot: event.target.value,
+                          }))
+                        }
+                        className={INPUT_CLASS}
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                         CA
                       </label>
                       <input
@@ -5018,14 +1357,12 @@ export default function Players() {
                             ca: event.target.value,
                           }))
                         }
-                        placeholder="e.g. 185"
-                        className={inputClassName}
-                        required
+                        className={INPUT_CLASS}
                       />
                     </div>
 
                     <div>
-                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                         CP
                       </label>
                       <input
@@ -5040,23 +1377,214 @@ export default function Players() {
                             cp: event.target.value,
                           }))
                         }
-                        placeholder="e.g. 195"
-                        className={inputClassName}
-                        required
+                        className={INPUT_CLASS}
                       />
                     </div>
                   </div>
-                </div>
 
-                {/* POSITION RATINGS */}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {[
+                      ["fmPosition", "Posición"],
+                      ["bestPositions", "Mejores puestos"],
+                      [
+                        "roleUsedToFillEmptyAttributes",
+                        "Rol utilizado para rellenar atributos vacíos",
+                      ],
+                      [
+                        "preferredCentralPosition",
+                        "Posición central preferida",
+                      ],
+                    ].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                          {label}
+                        </label>
+                        <input
+                          type="text"
+                          value={form[key] || ""}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              [key]: event.target.value,
+                            }))
+                          }
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                      Description
+                    </label>
+                    <select
+                      value={form.description}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          description: event.target.value,
+                        }))
+                      }
+                      className={INPUT_CLASS}
+                    >
+                      <option value="">Sin descripción</option>
+                      {DESCRIPTION_OPTIONS.map((group) => (
+                        <optgroup key={group.group} label={group.group}>
+                          {group.options.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                      Salary
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={form.salary}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          salary: event.target.value,
+                        }))
+                      }
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    {[
+                      ["photoUrl", "Profile photo URL"],
+                      ["cardPhotoUrl", "Card photo URL"],
+                      [
+                        "nationalCardPhotoUrl",
+                        "National team card photo URL",
+                      ],
+                    ].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                          {label}
+                        </label>
+                        <input
+                          type="url"
+                          value={form[key] || ""}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              [key]: event.target.value,
+                            }))
+                          }
+                          placeholder="https://..."
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {editTab === "positions" && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700">
+                        Position ratings
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        Introduce cada valor directamente sobre un campo de juego.
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                      0-20
+                    </span>
+                  </div>
+
+                  <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-[#d9efdf] px-3 py-4 sm:px-5 sm:py-5">
+                    <div className="pointer-events-none absolute inset-0">
+                      <div className="absolute inset-3 rounded-xl border border-white/80" />
+                      <div className="absolute left-1/2 top-3 bottom-3 w-px -translate-x-1/2 bg-white/80" />
+                      <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/80" />
+                      <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
+                      <div className="absolute left-1/2 top-3 h-10 w-32 -translate-x-1/2 rounded-b-xl border-x border-b border-white/80" />
+                      <div className="absolute left-1/2 bottom-3 h-10 w-32 -translate-x-1/2 rounded-t-xl border-x border-t border-white/80" />
+                    </div>
+
+                    {[
+                      ["delantero", "DL (C)", "Delantero", "left-1/2 top-[4%] -translate-x-1/2"],
+                      ["mediapunta_por_la_izquierda", "EI", "Mediapunta por la izquierda", "left-[8%] top-[13%] -translate-y-1/2"],
+                      ["mediapunta_central", "MP (C)", "Mediapunta central", "left-1/2 top-[13%] -translate-x-1/2 -translate-y-1/2"],
+                      ["mediapunta_por_la_derecha", "ED", "Mediapunta por la derecha", "right-[8%] top-[13%] -translate-y-1/2"],
+                      ["centrocampista_izquierdo", "MC (I)", "Centrocampista izquierdo", "left-[19%] top-[31%] -translate-y-1/2"],
+                      ["centrocampista", "MC", "Centrocampista", "left-1/2 top-[29%] -translate-x-1/2 -translate-y-1/2"],
+                      ["centrocampista_derecho", "MC (D)", "Centrocampista derecho", "right-[19%] top-[31%] -translate-y-1/2"],
+                      ["carrilero_izquierdo", "CR (I)", "Carrilero izquierdo", "left-[5%] top-[48%] -translate-y-1/2"],
+                      ["mediocentro", "MCD", "Mediocentro", "left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2"],
+                      ["carrilero_derecho", "CR (D)", "Carrilero derecho", "right-[5%] top-[48%] -translate-y-1/2"],
+                      ["defensa_izquierdo", "DF (I)", "Defensa izquierdo", "left-[20%] top-[68%] -translate-y-1/2"],
+                      ["defensa_central", "DF (C)", "Defensa central", "left-1/2 top-[68%] -translate-x-1/2 -translate-y-1/2"],
+                      ["defensa_derecho", "DF (D)", "Defensa derecho", "right-[20%] top-[68%] -translate-y-1/2"],
+                      ["portero", "POR", "Portero", "left-1/2 bottom-[3%] -translate-x-1/2"],
+                    ].map(([key, shortLabel, fullLabel, positionClass]) => (
+                      <div key={key} className={`absolute z-10 w-[88px] sm:w-[104px] ${positionClass}`} title={fullLabel}>
+                        <div className="rounded-xl border border-white/90 bg-white/95 p-1.5 shadow-sm backdrop-blur-sm">
+                          <div className="mb-1 truncate px-1 text-center text-[9px] font-extrabold uppercase tracking-tight text-slate-700 sm:text-[10px]">
+                            {shortLabel}
+                          </div>
+                          <input
+                            aria-label={fullLabel}
+                            type="number"
+                            min={0}
+                            max={20}
+                            step={1}
+                            value={form.positionRatings?.[key] ?? 0}
+                            onChange={(event) =>
+                              setForm((current) => ({
+                                ...current,
+                                positionRatings: {
+                                  ...current.positionRatings,
+                                  [key]: event.target.value,
+                                },
+                              }))
+                            }
+                            className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-center text-sm font-extrabold text-slate-800 outline-none transition focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10"
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="relative z-10 mt-[350px] grid grid-cols-2 gap-2 border-t border-white/60 pt-3 sm:mt-[385px] sm:grid-cols-4">
+                      <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">EI / ED</strong> · bandas</div>
+                      <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">MC</strong> · medio</div>
+                      <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">MCD</strong> · pivote</div>
+                      <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">DF / CR</strong> · defensa</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {["mental", "physical", "technical", "goalkeeping"].includes(editTab) && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700">
-                        Position ratings
-                      </label>
+                      <p className="text-xs font-semibold text-slate-700">
+                        {editTab === "mental"
+                          ? "Mental"
+                          : editTab === "physical"
+                            ? "Physical"
+                            : editTab === "technical"
+                              ? "Technical"
+                              : "Goalkeeping"}
+                      </p>
                       <p className="mt-1 text-[11px] text-slate-400">
-                        Valora cada posición de 0 a 20. Un jugador puede tener distintas valoraciones.
+                        Todos los atributos utilizan una escala de 0 a 20.
                       </p>
                     </div>
                     <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
@@ -5064,248 +1592,75 @@ export default function Players() {
                     </span>
                   </div>
 
-                  <div className="space-y-4">
-                    {POSITION_RATING_GROUPS.map((group) => (
-                      <div key={group.title}>
-                        <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                          {group.title}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                          {group.positions.map(([code, label]) => (
-                            <div key={code}>
-                              <label className="mb-1 block text-[11px] font-semibold text-slate-600">
-                                {label}
-                              </label>
-                              <input
-                                type="number"
-                                min={0}
-                                max={20}
-                                step={1}
-                                value={
-                                  form.positionRatings?.[code] ??
-                                  "0"
-                                }
-                                onChange={(event) =>
-                                  setForm((current) => ({
-                                    ...current,
-                                    positionRatings: {
-                                      ...current.positionRatings,
-                                      [code]: event.target.value,
-                                    },
-                                  }))
-                                }
-                                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10"
-                              />
-                            </div>
-                          ))}
-                        </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {STAT_GROUPS[editTab].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="mb-1.5 block text-[11px] font-semibold text-slate-600">
+                          {label}
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          step={1}
+                          value={form.stats?.[editTab]?.[key] ?? 0}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              stats: {
+                                ...current.stats,
+                                [editTab]: {
+                                  ...(current.stats?.[editTab] || {}),
+                                  [key]: event.target.value,
+                                },
+                              },
+                            }))
+                          }
+                          className={INPUT_CLASS}
+                        />
                       </div>
                     ))}
                   </div>
                 </div>
+              )}
 
-                {/* DESCRIPTION */}
-                <div>
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <label className="text-xs font-semibold text-slate-700">
-                      Description
-                    </label>
-                    <span className="text-[11px] text-slate-400">
-                      Selecciona el perfil del jugador
-                    </span>
-                  </div>
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={closeEditor}
+                  disabled={isSaving}
+                  className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
 
-                  <select
-                    value={form.description || ""}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        description: event.target.value,
-                      }))
-                    }
-                    className={inputClassName}
-                  >
-                    <option value="">Sin descripción</option>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Save size={16} />
+                  {isSaving ? "Saving..." : "Save changes"}
+                </button>
+              </div>
 
-                    {PLAYER_DESCRIPTIONS.map((group) => (
-                      <optgroup
-                        key={group.group}
-                        label={group.group}
-                      >
-                        {group.options.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-
-                  <p className="mt-1.5 text-[11px] text-slate-400">
-                    La descripción podrá utilizarse después como perfil
-                    automático basado en edad, CA, CP y posiciones.
-                  </p>
-                </div>
-
-                {/* PLAYER PHOTO */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Player photo URL
-                  </label>
-
-                  <input
-                    type="url"
-                    value={
-                      form.photoUrl
-                    }
-                    onChange={(event) =>
-                      setForm(
-                        (current) => ({
-                          ...current,
-                          photoUrl:
-                            event.target
-                              .value,
-                        })
-                      )
-                    }
-                    placeholder="https://..."
-                    className={
-                      inputClassName
-                    }
-                  />
-                </div>
-
-                {/* PLAYER CARD PHOTO */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    Player card photo URL
-                  </label>
-
-                  <input
-                    type="url"
-                    value={form.cardPhotoUrl}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        cardPhotoUrl: event.target.value,
-                      }))
-                    }
-                    placeholder="https://..."
-                    className={inputClassName}
-                  />
-
-                  <p className="mt-1.5 text-[11px] text-slate-400">
-                    Imagen utilizada exclusivamente en las tarjetas del listado de jugadores.
-                  </p>
-                </div>
-
-                {/* NATIONAL TEAM CARD PHOTO */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                    National team card photo URL
-                  </label>
-
-                  <input
-                    type="url"
-                    value={form.nationalCardPhotoUrl}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        nationalCardPhotoUrl: event.target.value,
-                      }))
-                    }
-                    placeholder="https://..."
-                    className={inputClassName}
-                  />
-
-                  <p className="mt-1.5 text-[11px] text-slate-400">
-                    Imagen utilizada en la agrupación por países, idealmente con la camiseta de la selección.
-                  </p>
-                </div>
-
-                {/* PHOTO PREVIEW */}
-                {form.photoUrl && (
-                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-
-                    <img
-                      src={normalizeImageUrl(
-                        form.photoUrl
-                      )}
-                      alt=""
-                      className="h-16 w-16 rounded-lg object-cover object-top"
-                      onError={(event) => {
-                        event.currentTarget.style.display =
-                          "none";
-                      }}
-                    />
-
-                    <div className="text-xs text-slate-500">
-                      Preview of the player photo.
-                    </div>
-
-                  </div>
-                )}
-
-                {/* CARD PHOTO PREVIEW */}
-                {form.cardPhotoUrl && (
-                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <img
-                      src={normalizeImageUrl(form.cardPhotoUrl)}
-                      alt=""
-                      className="h-16 w-16 rounded-lg object-cover object-top"
-                      onError={(event) => {
-                        event.currentTarget.style.display = "none";
-                      }}
-                    />
-
-                    <div className="text-xs text-slate-500">
-                      Preview of the player card photo.
-                    </div>
-                  </div>
-                )}
-
-                {/* ACTIONS */}
-                <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-
-                  <button
-                    type="button"
-                    onClick={
-                      handleCloseAddPlayer
-                    }
-                    disabled={isSaving}
-                    className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={
-                      isSaving ||
-                      !form.name.trim() ||
-                      form.ca === "" ||
-                      form.cp === "" ||
-                      ((form.teamId ===
-                        NEW_TEAM_VALUE &&
-                        !form.newTeamName.trim()) ||
-                      (form.countryId ===
-                        NEW_COUNTRY_VALUE &&
-                        !form.newCountryName.trim()))
-                    }
-                    className="h-10 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isSaving
-                      ? "Saving..."
-                      : "Create player"}
-                  </button>
-
-                </div>
-              </form>
-            </div>
+            </form>
           </div>
-        )}
-      </div>
+            </div>,
+            document.body
+          )
+        : null}
+    </main>
+  );
+}
+
+function UsersPlaceholder() {
+  return (
+    <div className="flex flex-col items-center gap-3 text-center">
+      <UserRound size={52} strokeWidth={1.2} />
+      <span className="text-[10px] font-bold uppercase tracking-[0.18em]">
+        Add player photo
+      </span>
     </div>
   );
 }
