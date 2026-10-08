@@ -24,6 +24,143 @@ import {
 
 import { base44 } from "@/api/base44Client";
 
+const FM26_POSITION_MAP = {
+  "portero": "gk",
+  "defensa_izquierdo": "dl",
+  "defensa_central": "dc",
+  "defensa_derecho": "dr",
+  "mediocentro": "dm",
+  "carrilero_izquierdo": "wbl",
+  "carrilero_derecho": "wbr",
+  "centrocampista_izquierdo": "ml",
+  "centrocampista": "mc",
+  "centrocampista_derecho": "mr",
+  "mediapunta_por_la_izquierda": "aml",
+  "mediapunta_central": "amc",
+  "mediapunta_por_la_derecha": "amr",
+  "delantero": "stc"
+};
+const FM26_ATTRIBUTE_MAP = {
+  "mental": {
+    "agresividad": "aggression",
+    "anticipacion": "anticipation",
+    "valentia": "bravery",
+    "serenidad": "composure",
+    "concentracion": "concentration",
+    "consistencia": "consistency",
+    "decisiones": "decisions",
+    "determinacion": "determination",
+    "juego_sucio": "dirtiness",
+    "talento": "flair",
+    "partidos_importantes": "important_matches",
+    "liderazgo": "leadership",
+    "movimiento": "off_the_ball",
+    "colocacion": "positioning",
+    "trabajo_de_equipo": "teamwork",
+    "vision": "vision",
+    "sacrificio": "work_rate"
+  },
+  "physical": {
+    "aceleracion": "acceleration",
+    "agilidad": "agility",
+    "balance": "balance",
+    "alcance_de_salto": "jumping_reach",
+    "recuperacion_fisica": "natural_fitness",
+    "velocidad": "pace",
+    "resistencia": "stamina",
+    "fuerza": "strength"
+  },
+  "technical": {
+    "saques_de_esquina": "corners",
+    "centros": "crossing",
+    "regate": "dribbling",
+    "remate": "finishing",
+    "control": "first_touch",
+    "tiros_libres": "free_kick_taking",
+    "cabeceo": "heading",
+    "tiros_lejanos": "long_shots",
+    "saques_largos": "long_throws",
+    "marcaje": "marking",
+    "pases": "passing",
+    "penaltis": "penalty_taking",
+    "entradas": "tackling",
+    "tecnica": "technique",
+    "polivalencia": "versatility"
+  },
+  "goalkeeping": {
+    "balones_aereos": "aerial_reach",
+    "mando_en_el_area": "command_of_area",
+    "comunicacion": "communication",
+    "excentricidad": "eccentricity",
+    "blocaje": "handling",
+    "saques_de_puerta": "kicking",
+    "uno_contra_uno": "one_on_ones",
+    "reflejos": "reflexes",
+    "salidas_tendencia": "rushing_out",
+    "salida_de_puños": "punching",
+    "saque_con_la_mano": "throwing"
+  }
+};
+
+const fm26Normalize = (name) => String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+const fm26Date = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? `${value.slice(8,10)}/${value.slice(5,7)}/${value.slice(0,4)}` : "";
+const fm26Number = (value) => typeof value === "number" && Number.isFinite(value) ? value : null;
+const fm26PlayerName = (row) => String(row.common_name || row.name || row.full_name || "").trim();
+const fm26PositionString = (row) => [...(row.natural_positions || []), ...(row.accomplished_positions || [])].filter(Boolean).join(", ");
+const fm26PositionRatings = (row) => Object.fromEntries(Object.entries(FM26_POSITION_MAP).filter(([,key]) => fm26Number(row.positions?.[key]) !== null).map(([target, key]) => [target, row.positions[key]]));
+const fm26Stats = (row, existing = {}) => {
+  const stats = Object.fromEntries(["mental", "physical", "technical", "goalkeeping"].map(group => [group, { ...(existing[group] || {}) }]));
+  for (const [group, fields] of Object.entries(FM26_ATTRIBUTE_MAP)) {
+    for (const [target, source] of Object.entries(fields)) {
+      if (fm26Number(row.attributes?.[source]) !== null) stats[group][target] = row.attributes[source];
+    }
+  }
+  // The existing MF LEGACY field means resistance; FM measures susceptibility.
+  if (fm26Number(row.attributes?.injury_proneness) !== null) stats.physical.tendencia_a_lesionarse = 21 - row.attributes.injury_proneness;
+  return stats;
+};
+const fm26Payload = (row, existing = {}) => {
+  const update = {
+    fm26_uid: String(row.uid), fm26_unique_id: String(row.unique_id ?? ""),
+    fm26_club_uid: String(row.club_uid ?? ""), fm26_nation_id: String(row.nation_id ?? ""),
+    fm26_second_nation_ids: (row.second_nation_ids || []).map(String),
+    fm26_natural_positions: row.natural_positions || [],
+    fm26_accomplished_positions: row.accomplished_positions || [],
+    fm26_raw_positions: row.positions || {},
+    fm26_raw_attributes: row.raw_attributes || {},
+    fm26_personality: row.personality || {},
+    fm26_traits: row.traits || [], fm26_trait_codes: row.traits_code || [],
+    fm26_reputation: row.reputation || {},
+    fm26_contract: row.contract || {}, fm26_transfer_value: row.transfer_value ?? null,
+    fm26_weekly_wage: row.contract?.wage ?? null,
+    fm26_save_club_name: row.club_name || "", fm26_team_slot: row.team_slot ?? null,
+    fm26_loan_details: { on_loan: Boolean(row.on_loan), parent_club_uid: row.loan_parent_club_uid ?? null, parent_club_name: row.loan_parent_club_name || "", start: row.loan_start || "", end: row.loan_end || "" },
+    fm26_condition: row.raw_condition ?? null,
+    fm26_match_sharpness: row.raw_match_sharpness ?? null,
+    fm26_source: "fmsave FM26",
+    fm26_source_record: row,
+    position_ratings: { ...(existing.position_ratings || existing.positionRatings || {}), ...fm26PositionRatings(row) },
+    stats: fm26Stats(row, existing.stats || {}),
+  };
+  const name = fm26PlayerName(row);
+  if (name) update.name = name;
+  const date = fm26Date(row.birth_date);
+  if (date) update.date_of_birth = date;
+  if (fm26Number(row.height_cm) !== null) update.height = row.height_cm;
+  if (fm26Number(row.left_foot) !== null) update.left_foot = String(row.left_foot);
+  if (fm26Number(row.right_foot) !== null) update.right_foot = String(row.right_foot);
+  if (fm26Number(row.ability?.current) !== null) update.ca = row.ability.current;
+  if (fm26Number(row.ability?.potential) !== null) update.cp = row.ability.potential;
+  const positions = fm26PositionString(row);
+  if (positions) {
+    update.fm_position = positions;
+    update.best_positions = (row.natural_positions || []).join(", ");
+  }
+  for (const [key, value] of Object.entries(update)) { if (value === null || value === undefined) delete update[key]; }
+  return update;
+};
+
+
 
 
 const PLAYER_DESCRIPTIONS = [
@@ -1766,6 +1903,14 @@ export default function Players() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [fm26Import, setFm26Import] = useState(null);
+  const [fm26FileName, setFm26FileName] = useState("");
+  const [fm26Busy, setFm26Busy] = useState(false);
+  const [fm26Message, setFm26Message] = useState("");
+  const [fm26Error, setFm26Error] = useState("");
+  const [fm26CreateMissing, setFm26CreateMissing] = useState(true);
+  const [fm26ImportOpen, setFm26ImportOpen] = useState(false);
+
 
   const [importModalOpen, setImportModalOpen] =
     useState(false);
@@ -1810,6 +1955,76 @@ export default function Players() {
   const viewMode = PLAYER_VIEW_MODES.includes(rawViewMode)
     ? rawViewMode
     : "all";
+
+  const fm26Preview = useMemo(() => {
+    if (!fm26Import) return null;
+    const teamNames = new Map();
+    for (const team of teams) {
+      const key = fm26Normalize(team.name);
+      teamNames.set(key, [...(teamNames.get(key) || []), team]);
+    }
+    const byUid = new Map(players.filter(p => p.fm26_uid).map(p => [String(p.fm26_uid), p]));
+    const byName = new Map();
+    for (const p of players) {
+      const key = `${p.teamId}|${fm26Normalize(p.name)}`;
+      byName.set(key, [...(byName.get(key) || []), p]);
+    }
+    const seen = new Set();
+    const rows = fm26Import.map(row => {
+      const uid = String(row.uid ?? "");
+      const choices = teamNames.get(fm26Normalize(row.club_name)) || [];
+      const club = choices.length === 1 ? choices[0] : null;
+      const uidPlayer = byUid.get(uid);
+      // Never relocate an existing player on an FM import automatically.
+      const possible = club ? byName.get(`${club.id}|${fm26Normalize(fm26PlayerName(row))}`) || [] : [];
+      const match = uidPlayer || (possible.length === 1 ? possible[0] : null);
+      const invalid = !uid || !fm26PlayerName(row) || !row.positions || !row.attributes || seen.has(uid);
+      seen.add(uid);
+      const status = invalid ? "invalid" : choices.length > 1 || (!uidPlayer && possible.length > 1) ? "ambiguous" : !club ? "club_missing" : match ? "update" : "create";
+      return { row, club, match, status };
+    });
+    return { rows, update: rows.filter(r => r.status === "update").length, create: rows.filter(r => r.status === "create").length, skipped: rows.filter(r => !["update", "create"].includes(r.status)).length };
+  }, [fm26Import, players, teams]);
+
+  const handleFm26File = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setFm26Error(""); setFm26Message(""); setFm26Import(null);
+    setFm26FileName(file.name);
+    try {
+      const payload = JSON.parse(await file.text());
+      if (!Array.isArray(payload) || !payload.length) throw new Error("Se esperaba un JSON con una lista de jugadores.");
+      if (payload.length > 150000) throw new Error("El archivo supera 150.000 jugadores. Divide la exportación por clubes o ligas.");
+      if (!payload.some(p => p && p.positions && p.attributes && p.uid != null)) throw new Error("No parece una exportación 'players' de fmsave FM26.");
+      setFm26Import(payload);
+    } catch (err) { setFm26Error(err.message || "No se ha podido abrir el JSON"); }
+  };
+
+  const handleFm26Import = async () => {
+    if (!fm26Preview || fm26Busy) return;
+    setFm26Busy(true); setFm26Error("");
+    let updated=0, created=0, failed=0; const failures=[];
+    try {
+      for (let index=0; index<fm26Preview.rows.length; index++) {
+        const {row, club, match, status} = fm26Preview.rows[index];
+        if (status !== "update" && !(status === "create" && fm26CreateMissing)) continue;
+        try {
+          const data = fm26Payload(row, match || {});
+          if (match) { await base44.entities.Player.update(match.id, data); updated++; }
+          else { await base44.entities.Player.create({ ...data, team_id: club.id }); created++; }
+        } catch (error) {
+          failed++;
+          if (failures.length < 8) failures.push(`${fm26PlayerName(row)}: ${error?.message || "error"}`);
+        }
+        if (index % 5 === 0) setFm26Message(`Importando ${index+1}/${fm26Preview.rows.length}...`);
+      }
+      setFm26Import(null);
+      setFm26Message(`Completado: ${updated} actualizados, ${created} creados, ${failed} errores, ${fm26Preview.skipped} sin importar por club no encontrado, ambigüedad o datos incompletos.${failures.length ? " Ejemplos de errores: " + failures.join(" | ") : ""}`);
+      await loadData();
+    } catch(error) { setFm26Error(error?.message || "Error inesperado"); }
+    finally { setFm26Busy(false); }
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -3407,6 +3622,10 @@ export default function Players() {
               Top CP
             </button>
 
+            <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Error(""); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
+              <Upload size={16} /><span>Import FM26 JSON</span>
+            </button>
+
             {/* IMPORT CSV */}
             <button
               type="button"
@@ -3831,6 +4050,26 @@ export default function Players() {
         )}
 
         {/* IMPORT POSITIONS MODAL */}
+        {fm26ImportOpen && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={e => { if (e.target === e.currentTarget && !fm26Busy) setFm26ImportOpen(false); }}>
+            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+              <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-extrabold">Importar FM26 JSON</h2><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)}><X size={20}/></button></div>
+              <p className="mb-4 text-sm text-slate-600">Selecciona un archivo JSON exportado con fmsave (tabla players). Actualiza los jugadores existentes e incorpora posiciones, atributos y datos de FM26. Solo importa clubes que ya existan en MF LEGACY y cuyo nombre coincida sin ambigüedad. No modifica fotos, nacionalidades asociadas ni salarios anuales.</p>
+              <input type="file" accept=".json,application/json" onChange={handleFm26File} disabled={fm26Busy} className="mb-4 w-full text-sm" />
+              {fm26FileName && <p className="mb-3 text-xs text-slate-500">Archivo: {fm26FileName}</p>}
+              {fm26Preview && <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                <p className="font-bold">Vista previa de {fm26Preview.rows.length} jugadores</p>
+                <p>{fm26Preview.update} para actualizar · {fm26Preview.create} nuevos · {fm26Preview.skipped} omitidos (club inexistente / ambiguo / datos incompletos)</p>
+                <p className="mt-2 text-xs text-slate-500">Importación parcial segura: no borra datos no presentes en el JSON. Los atributos 1–20 y posiciones de la partida reemplazan los valores previos. Revisa antes de confirmar, especialmente si usas una partida avanzada.</p>
+                <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={fm26CreateMissing} onChange={e => setFm26CreateMissing(e.target.checked)}/> Crear jugadores que aún no existan (solo en clubes reconocidos)</label>
+              </div>}
+              {fm26Error && <p className="mb-3 text-sm text-red-700">{fm26Error}</p>}
+              {fm26Message && <p className="mb-3 text-sm text-slate-700">{fm26Message}</p>}
+              <div className="flex justify-end gap-2"><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border px-4 py-2">Cerrar</button><button type="button" disabled={!fm26Preview || fm26Busy} onClick={handleFm26Import} className="rounded-lg bg-[#003399] px-4 py-2 font-semibold text-white disabled:opacity-40">{fm26Busy ? "Importando..." : "Confirmar importación"}</button></div>
+            </div>
+          </div>
+        )}
+
         {positionImportModalOpen && (
           <div
             className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
