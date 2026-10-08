@@ -511,6 +511,10 @@
         "type": "string"
       },
       "description": "IDs de países Base44 vinculados a las nacionalidades secundarias de FM26; se mantienen los IDs originales en fm26_second_nation_ids."
+    },
+    "secondary_country_id": {
+      "type": "string",
+      "description": "ID del país de nacionalidad secundaria principal en Country. Campo editable desde PlayerDetail."
     }
   },
   "required": [
