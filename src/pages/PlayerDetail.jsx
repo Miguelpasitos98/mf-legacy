@@ -678,6 +678,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         "",
       teamId: player?.teamId || player?.team_id || "",
       countryId: player?.countryId || player?.country_id || "",
+      secondaryCountryId: player?.secondaryCountryId || player?.secondary_country_id || player?.fm26_second_country_ids?.[0] || "",
       fmPosition: player?.fm_position || "",
       bestPositions: player?.best_positions || "",
       roleUsedToFillEmptyAttributes:
@@ -830,6 +831,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         date_of_birth: form.dateOfBirth.trim(),
         team_id: form.teamId || "",
         country_id: form.countryId || "",
+        secondary_country_id: form.secondaryCountryId || "",
+        fm26_second_country_ids: form.secondaryCountryId ? [form.secondaryCountryId, ...(editablePlayer.fm26_second_country_ids || []).slice(1)].filter((id, index, values) => id && values.indexOf(id) === index) : (editablePlayer.fm26_second_country_ids || []).slice(1),
         fm_position: form.fmPosition || "",
         best_positions: form.bestPositions || "",
         role_used_to_fill_empty_attributes:
@@ -868,6 +871,9 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         team_id: form.teamId || "",
         countryId: form.countryId || "",
         country_id: form.countryId || "",
+        secondaryCountryId: form.secondaryCountryId || "",
+        secondary_country_id: form.secondaryCountryId || "",
+        fm26_second_country_ids: form.secondaryCountryId ? [form.secondaryCountryId, ...(editablePlayer.fm26_second_country_ids || []).slice(1)].filter((id, index, values) => id && values.indexOf(id) === index) : (editablePlayer.fm26_second_country_ids || []).slice(1),
         fm_position: form.fmPosition || "",
         best_positions: form.bestPositions || "",
         role_used_to_fill_empty_attributes:
@@ -1229,7 +1235,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                               <label className="mb-1.5 block text-xs font-semibold text-slate-700">Country</label>
                               <SearchableEntitySelect
                                 value={form.countryId}
-                                onChange={(value) => setForm((current) => ({ ...current, countryId: value }))}
+                                onChange={(value) => setForm((current) => ({ ...current, countryId: value, secondaryCountryId: String(current.secondaryCountryId) === String(value) ? "" : current.secondaryCountryId }))}
                                 options={countries}
                                 kind="country"
                                 placeholder="Select country"
@@ -1249,6 +1255,21 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                                 emptyOption={{ value: "", label: "No club" }}
                               />
                             </div>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Secondary country</label>
+                              <SearchableEntitySelect
+                                value={form.secondaryCountryId}
+                                onChange={(value) => setForm((current) => ({ ...current, secondaryCountryId: value }))}
+                                options={countries.filter((item) => String(item.id) !== String(form.countryId))}
+                                kind="country"
+                                placeholder="Select secondary country"
+                                searchPlaceholder="Search country..."
+                                emptyOption={{ value: "", label: "No secondary country" }}
+                              />
+                            </div>
+                            <div className="flex items-center text-xs text-slate-400">Segunda nacionalidad opcional. No puede coincidir con la principal.</div>
                           </div>
                         </div>
                       </section>
@@ -1571,33 +1592,33 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {STAT_GROUPS[editTab].map(([key, label]) => (
-                      <div key={key}>
-                        <label className="mb-1.5 block text-[11px] font-semibold text-slate-600">
-                          {label}
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={20}
-                          step={1}
-                          value={form.stats?.[editTab]?.[key] ?? 0}
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              stats: {
-                                ...current.stats,
-                                [editTab]: {
-                                  ...(current.stats?.[editTab] || {}),
-                                  [key]: event.target.value,
-                                },
-                              },
-                            }))
-                          }
-                          className={INPUT_CLASS}
-                        />
-                      </div>
-                    ))}
+                    {STAT_GROUPS[editTab].map(([key, label]) => {
+                      const value = form.stats?.[editTab]?.[key] ?? 0;
+                      return (
+                        <div key={key} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <label htmlFor={`edit-stat-${editTab}-${key}`} className="min-w-0 text-xs font-semibold text-slate-700">{label}</label>
+                            <input
+                              id={`edit-stat-${editTab}-${key}`}
+                              aria-label={`${label} (0–20)`}
+                              type="number"
+                              min={0}
+                              max={20}
+                              step={1}
+                              value={value}
+                              onChange={(event) => setForm((current) => ({
+                                ...current,
+                                stats: { ...current.stats, [editTab]: { ...(current.stats?.[editTab] || {}), [key]: event.target.value } },
+                              }))}
+                              className="h-9 w-14 rounded-lg border border-slate-200 bg-slate-50 px-1 text-center text-sm font-extrabold text-slate-900 outline-none focus:border-blue-400"
+                            />
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={20} aria-valuenow={Math.max(0, Math.min(20, Number(value) || 0))}>
+                            <div className={`${getFm26MetricTone(value)} h-full rounded-full transition-all duration-300`} style={{ width: `${getValueBarWidth(value)}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
