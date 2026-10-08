@@ -28,6 +28,10 @@
       "type": "boolean",
       "default": true,
       "description": "Indica si el país está activo"
+    },
+    "fm_nation_id": {
+      "type": "string",
+      "description": "ID numérico de nación en exportación fmsave FM26 (nation_id). No es el ID del archivo de bandera. Se vincula una sola vez para futuras importaciones."
     }
   },
   "required": [
