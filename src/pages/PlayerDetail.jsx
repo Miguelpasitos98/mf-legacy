@@ -1139,6 +1139,24 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
               {editTab === "general" && (
                 <div className="space-y-5">
+                {editablePlayer?.fm26_uid && (
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+                    <p className="mb-2 text-xs font-bold text-blue-900">Datos importados de FM26</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                      <div><span className="text-slate-500">FM UID</span><p className="font-semibold">{editablePlayer.fm26_uid}</p></div>
+                      <div><span className="text-slate-500">Club de origen</span><p className="font-semibold">{editablePlayer.fm26_save_club_name || "—"}</p></div>
+                      <div><span className="text-slate-500">Valor de traspaso</span><p className="font-semibold">{editablePlayer.fm26_transfer_value == null ? "—" : Number(editablePlayer.fm26_transfer_value).toLocaleString("es-ES") + " (moneda de partida)"}</p></div>
+                      <div><span className="text-slate-500">Sueldo semanal</span><p className="font-semibold">{editablePlayer.fm26_weekly_wage == null ? "—" : Number(editablePlayer.fm26_weekly_wage).toLocaleString("es-ES") + " (moneda de partida)"}</p></div>
+                      <div><span className="text-slate-500">Posiciones naturales</span><p className="font-semibold">{(editablePlayer.fm26_natural_positions || []).join(", ") || "—"}</p></div>
+                      <div><span className="text-slate-500">Posiciones competentes</span><p className="font-semibold">{(editablePlayer.fm26_accomplished_positions || []).join(", ") || "—"}</p></div>
+                      <div><span className="text-slate-500">Fin contrato</span><p className="font-semibold">{editablePlayer.fm26_contract?.end || "—"}</p></div>
+                      <div><span className="text-slate-500">Reputación mundial</span><p className="font-semibold">{editablePlayer.fm26_reputation?.world ?? "—"}</p></div>
+                      <div><span className="text-slate-500">Nacionalidad FM</span><p className="font-semibold">ID {editablePlayer.fm26_nation_id || "—"}</p></div>
+                    </div>
+                    <details className="mt-3 text-xs"><summary className="cursor-pointer font-semibold text-blue-900">Ver datos adicionales importados</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-[11px]">{JSON.stringify({registro_original:editablePlayer.fm26_source_record, personalidad:editablePlayer.fm26_personality, rasgos:editablePlayer.fm26_traits, contrato:editablePlayer.fm26_contract, reputacion:editablePlayer.fm26_reputation, cesion:editablePlayer.fm26_loan_details},null,2)}</pre></details>
+                  </div>
+                )}
+
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-slate-700">
                       Player name
