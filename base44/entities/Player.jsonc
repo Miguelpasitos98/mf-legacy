@@ -504,6 +504,13 @@
     "best_positions": {
       "type": "string",
       "description": "Posiciones naturales FM26"
+    },
+    "fm26_second_country_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs de países Base44 vinculados a las nacionalidades secundarias de FM26; se mantienen los IDs originales en fm26_second_nation_ids."
     }
   },
   "required": [
