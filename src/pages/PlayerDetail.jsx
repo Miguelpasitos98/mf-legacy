@@ -554,6 +554,34 @@ function calculateAge(value) {
   return age >= 0 ? age : null;
 }
 
+function formatFm26Money(value) {
+  if (value == null || value === "") return "—";
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value);
+  return `${numeric.toLocaleString("es-ES")} (moneda de partida)`;
+}
+
+function formatFm26Label(value) {
+  return String(value || "")
+    .replaceAll("_", " ")
+    .replace(/\w/g, (char) => char.toUpperCase());
+}
+
+function getValueBarWidth(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.min(100, (numeric / 20) * 100));
+}
+
+function getFm26MetricTone(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "bg-slate-200";
+  if (numeric >= 16) return "bg-emerald-500";
+  if (numeric >= 13) return "bg-blue-500";
+  if (numeric >= 10) return "bg-amber-500";
+  return "bg-rose-500";
+}
+
 
 const normalizeHexColor = (value, fallback) => {
   const normalized = String(value || "").trim();
@@ -1140,25 +1168,108 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
               {editTab === "general" && (
                 <div className="space-y-5">
                 {editablePlayer?.fm26_uid && (
-                  <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
-                    <p className="mb-2 text-xs font-bold text-blue-900">Datos importados de FM26</p>
-                    <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-                      <div><span className="text-slate-500">FM UID</span><p className="font-semibold">{editablePlayer.fm26_uid}</p></div>
-                      <div><span className="text-slate-500">Club de origen</span><p className="font-semibold">{editablePlayer.fm26_save_club_name || "—"}</p></div>
-                      <div><span className="text-slate-500">Valor de traspaso</span><p className="font-semibold">{editablePlayer.fm26_transfer_value == null ? "—" : Number(editablePlayer.fm26_transfer_value).toLocaleString("es-ES") + " (moneda de partida)"}</p></div>
-                      <div><span className="text-slate-500">Sueldo semanal</span><p className="font-semibold">{editablePlayer.fm26_weekly_wage == null ? "—" : Number(editablePlayer.fm26_weekly_wage).toLocaleString("es-ES") + " (moneda de partida)"}</p></div>
-                      <div><span className="text-slate-500">Posiciones naturales</span><p className="font-semibold">{(editablePlayer.fm26_natural_positions || []).join(", ") || "—"}</p></div>
-                      <div><span className="text-slate-500">Posiciones competentes</span><p className="font-semibold">{(editablePlayer.fm26_accomplished_positions || []).join(", ") || "—"}</p></div>
-                      <div><span className="text-slate-500">Fin contrato</span><p className="font-semibold">{editablePlayer.fm26_contract?.end || "—"}</p></div>
-                      <div><span className="text-slate-500">Reputación mundial</span><p className="font-semibold">{editablePlayer.fm26_reputation?.world ?? "—"}</p></div>
-                      <div><span className="text-slate-500">Nacionalidad FM</span><p className="font-semibold">ID {editablePlayer.fm26_nation_id || "—"}</p></div>
+                  <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 p-4 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Datos importados de FM26</p>
+                        <h3 className="mt-1 text-sm font-extrabold text-slate-900">{editablePlayer.name}</h3>
+                        <p className="text-xs text-slate-500">{editablePlayer.fm26_save_club_name || "Sin club de origen"} · UID FM {editablePlayer.fm26_uid}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-700 shadow-sm ring-1 ring-slate-200">CA {editablePlayer.ca ?? "—"}</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-700 shadow-sm ring-1 ring-slate-200">CP {editablePlayer.cp ?? "—"}</span>
+                        <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-700 shadow-sm ring-1 ring-slate-200">Reputación {editablePlayer.fm26_reputation?.world ?? "—"}</span>
+                      </div>
                     </div>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <section className="rounded-lg border border-blue-100 bg-white p-3"><h4 className="mb-2 text-xs font-bold text-blue-900">Personalidad FM26</h4><div className="grid grid-cols-2 gap-1.5 text-xs">{Object.entries(editablePlayer.fm26_personality || {}).map(([key,value])=><div key={key} className="flex justify-between gap-2"><span className="text-slate-500">{key.replaceAll("_", " ")}</span><strong>{value}</strong></div>)}</div></section>
-                      <section className="rounded-lg border border-blue-100 bg-white p-3"><h4 className="mb-2 text-xs font-bold text-blue-900">Contrato y economía</h4><div className="space-y-1 text-xs"><p>Inicio: {editablePlayer.fm26_contract?.start || "—"}</p><p>Fin: {editablePlayer.fm26_contract?.end || "—"}</p><p>Estatus: {(editablePlayer.fm26_contract?.squad_status || "—").replaceAll("_", " ")}</p><p>Cláusulas: {editablePlayer.fm26_contract?.clauses?.length || 0}</p><p>Cesión: {editablePlayer.fm26_loan_details?.on_loan ? "Sí" : "No"}</p></div></section>
-                      <section className="rounded-lg border border-blue-100 bg-white p-3 sm:col-span-2"><h4 className="mb-2 text-xs font-bold text-blue-900">Rasgos de jugador</h4><p className="text-xs text-slate-700">{(editablePlayer.fm26_traits || []).filter(x=>x !== "unknown").map(x=>x.replaceAll("_", " ")).join(" · ") || "Sin rasgos identificados"}</p></section>
+
+                    <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                      {[
+                        ["Valor de traspaso", formatFm26Money(editablePlayer.fm26_transfer_value)],
+                        ["Sueldo semanal", formatFm26Money(editablePlayer.fm26_weekly_wage)],
+                        ["Fin de contrato", editablePlayer.fm26_contract?.end || "—"],
+                        ["Nacionalidad FM", editablePlayer.fm26_nation_id ? `ID ${editablePlayer.fm26_nation_id}` : "—"],
+                        ["Cesión", editablePlayer.fm26_loan_details?.on_loan ? "Sí" : "No"],
+                        ["Club de origen", editablePlayer.fm26_save_club_name || "—"],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+                          <p className="mt-1 text-sm font-extrabold text-slate-900">{value}</p>
+                        </div>
+                      ))}
                     </div>
-                    <details className="mt-3 text-xs"><summary className="cursor-pointer font-semibold text-blue-900">Ver registro original completo de FM26</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-[11px]">{JSON.stringify(editablePlayer.fm26_source_record || {},null,2)}</pre></details>
+
+                    <div className="mt-4 grid gap-3 xl:grid-cols-[1.25fr_1fr]">
+                      <section className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <h4 className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">Personalidad FM26</h4>
+                          <span className="text-[11px] text-slate-400">Escala 1–20</span>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {Object.entries(editablePlayer.fm26_personality || {}).map(([key, value]) => (
+                            <div key={key} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                              <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
+                                <span className="font-semibold text-slate-600">{formatFm26Label(key)}</span>
+                                <strong className="text-slate-900">{value ?? "—"}</strong>
+                              </div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                                <div className={`${getFm26MetricTone(value)} h-full rounded-full`} style={{ width: `${getValueBarWidth(value)}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+
+                      <section className="space-y-3">
+                        <div className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                          <h4 className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-sky-700">Posiciones FM26</h4>
+                          <div className="space-y-3 text-xs">
+                            <div>
+                              <p className="mb-1 font-semibold text-slate-600">Naturales</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {(editablePlayer.fm26_natural_positions || []).length ? (editablePlayer.fm26_natural_positions || []).map((item) => (
+                                  <span key={item} className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700 ring-1 ring-emerald-200">{item}</span>
+                                )) : <span className="text-slate-400">—</span>}
+                              </div>
+                            </div>
+                            <div>
+                              <p className="mb-1 font-semibold text-slate-600">Competentes</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {(editablePlayer.fm26_accomplished_positions || []).length ? (editablePlayer.fm26_accomplished_positions || []).map((item) => (
+                                  <span key={item} className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700 ring-1 ring-blue-200">{item}</span>
+                                )) : <span className="text-slate-400">—</span>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                          <h4 className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-sky-700">Contrato y economía</h4>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="rounded-lg bg-slate-50 p-2"><span className="block text-[11px] font-semibold text-slate-500">Inicio</span><strong>{editablePlayer.fm26_contract?.start || "—"}</strong></div>
+                            <div className="rounded-lg bg-slate-50 p-2"><span className="block text-[11px] font-semibold text-slate-500">Fin</span><strong>{editablePlayer.fm26_contract?.end || "—"}</strong></div>
+                            <div className="rounded-lg bg-slate-50 p-2"><span className="block text-[11px] font-semibold text-slate-500">Estatus</span><strong>{formatFm26Label(editablePlayer.fm26_contract?.squad_status || "—")}</strong></div>
+                            <div className="rounded-lg bg-slate-50 p-2"><span className="block text-[11px] font-semibold text-slate-500">Cláusulas</span><strong>{editablePlayer.fm26_contract?.clauses?.length || 0}</strong></div>
+                          </div>
+                        </div>
+                      </section>
+                    </div>
+
+                    <section className="mt-4 rounded-xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <h4 className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">Rasgos de jugador</h4>
+                        <span className="text-[11px] text-slate-400">FM26 traits</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(editablePlayer.fm26_traits || []).filter((item) => item !== "unknown").length ? (editablePlayer.fm26_traits || []).filter((item) => item !== "unknown").map((item) => (
+                          <span key={item} className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 ring-1 ring-violet-200">{formatFm26Label(item)}</span>
+                        )) : <span className="text-xs text-slate-500">Sin rasgos identificados</span>}
+                      </div>
+                    </section>
+
+                    <details className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white/90">
+                      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-bold text-sky-800">Ver registro original completo de FM26</summary>
+                      <pre className="max-h-64 overflow-auto border-t bg-slate-950 p-4 text-[11px] text-slate-100">{JSON.stringify(editablePlayer.fm26_source_record || {},null,2)}</pre>
+                    </details>
                   </div>
                 )}
 
