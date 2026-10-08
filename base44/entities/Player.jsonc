@@ -18,21 +18,21 @@
       "type": "string",
       "description": "ID del Country asociado. Se resuelve automáticamente por nombre; si no existe, se crea el Country y se usa su nuevo ID."
     },
-    "fm_position": {
+    "position_raw": {
       "type": "string",
-      "description": "Posición del jugador exactamente como aparece en la pantalla POSICIONES del Football Manager Editor. No se interpreta ni se normaliza."
+      "description": "Posición principal exactamente como aparece en el export de Football Manager, conservada para trazabilidad"
     },
-    "best_positions": {
+    "position": {
       "type": "string",
-      "description": "Mejores puestos exactamente como aparecen en el Football Manager Editor."
+      "description": "Posición principal normalizada al catálogo MF LEGACY (GK, DFC, LD, LI, CRD, CRI, CDM, CM, CAM, EI, ED, DC)"
     },
-    "role_used_to_fill_empty_attributes": {
+    "secondary_position_raw": {
       "type": "string",
-      "description": "Rol utilizado para rellenar atributos vacíos, exactamente como aparece en el Football Manager Editor."
+      "description": "Posición alternativa exactamente como aparece en el export de Football Manager, conservada para trazabilidad"
     },
-    "preferred_central_position": {
+    "secondary_position": {
       "type": "string",
-      "description": "Posición central preferida exactamente como aparece en el Football Manager Editor."
+      "description": "Posición alternativa normalizada al catálogo MF LEGACY"
     },
     "style": {
       "type": "string",
@@ -44,11 +44,11 @@
     },
     "right_foot": {
       "type": "string",
-      "description": "Nivel de pierna derecha según el export de Football Manager"
+      "description": "Valor 1–20 del pie en FM26 almacenado como texto por compatibilidad con el editor actual."
     },
     "left_foot": {
       "type": "string",
-      "description": "Nivel de pierna izquierda según el export de Football Manager"
+      "description": "Valor 1–20 del pie en FM26 almacenado como texto por compatibilidad con el editor actual."
     },
     "shirt_number": {
       "type": "number",
@@ -83,90 +83,62 @@
       "properties": {
         "portero": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Portero (0-20), copiada de la pantalla POSICIONES del Editor."
+          "description": "Valoración original FM26 1–20"
         },
         "defensa_izquierdo": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Defensa izquierdo (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "defensa_central": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Defensa central (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "defensa_derecho": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Defensa derecho (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "mediocentro": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Mediocentro (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "carrilero_izquierdo": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Carrilero izquierdo (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "carrilero_derecho": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Carrilero derecho (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "centrocampista_izquierdo": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Centrocampista izquierdo (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "centrocampista": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Centrocampista (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "centrocampista_derecho": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Centrocampista derecho (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "mediapunta_por_la_izquierda": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Mediapunta por la izquierda (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "mediapunta_central": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Mediapunta central (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "mediapunta_por_la_derecha": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Mediapunta por la derecha (0-20)."
+          "description": "Valoración original FM26 1–20"
         },
         "delantero": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Valoración de Delantero (0-20)."
+          "description": "Valoración original FM26 1–20"
         }
       },
-      "description": "Valoraciones por posición tomadas directamente de la pantalla POSICIONES del Football Manager Editor. Los nombres y valores se conservan sin interpretación."
+      "description": "14 valoraciones de posición originales FM26"
     },
     "stats": {
       "type": "object",
@@ -417,6 +389,113 @@
     "description": {
       "type": "string",
       "description": "Perfil o descripción del jugador en MF LEGACY; no procede del CSV actual"
+    },
+    "fm26_uid": {
+      "type": "string",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_unique_id": {
+      "type": "string",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_club_uid": {
+      "type": "string",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_nation_id": {
+      "type": "string",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_second_nation_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_natural_positions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_accomplished_positions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_raw_positions": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_raw_attributes": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_personality": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_traits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_trait_codes": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_reputation": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_contract": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_transfer_value": {
+      "type": "number",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_weekly_wage": {
+      "type": "number",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_save_club_name": {
+      "type": "string",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_team_slot": {
+      "type": "number",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_loan_details": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_condition": {
+      "type": "number",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_match_sharpness": {
+      "type": "number",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_source": {
+      "type": "string",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_source_record": {
+      "type": "object",
+      "description": "Registro íntegro original de fmsave FM26, conservado para trazabilidad y nuevos campos futuros."
     }
   },
   "required": [
