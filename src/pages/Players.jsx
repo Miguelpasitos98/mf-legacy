@@ -99,6 +99,19 @@ const FM26_ATTRIBUTE_MAP = {
   }
 };
 
+// Club suggestions are advisory: only an explicit user choice is imported.
+const fm26ClubKey = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(football club|futbol club|f\.?c\.?)\b/g, " ").replace(/[^a-z0-9]/g, "");
+const fm26ClubToken = row => `${String(row.club_uid ?? "unknown")}|${String(row.club_name || row.club_short_name || "Sin club")}`;
+const fm26Similarity = (a,b) => {
+  const x=fm26ClubKey(a), y=fm26ClubKey(b);
+  if (!x || !y) return 0;
+  if(x===y) return 100;
+  if(x.includes(y) || y.includes(x)) return 78;
+  const distance = Array.from({length:y.length+1},(_,j)=>j);
+  for(let i=1;i<=x.length;i++) {let diagonal=distance[0]; distance[0]=i;
+    for(let j=1;j<=y.length;j++){const previous=distance[j];distance[j]=Math.min(distance[j]+1,distance[j-1]+1,diagonal+(x[i-1]===y[j-1]?0:1));diagonal=previous;}}
+  return Math.round(100*(1-distance[y.length]/Math.max(x.length,y.length)));
+};
 const fm26Normalize = (name) => String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
 const fm26Date = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? `${value.slice(8,10)}/${value.slice(5,7)}/${value.slice(0,4)}` : "";
 const fm26Number = (value) => typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -1922,6 +1935,13 @@ export default function Players() {
   const [fm26CreateMissing, setFm26CreateMissing] = useState(true);
   const [fm26ImportOpen, setFm26ImportOpen] = useState(false);
   const [fm26NationMapping, setFm26NationMapping] = useState({});
+  const [fm26ClubChoices, setFm26ClubChoices] = useState({});
+  const [fm26ClubSearch, setFm26ClubSearch] = useState({});
+  const [fm26CreatingClub, setFm26CreatingClub] = useState("");
+  const [fm26NewClubName, setFm26NewClubName] = useState("");
+  const [fm26NewClubCountry, setFm26NewClubCountry] = useState("");
+  const [fm26NewClubLeague, setFm26NewClubLeague] = useState("");
+  const [fm26Leagues, setFm26Leagues] = useState([]);
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkIds, setBulkIds] = useState([]);
   const [bulkAction, setBulkAction] = useState("team_id");
@@ -1975,35 +1995,59 @@ export default function Players() {
     ? rawViewMode
     : "all";
 
+  const fm26Clubs = useMemo(() => {
+    const groups = new Map();
+    for (const row of fm26Import || []) {
+      const key=fm26ClubToken(row);
+      if(!groups.has(key)) groups.set(key,{key,uid:row.club_uid,name:String(row.club_name || row.club_short_name || "Sin club"),count:0});
+      groups.get(key).count++;
+    }
+    return [...groups.values()].map(group=>({ ...group,
+      suggestions: [...teams].map(t=>({...t,score:Math.max(fm26Similarity(group.name,t.name),fm26Similarity(group.name,t.shortName))}))
+        .filter(t=>t.score>=40).sort((a,b)=>b.score-a.score).slice(0,3)
+    }));
+  }, [fm26Import,teams]);
+
   const fm26Preview = useMemo(() => {
     if (!fm26Import) return null;
-    const teamNames = new Map();
-    for (const team of teams) {
-      const key = fm26Normalize(team.name);
-      teamNames.set(key, [...(teamNames.get(key) || []), team]);
-    }
     const byUid = new Map(players.filter(p => p.fm26_uid).map(p => [String(p.fm26_uid), p]));
     const byName = new Map();
-    for (const p of players) {
-      const key = `${p.teamId}|${fm26Normalize(p.name)}`;
-      byName.set(key, [...(byName.get(key) || []), p]);
-    }
-    const seen = new Set();
-    const rows = fm26Import.map(row => {
-      const uid = String(row.uid ?? "");
-      const choices = teamNames.get(fm26Normalize(row.club_name)) || [];
-      const club = choices.length === 1 ? choices[0] : null;
-      const uidPlayer = byUid.get(uid);
-      // Never relocate an existing player on an FM import automatically.
-      const possible = club ? byName.get(`${club.id}|${fm26Normalize(fm26PlayerName(row))}`) || [] : [];
-      const match = uidPlayer || (possible.length === 1 ? possible[0] : null);
-      const invalid = !uid || !fm26PlayerName(row) || !row.positions || !row.attributes || seen.has(uid);
+    for(const p of players){const key=`${p.teamId}|${fm26Normalize(p.name)}`;byName.set(key,[...(byName.get(key)||[]),p]);}
+    const seen=new Set();
+    const rows=fm26Import.map(row=>{
+      const uid=String(row.uid??"");
+      const chosenId=fm26ClubChoices[fm26ClubToken(row)];
+      const club=teams.find(t=>String(t.id)===String(chosenId)) || null;
+      const sameUid=byUid.get(uid);
+      const possible=club?(byName.get(`${club.id}|${fm26Normalize(fm26PlayerName(row))}`)||[]):[];
+      const match=sameUid||(possible.length===1?possible[0]:null);
+      const invalid=!uid||!fm26PlayerName(row)||!row.positions||!row.attributes||seen.has(uid);
       seen.add(uid);
-      const status = invalid ? "invalid" : choices.length > 1 || (!uidPlayer && possible.length > 1) ? "ambiguous" : !club ? "club_missing" : match ? "update" : "create";
-      return { row, club, match, status };
+      const status=invalid?"invalid":!club?"club_missing":(!sameUid&&possible.length>1)?"ambiguous":match?"update":"create";
+      return {row,club,match,status};
     });
-    return { rows, update: rows.filter(r => r.status === "update").length, create: rows.filter(r => r.status === "create").length, skipped: rows.filter(r => !["update", "create"].includes(r.status)).length };
-  }, [fm26Import, players, teams]);
+    return {rows,update:rows.filter(r=>r.status==="update").length,create:rows.filter(r=>r.status==="create").length,skipped:rows.filter(r=>!["update","create"].includes(r.status)).length,unmapped:rows.filter(r=>r.status==="club_missing").length};
+  },[fm26Import,players,teams,fm26ClubChoices]);
+
+  const handleCreateFm26Club = async (group) => {
+    if(fm26Busy) return;
+    const name=fm26NewClubName.trim();
+    if(!name || !fm26NewClubCountry || !fm26NewClubLeague){setFm26Error("Para crear un club introduce nombre, país y liga.");return;}
+    if(teams.some(t=>fm26ClubKey(t.name)===fm26ClubKey(name))){setFm26Error("Ya existe un club con nombre equivalente. Selecciónalo en el buscador.");return;}
+    setFm26Busy(true);setFm26Error("");
+    try{
+      const country=countries.find(c=>String(c.id)===String(fm26NewClubCountry));
+      const league=fm26Leagues.find(l=>String(l.id||l._id)===String(fm26NewClubLeague));
+      const created=await base44.entities.Team.create({name,short_name:generateImportedTeamShortName(name),code:generateImportedTeamShortName(name),country_id:country.id,league_id:fm26NewClubLeague,continent:country.continent||league?.continent||"Europe",city:"",logo:"",is_active:true});
+      const data=created?.data||created;
+      const id=data?.id||data?._id;
+      if(!id) throw new Error("Base44 no devolvió el ID del nuevo equipo.");
+      setTeams(old=>[...old,normalizeTeam({...data,id,name})]);
+      setFm26ClubChoices(old=>({...old,[group.key]:String(id)}));
+      setFm26CreatingClub("");setFm26Message(`Club ${name} creado y vinculado a ${group.count} jugadores.`);
+    }catch(error){setFm26Error(`No se pudo crear el equipo: ${error?.message||"error"}`);}
+    finally{setFm26Busy(false);}
+  };
 
   const handleFm26File = async (event) => {
     const file = event.target.files?.[0];
@@ -2012,17 +2056,26 @@ export default function Players() {
     setFm26Error(""); setFm26Message(""); setFm26Import(null);
     setFm26FileName(file.name);
     setFm26NationMapping({});
+    setFm26ClubChoices({});
+    setFm26ClubSearch({});
+    setFm26CreatingClub("");
+    setFm26Leagues([]);
     try {
       const payload = JSON.parse(await file.text());
       if (!Array.isArray(payload) || !payload.length) throw new Error("Se esperaba un JSON con una lista de jugadores.");
       if (payload.length > 150000) throw new Error("El archivo supera 150.000 jugadores. Divide la exportación por clubes o ligas.");
       if (!payload.some(p => p && p.positions && p.attributes && p.uid != null)) throw new Error("No parece una exportación 'players' de fmsave FM26.");
       setFm26Import(payload);
+      try {const result=await base44.entities.League.list();setFm26Leagues(Array.isArray(result)?result:(result?.data||[]));} catch(error) {console.warn("No se pudieron cargar las ligas disponibles",error);}
     } catch (err) { setFm26Error(err.message || "No se ha podido abrir el JSON"); }
   };
 
   const handleFm26Import = async () => {
     if (!fm26Preview || fm26Busy) return;
+    if (fm26Preview.unmapped) {
+      setFm26Error(`Quedan ${fm26Preview.unmapped} jugadores sin club asignado. Vincula todos los grupos antes de importar.`);
+      return;
+    }
     setFm26Busy(true); setFm26Error("");
     let updated=0, created=0, failed=0; const failures=[];
     try {
@@ -2033,8 +2086,9 @@ export default function Players() {
           const data = fm26Payload(row, match || {});
           const mappedCountryId = fm26NationMapping[String(row.nation_id)] || "";
           if (mappedCountryId) data.country_id = mappedCountryId;
+          data.team_id = club.id;
           if (match) { await base44.entities.Player.update(match.id, data); updated++; }
-          else { await base44.entities.Player.create({ ...data, team_id: club.id }); created++; }
+          else { await base44.entities.Player.create(data); created++; }
         } catch (error) {
           failed++;
           if (failures.length < 8) failures.push(`${fm26PlayerName(row)}: ${error?.message || "error"}`);
@@ -2042,7 +2096,7 @@ export default function Players() {
         if (index % 5 === 0) setFm26Message(`Importando ${index+1}/${fm26Preview.rows.length}...`);
       }
       setFm26Import(null);
-      setFm26Message(`Completado: ${updated} actualizados, ${created} creados, ${failed} errores, ${fm26Preview.skipped} sin importar por club no encontrado, ambigüedad o datos incompletos.${failures.length ? " Ejemplos de errores: " + failures.join(" | ") : ""}`);
+      setFm26Message(`Completado: ${updated} actualizados, ${created} creados, ${failed} errores, ${fm26Preview.skipped} omitidos por ambigüedad o datos incompletos.${failures.length ? " Ejemplos de errores: " + failures.join(" | ") : ""}`);
       await loadData();
     } catch(error) { setFm26Error(error?.message || "Error inesperado"); }
     finally { setFm26Busy(false); }
@@ -4112,19 +4166,37 @@ export default function Players() {
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={e => { if (e.target === e.currentTarget && !fm26Busy) setFm26ImportOpen(false); }}>
             <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
               <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-extrabold">Importar FM26 JSON</h2><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)}><X size={20}/></button></div>
-              <p className="mb-4 text-sm text-slate-600">Selecciona un archivo JSON exportado con fmsave (tabla players). Actualiza los jugadores existentes e incorpora posiciones, atributos y datos de FM26. Solo importa clubes que ya existan en MF LEGACY y cuyo nombre coincida sin ambigüedad. No modifica fotografías ni salarios anuales. Las nacionalidades pueden vincularse manualmente a países existentes antes de importar.</p>
+              <p className="mb-4 text-sm text-slate-600">Carga un JSON de fmsave (players). Detectamos y agrupamos sus clubes, sugerimos coincidencias y te pedimos confirmar el equipo de destino de cada grupo. No modifica fotografías ni salarios anuales.</p>
               <input type="file" accept=".json,application/json" onChange={handleFm26File} disabled={fm26Busy} className="mb-4 w-full text-sm" />
               {fm26FileName && <p className="mb-3 text-xs text-slate-500">Archivo: {fm26FileName}</p>}
+              {fm26Import && <div className="mb-4 space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                <div><p className="text-sm font-extrabold">Equipos detectados en FM26: {fm26Clubs.length}</p><p className="text-xs text-slate-600">Los jugadores están agrupados por ID de club de Football Manager. Elige su equivalente en MF LEGACY o crea uno nuevo. Las sugerencias no se aplican solas.</p></div>
+                {fm26Clubs.map(group=>{
+                  const picked=teams.find(t=>String(t.id)===String(fm26ClubChoices[group.key]));
+                  const search=fm26ClubSearch[group.key]||"";
+                  const matches=search.trim()?teams.filter(t=>fm26ClubKey(t.name).includes(fm26ClubKey(search))||fm26ClubKey(t.shortName).includes(fm26ClubKey(search))).slice(0,12):[];
+                  return <div key={group.key} className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-bold">FM26: {group.name}</p><p className="text-xs text-slate-500">ID {String(group.uid??"desconocido")} · {group.count} jugadores</p></div><span className={`rounded-full px-2 py-1 text-xs font-semibold ${picked?"bg-green-100 text-green-800":"bg-amber-100 text-amber-800"}`}>{picked?`Asignado a ${picked.name}`:"Pendiente de asignar"}</span></div>
+                    <p className="mt-3 text-xs font-semibold text-slate-600">¿Es alguno de estos equipos?</p>
+                    <div className="mt-1 flex flex-wrap gap-2">{group.suggestions.length?group.suggestions.map(t=><button key={t.id} type="button" disabled={fm26Busy} onClick={()=>{setFm26ClubChoices(old=>({...old,[group.key]:String(t.id)}));setFm26CreatingClub("");}} className={`rounded-lg border px-3 py-1.5 text-xs ${String(picked?.id)===String(t.id)?"border-green-500 bg-green-50 font-bold":"border-slate-200 hover:bg-blue-50"}`}>{t.name} · {t.score}%</button>):<span className="text-xs text-slate-500">Sin coincidencias cercanas</span>}</div>
+                    <label className="mt-3 block text-xs font-semibold text-slate-600">Buscar otro equipo</label>
+                    <input disabled={fm26Busy} value={search} onChange={e=>setFm26ClubSearch(old=>({...old,[group.key]:e.target.value}))} placeholder="Buscar por nombre..." className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" />
+                    {!!search.trim()&&<div className="mt-1 max-h-32 overflow-y-auto rounded-lg border">{matches.map(t=><button key={t.id} type="button" onClick={()=>{setFm26ClubChoices(old=>({...old,[group.key]:String(t.id)}));setFm26ClubSearch(old=>({...old,[group.key]:""}));setFm26CreatingClub("");}} className="block w-full border-b px-3 py-2 text-left text-xs hover:bg-blue-50">{t.name}</button>)}{!matches.length&&<p className="p-2 text-xs text-slate-500">No hay coincidencias</p>}</div>}
+                    <div className="mt-2 flex flex-wrap gap-3"><button type="button" className="text-xs font-semibold text-blue-700 underline" onClick={()=>{setFm26CreatingClub(group.key);setFm26NewClubName(group.name);setFm26NewClubCountry("");setFm26NewClubLeague("");}}>Ninguno: crear equipo</button>{picked&&<button type="button" className="text-xs text-slate-500 underline" onClick={()=>setFm26ClubChoices(old=>{const next={...old};delete next[group.key];return next;})}>Quitar asociación</button>}</div>
+                    {fm26CreatingClub===group.key&&<div className="mt-3 space-y-2 rounded-lg border bg-slate-50 p-3"><p className="text-xs font-bold">Crear equipo en MF LEGACY</p><input value={fm26NewClubName} onChange={e=>setFm26NewClubName(e.target.value)} placeholder="Nombre del equipo" className="w-full rounded border p-2 text-sm"/><select className="w-full rounded border p-2 text-sm" value={fm26NewClubCountry} onChange={e=>setFm26NewClubCountry(e.target.value)}><option value="">Selecciona país</option>{countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select className="w-full rounded border p-2 text-sm" value={fm26NewClubLeague} onChange={e=>setFm26NewClubLeague(e.target.value)}><option value="">Selecciona liga</option>{fm26Leagues.map(l=><option key={l.id||l._id} value={l.id||l._id}>{l.name}</option>)}</select><div className="flex gap-2"><button type="button" disabled={fm26Busy} onClick={()=>handleCreateFm26Club(group)} className="rounded bg-[#003399] px-3 py-2 text-xs font-bold text-white">Crear y asociar</button><button type="button" disabled={fm26Busy} onClick={()=>setFm26CreatingClub("")} className="rounded border px-3 py-2 text-xs">Cancelar</button></div></div>}
+                  </div>;
+                })}
+              </div>}
               {fm26Preview && <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
                 <p className="font-bold">Vista previa de {fm26Preview.rows.length} jugadores</p>
-                <p>{fm26Preview.update} para actualizar · {fm26Preview.create} nuevos · {fm26Preview.skipped} omitidos (club inexistente / ambiguo / datos incompletos)</p>
-                <p className="mt-2 text-xs text-slate-500">Importación parcial segura: no borra datos no presentes en el JSON. Los atributos 1–20 y posiciones de la partida reemplazan los valores previos. Revisa antes de confirmar, especialmente si usas una partida avanzada.</p>
-                <details className="mt-3 rounded-lg border border-slate-200 bg-white p-3"><summary className="cursor-pointer text-sm font-bold">Vincular nacionalidades (opcional)</summary><p className="my-2 text-xs text-slate-500">FM26 usa IDs numéricos que no equivalen a los IDs de Base44. Asocia cada ID una vez; los no asociados conservan su país anterior y su ID FM26.</p><div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">{[...new Set(fm26Import.map(p=>String(p.nation_id)).filter(x=>x!=="undefined"))].sort((a,b)=>Number(a)-Number(b)).map(id=><label key={id} className="flex items-center gap-2 text-xs"><span className="w-20 shrink-0">FM ID {id}</span><select value={fm26NationMapping[id] || ""} onChange={e=>setFm26NationMapping(old=>({...old,[id]:e.target.value}))} className="min-w-0 flex-1 rounded-md border p-1.5"><option value="">Sin vincular</option>{countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>)}</div></details>
-                <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={fm26CreateMissing} onChange={e => setFm26CreateMissing(e.target.checked)}/> Crear jugadores que aún no existan (solo en clubes reconocidos)</label>
+                <p>{fm26Preview.update} para actualizar · {fm26Preview.create} nuevos · {fm26Preview.skipped} omitidos ({fm26Preview.unmapped} sin asociación de club)</p>
+                <p className="mt-2 text-xs text-slate-500">Solo se importarán jugadores con grupo asociado. Las coincidencias ambiguas no se modifican. No se borra información que falte en el JSON.</p>
+                <details className="mt-3 rounded-lg border border-slate-200 bg-white p-3"><summary className="cursor-pointer text-sm font-bold">Vincular nacionalidades (opcional)</summary><p className="my-2 text-xs text-slate-500">FM26 usa IDs distintos a Base44. Los no vinculados conservan el país previo y su ID original.</p><div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">{[...new Set(fm26Import.map(p=>String(p.nation_id)).filter(x=>x!=="undefined"))].sort((a,b)=>Number(a)-Number(b)).map(id=><label key={id} className="flex items-center gap-2 text-xs"><span className="w-20 shrink-0">FM ID {id}</span><select value={fm26NationMapping[id] || ""} onChange={e=>setFm26NationMapping(old=>({...old,[id]:e.target.value}))} className="min-w-0 flex-1 rounded-md border p-1.5"><option value="">Sin vincular</option>{countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>)}</div></details>
+                <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={fm26CreateMissing} onChange={e=>setFm26CreateMissing(e.target.checked)}/> Crear jugadores que aún no existan</label>
               </div>}
               {fm26Error && <p className="mb-3 text-sm text-red-700">{fm26Error}</p>}
               {fm26Message && <p className="mb-3 text-sm text-slate-700">{fm26Message}</p>}
-              <div className="flex justify-end gap-2"><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border px-4 py-2">Cerrar</button><button type="button" disabled={!fm26Preview || fm26Busy} onClick={handleFm26Import} className="rounded-lg bg-[#003399] px-4 py-2 font-semibold text-white disabled:opacity-40">{fm26Busy ? "Importando..." : "Confirmar importación"}</button></div>
+              <div className="flex justify-end gap-2"><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border px-4 py-2">Cerrar</button><button type="button" disabled={!fm26Preview || fm26Preview.unmapped > 0 || fm26Busy} onClick={handleFm26Import} className="rounded-lg bg-[#003399] px-4 py-2 font-semibold text-white disabled:opacity-40">{fm26Busy ? "Importando..." : "Confirmar importación"}</button></div>
             </div>
           </div>
         )}
