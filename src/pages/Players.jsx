@@ -2088,12 +2088,25 @@ export default function Players() {
   }, [fm26Import,teams]);
 
   const fm26Nations = useMemo(() => {
-    const ids=new Set();
-    for(const row of fm26Import||[]) {
-      if(row.nation_id!=null) ids.add(String(row.nation_id));
-      for(const id of row.second_nation_ids||[]) if(id!=null) ids.add(String(id));
+    const groups = new Map();
+    const add = (id, row, kind) => {
+      if (id == null || String(id) === "") return;
+      const key = String(id);
+      if (!groups.has(key)) groups.set(key, { id:key, main:0, secondary:0, examples:[] });
+      const group = groups.get(key);
+      if (kind === "main") group.main++;
+      else group.secondary++;
+      const playerName = fm26PlayerName(row);
+      if (playerName && !group.examples.some(example => example.name === playerName) && group.examples.length < 6) {
+        group.examples.push({ name:playerName, kind, club:row.club_name || "" });
+      }
+    };
+    for (const row of fm26Import || []) {
+      add(row.nation_id, row, "main");
+      for (const id of new Set(row.second_nation_ids || [])) add(id, row, "secondary");
     }
-    return [...ids].sort((a,b)=>Number(a)-Number(b)).map(id=>({id,...fm26CountryAutoMatch(id,countries)}));
+    return [...groups.values()].sort((a,b)=>Number(a.id)-Number(b.id))
+      .map(group=>({...group,...fm26CountryAutoMatch(group.id,countries)}));
   },[fm26Import,countries]);
   const fm26CountryForId = id => {
     const manualId=fm26NationMapping[String(id)] || "";
@@ -4361,7 +4374,7 @@ export default function Players() {
                     <span className="text-xs text-slate-500">Un mismo país no puede recibir dos IDs distintos</span>
                   </div>
                   <div className="max-h-80 space-y-2 overflow-y-auto p-3">
-                    {fm26Nations.filter(item=>!fm26NationOnlyPending || !fm26CountryForId(item.id)).map(({id,reason})=>{
+                    {fm26Nations.filter(item=>!fm26NationOnlyPending || !fm26CountryForId(item.id)).map(({id,reason,main,secondary,examples})=>{
                       const mapped=fm26CountryForId(id);
                       const suggestion=FM26_NATION_ISO3[id] || "Sin referencia";
                       const query=fm26NationSearch[id]||"";
@@ -4369,9 +4382,25 @@ export default function Players() {
                       const selected=fm26NationMapping[id] || "";
                       return <div key={id} className="rounded-lg border border-slate-200 bg-white p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div><strong className="text-sm">FM ID {id}</strong><p className="text-[11px] text-slate-500">Referencia: {suggestion} · {reason==="saved"?"Asociación guardada":reason==="ambiguous"?"Coincidencia ambigua":reason==="conflict"?"Conflicto de asociación":"Revisar si no hay coincidencia"}</p></div>
+                          <div>
+                            <strong className="text-sm">FM ID {id}</strong>
+                            <p className="text-[11px] text-slate-500">{main} principales · {secondary} secundarias · Referencia: {suggestion}</p>
+                            <p className="text-[11px] text-slate-400">{reason==="saved"?"Asociación guardada":reason==="ambiguous"?"Coincidencia ambigua":reason==="conflict"?"Conflicto de asociación":"Sin equivalencia confirmada"}</p>
+                          </div>
                           <span className={`rounded-full px-2 py-1 text-xs font-bold ${mapped?"bg-emerald-50 text-emerald-800":"bg-amber-50 text-amber-800"}`}>{mapped?`✓ ${mapped.name}`:"Sin vincular"}</span>
                         </div>
+                        {!!examples.length && (
+                          <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                            <p className="mb-2 text-[11px] font-bold text-slate-600">Jugadores del JSON con este ID (pistas, no confirmación)</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {examples.map((player,index)=>(
+                                <span key={`${player.name}-${index}`} title={player.club || ""} className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700">
+                                  {player.name} <span className="text-slate-400">{player.kind==="main"?"principal":"secundaria"}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <input type="text" disabled={fm26Busy||fm26NationSaveBusy} value={query} onChange={e=>setFm26NationSearch(old=>({...old,[id]:e.target.value}))} placeholder="Buscar país por nombre o código (BRA, España...)" className="mt-2 w-full rounded-lg border px-3 py-2 text-xs" />
                         {!!query.trim()&&<div className="mt-1 max-h-40 overflow-y-auto rounded-lg border">{choices.length ? choices.map(country=><button key={country.id} type="button" disabled={fm26Busy||fm26NationSaveBusy} onClick={()=>{setFm26NationMapping(old=>({...old,[id]:String(country.id)}));setFm26NationSearch(old=>({...old,[id]:""}));setFm26NationSaveMessage("");}} className="flex w-full items-center justify-between border-b px-3 py-2 text-left text-xs hover:bg-blue-50"><span>{country.name}</span><span className="text-slate-400">{country.code}</span></button>):<p className="p-2 text-xs text-slate-500">No existe un país coincidente en MF LEGACY.</p>}</div>}
                         {selected&&<button type="button" onClick={()=>setFm26NationMapping(old=>{const next={...old};delete next[id];return next;})} className="mt-2 text-xs text-blue-700 underline">Deshacer selección manual</button>}
@@ -4380,7 +4409,7 @@ export default function Players() {
                     {fm26NationOnlyPending && fm26Nations.every(item=>fm26CountryForId(item.id))&&<p className="p-4 text-center text-xs font-semibold text-emerald-700">Todos los países del archivo están identificados.</p>}
                   </div>
                   {fm26NationSaveMessage&&<p className="border-t bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">{fm26NationSaveMessage}</p>}
-                  <p className="border-t px-4 py-2 text-[11px] text-slate-500">Los países desconocidos no se asignan por aproximación. Puedes importar sin vincularlos; se conservará el país anterior cuando exista.</p>
+                  <p className="border-t px-4 py-2 text-[11px] text-slate-500">Puedes importar sin identificar los países pendientes: no se asignarán por aproximación. Los nombres de jugadores son pistas para ayudarte, no pruebas del país. Revisa los casos dudosos antes de guardar equivalencias.</p>
                 </div>
                 <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={fm26CreateMissing} onChange={e=>setFm26CreateMissing(e.target.checked)}/> Crear jugadores que aún no existan</label>
               </div>}
