@@ -2008,6 +2008,9 @@ export default function Players() {
   const [fm26ImportOpen, setFm26ImportOpen] = useState(false);
   const [fm26NationMapping, setFm26NationMapping] = useState({});
   const [fm26NationSearch, setFm26NationSearch] = useState({});
+  const [fm26CreatingNation, setFm26CreatingNation] = useState("");
+  const [fm26NewNation, setFm26NewNation] = useState({ name:"", code:"", continent:"", flag:"" });
+  const [fm26CreateNationBusy, setFm26CreateNationBusy] = useState(false);
   const [fm26NationSaveBusy, setFm26NationSaveBusy] = useState(false);
   const [fm26NationSaveMessage, setFm26NationSaveMessage] = useState("");
   const [fm26NationOnlyPending, setFm26NationOnlyPending] = useState(true);
@@ -2117,7 +2120,7 @@ export default function Players() {
   // Persistent nation equivalences. One FM ID per country, one country per FM ID.
   // Explicitly selected countries override suggestions only after conflict checks.
   const saveFm26NationEquivalences = async () => {
-    if (fm26NationSaveBusy || fm26Busy || !fm26Import) return;
+    if (fm26NationSaveBusy || fm26CreateNationBusy || fm26Busy || !fm26Import) return;
     setFm26NationSaveBusy(true);
     setFm26NationSaveMessage("");
     setFm26Error("");
@@ -2150,6 +2153,55 @@ export default function Players() {
       }
       setFm26NationSaveMessage(`Equivalencias verificadas: ${candidates.length}. Nuevas guardadas: ${saved}.${errors.length?` Errores: ${errors.slice(0,4).join(" | ")}`:""}`);
     } finally {setFm26NationSaveBusy(false);}
+  };
+
+  const handleCreateFm26Nation = async (fmId) => {
+    if (fm26CreateNationBusy || fm26NationSaveBusy || fm26Busy || !fm26Import) return;
+    const name=fm26NewNation.name.trim();
+    const code=fm26NewNation.code.trim().toUpperCase();
+    const continent=fm26NewNation.continent;
+    const flag=fm26NewNation.flag.trim();
+    if (!name || !/^[A-Z]{3}$/.test(code) || !continent) {
+      setFm26Error("Para crear un país indica nombre, código de tres letras y continente.");
+      return;
+    }
+    if (flag && !/^https?:\/\//i.test(flag)) {
+      setFm26Error("La bandera debe ser una URL http(s) o dejarse vacía. No se genera la URL a partir de IDs.");
+      return;
+    }
+    const countryChosenByOtherId=Object.entries(fm26NationMapping).find(([key,countryId])=>String(key)!==String(fmId) && countries.some(c=>String(c.id)===String(countryId) && (fm26CountryKey(c.name)===fm26CountryKey(name) || String(c.code||"").toUpperCase()===code)));
+    if(countryChosenByOtherId){setFm26Error(`Este país ya está seleccionado para FM ID ${countryChosenByOtherId[0]}. Revisa la asociación.`);return;}
+    const existing=countries.find(c=>fm26CountryKey(c.name)===fm26CountryKey(name) || String(c.code||"").toUpperCase()===code);
+    if (existing) {
+      setFm26Error(`Ya existe ${existing.name} (${existing.code}). Selecciónalo en el buscador en lugar de crear un duplicado.`);
+      return;
+    }
+    const assigned=countries.find(c=>String(c.fm_nation_id||"")===String(fmId));
+    if (assigned) {
+      setFm26Error(`El FM ID ${fmId} ya está vinculado con ${assigned.name}. No se creará otro país.`);
+      return;
+    }
+    setFm26CreateNationBusy(true);
+    setFm26Error("");
+    setFm26NationSaveMessage("");
+    try {
+      // Persist country and link atomically in a single Country.create action.
+      const payload={name,code,continent,is_active:true,fm_nation_id:String(fmId)};
+      if(flag) payload.flag=flag;
+      const response=await base44.entities.Country.create(payload);
+      const created=response?.data || response;
+      const id=created?.id || created?._id;
+      if(!id) throw new Error("Base44 no devolvió el ID del país creado. Comprueba Countries antes de intentarlo de nuevo.");
+      const normalized=normalizeCountry({...payload,...created,id});
+      setCountries(old=>[...old,normalized]);
+      setFm26NationMapping(old=>({...old,[String(fmId)]:String(id)}));
+      setFm26NationSearch(old=>({...old,[String(fmId)]:""}));
+      setFm26CreatingNation("");
+      setFm26NewNation({name:"",code:"",continent:"",flag:""});
+      setFm26NationSaveMessage(`${name} (${code}) creado y vinculado con FM ID ${fmId}. La equivalencia ya está guardada.`);
+    } catch(error) {
+      setFm26Error(`No se ha podido crear el país: ${error?.message || "error"}`);
+    } finally {setFm26CreateNationBusy(false);}
   };
 
   const fm26Preview = useMemo(() => {
@@ -2201,6 +2253,8 @@ export default function Players() {
     setFm26FileName(file.name);
     setFm26NationMapping({});
     setFm26NationSearch({});
+    setFm26CreatingNation("");
+    setFm26NewNation({name:"",code:"",continent:"",flag:""});
     setFm26NationSaveMessage("");
     setFm26ClubChoices({});
     setFm26ClubSearch({});
@@ -4367,7 +4421,7 @@ export default function Players() {
                       <p className="text-sm font-extrabold text-slate-900">Gestor de equivalencias · FM26 ↔ MF LEGACY</p>
                       <p className="mt-0.5 text-xs text-slate-500">{fm26Nations.filter(item=>fm26CountryForId(item.id)).length} identificados de {fm26Nations.length}. Guarda las relaciones una vez en Country.fm_nation_id.</p>
                     </div>
-                    <button type="button" disabled={fm26NationSaveBusy || fm26Busy} onClick={saveFm26NationEquivalences} className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{fm26NationSaveBusy?"Guardando...":"Guardar equivalencias"}</button>
+                    <button type="button" disabled={fm26NationSaveBusy || fm26CreateNationBusy || fm26Busy} onClick={saveFm26NationEquivalences} className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{fm26NationSaveBusy?"Guardando...":"Guardar equivalencias"}</button>
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-4 py-2">
                     <label className="flex items-center gap-2 text-xs font-medium"><input type="checkbox" checked={fm26NationOnlyPending} onChange={e=>setFm26NationOnlyPending(e.target.checked)}/> Solo países pendientes</label>
@@ -4401,8 +4455,42 @@ export default function Players() {
                             </div>
                           </div>
                         )}
-                        <input type="text" disabled={fm26Busy||fm26NationSaveBusy} value={query} onChange={e=>setFm26NationSearch(old=>({...old,[id]:e.target.value}))} placeholder="Buscar país por nombre o código (BRA, España...)" className="mt-2 w-full rounded-lg border px-3 py-2 text-xs" />
-                        {!!query.trim()&&<div className="mt-1 max-h-40 overflow-y-auto rounded-lg border">{choices.length ? choices.map(country=><button key={country.id} type="button" disabled={fm26Busy||fm26NationSaveBusy} onClick={()=>{setFm26NationMapping(old=>({...old,[id]:String(country.id)}));setFm26NationSearch(old=>({...old,[id]:""}));setFm26NationSaveMessage("");}} className="flex w-full items-center justify-between border-b px-3 py-2 text-left text-xs hover:bg-blue-50"><span>{country.name}</span><span className="text-slate-400">{country.code}</span></button>):<p className="p-2 text-xs text-slate-500">No existe un país coincidente en MF LEGACY.</p>}</div>}
+                        <input type="text" disabled={fm26Busy||fm26NationSaveBusy||fm26CreateNationBusy} value={query} onChange={e=>setFm26NationSearch(old=>({...old,[id]:e.target.value}))} placeholder="Buscar país por nombre o código (BRA, España...)" className="mt-2 w-full rounded-lg border px-3 py-2 text-xs" />
+                        {!!query.trim()&&<div className="mt-1 max-h-40 overflow-y-auto rounded-lg border">{choices.length ? choices.map(country=><button key={country.id} type="button" disabled={fm26Busy||fm26NationSaveBusy||fm26CreateNationBusy} onClick={()=>{setFm26NationMapping(old=>({...old,[id]:String(country.id)}));setFm26NationSearch(old=>({...old,[id]:""}));setFm26NationSaveMessage("");}} className="flex w-full items-center justify-between border-b px-3 py-2 text-left text-xs hover:bg-blue-50"><span>{country.name}</span><span className="text-slate-400">{country.code}</span></button>):<p className="p-2 text-xs text-slate-500">No existe un país coincidente en MF LEGACY.</p>}</div>}
+                        {!!query.trim()&&!choices.length&&!mapped&&fm26CreatingNation!==id&&(
+                          <button type="button" disabled={fm26Busy||fm26NationSaveBusy||fm26CreateNationBusy}
+                            onClick={()=>{setFm26CreatingNation(id);setFm26NewNation({name:query.trim(),code:"",continent:"",flag:""});setFm26Error("");}}
+                            className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-100 disabled:opacity-40">
+                            + Crear país y vincular con FM ID {id}
+                          </button>
+                        )}
+                        {fm26CreatingNation===id&&(
+                          <div className="mt-3 space-y-3 rounded-xl border border-blue-200 bg-blue-50/50 p-3">
+                            <p className="text-xs font-bold text-blue-900">Crear país nuevo · FM ID {id}</p>
+                            <p className="text-[11px] text-slate-600">Comprueba los datos antes de crear. El país y la equivalencia se guardarán juntos; no se modifican otras banderas.</p>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              <label className="text-[11px] font-semibold text-slate-700">Nombre del país
+                                <input value={fm26NewNation.name} onChange={e=>setFm26NewNation(old=>({...old,name:e.target.value}))} placeholder="Ej. Camerún" className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-xs" />
+                              </label>
+                              <label className="text-[11px] font-semibold text-slate-700">Código de 3 letras (ISO)
+                                <input maxLength={3} value={fm26NewNation.code} onChange={e=>setFm26NewNation(old=>({...old,code:e.target.value.toUpperCase()}))} placeholder="Ej. CMR" className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-xs uppercase" />
+                              </label>
+                            </div>
+                            <label className="block text-[11px] font-semibold text-slate-700">Continente
+                              <select value={fm26NewNation.continent} onChange={e=>setFm26NewNation(old=>({...old,continent:e.target.value}))} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-xs">
+                                <option value="">Seleccionar continente</option>
+                                {["Europe","South America","North America","Asia","Africa","Oceania"].map(item=><option key={item} value={item}>{item}</option>)}
+                              </select>
+                            </label>
+                            <label className="block text-[11px] font-semibold text-slate-700">URL de bandera (opcional)
+                              <input type="url" value={fm26NewNation.flag} onChange={e=>setFm26NewNation(old=>({...old,flag:e.target.value}))} placeholder="https://..." className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-xs" />
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              <button type="button" disabled={fm26Busy||fm26NationSaveBusy||fm26CreateNationBusy} onClick={()=>handleCreateFm26Nation(id)} className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{fm26CreateNationBusy?"Creando...":"Confirmar: crear y vincular"}</button>
+                              <button type="button" disabled={fm26CreateNationBusy} onClick={()=>{setFm26CreatingNation("");setFm26Error("");}} className="rounded-lg border bg-white px-3 py-2 text-xs font-medium">Cancelar</button>
+                            </div>
+                          </div>
+                        )}
                         {selected&&<button type="button" onClick={()=>setFm26NationMapping(old=>{const next={...old};delete next[id];return next;})} className="mt-2 text-xs text-blue-700 underline">Deshacer selección manual</button>}
                       </div>;
                     })}
@@ -4433,7 +4521,7 @@ export default function Players() {
                   </div>
                 </div>
               )}
-              <div className="flex justify-end gap-2"><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border px-4 py-2">Cerrar</button><button type="button" disabled={!fm26Preview || fm26Preview.unmapped > 0 || fm26Busy || fm26NationSaveBusy} onClick={handleFm26Import} className="rounded-lg bg-[#003399] px-4 py-2 font-semibold text-white disabled:opacity-40">{fm26Busy ? "Importando..." : "Confirmar importación"}</button></div>
+              <div className="flex justify-end gap-2"><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border px-4 py-2">Cerrar</button><button type="button" disabled={!fm26Preview || fm26Preview.unmapped > 0 || fm26Busy || fm26NationSaveBusy || fm26CreateNationBusy} onClick={handleFm26Import} className="rounded-lg bg-[#003399] px-4 py-2 font-semibold text-white disabled:opacity-40">{fm26Busy ? "Importando..." : "Confirmar importación"}</button></div>
             </div>
           </div>
         )}
