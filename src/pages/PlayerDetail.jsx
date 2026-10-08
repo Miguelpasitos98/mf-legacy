@@ -22,6 +22,27 @@ const CAREER_STATUS_LOGOS = {
 };
 const careerStatusLogo = (status) => CAREER_STATUS_LOGOS[status] || "";
 
+// Datos públicos verificados en el repositorio My-Legacy. Nunca se importan
+// automáticamente a Base44; esta vista es de solo lectura.
+const FM26_HISTORY_GITHUB_ROOT = "https://raw.githubusercontent.com/Miguelpasitos98/My-Legacy/main/data/fm26/2620/players";
+const historyClubLogo = (clubName, teams = []) => {
+  const simple = (name) => String(name || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/\b(fc|cf|football club|futbol club|club de futbol)\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+  const key = simple(clubName);
+  if (!key) return "";
+  const match = teams.find((item) => [item.name, item.short_name].some((value) => simple(value) === key));
+  return normalizeImageUrl(match?.logo || match?.logo_url || "");
+};
+
+const historyDate = (iso) => {
+  if (!iso || typeof iso !== "string") return "Actualidad";
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "Fecha desconocida";
+};
+
+
 
 const POSITION_RATING_FIELDS = [
   ["portero", "Portero"],
@@ -728,6 +749,43 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   const [editError, setEditError] = useState("");
   const [editablePlayer, setEditablePlayer] = useState(player);
   const [form, setForm] = useState(initialForm);
+  const [showCareerHistory, setShowCareerHistory] = useState(false);
+  const [careerHistoryState, setCareerHistoryState] = useState({ status: "idle", data: null, message: "" });
+
+  // Solicita solo el UID del jugador abierto, y verifica UID, esquema y estado
+  // de revisión antes de mostrar nada. No altera el jugador.
+  useEffect(() => {
+    if (!showCareerHistory) return undefined;
+    const uid = String(editablePlayer?.fm26_uid || "").trim();
+    if (!/^\d+$/.test(uid)) {
+      setCareerHistoryState({ status: "no_uid", data: null, message: "Este jugador todavía no tiene UID de FM26." });
+      return undefined;
+    }
+    const controller = new AbortController();
+    setCareerHistoryState({ status: "loading", data: null, message: "" });
+    fetch(`${FM26_HISTORY_GITHUB_ROOT}/${uid}.json`, { signal: controller.signal, cache: "no-store" })
+      .then(async (response) => {
+        if (response.status === 404) return { missing: true };
+        if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        if (data?.missing) {
+          setCareerHistoryState({ status: "missing", data: null, message: "Todavía no hay un historial publicado y verificado para este futbolista." });
+        } else if (data?.schema_version !== 1 || String(data?.fm_uid) !== uid || data?.status !== "verified" || !Array.isArray(data?.career_history)) {
+          setCareerHistoryState({ status: "unverified", data: null, message: "El historial de GitHub no está validado o su UID no coincide. No se mostrará." });
+        } else {
+          setCareerHistoryState({ status: "ready", data, message: "" });
+        }
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setCareerHistoryState({ status: "error", data: null, message: `No se ha podido consultar GitHub: ${error?.message || "error de conexión"}` });
+      });
+    return () => controller.abort();
+  }, [showCareerHistory, editablePlayer?.fm26_uid]);
+
 
   useEffect(() => {
     setEditablePlayer(player);
@@ -979,6 +1037,15 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           Back to players
         </button>
 
+        <div className="flex items-center gap-5">
+          <button
+            type="button"
+            onClick={() => setShowCareerHistory(true)}
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 transition hover:text-[#003399]"
+            aria-label="Ver trayectoria de clubes"
+          >
+            <Building2 size={15} /> TRAYECTORIA
+          </button>
         <button
           type="button"
           onClick={openEditor}
@@ -987,6 +1054,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         >
           EDIT <Pencil size={15} />
         </button>
+        </div>
       </header>
 
       <section className="relative z-10 grid h-full min-h-0 grid-cols-1 items-center gap-4 overflow-visible px-6 pb-2 pt-20 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20">
@@ -1134,6 +1202,43 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           document.body
         );
       })()}
+
+      {showCareerHistory && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setShowCareerHistory(false); }}
+        >
+          <div className="max-h-[85vh] w-full max-w-[680px] overflow-y-auto rounded-[24px] border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.17em] text-[#003399]">MF LEGACY · Trayectoria</p>
+                <h2 className="mt-1 text-xl font-extrabold text-slate-900">{playerName}</h2>
+                <p className="mt-1 text-xs text-slate-500">Historial de clubes publicado en GitHub, en modo lectura.</p>
+              </div>
+              <button type="button" aria-label="Cerrar trayectoria" onClick={() => setShowCareerHistory(false)} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"><X size={18}/></button>
+            </div>
+            {careerHistoryState.status === "loading" && <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Buscando historial verificado en GitHub…</div>}
+            {careerHistoryState.status !== "ready" && careerHistoryState.status !== "loading" && <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">{careerHistoryState.message || "Todavía no hay datos disponibles."}</div>}
+            {careerHistoryState.status === "ready" && (
+              <div className="space-y-3">
+                {(careerHistoryState.data.career_history || []).slice().reverse().map((item,index) => (
+                  <div key={`${item.club_name}-${item.start_date}-${index}`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#003399]">{historyClubLogo(item.club_name, teams) ? <img src={historyClubLogo(item.club_name, teams)} alt="" className="h-8 w-8 object-contain"/> : <Building2 size={20}/>}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-slate-900">{String(item.club_name || "Club sin identificar")}</p>
+                      <p className="mt-1 text-xs text-slate-600">{item.start_date ? historyDate(item.start_date) : "Inicio desconocido"} – {historyDate(item.end_date)}</p>
+                    </div>
+                    {item.loan === true && <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800">Cesión</span>}
+                  </div>
+                ))}
+                {!careerHistoryState.data.career_history?.length && <p className="text-sm text-slate-500">No hay etapas registradas.</p>}
+                <p className="pt-2 text-[11px] text-slate-400">Fuente: {careerHistoryState.data.verification?.source || "Historial verificado"}. Estos datos no modifican Base44.</p>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
 
       {editOpen && typeof document !== "undefined"
         ? createPortal(
