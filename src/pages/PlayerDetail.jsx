@@ -677,6 +677,9 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         player?.national_card_photo_url ||
         "",
       teamId: player?.teamId || player?.team_id || "",
+      careerStatus: player?.career_status || (player?.team_id || player?.teamId ? "active" : "free_agent"),
+      lastTeamId: player?.last_team_id || "",
+      retirementYear: player?.retirement_year ?? "",
       countryId: player?.countryId || player?.country_id || "",
       secondaryCountryId: player?.secondaryCountryId || player?.secondary_country_id || player?.fm26_second_country_ids?.[0] || "",
       fmPosition: player?.fm_position || "",
@@ -829,7 +832,10 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       await base44.entities.Player.update(editablePlayer.id, {
         name: form.name.trim(),
         date_of_birth: form.dateOfBirth.trim(),
-        team_id: form.teamId || "",
+        team_id: form.careerStatus === "active" ? (form.teamId || "") : "",
+        career_status: form.careerStatus,
+        last_team_id: form.careerStatus === "active" ? (form.lastTeamId || "") : (form.lastTeamId || form.teamId || ""),
+        retirement_year: form.careerStatus === "retired" && form.retirementYear !== "" ? Number(form.retirementYear) : null,
         country_id: form.countryId || "",
         secondary_country_id: form.secondaryCountryId || "",
         fm26_second_country_ids: form.secondaryCountryId ? [form.secondaryCountryId, ...(editablePlayer.fm26_second_country_ids || []).slice(1)].filter((id, index, values) => id && values.indexOf(id) === index) : (editablePlayer.fm26_second_country_ids || []).slice(1),
@@ -867,8 +873,11 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         name: form.name.trim(),
         dateOfBirth: form.dateOfBirth.trim(),
         date_of_birth: form.dateOfBirth.trim(),
-        teamId: form.teamId || "",
-        team_id: form.teamId || "",
+        teamId: form.careerStatus === "active" ? (form.teamId || "") : "",
+        team_id: form.careerStatus === "active" ? (form.teamId || "") : "",
+        career_status: form.careerStatus,
+        last_team_id: form.careerStatus === "active" ? (form.lastTeamId || "") : (form.lastTeamId || form.teamId || ""),
+        retirement_year: form.careerStatus === "retired" && form.retirementYear !== "" ? Number(form.retirementYear) : null,
         countryId: form.countryId || "",
         country_id: form.countryId || "",
         secondaryCountryId: form.secondaryCountryId || "",
@@ -1246,14 +1255,15 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                             <div>
                               <label className="mb-1.5 block text-xs font-semibold text-slate-700">Associated club</label>
                               <SearchableEntitySelect
-                                value={form.teamId}
-                                onChange={(value) => setForm((current) => ({ ...current, teamId: value }))}
-                                options={teams}
+                                value={form.careerStatus === "retired" ? "__retired__" : form.careerStatus === "free_agent" ? "__free_agent__" : form.teamId}
+                                onChange={(value) => setForm((current) => ({ ...current, careerStatus: value === "__retired__" ? "retired" : value === "__free_agent__" ? "free_agent" : "active", teamId: value.startsWith("__") ? current.teamId : value, lastTeamId: value.startsWith("__") ? (current.teamId || current.lastTeamId) : current.lastTeamId }))}
+                                options={[{id:"__free_agent__",name:"Agente libre"},{id:"__retired__",name:"Retirado"},...teams]}
                                 kind="team"
-                                placeholder="No club"
-                                searchPlaceholder="Search club..."
-                                emptyOption={{ value: "", label: "No club" }}
+                                placeholder="Selecciona equipo o situación"
+                                searchPlaceholder="Buscar club o estado..."
+                                emptyOption={{ value: "", label: "Agente libre" }}
                               />
+                              {form.careerStatus !== "active" && <div className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600"><label className="block font-semibold">Último club (opcional)<select value={form.lastTeamId || form.teamId || ""} onChange={e=>setForm(f=>({...f,lastTeamId:e.target.value,teamId:""}))} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-normal"><option value="">Sin último club registrado</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>{form.careerStatus === "retired" && <label className="flex items-center gap-2">Año de retirada <input type="number" min="1900" max="2100" placeholder="2024" className="w-24 rounded-lg border border-slate-200 px-2 py-1" value={form.retirementYear} onChange={e=>setForm(f=>({...f,retirementYear:e.target.value}))}/></label>}</div>}
                             </div>
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
