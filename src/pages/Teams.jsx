@@ -29,6 +29,7 @@ import {
   ChevronDown,
   Pipette,
   Save,
+  Trash2,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -916,7 +917,7 @@ const competitionLogo =
   );
 }
 
-function TeamCard({ team, onOpen, showReputation = false }) {
+function TeamCard({ team, onOpen, showReputation = false, selectionMode = false, isSelected = false, disabled = false }) {
   const reputationValue = Number(team?.reputation);
   const normalizedReputation = Number.isFinite(reputationValue)
     ? reputationValue
@@ -926,8 +927,14 @@ function TeamCard({ team, onOpen, showReputation = false }) {
     <button
       type="button"
       onClick={onOpen}
-      className="group flex min-h-[100px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
+      disabled={disabled}
+      aria-pressed={selectionMode ? isSelected : undefined}
+      aria-label={selectionMode ? `${isSelected ? "Deseleccionar" : "Seleccionar"} ${team.name}` : undefined}
+      className={`group relative flex min-h-[100px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2.5 text-center transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-wait disabled:opacity-60 ${selectionMode && isSelected ? "border-blue-500 bg-blue-50 ring-2 ring-blue-300" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"}`}
     >
+      {selectionMode && (
+        <span className={`absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-md border text-[11px] font-black ${isSelected ? "border-[#003399] bg-[#003399] text-white" : "border-slate-300 bg-white text-transparent"}`} aria-hidden="true">✓</span>
+      )}
       <TeamLogo team={team} />
       <span className="w-full truncate text-[11px] font-bold text-slate-800 transition group-hover:text-[#003399]">
         {team.name}
@@ -2962,6 +2969,11 @@ export default function Teams() {
   const [form, setForm] = useState(emptyTeamForm);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [editingTeam, setEditingTeam] = useState(null);
+  const [bulkTeamsMode, setBulkTeamsMode] = useState(false);
+  const [bulkTeamIds, setBulkTeamIds] = useState([]);
+  const [bulkTeamsConfirmOpen, setBulkTeamsConfirmOpen] = useState(false);
+  const [bulkTeamsBusy, setBulkTeamsBusy] = useState(false);
+  const [bulkTeamsMessage, setBulkTeamsMessage] = useState("");
 
   const handleOpenAddTeam = () => {
     setEditingTeam(null);
@@ -3691,6 +3703,48 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
     setAddModalOpen(true);
   };
 
+  const selectedBulkTeams = teams.filter((team) => bulkTeamIds.includes(String(team.id)));
+  const visibleBulkTeamIds = filteredTeams.map((team) => String(team.id)).filter(Boolean);
+
+  const toggleBulkTeam = (id) => {
+    if (bulkTeamsBusy) return;
+    const value = String(id);
+    setBulkTeamIds((previous) => previous.includes(value) ? previous.filter((item) => item !== value) : [...previous, value]);
+    setBulkTeamsMessage("");
+  };
+
+  const toggleVisibleTeams = () => {
+    if (bulkTeamsBusy) return;
+    const allVisibleSelected = visibleBulkTeamIds.every((id) => bulkTeamIds.includes(id));
+    setBulkTeamIds((previous) => allVisibleSelected ? previous.filter((id) => !visibleBulkTeamIds.includes(id)) : [...new Set([...previous, ...visibleBulkTeamIds])]);
+  };
+
+  const deleteSelectedTeams = async () => {
+    if (bulkTeamsBusy || !bulkTeamsConfirmOpen || !selectedBulkTeams.length) return;
+    const targets = [...selectedBulkTeams];
+    setBulkTeamsBusy(true);
+    const deletedIds = [];
+    const errors = [];
+    try {
+      for (const team of targets) {
+        try {
+          await base44.entities.Team.delete(team.id);
+          deletedIds.push(String(team.id));
+        } catch (error) {
+          errors.push(`${team.name}: ${error?.message || "Error desconocido"}`);
+        }
+      }
+      if (deletedIds.length) {
+        setTeams((previous) => previous.filter((team) => !deletedIds.includes(String(team.id))));
+        setBulkTeamIds((previous) => previous.filter((id) => !deletedIds.includes(id)));
+      }
+      setBulkTeamsMessage(`${deletedIds.length} de ${targets.length} equipos eliminados.${errors.length ? ` No se pudieron eliminar ${errors.length}: ${errors.slice(0, 3).join(" · ")}` : ""}`);
+    } finally {
+      setBulkTeamsBusy(false);
+      setBulkTeamsConfirmOpen(false);
+    }
+  };
+
   const handleCloseSearch = () => {
     setSearch("");
     setSearchOpen(false);
@@ -3746,6 +3800,20 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
             {searchOpen ? <X size={17} strokeWidth={2} /> : <Search size={17} strokeWidth={2} />}
           </button>
 
+          <button
+            type="button"
+            disabled={bulkTeamsBusy}
+            onClick={() => {
+              setBulkTeamsMode((previous) => !previous);
+              setBulkTeamIds([]);
+              setBulkTeamsMessage("");
+              setBulkTeamsConfirmOpen(false);
+            }}
+            className={`h-10 whitespace-nowrap rounded-xl border px-3 text-xs font-bold transition ${bulkTeamsMode ? "border-[#003399] bg-blue-50 text-[#003399]" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+          >
+            {bulkTeamsMode ? "Terminar selección" : "Selección múltiple"}
+          </button>
+
           <button type="button" onClick={() => setImportJsonModalOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50" aria-label="Import team from text or JSON" title="Import team from text or JSON">
             <FileJson size={17} strokeWidth={2} />
           </button>
@@ -3755,6 +3823,27 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
           </button>
         </div>
       </div>
+
+      {bulkTeamsMode && (
+        <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <strong className="text-sm text-[#003399]">{selectedBulkTeams.length} equipos seleccionados</strong>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={bulkTeamsBusy || !visibleBulkTeamIds.length} onClick={toggleVisibleTeams} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50">
+                {visibleBulkTeamIds.length && visibleBulkTeamIds.every((id) => bulkTeamIds.includes(id)) ? "Deseleccionar visibles" : `Seleccionar visibles (${visibleBulkTeamIds.length})`}
+              </button>
+              <button type="button" disabled={bulkTeamsBusy || !bulkTeamIds.length} onClick={() => setBulkTeamIds([])} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50">Deseleccionar todos</button>
+            </div>
+          </div>
+          <div className="mt-3 border-t border-blue-200 pt-3">
+            <button type="button" disabled={bulkTeamsBusy || !selectedBulkTeams.length} onClick={() => setBulkTeamsConfirmOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40">
+              <Trash2 size={15} /> Eliminar seleccionados ({selectedBulkTeams.length})
+            </button>
+            <p className="mt-2 text-xs text-slate-500">Se solicitará una segunda confirmación antes de borrar ningún equipo.</p>
+          </div>
+        </div>
+      )}
+      {bulkTeamsMessage && <div role="status" className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-700">{bulkTeamsMessage}</div>}
 
       {Object.keys(groupedTeams).length > 0 ? (
         <div className="space-y-5">
@@ -3780,7 +3869,10 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
                         key={team.id}
                         team={team}
                         showReputation
-                        onOpen={() => setSelectedTeam(team)}
+                        selectionMode={bulkTeamsMode}
+                        isSelected={bulkTeamIds.includes(String(team.id))}
+                        disabled={bulkTeamsBusy}
+                        onOpen={() => bulkTeamsMode ? toggleBulkTeam(team.id) : setSelectedTeam(team)}
                       />
                     ))}
                   </div>
@@ -3863,7 +3955,10 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
             <TeamCard
               key={team.id}
               team={team}
-              onOpen={() => setSelectedTeam(team)}
+              selectionMode={bulkTeamsMode}
+              isSelected={bulkTeamIds.includes(String(team.id))}
+              disabled={bulkTeamsBusy}
+              onOpen={() => bulkTeamsMode ? toggleBulkTeam(team.id) : setSelectedTeam(team)}
             />
           ))}
         </div>
@@ -3898,6 +3993,26 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
     onSubmit={handleAddTeam}
   />
 )}
+      {bulkTeamsConfirmOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="presentation">
+          <div role="alertdialog" aria-modal="true" aria-labelledby="bulk-delete-team-title" aria-describedby="bulk-delete-team-description" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600"><Trash2 size={21} /></div>
+              <h2 id="bulk-delete-team-title" className="text-lg font-black text-slate-900">¿Eliminar {selectedBulkTeams.length} {selectedBulkTeams.length === 1 ? "equipo" : "equipos"}?</h2>
+            </div>
+            <p id="bulk-delete-team-description" className="text-sm leading-6 text-slate-600">Esta acción es permanente. Se eliminarán los equipos seleccionados de Base44. Los jugadores o relaciones que apunten a estos clubes pueden quedar sin una asociación válida.</p>
+            <div className="mt-4 max-h-32 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+              {selectedBulkTeams.slice(0, 15).map((team) => <div key={team.id} className="py-0.5">• {team.name}</div>)}
+              {selectedBulkTeams.length > 15 && <div className="mt-1 font-semibold">Y {selectedBulkTeams.length - 15} equipos más…</div>}
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" disabled={bulkTeamsBusy} onClick={() => setBulkTeamsConfirmOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 disabled:opacity-40">Cancelar</button>
+              <button type="button" disabled={bulkTeamsBusy || !selectedBulkTeams.length} onClick={deleteSelectedTeams} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-40">{bulkTeamsBusy ? "Eliminando..." : `Sí, eliminar ${selectedBulkTeams.length}`}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {importJsonModalOpen && <ImportTeamJsonModal onClose={() => setImportJsonModalOpen(false)} onImport={handleImportJson} />}
     </div>
   );
