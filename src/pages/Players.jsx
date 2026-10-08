@@ -2092,7 +2092,7 @@ export default function Players() {
 
   const fm26Nations = useMemo(() => {
     const groups = new Map();
-    const add = (id, row, kind) => {
+    const add = (id, row, kind, secondaryIndex = null) => {
       if (id == null || String(id) === "") return;
       const key = String(id);
       if (!groups.has(key)) groups.set(key, { id:key, main:0, secondary:0, examples:[] });
@@ -2101,12 +2101,12 @@ export default function Players() {
       else group.secondary++;
       const playerName = fm26PlayerName(row);
       if (playerName && !group.examples.some(example => example.name === playerName) && group.examples.length < 6) {
-        group.examples.push({ name:playerName, kind, club:row.club_name || "" });
+        group.examples.push({ name:playerName, kind, secondaryIndex, club:row.club_name || "" });
       }
     };
     for (const row of fm26Import || []) {
       add(row.nation_id, row, "main");
-      for (const id of new Set(row.second_nation_ids || [])) add(id, row, "secondary");
+      for (const [index, id] of [...new Set(row.second_nation_ids || [])].entries()) add(id, row, "secondary", index);
     }
     return [...groups.values()].sort((a,b)=>Number(a.id)-Number(b.id))
       .map(group=>({...group,...fm26CountryAutoMatch(group.id,countries)}));
@@ -4469,7 +4469,7 @@ export default function Players() {
                             <div className="flex flex-wrap gap-1.5">
                               {examples.map((player,index)=>(
                                 <span key={`${player.name}-${index}`} title={player.club || ""} className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700">
-                                  {player.name} <span className="text-slate-400">{player.kind==="main"?"principal":"secundaria"}</span>
+                                  {player.name} <span className="text-slate-400">{player.kind === "main" ? "Principal" : `Secundaria ${Number(player.secondaryIndex) + 1}`}</span>
                                 </span>
                               ))}
                             </div>
