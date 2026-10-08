@@ -2030,7 +2030,7 @@ export default function Players() {
   const [bulkValue, setBulkValue] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkFeedback, setBulkFeedback] = useState("");
-  const [bulkConfirm, setBulkConfirm] = useState("");
+  const [bulkDeleteIds, setBulkDeleteIds] = useState([]);
 
 
   const [importModalOpen, setImportModalOpen] =
@@ -2330,12 +2330,12 @@ export default function Players() {
   const toggleBulkPlayer = (id) => {
     const key = String(id);
     setBulkIds(old => old.includes(key) ? old.filter(x => x !== key) : [...old, key]);
-    setBulkConfirm("");
+
   };
   const applyBulkAction = async (deleting = false) => {
     const selected = players.filter(p => bulkIds.includes(String(p.id)));
     if (!selected.length || bulkBusy) return;
-    if (deleting && bulkConfirm !== "ELIMINAR") { setBulkFeedback("Escribe ELIMINAR para confirmar el borrado."); return; }
+    if (deleting && (!bulkDeleteIds.length || selected.length !== bulkDeleteIds.length || selected.some(p => !bulkDeleteIds.includes(String(p.id))))) { setBulkFeedback("La selección ha cambiado. Vuelve a confirmar la eliminación."); setBulkDeleteIds([]); return; }
     if (!deleting && (!bulkValue || (bulkAction !== "team_id" && (!Number.isFinite(Number(bulkValue)) || Number(bulkValue) < (bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? 1 : 0) || Number(bulkValue) > (bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? 20 : 200))))) { setBulkFeedback("Introduce un equipo o un valor numérico válido."); return; }
     setBulkBusy(true); setBulkFeedback("");
     let succeeded = 0; const errors = [];
@@ -2359,7 +2359,7 @@ export default function Players() {
     }
     setBulkFeedback(`${succeeded}/${selected.length} ${deleting ? "eliminados" : "actualizados"}.${errors.length ? " Errores: " + errors.slice(0,3).join(" · ") : ""}`);
     setBulkIds(errors.length ? selected.filter(p => errors.some(x => x.startsWith(p.name+":"))).map(p => String(p.id)) : []);
-    setBulkConfirm(""); setBulkBusy(false);
+    setBulkDeleteIds([]); setBulkBusy(false);
     await loadData();
   };
 
@@ -3961,7 +3961,7 @@ export default function Players() {
               Top CP
             </button>
 
-            <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkConfirm(""); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
+            <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkDeleteIds([]); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
             <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Error(""); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
               <Upload size={16} /><span>Import FM26 JSON</span>
             </button>
@@ -3991,9 +3991,26 @@ export default function Players() {
           <div className="flex flex-wrap items-center gap-2"><select className="rounded-lg border p-2 text-sm" value={bulkAction} onChange={e=>{setBulkAction(e.target.value);setBulkValue("");}}><option value="team_id">Cambiar club</option><option value="ca">Cambiar CA</option><option value="cp">Cambiar PA / CP</option><option value="height">Cambiar altura (cm)</option><optgroup label="Atributos 1–20">{Object.entries(FM26_ATTRIBUTE_MAP).flatMap(([group, fields]) => Object.keys(fields).map(field => <option key={group+field} value={`stat:${group}:${field}`}>{group} · {field.replaceAll("_", " ")}</option>))}</optgroup><optgroup label="Posiciones 1–20">{Object.keys(FM26_POSITION_MAP).map(field => <option key={field} value={`position:${field}`}>{field.replaceAll("_", " ")}</option>)}</optgroup></select>
           {bulkAction === "team_id" ? <select value={bulkValue} onChange={e=>setBulkValue(e.target.value)} className="min-w-[190px] rounded-lg border p-2 text-sm"><option value="">Selecciona club destino</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select> : <input className="w-32 rounded-lg border p-2 text-sm" type="number" min={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "1" : "0"} max={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "20" : "200"} value={bulkValue} onChange={e=>setBulkValue(e.target.value)} placeholder="Nuevo valor" />}
           <button type="button" disabled={bulkBusy || !bulkIds.length} onClick={()=>applyBulkAction(false)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Aplicar a seleccionados</button></div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-blue-200 pt-3"><span className="text-xs font-bold text-red-700">Borrar definitivamente:</span><input aria-label="Confirmar eliminación" className="w-44 rounded-lg border border-red-200 p-2 text-sm" placeholder="Escribe ELIMINAR" value={bulkConfirm} onChange={e=>setBulkConfirm(e.target.value)} /><button type="button" disabled={bulkBusy || !bulkIds.length || bulkConfirm !== "ELIMINAR"} onClick={()=>applyBulkAction(true)} className="rounded-lg bg-red-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Eliminar {bulkIds.length} jugadores</button></div>
+          <div className="flex justify-end border-t border-blue-200 pt-3">
+            <button type="button" disabled={bulkBusy || !bulkIds.length} onClick={() => setBulkDeleteIds([...bulkIds])} className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40">Eliminar seleccionados ({bulkIds.length})</button>
+          </div>
           {bulkFeedback && <p className="text-sm text-blue-950" role="status">{bulkFeedback}</p>}
         </div>}
+
+        {/* CONFIRMACIÓN DE ELIMINACIÓN MASIVA */}
+        {bulkDeleteIds.length > 0 && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget && !bulkBusy) setBulkDeleteIds([]); }}>
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" role="alertdialog" aria-modal="true" aria-labelledby="bulk-delete-title" aria-describedby="bulk-delete-description">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-700"><AlertCircle size={24} /></div>
+              <h3 id="bulk-delete-title" className="text-lg font-extrabold text-slate-900">¿Eliminar {bulkDeleteIds.length} {bulkDeleteIds.length === 1 ? "jugador" : "jugadores"}?</h3>
+              <p id="bulk-delete-description" className="mt-2 text-sm leading-relaxed text-slate-600">Esta acción eliminará definitivamente los jugadores seleccionados de MF LEGACY. No se puede deshacer.</p>
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <button type="button" disabled={bulkBusy} onClick={() => setBulkDeleteIds([])} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancelar</button>
+                <button type="button" disabled={bulkBusy} onClick={() => applyBulkAction(true)} className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-50">{bulkBusy ? "Eliminando..." : `Sí, eliminar ${bulkDeleteIds.length}`}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* COUNTER */}
         <div className="mb-4 flex items-center justify-between">
