@@ -16,12 +16,9 @@ import {
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { parseFootballManagerCsv } from "@/utils/playerCsvImporter";
-import {
-  parsePositionCsv,
-  findPlayerForPositionRow,
-} from "@/utils/positionCsvImporter";
 
+import { parseFootballManagerCsv } from "@/utils/playerCsvImporter";
+import { parsePositionCsv, findPlayerForPositionRow } from "@/utils/positionCsvImporter";
 import { base44 } from "@/api/base44Client";
 
 const FM26_POSITION_MAP = {
@@ -107,6 +104,7 @@ const fm26Date = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? `$
 const fm26Number = (value) => typeof value === "number" && Number.isFinite(value) ? value : null;
 const fm26PlayerName = (row) => String(row.common_name || row.name || row.full_name || "").trim();
 const fm26PositionString = (row) => [...(row.natural_positions || []), ...(row.accomplished_positions || [])].filter(Boolean).join(", ");
+const FM26_PRIMARY_CODES = { GK: "GK", DC: "DFC", DL: "LI", DR: "LD", WBL: "CRI", WBR: "CRD", DM: "CDM", MC: "CM", AMC: "CAM", AML: "EI", AMR: "ED", STC: "DC", ML: "MI", MR: "MD" };
 const fm26PositionRatings = (row) => Object.fromEntries(Object.entries(FM26_POSITION_MAP).filter(([,key]) => fm26Number(row.positions?.[key]) !== null).map(([target, key]) => [target, row.positions[key]]));
 const fm26Stats = (row, existing = {}) => {
   const stats = Object.fromEntries(["mental", "physical", "technical", "goalkeeping"].map(group => [group, { ...(existing[group] || {}) }]));
@@ -155,6 +153,15 @@ const fm26Payload = (row, existing = {}) => {
   if (positions) {
     update.fm_position = positions;
     update.best_positions = (row.natural_positions || []).join(", ");
+    const natural = row.natural_positions || [];
+    const accomplished = row.accomplished_positions || [];
+    const primary = natural[0] || accomplished[0];
+    if (primary && FM26_PRIMARY_CODES[primary]) {
+      update.position = FM26_PRIMARY_CODES[primary];
+      update.position_raw = primary;
+    }
+    const secondary = [...natural.slice(1), ...accomplished].find(code => FM26_PRIMARY_CODES[code]);
+    if (secondary) { update.secondary_position = FM26_PRIMARY_CODES[secondary]; update.secondary_position_raw = secondary; }
   }
   for (const [key, value] of Object.entries(update)) { if (value === null || value === undefined) delete update[key]; }
   return update;
@@ -1164,6 +1171,9 @@ function PlayerCard({
   team,
   country,
   onClick,
+  selectionMode = false,
+  selected = false,
+  onToggleSelection,
   compact = false,
   hideTeam = false,
   useNationalCardPhoto = false,
@@ -1198,11 +1208,12 @@ function PlayerCard({
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`group w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] ${
+      onClick={selectionMode ? () => onToggleSelection?.(player.id) : onClick}
+      className={`group w-full overflow-hidden rounded-2xl border ${selected ? "border-blue-700 ring-2 ring-blue-300" : "border-slate-200"} bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] ${
         compact ? "" : ""
       }`}
     >
+      {selectionMode && <div className="flex items-center gap-2 border-b border-slate-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-900"><span className={`inline-flex h-4 w-4 items-center justify-center rounded border ${selected ? "bg-blue-700 text-white border-blue-700" : "border-slate-400 bg-white"}`}>{selected ? "✓" : ""}</span>{selected ? "Seleccionado" : "Seleccionar jugador"}</div>}
       {/* PHOTO */}
       <div
         className={`relative w-full overflow-hidden bg-slate-50 ${
@@ -1910,6 +1921,14 @@ export default function Players() {
   const [fm26Error, setFm26Error] = useState("");
   const [fm26CreateMissing, setFm26CreateMissing] = useState(true);
   const [fm26ImportOpen, setFm26ImportOpen] = useState(false);
+  const [fm26NationMapping, setFm26NationMapping] = useState({});
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkIds, setBulkIds] = useState([]);
+  const [bulkAction, setBulkAction] = useState("team_id");
+  const [bulkValue, setBulkValue] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkFeedback, setBulkFeedback] = useState("");
+  const [bulkConfirm, setBulkConfirm] = useState("");
 
 
   const [importModalOpen, setImportModalOpen] =
@@ -1992,6 +2011,7 @@ export default function Players() {
     if (!file) return;
     setFm26Error(""); setFm26Message(""); setFm26Import(null);
     setFm26FileName(file.name);
+    setFm26NationMapping({});
     try {
       const payload = JSON.parse(await file.text());
       if (!Array.isArray(payload) || !payload.length) throw new Error("Se esperaba un JSON con una lista de jugadores.");
@@ -2011,6 +2031,8 @@ export default function Players() {
         if (status !== "update" && !(status === "create" && fm26CreateMissing)) continue;
         try {
           const data = fm26Payload(row, match || {});
+          const mappedCountryId = fm26NationMapping[String(row.nation_id)] || "";
+          if (mappedCountryId) data.country_id = mappedCountryId;
           if (match) { await base44.entities.Player.update(match.id, data); updated++; }
           else { await base44.entities.Player.create({ ...data, team_id: club.id }); created++; }
         } catch (error) {
@@ -2024,6 +2046,42 @@ export default function Players() {
       await loadData();
     } catch(error) { setFm26Error(error?.message || "Error inesperado"); }
     finally { setFm26Busy(false); }
+  };
+
+  const toggleBulkPlayer = (id) => {
+    const key = String(id);
+    setBulkIds(old => old.includes(key) ? old.filter(x => x !== key) : [...old, key]);
+    setBulkConfirm("");
+  };
+  const applyBulkAction = async (deleting = false) => {
+    const selected = players.filter(p => bulkIds.includes(String(p.id)));
+    if (!selected.length || bulkBusy) return;
+    if (deleting && bulkConfirm !== "ELIMINAR") { setBulkFeedback("Escribe ELIMINAR para confirmar el borrado."); return; }
+    if (!deleting && (!bulkValue || (bulkAction !== "team_id" && (!Number.isFinite(Number(bulkValue)) || Number(bulkValue) < (bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? 1 : 0) || Number(bulkValue) > (bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? 20 : 200))))) { setBulkFeedback("Introduce un equipo o un valor numérico válido."); return; }
+    setBulkBusy(true); setBulkFeedback("");
+    let succeeded = 0; const errors = [];
+    for (const player of selected) {
+      try {
+        if (deleting) await base44.entities.Player.delete(player.id);
+        else {
+          let payload;
+          if (bulkAction === "team_id") payload = { team_id: bulkValue };
+          else if (bulkAction.startsWith("stat:")) {
+            const [,group,field] = bulkAction.split(":");
+            payload = { stats: { ...(player.stats || {}), [group]: { ...(player.stats?.[group] || {}), [field]: Number(bulkValue) } } };
+          } else if (bulkAction.startsWith("position:")) {
+            const field = bulkAction.slice("position:".length);
+            payload = { position_ratings: { ...(player.position_ratings || {}), [field]: Number(bulkValue) } };
+          } else payload = { [bulkAction]: Number(bulkValue) };
+          await base44.entities.Player.update(player.id, payload);
+        }
+        succeeded++;
+      } catch(err) { errors.push(`${player.name}: ${err.message || "Error"}`); }
+    }
+    setBulkFeedback(`${succeeded}/${selected.length} ${deleting ? "eliminados" : "actualizados"}.${errors.length ? " Errores: " + errors.slice(0,3).join(" · ") : ""}`);
+    setBulkIds(errors.length ? selected.filter(p => errors.some(x => x.startsWith(p.name+":"))).map(p => String(p.id)) : []);
+    setBulkConfirm(""); setBulkBusy(false);
+    await loadData();
   };
 
   const loadData = async () => {
@@ -3622,36 +3680,9 @@ export default function Players() {
               Top CP
             </button>
 
+            <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkConfirm(""); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
             <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Error(""); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
               <Upload size={16} /><span>Import FM26 JSON</span>
-            </button>
-
-            {/* IMPORT CSV */}
-            <button
-              type="button"
-              onClick={handleOpenImport}
-              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-              aria-label="Import players from CSV"
-              title="Import players from CSV"
-            >
-              <Upload size={16} />
-              <span className="hidden sm:inline">
-                Import CSV
-              </span>
-            </button>
-
-            {/* IMPORT POSITION CSV */}
-            <button
-              type="button"
-              onClick={handleOpenPositionImport}
-              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-              aria-label="Import position data from CSV"
-              title="Import position data from CSV"
-            >
-              <Upload size={16} />
-              <span className="hidden lg:inline">
-                Import Positions
-              </span>
             </button>
 
             {/* ADD PLAYER */}
@@ -3673,6 +3704,15 @@ export default function Players() {
             {errorMessage}
           </div>
         )}
+
+        {bulkMode && <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-blue-900">{bulkIds.length} jugadores seleccionados</strong><div className="flex gap-2"><button type="button" className="rounded-lg border bg-white px-3 py-1.5 text-xs" onClick={() => setBulkIds(old => [...new Set([...old,...filteredPlayers.map(p => String(p.id)).filter(Boolean)])])}>Seleccionar visibles ({filteredPlayers.length})</button><button type="button" className="rounded-lg border bg-white px-3 py-1.5 text-xs" onClick={() => setBulkIds([])}>Deseleccionar</button></div></div>
+          <div className="flex flex-wrap items-center gap-2"><select className="rounded-lg border p-2 text-sm" value={bulkAction} onChange={e=>{setBulkAction(e.target.value);setBulkValue("");}}><option value="team_id">Cambiar club</option><option value="ca">Cambiar CA</option><option value="cp">Cambiar PA / CP</option><option value="height">Cambiar altura (cm)</option><optgroup label="Atributos 1–20">{Object.entries(FM26_ATTRIBUTE_MAP).flatMap(([group, fields]) => Object.keys(fields).map(field => <option key={group+field} value={`stat:${group}:${field}`}>{group} · {field.replaceAll("_", " ")}</option>))}</optgroup><optgroup label="Posiciones 1–20">{Object.keys(FM26_POSITION_MAP).map(field => <option key={field} value={`position:${field}`}>{field.replaceAll("_", " ")}</option>)}</optgroup></select>
+          {bulkAction === "team_id" ? <select value={bulkValue} onChange={e=>setBulkValue(e.target.value)} className="min-w-[190px] rounded-lg border p-2 text-sm"><option value="">Selecciona club destino</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select> : <input className="w-32 rounded-lg border p-2 text-sm" type="number" min={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "1" : "0"} max={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "20" : "200"} value={bulkValue} onChange={e=>setBulkValue(e.target.value)} placeholder="Nuevo valor" />}
+          <button type="button" disabled={bulkBusy || !bulkIds.length} onClick={()=>applyBulkAction(false)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Aplicar a seleccionados</button></div>
+          <div className="flex flex-wrap items-center gap-2 border-t border-blue-200 pt-3"><span className="text-xs font-bold text-red-700">Borrar definitivamente:</span><input aria-label="Confirmar eliminación" className="w-44 rounded-lg border border-red-200 p-2 text-sm" placeholder="Escribe ELIMINAR" value={bulkConfirm} onChange={e=>setBulkConfirm(e.target.value)} /><button type="button" disabled={bulkBusy || !bulkIds.length || bulkConfirm !== "ELIMINAR"} onClick={()=>applyBulkAction(true)} className="rounded-lg bg-red-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Eliminar {bulkIds.length} jugadores</button></div>
+          {bulkFeedback && <p className="text-sm text-blue-950" role="status">{bulkFeedback}</p>}
+        </div>}
 
         {/* COUNTER */}
         <div className="mb-4 flex items-center justify-between">
@@ -3710,6 +3750,9 @@ export default function Players() {
                 {filteredPlayers.map(
                   (player) => (
                     <PlayerCard
+                          selectionMode={bulkMode}
+                          selected={bulkIds.includes(String(player.id))}
+                          onToggleSelection={toggleBulkPlayer}
                       key={
                         player.id ||
                         `${player.name}-${player.dateOfBirth}`
@@ -3757,6 +3800,9 @@ export default function Players() {
                         {group.players.map(
                           (player) => (
                             <PlayerCard
+                          selectionMode={bulkMode}
+                          selected={bulkIds.includes(String(player.id))}
+                          onToggleSelection={toggleBulkPlayer}
                               key={
                                 player.id ||
                                 `${player.name}-${player.dateOfBirth}`
@@ -3810,6 +3856,9 @@ export default function Players() {
                         {group.players.map(
                           (player) => (
                             <PlayerCard
+                          selectionMode={bulkMode}
+                          selected={bulkIds.includes(String(player.id))}
+                          onToggleSelection={toggleBulkPlayer}
                               key={
                                 player.id ||
                                 `${player.name}-${player.dateOfBirth}`
@@ -3856,6 +3905,9 @@ export default function Players() {
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
                       {group.players.map((player) => (
                         <PlayerCard
+                          selectionMode={bulkMode}
+                          selected={bulkIds.includes(String(player.id))}
+                          onToggleSelection={toggleBulkPlayer}
                           key={
                             player.id ||
                             `${player.name}-${player.dateOfBirth}`
@@ -3887,6 +3939,9 @@ export default function Players() {
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
                       {group.players.map((player) => (
                         <PlayerCard
+                          selectionMode={bulkMode}
+                          selected={bulkIds.includes(String(player.id))}
+                          onToggleSelection={toggleBulkPlayer}
                           key={
                             player.id ||
                             `${player.name}-${player.dateOfBirth}`
@@ -3978,6 +4033,9 @@ export default function Players() {
                                         <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
                                           {subgroup.players.map((player) => (
                                             <PlayerCard
+                          selectionMode={bulkMode}
+                          selected={bulkIds.includes(String(player.id))}
+                          onToggleSelection={toggleBulkPlayer}
                                               key={
                                                 player.id ||
                                                 `${player.name}-${player.dateOfBirth}`
@@ -4054,13 +4112,14 @@ export default function Players() {
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={e => { if (e.target === e.currentTarget && !fm26Busy) setFm26ImportOpen(false); }}>
             <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
               <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-extrabold">Importar FM26 JSON</h2><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)}><X size={20}/></button></div>
-              <p className="mb-4 text-sm text-slate-600">Selecciona un archivo JSON exportado con fmsave (tabla players). Actualiza los jugadores existentes e incorpora posiciones, atributos y datos de FM26. Solo importa clubes que ya existan en MF LEGACY y cuyo nombre coincida sin ambigüedad. No modifica fotos, nacionalidades asociadas ni salarios anuales.</p>
+              <p className="mb-4 text-sm text-slate-600">Selecciona un archivo JSON exportado con fmsave (tabla players). Actualiza los jugadores existentes e incorpora posiciones, atributos y datos de FM26. Solo importa clubes que ya existan en MF LEGACY y cuyo nombre coincida sin ambigüedad. No modifica fotografías ni salarios anuales. Las nacionalidades pueden vincularse manualmente a países existentes antes de importar.</p>
               <input type="file" accept=".json,application/json" onChange={handleFm26File} disabled={fm26Busy} className="mb-4 w-full text-sm" />
               {fm26FileName && <p className="mb-3 text-xs text-slate-500">Archivo: {fm26FileName}</p>}
               {fm26Preview && <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
                 <p className="font-bold">Vista previa de {fm26Preview.rows.length} jugadores</p>
                 <p>{fm26Preview.update} para actualizar · {fm26Preview.create} nuevos · {fm26Preview.skipped} omitidos (club inexistente / ambiguo / datos incompletos)</p>
                 <p className="mt-2 text-xs text-slate-500">Importación parcial segura: no borra datos no presentes en el JSON. Los atributos 1–20 y posiciones de la partida reemplazan los valores previos. Revisa antes de confirmar, especialmente si usas una partida avanzada.</p>
+                <details className="mt-3 rounded-lg border border-slate-200 bg-white p-3"><summary className="cursor-pointer text-sm font-bold">Vincular nacionalidades (opcional)</summary><p className="my-2 text-xs text-slate-500">FM26 usa IDs numéricos que no equivalen a los IDs de Base44. Asocia cada ID una vez; los no asociados conservan su país anterior y su ID FM26.</p><div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">{[...new Set(fm26Import.map(p=>String(p.nation_id)).filter(x=>x!=="undefined"))].sort((a,b)=>Number(a)-Number(b)).map(id=><label key={id} className="flex items-center gap-2 text-xs"><span className="w-20 shrink-0">FM ID {id}</span><select value={fm26NationMapping[id] || ""} onChange={e=>setFm26NationMapping(old=>({...old,[id]:e.target.value}))} className="min-w-0 flex-1 rounded-md border p-1.5"><option value="">Sin vincular</option>{countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>)}</div></details>
                 <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={fm26CreateMissing} onChange={e => setFm26CreateMissing(e.target.checked)}/> Crear jugadores que aún no existan (solo en clubes reconocidos)</label>
               </div>}
               {fm26Error && <p className="mb-3 text-sm text-red-700">{fm26Error}</p>}
@@ -4070,195 +4129,8 @@ export default function Players() {
           </div>
         )}
 
-        {positionImportModalOpen && (
-          <div
-            className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget && !positionImporting) {
-                handleClosePositionImport();
-              }
-            }}
-          >
-            <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                <div className="min-w-0">
-                  <h2 className="text-base font-extrabold text-slate-900">
-                    Import Positions CSV
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Solo actualiza los datos de la pantalla de posiciones de jugadores existentes.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleClosePositionImport}
-                  disabled={positionImporting}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 disabled:opacity-50"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="max-h-[calc(92vh-76px)] overflow-y-auto p-5">
-                {positionImportError && (
-                  <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {positionImportError}
-                  </div>
-                )}
-
-                {!positionImportAnalysis && !positionImportResult && (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                    <Upload className="mx-auto text-slate-400" size={28} />
-                    <p className="mt-3 text-sm font-semibold text-slate-700">
-                      Selecciona el CSV de posiciones
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      El archivo puede contener varios jugadores del mismo equipo.
-                    </p>
-                    <label className="mt-5 inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white hover:bg-[#002477]">
-                      <Upload size={16} />
-                      Seleccionar CSV
-                      <input
-                        key={positionImportFileKey}
-                        type="file"
-                        accept=".csv,text/csv"
-                        className="hidden"
-                        onChange={handlePositionImportFile}
-                        disabled={positionImporting}
-                      />
-                    </label>
-                  </div>
-                )}
-
-                {positionImportAnalysis && !positionImportResult && (
-                  <>
-                    <div className="mb-4 flex flex-wrap gap-3">
-                      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Filas</p>
-                        <p className="mt-1 text-lg font-extrabold text-slate-900">{positionImportAnalysis.total_rows}</p>
-                      </div>
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-600">Encontrados</p>
-                        <p className="mt-1 text-lg font-extrabold text-emerald-700">{positionImportAnalysis.matched}</p>
-                      </div>
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-600">Ambiguos</p>
-                        <p className="mt-1 text-lg font-extrabold text-amber-700">{positionImportAnalysis.ambiguous}</p>
-                      </div>
-                      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-red-600">No encontrados</p>
-                        <p className="mt-1 text-lg font-extrabold text-red-700">{positionImportAnalysis.notFound}</p>
-                      </div>
-                    </div>
-
-                    <div className="mb-4 overflow-hidden rounded-xl border border-slate-200">
-                      <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
-                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-                          {positionImportFileName}
-                        </p>
-                      </div>
-                      <div className="divide-y divide-slate-100">
-                        {positionImportAnalysis.rows.map((row) => (
-                          <div key={`${row.rowNumber}-${row.name}`} className="flex items-center justify-between gap-4 px-4 py-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-slate-800">{row.name || "Sin nombre"}</p>
-                              <p className="truncate text-xs text-slate-400">{row.teamName || "Sin equipo"} · {row.fm_position || "Sin posición"}</p>
-                            </div>
-                            <div className="shrink-0 text-xs font-semibold">
-                              {row.match?.status === "matched" && (
-                                <span className="text-emerald-600">✓ Se actualizará</span>
-                              )}
-                              {row.match?.status === "ambiguous" && (
-                                <span className="text-amber-600">⚠️ Ambiguo</span>
-                              )}
-                              {row.match?.status === "not_found" && (
-                                <span className="text-red-600">✕ No encontrado</span>
-                              )}
-                              {row.match?.status === "invalid" && (
-                                <span className="text-red-600">✕ Inválido</span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {positionImporting && (
-                      <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                          <span>{positionImportProgress.phase}</span>
-                          <span>{positionImportProgress.current}/{positionImportProgress.total}</span>
-                        </div>
-                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                          <div
-                            className="h-full rounded-full bg-[#003399] transition-all"
-                            style={{
-                              width: `${positionImportProgress.total ? (positionImportProgress.current / positionImportProgress.total) * 100 : 0}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-                      <button
-                        type="button"
-                        onClick={handleClosePositionImport}
-                        disabled={positionImporting}
-                        className="h-10 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleStartPositionImport}
-                        disabled={positionImporting || !positionImportAnalysis.matched}
-                        className="h-10 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {positionImporting ? "Actualizando..." : "Actualizar posiciones"}
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {positionImportResult && !positionImporting && (
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-                      <p className="text-sm font-extrabold text-emerald-800">Importación de posiciones completada</p>
-                      <p className="mt-1 text-sm text-emerald-700">{positionImportResult.updated} jugadores actualizados.</p>
-                    </div>
-                    {(positionImportResult.notFound || positionImportResult.ambiguous || positionImportResult.invalid || positionImportResult.errors.length) > 0 && (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                        {positionImportResult.notFound > 0 && <p>• No encontrados: {positionImportResult.notFound}</p>}
-                        {positionImportResult.ambiguous > 0 && <p>• Ambiguos: {positionImportResult.ambiguous}</p>}
-                        {positionImportResult.invalid > 0 && <p>• Inválidos: {positionImportResult.invalid}</p>}
-                        {positionImportResult.errors.length > 0 && (
-                          <div className="mt-2 space-y-1 text-xs">
-                            {positionImportResult.errors.slice(0, 10).map((error, index) => (
-                              <p key={index}>{error}</p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={handleClosePositionImport}
-                        className="h-10 rounded-xl bg-[#003399] px-4 text-sm font-semibold text-white hover:bg-[#002477]"
-                      >
-                        Cerrar
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* ADD PLAYER MODAL */}
-        {importModalOpen && (
+        {false && importModalOpen && (
           <div
             className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
             onMouseDown={(event) => {
