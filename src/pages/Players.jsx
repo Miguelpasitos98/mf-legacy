@@ -1942,6 +1942,9 @@ export default function Players() {
   const [fm26NewClubCountry, setFm26NewClubCountry] = useState("");
   const [fm26NewClubLeague, setFm26NewClubLeague] = useState("");
   const [fm26Leagues, setFm26Leagues] = useState([]);
+  const [fm26ProgressCurrent, setFm26ProgressCurrent] = useState(0);
+  const [fm26ProgressTotal, setFm26ProgressTotal] = useState(0);
+  const [fm26ProgressLabel, setFm26ProgressLabel] = useState("");
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkIds, setBulkIds] = useState([]);
   const [bulkAction, setBulkAction] = useState("team_id");
@@ -2059,6 +2062,9 @@ export default function Players() {
     setFm26ClubChoices({});
     setFm26ClubSearch({});
     setFm26CreatingClub("");
+    setFm26ProgressCurrent(0);
+    setFm26ProgressTotal(0);
+    setFm26ProgressLabel("");
     setFm26Leagues([]);
     try {
       const payload = JSON.parse(await file.text());
@@ -2076,12 +2082,23 @@ export default function Players() {
       setFm26Error(`Quedan ${fm26Preview.unmapped} jugadores sin club asignado. Vincula todos los grupos antes de importar.`);
       return;
     }
-    setFm26Busy(true); setFm26Error("");
+    const actionableRows = fm26Preview.rows.filter(({ status }) => status === "update" || (status === "create" && fm26CreateMissing));
+    if (!actionableRows.length) {
+      setFm26Error("No hay jugadores listos para importar con la configuración actual.");
+      return;
+    }
+    setFm26Busy(true);
+    setFm26Error("");
+    setFm26ProgressCurrent(0);
+    setFm26ProgressTotal(actionableRows.length);
+    setFm26ProgressLabel("Preparando importación...");
     let updated=0, created=0, failed=0; const failures=[];
     try {
-      for (let index=0; index<fm26Preview.rows.length; index++) {
-        const {row, club, match, status} = fm26Preview.rows[index];
-        if (status !== "update" && !(status === "create" && fm26CreateMissing)) continue;
+      for (let processed = 0; processed < actionableRows.length; processed++) {
+        const {row, club, match} = actionableRows[processed];
+        const playerName = fm26PlayerName(row);
+        setFm26ProgressCurrent(processed);
+        setFm26ProgressLabel(`Importando ${processed + 1}/${actionableRows.length}: ${playerName}`);
         try {
           const data = fm26Payload(row, match || {});
           const mappedCountryId = fm26NationMapping[String(row.nation_id)] || "";
@@ -2091,11 +2108,15 @@ export default function Players() {
           else { await base44.entities.Player.create(data); created++; }
         } catch (error) {
           failed++;
-          if (failures.length < 8) failures.push(`${fm26PlayerName(row)}: ${error?.message || "error"}`);
+          if (failures.length < 8) failures.push(`${playerName}: ${error?.message || "error"}`);
         }
-        if (index % 5 === 0) setFm26Message(`Importando ${index+1}/${fm26Preview.rows.length}...`);
+        setFm26ProgressCurrent(processed + 1);
+        if ((processed + 1) % 3 === 0 || processed + 1 === actionableRows.length) {
+          setFm26Message(`Importando ${processed + 1}/${actionableRows.length}...`);
+        }
       }
       setFm26Import(null);
+      setFm26ProgressLabel(`Importación completada · ${updated} actualizados · ${created} creados · ${failed} errores`);
       setFm26Message(`Completado: ${updated} actualizados, ${created} creados, ${failed} errores, ${fm26Preview.skipped} omitidos por ambigüedad o datos incompletos.${failures.length ? " Ejemplos de errores: " + failures.join(" | ") : ""}`);
       await loadData();
     } catch(error) { setFm26Error(error?.message || "Error inesperado"); }
@@ -4196,6 +4217,24 @@ export default function Players() {
               </div>}
               {fm26Error && <p className="mb-3 text-sm text-red-700">{fm26Error}</p>}
               {fm26Message && <p className="mb-3 text-sm text-slate-700">{fm26Message}</p>}
+              {(fm26Busy || fm26ProgressTotal > 0) && (
+                <div className="sticky bottom-0 z-10 -mx-2 mb-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-[0_-10px_28px_rgba(15,23,42,0.08)] backdrop-blur">
+                  <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-700">
+                    <span>{fm26ProgressLabel || (fm26Busy ? "Importando jugadores..." : "Importación finalizada")}</span>
+                    <span>{Math.min(fm26ProgressCurrent, fm26ProgressTotal)}/{fm26ProgressTotal || 0}</span>
+                  </div>
+                  <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[#003399] via-[#1d4ed8] to-[#60a5fa] transition-all duration-300"
+                      style={{ width: `${fm26ProgressTotal ? (Math.min(fm26ProgressCurrent, fm26ProgressTotal) / fm26ProgressTotal) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Progreso de importación jugador a jugador</span>
+                    <span>{fm26ProgressTotal ? `${Math.round((Math.min(fm26ProgressCurrent, fm26ProgressTotal) / fm26ProgressTotal) * 100)}%` : "0%"}</span>
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end gap-2"><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border px-4 py-2">Cerrar</button><button type="button" disabled={!fm26Preview || fm26Preview.unmapped > 0 || fm26Busy} onClick={handleFm26Import} className="rounded-lg bg-[#003399] px-4 py-2 font-semibold text-white disabled:opacity-40">{fm26Busy ? "Importando..." : "Confirmar importación"}</button></div>
             </div>
           </div>
