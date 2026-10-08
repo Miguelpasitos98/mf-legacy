@@ -576,6 +576,9 @@ const emptyPlayerForm = {
   name: "",
   dateOfBirth: "",
   teamId: "",
+  careerStatus: "active",
+  retirementYear: "",
+  lastTeamId: "",
   countryId: "",
   photoUrl: "",
   cardPhotoUrl: "",
@@ -957,6 +960,9 @@ const normalizePlayer = (player) => ({
     player?.birthDate ||
     "",
 
+  careerStatus: player?.career_status || (player?.team_id ? "active" : "free_agent"),
+  lastTeamId: player?.last_team_id || "",
+  retirementYear: player?.retirement_year ?? "",
   teamId:
     player?.team_id ||
     player?.teamId ||
@@ -2344,7 +2350,7 @@ export default function Players() {
         if (deleting) await base44.entities.Player.delete(player.id);
         else {
           let payload;
-          if (bulkAction === "team_id") payload = { team_id: bulkValue };
+          if (bulkAction === "team_id") payload = ["__free_agent__","__retired__"].includes(bulkValue) ? { team_id: "", career_status: bulkValue === "__retired__" ? "retired" : "free_agent", last_team_id: player.teamId || player.last_team_id || "" } : { team_id: bulkValue, career_status: "active", last_team_id: player.teamId || player.last_team_id || "" };
           else if (bulkAction.startsWith("stat:")) {
             const [,group,field] = bulkAction.split(":");
             payload = { stats: { ...(player.stats || {}), [group]: { ...(player.stats?.[group] || {}), [field]: Number(bulkValue) } } };
@@ -3737,7 +3743,10 @@ export default function Players() {
             form.dateOfBirth
           ),
 
-        team_id: teamId,
+        team_id: ["__free_agent__","__retired__"].includes(teamId) ? "" : teamId,
+        career_status: teamId === "__retired__" ? "retired" : teamId === "__free_agent__" || !teamId ? "free_agent" : "active",
+        last_team_id: form.lastTeamId || "",
+        retirement_year: teamId === "__retired__" && form.retirementYear !== "" ? Number(form.retirementYear) : null,
 
         country_id:
           countryId || "",
@@ -3989,7 +3998,7 @@ export default function Players() {
         {bulkMode && <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-blue-900">{bulkIds.length} jugadores seleccionados</strong><div className="flex gap-2"><button type="button" className="rounded-lg border bg-white px-3 py-1.5 text-xs" onClick={() => setBulkIds(old => [...new Set([...old,...filteredPlayers.map(p => String(p.id)).filter(Boolean)])])}>Seleccionar visibles ({filteredPlayers.length})</button><button type="button" className="rounded-lg border bg-white px-3 py-1.5 text-xs" onClick={() => setBulkIds([])}>Deseleccionar</button></div></div>
           <div className="flex flex-wrap items-center gap-2"><select className="rounded-lg border p-2 text-sm" value={bulkAction} onChange={e=>{setBulkAction(e.target.value);setBulkValue("");}}><option value="team_id">Cambiar club</option><option value="ca">Cambiar CA</option><option value="cp">Cambiar PA / CP</option><option value="height">Cambiar altura (cm)</option><optgroup label="Atributos 1–20">{Object.entries(FM26_ATTRIBUTE_MAP).flatMap(([group, fields]) => Object.keys(fields).map(field => <option key={group+field} value={`stat:${group}:${field}`}>{group} · {field.replaceAll("_", " ")}</option>))}</optgroup><optgroup label="Posiciones 1–20">{Object.keys(FM26_POSITION_MAP).map(field => <option key={field} value={`position:${field}`}>{field.replaceAll("_", " ")}</option>)}</optgroup></select>
-          {bulkAction === "team_id" ? <select value={bulkValue} onChange={e=>setBulkValue(e.target.value)} className="min-w-[190px] rounded-lg border p-2 text-sm"><option value="">Selecciona club destino</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select> : <input className="w-32 rounded-lg border p-2 text-sm" type="number" min={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "1" : "0"} max={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "20" : "200"} value={bulkValue} onChange={e=>setBulkValue(e.target.value)} placeholder="Nuevo valor" />}
+          {bulkAction === "team_id" ? <select value={bulkValue} onChange={e=>setBulkValue(e.target.value)} className="min-w-[190px] rounded-lg border p-2 text-sm"><option value="">Selecciona club destino</option><option value="__free_agent__">Agente libre</option><option value="__retired__">Retirado</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select> : <input className="w-32 rounded-lg border p-2 text-sm" type="number" min={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "1" : "0"} max={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "20" : "200"} value={bulkValue} onChange={e=>setBulkValue(e.target.value)} placeholder="Nuevo valor" />}
           <button type="button" disabled={bulkBusy || !bulkIds.length} onClick={()=>applyBulkAction(false)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Aplicar a seleccionados</button></div>
           <div className="flex justify-end border-t border-blue-200 pt-3">
             <button type="button" disabled={bulkBusy || !bulkIds.length} onClick={() => setBulkDeleteIds([...bulkIds])} className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40">Eliminar seleccionados ({bulkIds.length})</button>
@@ -5240,7 +5249,7 @@ export default function Players() {
                         newTeamName: "",
                       }))
                     }
-                    options={teams}
+                    options={[{id:"__free_agent__",name:"Agente libre"},{id:"__retired__",name:"Retirado"},...teams]}
                     kind="team"
                     placeholder="No club"
                     searchPlaceholder="Search club..."
@@ -5254,6 +5263,8 @@ export default function Players() {
                     }}
                   />
                 </div>
+
+                {["__free_agent__","__retired__"].includes(form.teamId) && <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3"><label className="mb-1 block text-xs font-semibold text-slate-700">Último club (opcional)</label><select className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={form.lastTeamId} onChange={e=>setForm(f=>({...f,lastTeamId:e.target.value}))}><option value="">Sin último club</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select>{form.teamId === "__retired__" && <label className="mt-3 block text-xs font-semibold text-slate-700">Año de retirada<input type="number" min="1900" max="2100" className="mt-1 w-full rounded-xl border border-slate-200 p-2" value={form.retirementYear} onChange={e=>setForm(f=>({...f,retirementYear:e.target.value}))}/></label>}</div>}
 
                 {/* NEW CLUB */}
                 {form.teamId ===
