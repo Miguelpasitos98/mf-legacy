@@ -21,6 +21,35 @@ import { parseFootballManagerCsv } from "@/utils/playerCsvImporter";
 import { parsePositionCsv, findPlayerForPositionRow } from "@/utils/positionCsvImporter";
 import { base44 } from "@/api/base44Client";
 
+// A runtime error inside PlayerDetail must not reset the entire Players page.
+class PlayerDetailErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("MF LEGACY PlayerDetail rendering error:", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen bg-slate-50 p-6">
+          <div className="mx-auto max-w-xl rounded-2xl border border-rose-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-extrabold text-slate-900">No se ha podido abrir la ficha</h2>
+            <p className="mt-2 text-sm text-slate-600">La lista de jugadores sigue intacta. Copia el siguiente error para poder localizar qué dato impide mostrar la ficha.</p>
+            <pre className="my-4 overflow-auto whitespace-pre-wrap rounded-lg bg-rose-50 p-3 text-xs text-rose-800">{String(this.state.error?.message || "Error desconocido")}</pre>
+            <button type="button" onClick={this.props.onBack} className="rounded-xl bg-[#003399] px-4 py-2 text-sm font-bold text-white">Volver a jugadores</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const FM26_POSITION_MAP = {
   "portero": "gk",
   "defensa_izquierdo": "dl",
@@ -3597,6 +3626,7 @@ export default function Players() {
 
   if (selectedPlayer) {
     return (
+      <PlayerDetailErrorBoundary key={String(selectedPlayer.id || selectedPlayer.fm26_uid || selectedPlayer.name)} onBack={() => setSelectedPlayer(null)}>
       <PlayersDetail
         player={selectedPlayer}
         team={teamById[selectedPlayer.teamId]}
@@ -3618,6 +3648,7 @@ export default function Players() {
           );
         }}
       />
+      </PlayerDetailErrorBoundary>
     );
   }
 
