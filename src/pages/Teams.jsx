@@ -40,6 +40,7 @@ const navigationFilters = [
   { id: "reputation", label: "Reputation", icon: Star },
   { id: "market", label: "Market", icon: TrendingUp },
   { id: "incomplete", label: "Incomplete", icon: CircleAlert },
+  { id: "unattached", label: "Sin equipo", icon: Users },
 ];
 
 const competitionDetails = {};
@@ -2958,6 +2959,9 @@ const kitsOverviewUrl = normalizeImageUrl(
 export default function Teams() {
 
   const [teams, setTeams] = useState([]);
+  const [unattachedPlayers, setUnattachedPlayers] = useState([]);
+  const [unattachedError, setUnattachedError] = useState("");
+  const [unattachedTab, setUnattachedTab] = useState("free_agent");
   const [isLoading, setIsLoading] = useState(true);
   const [countries, setCountries] = useState([]);
   const [leagues, setLeagues] = useState([]);
@@ -2974,6 +2978,18 @@ export default function Teams() {
   const [bulkTeamsConfirmOpen, setBulkTeamsConfirmOpen] = useState(false);
   const [bulkTeamsBusy, setBulkTeamsBusy] = useState(false);
   const [bulkTeamsMessage, setBulkTeamsMessage] = useState("");
+
+  useEffect(() => {
+    if (activeFilter !== "unattached") return;
+    let cancelled = false;
+    base44.entities.Player.list().then(result => {
+      if (cancelled) return;
+      const rows = Array.isArray(result) ? result : (result?.data || result?.items || []);
+      setUnattachedPlayers(rows.filter(p => ["free_agent", "retired"].includes(p.career_status) || (!p.team_id && !p.teamId)));
+      setUnattachedError("");
+    }).catch(err => { if (!cancelled) setUnattachedError(err?.message || "No se pudieron cargar los jugadores"); });
+    return () => { cancelled = true; };
+  }, [activeFilter]);
 
   const handleOpenAddTeam = () => {
     setEditingTeam(null);
@@ -3845,7 +3861,13 @@ kit3_photo_url: newTeam.kit3PhotoUrl,
       )}
       {bulkTeamsMessage && <div role="status" className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-700">{bulkTeamsMessage}</div>}
 
-      {Object.keys(groupedTeams).length > 0 ? (
+      {activeFilter === "unattached" ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-black text-slate-900">Jugadores sin equipo</h2><p className="text-xs text-slate-500">Agentes libres y retirados: no se crean equipos ficticios.</p></div><div className="flex gap-2">{[{id:"free_agent",title:"Agentes libres"},{id:"retired",title:"Retirados"}].map(tab=><button type="button" key={tab.id} onClick={()=>setUnattachedTab(tab.id)} className={`rounded-xl px-4 py-2 text-xs font-bold ${unattachedTab===tab.id ? "bg-[#003399] text-white" : "border border-slate-200 bg-slate-50 text-slate-700"}`}>{tab.title} ({unattachedPlayers.filter(p=>(p.career_status || (!p.team_id && !p.teamId ? "free_agent" : "active"))===tab.id).length})</button>)}</div></div>
+          {unattachedError && <p className="mb-3 text-sm text-red-600">{unattachedError}</p>}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{unattachedPlayers.filter(p=>(p.career_status || (!p.team_id && !p.teamId ? "free_agent" : "active"))===unattachedTab).filter(p=>!search || String(p.name||"").toLowerCase().includes(search.toLowerCase())).map(p=><div key={p.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"><div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-100">{p.photo_url && <img src={p.photo_url} alt="" className="h-full w-full object-cover"/>}</div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-900">{p.name}</p><p className="text-xs text-slate-500">Último club: {teams.find(team=>String(team.id)===String(p.last_team_id))?.name || "No registrado"}</p>{unattachedTab==="retired" && p.retirement_year && <p className="text-xs text-slate-400">Retirado en {p.retirement_year}</p>}</div></div>)}</div>
+        </section>
+      ) : Object.keys(groupedTeams).length > 0 ? (
         <div className="space-y-5">
           {Object.entries(groupedTeams).map(([groupName, groupTeams]) => {
             if (activeFilter === "reputation") {
