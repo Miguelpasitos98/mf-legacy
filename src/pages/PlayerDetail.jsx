@@ -733,6 +733,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
     editablePlayer?.date_of_birth ||
     "";
   const age = calculateAge(dateOfBirth);
+  const selectedCountry = countries.find((item) => item?.id === form.countryId) || null;
+  const selectedTeam = teams.find((item) => item?.id === form.teamId) || null;
 
   const [firstName, ...rest] = playerName.split(" ");
   const lastName = rest.join(" ");
@@ -1118,8 +1120,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
             }
           }}
         >
-          <div className="max-h-[calc(100vh_-_32px)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div className="max-h-[calc(100vh_-_32px)] w-full max-w-[1080px] overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+            <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white/95 px-6 py-4 backdrop-blur">
               <div>
                 <h2 className="text-base font-extrabold text-slate-900">
                   Edit player
@@ -1140,10 +1142,11 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-5 p-5">
+            <form onSubmit={handleSave} className="space-y-5 bg-slate-50/50 p-6">
               <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1">
                 {[
                   ["general", "General"],
+                  ...(editablePlayer?.fm26_uid ? [["fm26", "FM26"]] : []),
                   ["positions", "Positions"],
                   ["mental", "Mental"],
                   ["physical", "Physical"],
@@ -1167,12 +1170,203 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
               {editTab === "general" && (
                 <div className="space-y-5">
-                {editablePlayer?.fm26_uid && (
-                  <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 p-4 shadow-sm">
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Ficha general</p>
+                        <h3 className="mt-1 text-2xl font-black text-slate-900">{form.name || "Unnamed player"}</h3>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{selectedTeam?.name || "Sin club asociado"}</span>
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{selectedCountry?.name || "Sin país"}</span>
+                          {age ? <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{age} años</span> : null}
+                          {form.style ? <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{form.style}</span> : null}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {[
+                          ["CA", form.ca || "—"],
+                          ["CP", form.cp || "—"],
+                          ["Altura", form.height ? `${form.height} cm` : "—"],
+                          ["Dorsal", form.shirtNumber || "—"],
+                        ].map(([label, value]) => (
+                          <div key={label} className="min-w-[92px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{label}</p>
+                            <p className="mt-1 text-sm font-extrabold text-slate-900">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+
+                  <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+                    <div className="space-y-5">
+                      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="mb-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Identidad</p>
+                          <h4 className="mt-1 text-sm font-extrabold text-slate-900">Datos básicos del jugador</h4>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Player name</label>
+                            <input type="text" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className={INPUT_CLASS} required />
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Date of birth</label>
+                              <input type="text" value={form.dateOfBirth} onChange={(event) => setForm((current) => ({ ...current, dateOfBirth: event.target.value }))} placeholder="DD/MM/YYYY" className={INPUT_CLASS} />
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Style</label>
+                              <input type="text" value={form.style} onChange={(event) => setForm((current) => ({ ...current, style: event.target.value }))} placeholder="Ej. Creativo" className={INPUT_CLASS} />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Country</label>
+                              <SearchableEntitySelect
+                                value={form.countryId}
+                                onChange={(value) => setForm((current) => ({ ...current, countryId: value }))}
+                                options={countries}
+                                kind="country"
+                                placeholder="Select country"
+                                searchPlaceholder="Search country..."
+                                emptyOption={{ value: "", label: "Select country" }}
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Associated club</label>
+                              <SearchableEntitySelect
+                                value={form.teamId}
+                                onChange={(value) => setForm((current) => ({ ...current, teamId: value }))}
+                                options={teams}
+                                kind="team"
+                                placeholder="No club"
+                                searchPlaceholder="Search club..."
+                                emptyOption={{ value: "", label: "No club" }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="mb-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Perfil</p>
+                          <h4 className="mt-1 text-sm font-extrabold text-slate-900">Scouting y valoración</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Height (cm)</label>
+                            <input type="number" min={0} max={250} value={form.height} onChange={(event) => setForm((current) => ({ ...current, height: event.target.value }))} className={INPUT_CLASS} />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Shirt number</label>
+                            <input type="number" min={0} max={99} value={form.shirtNumber} onChange={(event) => setForm((current) => ({ ...current, shirtNumber: event.target.value }))} className={INPUT_CLASS} />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Right foot</label>
+                            <input type="number" min={0} max={20} value={form.rightFoot} onChange={(event) => setForm((current) => ({ ...current, rightFoot: event.target.value }))} className={INPUT_CLASS} />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Left foot</label>
+                            <input type="number" min={0} max={20} value={form.leftFoot} onChange={(event) => setForm((current) => ({ ...current, leftFoot: event.target.value }))} className={INPUT_CLASS} />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">CA</label>
+                            <input type="number" min={0} max={200} value={form.ca} onChange={(event) => setForm((current) => ({ ...current, ca: event.target.value }))} className={INPUT_CLASS} />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">CP</label>
+                            <input type="number" min={0} max={200} value={form.cp} onChange={(event) => setForm((current) => ({ ...current, cp: event.target.value }))} className={INPUT_CLASS} />
+                          </div>
+                        </div>
+                      </section>
+                    </div>
+
+                    <div className="space-y-5">
+                      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="mb-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Rol</p>
+                          <h4 className="mt-1 text-sm font-extrabold text-slate-900">Encaje táctico y descripción</h4>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Posición</label>
+                              <input type="text" value={form.fmPosition || ""} onChange={(event) => setForm((current) => ({ ...current, fmPosition: event.target.value }))} className={INPUT_CLASS} />
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Mejores puestos</label>
+                              <input type="text" value={form.bestPositions || ""} onChange={(event) => setForm((current) => ({ ...current, bestPositions: event.target.value }))} className={INPUT_CLASS} />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Rol utilizado para rellenar atributos vacíos</label>
+                              <input type="text" value={form.roleUsedToFillEmptyAttributes || ""} onChange={(event) => setForm((current) => ({ ...current, roleUsedToFillEmptyAttributes: event.target.value }))} className={INPUT_CLASS} />
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Posición central preferida</label>
+                              <input type="text" value={form.preferredCentralPosition || ""} onChange={(event) => setForm((current) => ({ ...current, preferredCentralPosition: event.target.value }))} className={INPUT_CLASS} />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Description</label>
+                            <select value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className={INPUT_CLASS}>
+                              <option value="">Sin descripción</option>
+                              {DESCRIPTION_OPTIONS.map((group) => (
+                                <optgroup key={group.group} label={group.group}>
+                                  {group.options.map((option) => (
+                                    <option key={option} value={option}>{option}</option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Salary</label>
+                            <input type="number" min={0} step={1} value={form.salary} onChange={(event) => setForm((current) => ({ ...current, salary: event.target.value }))} className={INPUT_CLASS} />
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="mb-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Media</p>
+                          <h4 className="mt-1 text-sm font-extrabold text-slate-900">Enlaces visuales</h4>
+                        </div>
+                        <div className="space-y-3">
+                          {[
+                            ["photoUrl", "Profile photo URL"],
+                            ["cardPhotoUrl", "Card photo URL"],
+                            ["nationalCardPhotoUrl", "National team card photo URL"],
+                          ].map(([key, label]) => (
+                            <div key={key}>
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">{label}</label>
+                              <input type="url" value={form[key] || ""} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} placeholder="https://..." className={INPUT_CLASS} />
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {editTab === "fm26" && editablePlayer?.fm26_uid && (
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 p-5 shadow-sm">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Datos importados de FM26</p>
-                        <h3 className="mt-1 text-sm font-extrabold text-slate-900">{editablePlayer.name}</h3>
+                        <h3 className="mt-1 text-lg font-extrabold text-slate-900">{editablePlayer.name}</h3>
                         <p className="text-xs text-slate-500">{editablePlayer.fm26_save_club_name || "Sin club de origen"} · UID FM {editablePlayer.fm26_uid}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -1271,338 +1465,11 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                       <pre className="max-h-64 overflow-auto border-t bg-slate-950 p-4 text-[11px] text-slate-100">{JSON.stringify(editablePlayer.fm26_source_record || {},null,2)}</pre>
                     </details>
                   </div>
-                )}
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                      Player name
-                    </label>
-                    <input
-                      type="text"
-                      value={form.name}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          name: event.target.value,
-                        }))
-                      }
-                      className={INPUT_CLASS}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Date of birth
-                      </label>
-                      <input
-                        type="text"
-                        value={form.dateOfBirth}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            dateOfBirth: event.target.value,
-                          }))
-                        }
-                        placeholder="DD/MM/YYYY"
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Style
-                      </label>
-                      <input
-                        type="text"
-                        value={form.style}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            style: event.target.value,
-                          }))
-                        }
-                        placeholder="Ej. Creativo"
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Country
-                      </label>
-                      <SearchableEntitySelect
-                        value={form.countryId}
-                        onChange={(value) =>
-                          setForm((current) => ({
-                            ...current,
-                            countryId: value,
-                          }))
-                        }
-                        options={countries}
-                        kind="country"
-                        placeholder="Select country"
-                        searchPlaceholder="Search country..."
-                        emptyOption={{
-                          value: "",
-                          label: "Select country",
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Associated club
-                      </label>
-                      <SearchableEntitySelect
-                        value={form.teamId}
-                        onChange={(value) =>
-                          setForm((current) => ({
-                            ...current,
-                            teamId: value,
-                          }))
-                        }
-                        options={teams}
-                        kind="team"
-                        placeholder="No club"
-                        searchPlaceholder="Search club..."
-                        emptyOption={{
-                          value: "",
-                          label: "No club",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Height (cm)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={250}
-                        value={form.height}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            height: event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Shirt number
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={99}
-                        value={form.shirtNumber}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            shirtNumber: event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Right foot
-                      </label>
-                      <input
-                        type="text"
-                        value={form.rightFoot}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            rightFoot: event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        Left foot
-                      </label>
-                      <input
-                        type="text"
-                        value={form.leftFoot}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            leftFoot: event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        CA
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={200}
-                        step={1}
-                        value={form.ca}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            ca: event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                        CP
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={200}
-                        step={1}
-                        value={form.cp}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            cp: event.target.value,
-                          }))
-                        }
-                        className={INPUT_CLASS}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {[
-                      ["fmPosition", "Posición"],
-                      ["bestPositions", "Mejores puestos"],
-                      [
-                        "roleUsedToFillEmptyAttributes",
-                        "Rol utilizado para rellenar atributos vacíos",
-                      ],
-                      [
-                        "preferredCentralPosition",
-                        "Posición central preferida",
-                      ],
-                    ].map(([key, label]) => (
-                      <div key={key}>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                          {label}
-                        </label>
-                        <input
-                          type="text"
-                          value={form[key] || ""}
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              [key]: event.target.value,
-                            }))
-                          }
-                          className={INPUT_CLASS}
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                      Description
-                    </label>
-                    <select
-                      value={form.description}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                      className={INPUT_CLASS}
-                    >
-                      <option value="">Sin descripción</option>
-                      {DESCRIPTION_OPTIONS.map((group) => (
-                        <optgroup key={group.group} label={group.group}>
-                          {group.options.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                      Salary
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={form.salary}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          salary: event.target.value,
-                        }))
-                      }
-                      className={INPUT_CLASS}
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    {[
-                      ["photoUrl", "Profile photo URL"],
-                      ["cardPhotoUrl", "Card photo URL"],
-                      [
-                        "nationalCardPhotoUrl",
-                        "National team card photo URL",
-                      ],
-                    ].map(([key, label]) => (
-                      <div key={key}>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                          {label}
-                        </label>
-                        <input
-                          type="url"
-                          value={form[key] || ""}
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              [key]: event.target.value,
-                            }))
-                          }
-                          placeholder="https://..."
-                          className={INPUT_CLASS}
-                        />
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )}
 
-              {editTab === "positions" && (
+              
+{editTab === "positions" && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
@@ -1735,7 +1602,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <div className="sticky bottom-0 z-20 flex justify-end gap-2 border-t border-slate-200 bg-white/95 px-1 pb-1 pt-4 backdrop-blur">
                 <button
                   type="button"
                   onClick={closeEditor}
