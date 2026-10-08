@@ -2301,7 +2301,10 @@ export default function Players() {
           const mappedCountry = fm26CountryForId(row.nation_id);
           if (mappedCountry?.id) data.country_id = mappedCountry.id;
           const secondCountries=(row.second_nation_ids||[]).map(id=>fm26CountryForId(id)?.id).filter(Boolean);
-          if(secondCountries.length) data.fm26_second_country_ids=[...new Set(secondCountries.map(String))];
+          if(secondCountries.length) {
+            data.fm26_second_country_ids=[...new Set(secondCountries.map(String))];
+            data.secondary_country_id=data.fm26_second_country_ids[0];
+          }
           data.team_id = club.id;
           if (match) { await base44.entities.Player.update(match.id, data); updated++; }
           else { await base44.entities.Player.create(data); created++; }
