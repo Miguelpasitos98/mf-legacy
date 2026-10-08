@@ -515,6 +515,23 @@
     "secondary_country_id": {
       "type": "string",
       "description": "ID del país de nacionalidad secundaria principal en Country. Campo editable desde PlayerDetail."
+    },
+    "career_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "free_agent",
+        "retired"
+      ],
+      "description": "Situación profesional del jugador"
+    },
+    "last_team_id": {
+      "type": "string",
+      "description": "Último club real del jugador; se conserva al pasar a libre o retirado"
+    },
+    "retirement_year": {
+      "type": "number",
+      "description": "Año de retirada opcional"
     }
   },
   "required": [
