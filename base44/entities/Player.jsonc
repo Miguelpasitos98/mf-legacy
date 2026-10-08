@@ -496,6 +496,14 @@
     "fm26_source_record": {
       "type": "object",
       "description": "Registro íntegro original de fmsave FM26, conservado para trazabilidad y nuevos campos futuros."
+    },
+    "fm_position": {
+      "type": "string",
+      "description": "Lista textual de las posiciones FM26"
+    },
+    "best_positions": {
+      "type": "string",
+      "description": "Posiciones naturales FM26"
     }
   },
   "required": [
