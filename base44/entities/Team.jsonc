@@ -1,212 +1,512 @@
 {
-  "name": "Team",
+  "name": "Player",
   "type": "object",
   "properties": {
     "name": {
       "type": "string",
-      "description": "Nombre oficial del equipo"
+      "description": "Nombre completo del jugador"
     },
-    "short_name": {
+    "date_of_birth": {
       "type": "string",
-      "description": "Nombre corto del equipo"
+      "description": "Fecha de nacimiento normalizada a DD/MM/YYYY"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "ID del Team asociado. Se resuelve automáticamente buscando el nombre del equipo y el país; si no existe, se crea el Team y se usa su nuevo ID."
     },
     "country_id": {
       "type": "string",
-      "description": "ID interno del país en Base44"
+      "description": "ID del Country asociado. Se resuelve automáticamente por nombre; si no existe, se crea el Country y se usa su nuevo ID."
     },
-    "league_id": {
+    "position_raw": {
       "type": "string",
-      "description": "ID interno de la liga actual del equipo en Base44"
+      "description": "Posición principal exactamente como aparece en el export de Football Manager, conservada para trazabilidad"
     },
-    "city": {
+    "position": {
       "type": "string",
-      "description": "Ciudad del equipo"
+      "description": "Posición principal normalizada al catálogo MF LEGACY (GK, DFC, LD, LI, CRD, CRI, CDM, CM, CAM, EI, ED, DC)"
     },
-    "country_map_url": {
+    "secondary_position_raw": {
       "type": "string",
-      "description": "URL de la imagen del contorno del país"
+      "description": "Posición alternativa exactamente como aparece en el export de Football Manager, conservada para trazabilidad"
     },
-    "country_team_map_url": {
+    "secondary_position": {
       "type": "string",
-      "description": "URL de la imagen del contorno del país con el escudo del equipo situado en su ciudad"
+      "description": "Posición alternativa normalizada al catálogo MF LEGACY"
     },
-    "logo": {
+    "style": {
       "type": "string",
-      "description": "URL del escudo del equipo"
+      "description": "Estilo exportado desde Football Manager"
     },
-    "primary_color": {
+    "height": {
+      "type": "number",
+      "description": "Altura del jugador en centímetros. Ejemplo: '173 cm' -> 173"
+    },
+    "right_foot": {
       "type": "string",
-      "description": "Color principal en formato hexadecimal"
+      "description": "Valor 1–20 del pie en FM26 almacenado como texto por compatibilidad con el editor actual."
     },
-    "secondary_color": {
+    "left_foot": {
       "type": "string",
-      "description": "Color secundario en formato hexadecimal"
+      "description": "Valor 1–20 del pie en FM26 almacenado como texto por compatibilidad con el editor actual."
     },
-    "founded_year": {
-      "type": "integer",
-      "description": "Año de fundación del equipo"
+    "shirt_number": {
+      "type": "number",
+      "description": "Número de camiseta"
     },
-    "stadium_id": {
+    "salary": {
+      "type": "number",
+      "description": "Sueldo anual normalizado a número en la moneda del export. Ejemplo: '12,78M € p/a' -> 12780000"
+    },
+    "photo_url": {
       "type": "string",
-      "description": "ID interno del estadio asociado"
+      "description": "URL de la fotografía del jugador para el perfil individual"
     },
-    "stadium": {
+    "card_photo_url": {
       "type": "string",
-      "description": "Nombre del estadio principal"
+      "description": "URL de la fotografía del jugador utilizada en las tarjetas del listado cuando se muestran en contexto de club"
     },
-    "stadium_capacity": {
-      "type": "integer",
-      "description": "Capacidad del estadio"
-    },
-    "stadium_built_year": {
-      "type": "integer",
-      "description": "Año de construcción del estadio"
-    },
-    "stadium_renovation": {
-      "type": "integer",
-      "description": "Año de la última remodelación del estadio"
-    },
-    "pitch_dimensions": {
+    "national_card_photo_url": {
       "type": "string",
-      "description": "Dimensiones del terreno de juego"
+      "description": "URL de la fotografía del jugador con la camiseta de su selección nacional, utilizada en las tarjetas del listado cuando se agrupan por países"
     },
-    "stadium_interior_url": {
+    "ca": {
+      "type": "number",
+      "description": "Current Ability (CA) de Football Manager"
+    },
+    "cp": {
+      "type": "number",
+      "description": "Potential Ability (CP) de Football Manager"
+    },
+    "position_ratings": {
+      "type": "object",
+      "properties": {
+        "portero": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "defensa_izquierdo": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "defensa_central": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "defensa_derecho": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "mediocentro": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "carrilero_izquierdo": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "carrilero_derecho": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "centrocampista_izquierdo": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "centrocampista": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "centrocampista_derecho": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "mediapunta_por_la_izquierda": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "mediapunta_central": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "mediapunta_por_la_derecha": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        },
+        "delantero": {
+          "type": "number",
+          "description": "Valoración original FM26 1–20"
+        }
+      },
+      "description": "14 valoraciones de posición originales FM26"
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "mental": {
+          "type": "object",
+          "properties": {
+            "agresividad": {
+              "type": "number",
+              "description": "Agresividad, 0-20; copia directa del export"
+            },
+            "anticipacion": {
+              "type": "number",
+              "description": "Anticipación, 0-20; copia directa del export"
+            },
+            "valentia": {
+              "type": "number",
+              "description": "Valentía, 0-20; copia directa del export"
+            },
+            "serenidad": {
+              "type": "number",
+              "description": "Serenidad, 0-20; copia directa del export"
+            },
+            "concentracion": {
+              "type": "number",
+              "description": "Concentración, 0-20; copia directa del export"
+            },
+            "consistencia": {
+              "type": "number",
+              "description": "Consistencia, 0-20; copia directa del export"
+            },
+            "decisiones": {
+              "type": "number",
+              "description": "Decisiones, 0-20; copia directa del export"
+            },
+            "determinacion": {
+              "type": "number",
+              "description": "Determinación, 0-20; copia directa del export"
+            },
+            "juego_sucio": {
+              "type": "number",
+              "description": "Juego sucio, 0-20; se conserva el valor de Football Manager y no se interpreta como una métrica de 'mejor'"
+            },
+            "talento": {
+              "type": "number",
+              "description": "Talento, 0-20; copia directa del export"
+            },
+            "partidos_importantes": {
+              "type": "number",
+              "description": "Partidos importantes, 0-20; copia directa del export"
+            },
+            "liderazgo": {
+              "type": "number",
+              "description": "Liderazgo, 0-20; copia directa del export"
+            },
+            "movimiento": {
+              "type": "number",
+              "description": "Movimiento/desmarques, 0-20; se alimenta desde la columna Desmarques"
+            },
+            "colocacion": {
+              "type": "number",
+              "description": "Colocación, 0-20; copia directa del export"
+            },
+            "trabajo_de_equipo": {
+              "type": "number",
+              "description": "Trabajo de equipo, 0-20; copia directa del export"
+            },
+            "vision": {
+              "type": "number",
+              "description": "Visión, 0-20; copia directa del export"
+            },
+            "sacrificio": {
+              "type": "number",
+              "description": "Sacrificio, 0-20; copia directa del export"
+            }
+          },
+          "description": "Atributos mentales extraídos del export de Football Manager."
+        },
+        "physical": {
+          "type": "object",
+          "properties": {
+            "aceleracion": {
+              "type": "number",
+              "description": "Aceleración, 0-20; copia directa"
+            },
+            "agilidad": {
+              "type": "number",
+              "description": "Agilidad, 0-20; copia directa"
+            },
+            "balance": {
+              "type": "number",
+              "description": "Equilibrio, 0-20; copia directa"
+            },
+            "tendencia_a_lesionarse": {
+              "type": "number",
+              "description": "Tendencia a lesionarse normalizada para MF LEGACY: el importador invierte el valor de FM para que 20 represente mayor resistencia a lesiones y 0 mayor propensión"
+            },
+            "alcance_de_salto": {
+              "type": "number",
+              "description": "Alcance de salto, 0-20; copia directa"
+            },
+            "alcance_de_salto_recomendado_altura": {
+              "type": "number",
+              "description": "Valor ajustado por altura. Reservado para cálculo posterior; no aparece directamente en el export actual"
+            },
+            "recuperacion_fisica": {
+              "type": "number",
+              "description": "Recuperación física, 0-20; copia directa"
+            },
+            "velocidad": {
+              "type": "number",
+              "description": "Velocidad, 0-20; copia directa"
+            },
+            "resistencia": {
+              "type": "number",
+              "description": "Resistencia, 0-20; copia directa"
+            },
+            "fuerza": {
+              "type": "number",
+              "description": "Fuerza, 0-20; copia directa"
+            }
+          },
+          "description": "Atributos físicos extraídos del export de Football Manager."
+        },
+        "technical": {
+          "type": "object",
+          "properties": {
+            "saques_de_esquina": {
+              "type": "number",
+              "description": "Saques de esquina, 0-20; copia directa"
+            },
+            "centros": {
+              "type": "number",
+              "description": "Centros, 0-20; copia directa"
+            },
+            "regate": {
+              "type": "number",
+              "description": "Regate, 0-20; copia directa"
+            },
+            "remate": {
+              "type": "number",
+              "description": "Remate, 0-20; copia directa"
+            },
+            "control": {
+              "type": "number",
+              "description": "Control, 0-20; copia directa"
+            },
+            "tiros_libres": {
+              "type": "number",
+              "description": "Tiros libres, 0-20; copia directa"
+            },
+            "cabeceo": {
+              "type": "number",
+              "description": "Cabeceo, 0-20; copia directa"
+            },
+            "tiros_lejanos": {
+              "type": "number",
+              "description": "Tiros lejanos, 0-20; copia directa"
+            },
+            "saques_largos": {
+              "type": "number",
+              "description": "Saques largos, 0-20; copia directa"
+            },
+            "marcaje": {
+              "type": "number",
+              "description": "Marcaje, 0-20; copia directa"
+            },
+            "pases": {
+              "type": "number",
+              "description": "Pases, 0-20; copia directa"
+            },
+            "penaltis": {
+              "type": "number",
+              "description": "Penaltis, 0-20; copia directa"
+            },
+            "entradas": {
+              "type": "number",
+              "description": "Entradas, 0-20; copia directa"
+            },
+            "tecnica": {
+              "type": "number",
+              "description": "Técnica, 0-20; copia directa"
+            },
+            "polivalencia": {
+              "type": "number",
+              "description": "Polivalencia, 0-20; copia directa"
+            }
+          },
+          "description": "Atributos técnicos extraídos del export de Football Manager."
+        },
+        "goalkeeping": {
+          "type": "object",
+          "properties": {
+            "balones_aereos": {
+              "type": "number",
+              "description": "Alcance aéreo, 0-20; copia directa"
+            },
+            "balones_aereos_recomendado_altura": {
+              "type": "number",
+              "description": "Valor ajustado por altura. Reservado para cálculo posterior; no aparece directamente en el export actual"
+            },
+            "mando_en_el_area": {
+              "type": "number",
+              "description": "Mando en el área, 0-20; copia directa"
+            },
+            "comunicacion": {
+              "type": "number",
+              "description": "Comunicación, 0-20; copia directa"
+            },
+            "excentricidad": {
+              "type": "number",
+              "description": "Excentricidad, 0-20; se conserva el valor de Football Manager"
+            },
+            "blocaje": {
+              "type": "number",
+              "description": "Blocaje, 0-20; copia directa"
+            },
+            "saques_de_puerta": {
+              "type": "number",
+              "description": "Saques de puerta, 0-20; copia directa"
+            },
+            "uno_contra_uno": {
+              "type": "number",
+              "description": "Uno contra uno, 0-20; copia directa"
+            },
+            "reflejos": {
+              "type": "number",
+              "description": "Reflejos, 0-20; copia directa"
+            },
+            "salidas_tendencia": {
+              "type": "number",
+              "description": "Salidas (tendencia), 0-20; se conserva el valor de Football Manager"
+            },
+            "salida_de_puños": {
+              "type": "number",
+              "description": "Puños/salida de puños, 0-20; copia directa"
+            },
+            "saque_con_la_mano": {
+              "type": "number",
+              "description": "Saque con la mano, 0-20; copia directa"
+            }
+          },
+          "description": "Atributos específicos de portero extraídos del export de Football Manager."
+        }
+      },
+      "description": "Estadísticas del jugador agrupadas en mental, físico, técnico y portero."
+    },
+    "description": {
       "type": "string",
-      "description": "URL de una imagen del interior del estadio"
+      "description": "Perfil o descripción del jugador en MF LEGACY; no procede del CSV actual"
     },
-    "stadium_exterior_url": {
+    "fm26_uid": {
       "type": "string",
-      "description": "URL de una imagen del exterior del estadio"
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
     },
-    "reputation": {
+    "fm26_unique_id": {
       "type": "string",
-      "description": "Reputación numérica del equipo en una escala de 0 a 10000"
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
     },
-    "market": {
+    "fm26_club_uid": {
       "type": "string",
-      "description": "Valor de mercado del equipo en euros. Se almacena con formato de miles y símbolo del euro, por ejemplo 230,975,207 (€)"
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
     },
-    "history": {
+    "fm26_nation_id": {
       "type": "string",
-      "description": "Historia del equipo en texto enriquecido o HTML"
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
     },
-    "coach_name": {
+    "fm26_second_nation_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_natural_positions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_accomplished_positions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_raw_positions": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_raw_attributes": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_personality": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_traits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_trait_codes": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_reputation": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_contract": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_transfer_value": {
+      "type": "number",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_weekly_wage": {
+      "type": "number",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_save_club_name": {
       "type": "string",
-      "description": "Nombre del entrenador actual"
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
     },
-    "coach_photo_url": {
+    "fm26_team_slot": {
+      "type": "number",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_loan_details": {
+      "type": "object",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_condition": {
+      "type": "number",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_match_sharpness": {
+      "type": "number",
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
+    },
+    "fm26_source": {
       "type": "string",
-      "description": "URL de la fotografía del entrenador"
+      "description": "Dato de origen fmsave FM26 (no sobrescribir con datos inventados)."
     },
-    "key_player_name": {
+    "fm26_source_record": {
+      "type": "object",
+      "description": "Registro íntegro original de fmsave FM26, conservado para trazabilidad y nuevos campos futuros."
+    },
+    "fm_position": {
       "type": "string",
-      "description": "Nombre del jugador clave"
+      "description": "Lista textual de las posiciones FM26"
     },
-    "key_player_photo_url": {
+    "best_positions": {
       "type": "string",
-      "description": "URL de la fotografía del jugador clave"
-    },
-    "captain_name": {
-      "type": "string",
-      "description": "Nombre del capitán actual"
-    },
-    "captain_photo_url": {
-      "type": "string",
-      "description": "URL de la fotografía del capitán"
-    },
-    "second_captain_name": {
-      "type": "string",
-      "description": "Nombre del segundo capitán"
-    },
-    "second_captain_photo_url": {
-      "type": "string",
-      "description": "URL de la fotografía del segundo capitán"
-    },
-    "kit1_photo_url": {
-      "type": "string",
-      "description": "URL de la primera equipación"
-    },
-    "kit1_shop_url": {
-      "type": "string",
-      "description": "URL de compra de la primera equipación"
-    },
-    "kit1_badge_bg": {
-      "type": "string",
-      "description": "Color de fondo de la etiqueta de la primera equipación"
-    },
-    "kit1_badge_text": {
-      "type": "string",
-      "description": "Color del texto de la etiqueta de la primera equipación"
-    },
-    "kit2_photo_url": {
-      "type": "string",
-      "description": "URL de la segunda equipación"
-    },
-    "kit2_shop_url": {
-      "type": "string",
-      "description": "URL de compra de la segunda equipación"
-    },
-    "kit2_badge_bg": {
-      "type": "string",
-      "description": "Color de fondo de la etiqueta de la segunda equipación"
-    },
-    "kit2_badge_text": {
-      "type": "string",
-      "description": "Color del texto de la etiqueta de la segunda equipación"
-    },
-    "kit3_photo_url": {
-      "type": "string",
-      "description": "URL de la tercera equipación"
-    },
-    "kit3_shop_url": {
-      "type": "string",
-      "description": "URL de compra de la tercera equipación"
-    },
-    "kit3_badge_bg": {
-      "type": "string",
-      "description": "Color de fondo de la etiqueta de la tercera equipación"
-    },
-    "kit3_badge_text": {
-      "type": "string",
-      "description": "Color del texto de la etiqueta de la tercera equipación"
-    },
-    "kits_overview_url": {
-      "type": "string",
-      "description": "URL de la imagen única que contiene las tres equipaciones del equipo"
-    },
-    "fotmob_id": {
-      "type": "integer",
-      "description": "ID externo del equipo en FotMob, si existe"
-    },
-    "fotmob_league_id": {
-      "type": "integer",
-      "description": "ID externo de la liga en FotMob, si existe"
-    },
-    "data_source": {
-      "type": "string",
-      "enum": [
-        "Manual",
-        "FotMob",
-        "Other"
-      ],
-      "default": "Manual",
-      "description": "Origen de los datos del equipo"
-    },
-    "is_complete": {
-      "type": "boolean",
-      "default": false,
-      "description": "Indica si la ficha del equipo está completa"
-    },
-    "is_active": {
-      "type": "boolean",
-      "default": true,
-      "description": "Indica si el equipo está activo"
+      "description": "Posiciones naturales FM26"
     }
   },
   "required": [
-    "name",
-    "short_name",
-    "country_id",
-    "league_id"
+    "name"
   ]
 }
