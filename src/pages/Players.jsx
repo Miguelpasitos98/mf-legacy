@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   Plus,
@@ -378,12 +378,11 @@ const PLAYER_DESCRIPTIONS = [
   },
 ];
 
-const getPrimaryPosition = (player) => {
+const _primaryPositionCache = new WeakMap();
+const getPrimaryPosition = (player) => { if (!player) return ""; const c = _primaryPositionCache.get(player); if (c !== undefined) return c;
   const ratings = player?.positionRatings || player?.position_ratings || {};
-  return Object.entries(ratings)
-    .map(([key, value]) => ({ key, rating: Number(value) }))
-    .filter(({ rating }) => Number.isFinite(rating) && rating > 0)
-    .sort((a, b) => b.rating - a.rating || a.key.localeCompare(b.key))[0]?.key || "";
+  const r = Object.entries(ratings).map(([k, v]) => ({ key: k, rating: Number(v) })).filter(({ rating }) => Number.isFinite(rating) && rating > 0).sort((a, b) => b.rating - a.rating || a.key.localeCompare(b.key))[0]?.key || "";
+  _primaryPositionCache.set(player, r); return r;
 };
 
 // Only positions with a strong FM rating are shown on player cards.
@@ -1265,11 +1264,11 @@ const PLAYER_VIEW_MODES = [
   "description",
 ];
 
-function PlayerCard({
+function PlayerCardInner({
   player,
   team,
   country,
-  onClick,
+  onSelect,
   selectionMode = false,
   selected = false,
   onToggleSelection,
@@ -1309,7 +1308,7 @@ function PlayerCard({
   return (
     <button
       type="button"
-      onClick={selectionMode ? () => onToggleSelection?.(player.id) : onClick}
+      onClick={selectionMode ? () => onToggleSelection?.(player.id) : () => onSelect?.(player)}
       className={`group w-full overflow-hidden rounded-2xl border ${selected ? "border-blue-700 ring-2 ring-blue-300" : "border-slate-200"} bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] ${
         compact ? "" : ""
       }`}
@@ -1324,7 +1323,7 @@ function PlayerCard({
         {photoUrl ? (
           <img
             src={photoUrl}
-            alt={player.name || "Player"}
+            alt={player.name || "Player"} loading="lazy"
             className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.025]"
             onError={(event) => {
               event.currentTarget.style.display = "none";
@@ -1459,8 +1458,7 @@ function PlayerCard({
     </button>
   );
 }
-
-function GroupHeader({
+const PlayerCard = React.memo(PlayerCardInner); function GroupHeader({
   type,
   name,
   logo,
@@ -2343,11 +2341,10 @@ export default function Players() {
     finally { setFm26Busy(false); }
   };
 
-  const toggleBulkPlayer = (id) => {
+  const toggleBulkPlayer = useCallback((id) => {
     const key = String(id);
     setBulkIds(old => old.includes(key) ? old.filter(x => x !== key) : [...old, key]);
-
-  };
+  }, []); const handleSelectPlayer = useCallback((player) => setSelectedPlayer(player), []);
   const applyBulkAction = async (deleting = false) => {
     const selected = players.filter(p => bulkIds.includes(String(p.id)));
     if (!selected.length || bulkBusy) return;
@@ -2517,7 +2514,7 @@ export default function Players() {
 
 
 
-  const groupedByTeam = useMemo(() => {
+  const groupedByTeam = useMemo(() => { if (viewMode !== "teams") return [];
     const groups = {};
 
     filteredPlayers.forEach((player) => {
@@ -2637,9 +2634,9 @@ export default function Players() {
         sensitivity: "base",
       });
     });
-  }, [filteredPlayers, teamById]);
+  }, [filteredPlayers, teamById, viewMode]);
 
-  const groupedByCountry = useMemo(() => {
+  const groupedByCountry = useMemo(() => { if (viewMode !== "countries") return [];
     const groups = {};
 
     filteredPlayers.forEach((player) => {
@@ -2664,9 +2661,9 @@ export default function Players() {
         sensitivity: "base",
       });
     });
-  }, [filteredPlayers, countryById]);
+  }, [filteredPlayers, countryById, viewMode]);
 
-  const groupedByPosition = useMemo(() => {
+  const groupedByPosition = useMemo(() => { if (viewMode !== "positions") return [];
     const groups = POSITION_GROUPS.map((group) => ({
       ...group,
       players: [],
@@ -2694,9 +2691,9 @@ export default function Players() {
     }
 
     return groups;
-  }, [filteredPlayers]);
+  }, [filteredPlayers, viewMode]);
 
-  const groupedByAge = useMemo(() => {
+  const groupedByAge = useMemo(() => { if (viewMode !== "age") return [];
     const groups = AGE_GROUPS.map((group) => ({
       id: group.id,
       name: group.name,
@@ -2730,9 +2727,9 @@ export default function Players() {
     }
 
     return groups;
-  }, [filteredPlayers]);
+  }, [filteredPlayers, viewMode]);
 
-  const groupedByDescriptionCategories = useMemo(() => {
+  const groupedByDescriptionCategories = useMemo(() => { if (viewMode !== "description") return [];
     const playerGroups = new Map();
 
     PLAYER_DESCRIPTIONS.forEach((category) => {
@@ -2779,7 +2776,7 @@ export default function Players() {
     }
 
     return categories;
-  }, [filteredPlayers]);
+  }, [filteredPlayers, viewMode]);
 
   const handleOpenAddPlayer = () => {
     setForm({
@@ -4083,14 +4080,7 @@ export default function Players() {
                           player.countryId
                         ]
                       }
-                      onClick={() => {
-                        console.log(
-                          "PLAYER CLICKED:",
-                          player
-                        );
-
-                        setSelectedPlayer(player);
-                      }}
+                      onSelect={handleSelectPlayer}
                     />
                   )
                 )}
@@ -4133,14 +4123,7 @@ export default function Players() {
                               }
                               compact
                               hideTeam
-                              onClick={() => {
-                                console.log(
-                                  "PLAYER CLICKED:",
-                                  player
-                                );
-
-                                setSelectedPlayer(player);
-                              }}
+                              onSelect={handleSelectPlayer}
                             />
                           )
                         )}
@@ -4189,14 +4172,7 @@ export default function Players() {
                               }
                               compact
                               useNationalCardPhoto
-                              onClick={() => {
-                                console.log(
-                                  "PLAYER CLICKED:",
-                                  player
-                                );
-
-                                setSelectedPlayer(player);
-                              }}
+                              onSelect={handleSelectPlayer}
                             />
                           )
                         )}
@@ -4233,7 +4209,7 @@ export default function Players() {
                           team={teamById[player.teamId]}
                           country={countryById[player.countryId]}
                           compact
-                          onClick={() => setSelectedPlayer(player)}
+                          onSelect={handleSelectPlayer}
                         />
                       ))}
                     </div>
@@ -4267,7 +4243,7 @@ export default function Players() {
                           team={teamById[player.teamId]}
                           country={countryById[player.countryId]}
                           compact
-                          onClick={() => setSelectedPlayer(player)}
+                          onSelect={handleSelectPlayer}
                         />
                       ))}
                     </div>
@@ -4363,9 +4339,7 @@ export default function Players() {
                                                 countryById[player.countryId]
                                               }
                                               compact
-                                              onClick={() =>
-                                                setSelectedPlayer(player)
-                                              }
+                                              onSelect={handleSelectPlayer}
                                             />
                                           ))}
                                         </div>
