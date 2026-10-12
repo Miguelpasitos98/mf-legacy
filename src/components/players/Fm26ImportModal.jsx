@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { X } from "lucide-react";
 import Fm26ClubPlayers from "./Fm26ClubPlayers";
 
@@ -85,6 +85,18 @@ export default function Fm26ImportModal({
   fm26CountryKey,
   FM26_NATION_ISO3,
 }) {
+  const [copiedKey, setCopiedKey] = useState("");
+
+  const handleCopyPlayerName = async (player, key) => {
+    try {
+      await navigator.clipboard.writeText(String(player?.name || ""));
+      setCopiedKey(key);
+    } catch {
+      setCopiedKey(`error:${key}`);
+    }
+    setTimeout(() => setCopiedKey(""), 1500);
+  };
+
   if (!fm26ImportOpen) return null;
 
   return (
@@ -177,11 +189,18 @@ export default function Fm26ImportModal({
                     <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
                       <p className="mb-2 text-[11px] font-bold text-slate-600">Jugadores del JSON con este ID (pistas, no confirmación)</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {examples.map((player,index)=>(
-                          <span key={`${player.name}-${index}`} title={player.club || ""} className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700">
-                            {player.name} <span className="text-slate-400">{player.kind === "main" ? "Principal" : `Secundaria ${Number(player.secondaryIndex) + 1}`}</span>
-                          </span>
-                        ))}
+                        {examples.map((player,index)=>{
+                          const key=`${player.name}-${index}`;
+                          const copied=copiedKey===key;
+                          const errored=copiedKey===`error:${key}`;
+                          return (
+                          <button key={key} type="button" title="Copy player name" onClick={e=>{e.preventDefault();e.stopPropagation();handleCopyPlayerName(player,key);}} className={`cursor-pointer rounded-md border px-2 py-1 text-[11px] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${copied?"border-emerald-300 bg-emerald-50 text-emerald-800":errored?"border-red-300 bg-red-50 text-red-700":"border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-100"}`}>
+                            <span>{player.name}</span> <span className="text-slate-400">{player.kind === "main" ? "Principal" : `Secundaria ${Number(player.secondaryIndex) + 1}`}</span>
+                            {copied && <span className="ml-1 font-semibold text-emerald-600">Copied!</span>}
+                            {errored && <span className="ml-1 font-semibold text-red-600">No copiado</span>}
+                          </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
