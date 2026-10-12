@@ -73,7 +73,7 @@ export default function Teams() {
         { career_status: { $in: ["free_agent", "retired"] } },
         { team_id: { $in: [null, ""] } },
       ],
-    }).then((result) => {
+    }, { limit: 1000 }).then((result) => {
       if (cancelled) return;
       const rows = Array.isArray(result) ? result : (result?.data || result?.items || []);
       setUnattachedPlayers(rows.filter((p) => ["free_agent", "retired"].includes(p.career_status) || (!p.team_id && !p.teamId)));
@@ -160,12 +160,24 @@ export default function Teams() {
       try {
         const result = await base44.entities.Team.list();
         const loadedTeams = getList(result);
+
+        const countryByIdMap = new Map();
+        for (const country of loadedCountries) {
+          const key = String(country.id || "");
+          if (key && !countryByIdMap.has(key)) countryByIdMap.set(key, country);
+        }
+        const leagueByIdMap = new Map();
+        for (const league of loadedLeagues) {
+          const key = String(league.id || "");
+          if (key && !leagueByIdMap.has(key)) leagueByIdMap.set(key, league);
+        }
+
         const normalizedTeams = loadedTeams.map((team) => {
           const teamId = team.id || team._id || "";
           const teamCountryId = team.country_id || team.countryId || "";
-          const country = loadedCountries.find((item) => String(item.id || "") === String(teamCountryId));
+          const country = countryByIdMap.get(String(teamCountryId));
           const leagueId = team.league_id || team.leagueId || "";
-          const league = loadedLeagues.find((item) => String(item.id || "") === String(leagueId));
+          const league = leagueByIdMap.get(String(leagueId));
           return {
             ...team,
             id: teamId,
