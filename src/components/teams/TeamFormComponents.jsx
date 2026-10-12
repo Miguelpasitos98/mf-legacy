@@ -13,14 +13,12 @@ import {
   Search,
   Plus,
   Pipette,
-  FileJson,
   ClipboardPaste,
   Save,
 } from "lucide-react";
 import {
   inputClassName,
   textareaClassName,
-  emptyTeamForm,
   normalizeImageUrl,
   extractImagePalette,
   getCountryFlagUrl,
