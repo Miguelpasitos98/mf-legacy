@@ -63,6 +63,7 @@ export default function Fm26ImportModal({
   setFm26NationSaveMessage,
   fm26NationOnlyPending,
   setFm26NationOnlyPending,
+  fm26NationJustSaved,
   saveFm26NationEquivalences,
   handleCreateFm26Nation,
   // Previsualización e importación
@@ -118,16 +119,42 @@ export default function Fm26ImportModal({
             <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-white px-4 py-3">
               <div>
                 <p className="text-sm font-extrabold text-slate-900">Gestor de equivalencias · FM26 ↔ MF LEGACY</p>
-                <p className="mt-0.5 text-xs text-slate-500">{fm26Nations.filter(item=>item.status==="saved").length} guardadas · {fm26Nations.filter(item=>item.status==="manual").length} por guardar · {fm26Nations.filter(item=>item.status==="suggested").length} sugeridas de {fm26Nations.length}. Guarda para persistir en Country.fm_nation_id.</p>
+                <p className="mt-0.5 text-xs text-slate-500">{fm26Nations.filter(item=>item.status==="saved").length} guardadas · {fm26Nations.filter(item=>item.status==="manual").length} por guardar · {fm26Nations.filter(item=>item.status==="unlinked"||item.status==="suggested"||item.status==="conflict").length} pendientes de identificar de {fm26Nations.length}. Guarda para persistir en Country.fm_nation_id.</p>
               </div>
               <button type="button" disabled={fm26NationSaveBusy || fm26CreateNationBusy || fm26Busy} onClick={saveFm26NationEquivalences} className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{fm26NationSaveBusy?"Guardando...":"Guardar equivalencias"}</button>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-4 py-2">
-              <label className="flex items-center gap-2 text-xs font-medium"><input type="checkbox" checked={fm26NationOnlyPending} onChange={e=>setFm26NationOnlyPending(e.target.checked)}/> Solo países pendientes</label>
+              <label className="flex items-center gap-2 text-xs font-medium"><input type="checkbox" checked={fm26NationOnlyPending} onChange={e=>setFm26NationOnlyPending(e.target.checked)}/> Solo pendientes de identificar</label>
               <span className="text-xs text-slate-500">Un mismo país no puede recibir dos IDs distintos</span>
             </div>
+            {(() => {
+              const manualItems = fm26Nations.filter(item => item.status === "manual");
+              const savedRecent = fm26Nations.filter(item => item.status === "saved" && fm26NationJustSaved?.has?.(item.id));
+              if (!manualItems.length && !savedRecent.length) return null;
+              return (
+                <div className="border-b bg-blue-50/50 px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-slate-800">Seleccionados — pendientes de guardar ({manualItems.length})</p>
+                    <button type="button" disabled={fm26NationSaveBusy || fm26CreateNationBusy || fm26Busy || !manualItems.length} onClick={saveFm26NationEquivalences} className="rounded-lg bg-[#003399] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40">{fm26NationSaveBusy ? "Guardando..." : "Guardar equivalencias"}</button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {manualItems.map(item => (
+                      <span key={`m-${item.id}`} className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        {item.country?.name || "—"} · FM {item.id}
+                        <button type="button" disabled={fm26Busy || fm26NationSaveBusy} onClick={() => setFm26NationMapping(old => { const n = { ...old }; delete n[item.id]; return n; })} className="text-slate-400 hover:text-red-600" aria-label={`Deshacer ${item.country?.name || ""}`}>×</button>
+                      </span>
+                    ))}
+                    {savedRecent.map(item => (
+                      <span key={`s-${item.id}`} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                        {item.country?.name || "—"} · FM {item.id} · Guardada
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="max-h-80 space-y-2 overflow-y-auto p-3">
-              {fm26Nations.filter(item=>!fm26NationOnlyPending || item.status!=="saved").map(({id,main,secondary,examples,country,status,conflictDetail})=>{
+              {fm26Nations.filter(item=>!fm26NationOnlyPending || item.status==="unlinked" || item.status==="suggested" || item.status==="conflict").map(({id,main,secondary,examples,country,status,conflictDetail})=>{
                 const mapped=country;
                 const suggestion=FM26_NATION_ISO3[id] || "Sin referencia";
                 const query=fm26NationSearch[id]||"";
@@ -196,7 +223,7 @@ export default function Fm26ImportModal({
                   {selected&&<button type="button" onClick={()=>setFm26NationMapping(old=>{const next={...old};delete next[id];return next;})} className="mt-2 text-xs text-blue-700 underline">Deshacer selección manual</button>}
                 </div>;
               })}
-              {fm26NationOnlyPending && fm26Nations.every(item=>item.status==="saved")&&<p className="p-4 text-center text-xs font-semibold text-emerald-700">Todos los países del archivo están identificados.</p>}
+              {fm26NationOnlyPending && fm26Nations.every(item=>item.status==="saved"||item.status==="manual")&&<p className="p-4 text-center text-xs font-semibold text-emerald-700">Todos los países están identificados.{fm26Nations.some(i=>i.status==="manual")?" Revisa las selecciones pendientes de guardar.":""}</p>}
             </div>
             {fm26NationSaveMessage&&<p className="border-t bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">{fm26NationSaveMessage}</p>}
             {fm26Error&&<p className="border-t bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">{fm26Error}</p>}

@@ -1628,7 +1628,7 @@ export default function Players() {
   const [fm26CreateNationBusy, setFm26CreateNationBusy] = useState(false);
   const [fm26NationSaveBusy, setFm26NationSaveBusy] = useState(false);
   const [fm26NationSaveMessage, setFm26NationSaveMessage] = useState("");
-  const [fm26NationOnlyPending, setFm26NationOnlyPending] = useState(true);
+  const [fm26NationOnlyPending, setFm26NationOnlyPending] = useState(true); const [fm26NationJustSaved, setFm26NationJustSaved] = useState(() => new Set());
   const [fm26ClubChoices, setFm26ClubChoices] = useState({});
   const [fm26ClubSearch, setFm26ClubSearch] = useState({});
   const [fm26CreatingClub, setFm26CreatingClub] = useState("");
@@ -1726,13 +1726,13 @@ export default function Players() {
       }
       let verified=0; const failedCids=new Set();
       if (pairs.length) {
-        const resp=await base44.entities.Country.filter({id:{$in:pairs.map(p=>p.cid)}},{limit:500,fields:["fm_nation_id"]});
+        const resp=await base44.entities.Country.filter({id:{$in:pairs.map(p=>p.cid)}},{limit:500,fields:["id","fm_nation_id"]});
         const sm=new Map((resp?.items||resp||[]).map(c=>[String(c.id),String(c.fm_nation_id||"")]));
         pairs.forEach(p=>sm.get(p.cid)===p.fmId?verified++:(errors.push(`${p.name}: no verificado en servidor`),failedCids.add(p.cid)));
         queryClient.setQueryData(["mf-legacy","countries"],(o)=>(Array.isArray(o)?o:[]).map(c=>{const p=pairs.find(x=>x.cid===String(c.id));return p&&!failedCids.has(p.cid)?{...c,fm_nation_id:p.fmId}:c;}));
       }
       queryClient.invalidateQueries({queryKey:["mf-legacy","countries"]}); const vIds=new Set(pairs.filter(p=>!failedCids.has(p.cid)).map(p=>p.fmId));
-      if(vIds.size) setFm26NationMapping(old=>{const n={...old};vIds.forEach(id=>delete n[id]);return n;});
+      if(vIds.size){setFm26NationMapping(old=>{const n={...old};vIds.forEach(id=>delete n[id]);return n;});setFm26NationJustSaved(prev=>new Set([...prev,...vIds]));}
       if(conflicts.length) errors.push(...conflicts.map(c=>`Conflicto (no guardado) ${c}`));
       if(errors.length){setFm26Error(`Pendientes: ${errors.slice(0,6).join(" | ")}`);setFm26NationSaveMessage(`Verificadas en servidor: ${verified}. Fallidas: ${errors.length}.`);}else{setFm26NationSaveMessage(`Equivalencias guardadas y verificadas en servidor: ${verified}. Se reutilizarán en futuras importaciones.`);}
     } finally { setFm26NationSaveBusy(false); }
@@ -1831,7 +1831,7 @@ export default function Players() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    setFm26Error(""); setFm26Message(""); setFm26Import(null);
+    setFm26Error(""); setFm26Message(""); setFm26Import(null); setFm26NationJustSaved(new Set());
     setFm26FileName(file.name);
     setFm26NationMapping({});
     setFm26NationSearch({});
@@ -3500,7 +3500,7 @@ export default function Players() {
             </button>
 
             <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkDeleteIds([]); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
-            <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Error(""); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
+            <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Error(""); setFm26NationJustSaved(new Set()); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
               <Upload size={16} /><span>Import FM26 JSON</span>
             </button>
 
@@ -3958,7 +3958,7 @@ export default function Players() {
           fm26NationSaveBusy={fm26NationSaveBusy}
           fm26NationSaveMessage={fm26NationSaveMessage}
           setFm26NationSaveMessage={setFm26NationSaveMessage}
-          fm26NationOnlyPending={fm26NationOnlyPending}
+          fm26NationOnlyPending={fm26NationOnlyPending} fm26NationJustSaved={fm26NationJustSaved}
           setFm26NationOnlyPending={setFm26NationOnlyPending}
           saveFm26NationEquivalences={saveFm26NationEquivalences}
           handleCreateFm26Nation={handleCreateFm26Nation}
