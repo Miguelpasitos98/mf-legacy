@@ -1724,17 +1724,17 @@ export default function Players() {
         try { await base44.entities.Country.update(item.country.id, { fm_nation_id: item.id }); pairs.push({cid:String(item.country.id),fmId:String(item.id),name:item.country.name}); }
         catch (error) { errors.push(`${item.country.name}: ${error?.message || "error"}`); }
       }
-      let verified=0; const failedCids=new Set();
-      if (pairs.length) {
+      let verified=0; const failedCids=new Set(); let verifyFailed=false;
+      if (pairs.length) { try {
         const resp=await base44.entities.Country.filter({id:{$in:pairs.map(p=>p.cid)}},{limit:500,fields:["id","fm_nation_id"]});
         const sm=new Map((resp?.items||resp||[]).map(c=>[String(c.id),String(c.fm_nation_id||"")]));
         pairs.forEach(p=>sm.get(p.cid)===p.fmId?verified++:(errors.push(`${p.name}: no verificado en servidor`),failedCids.add(p.cid)));
         queryClient.setQueryData(["mf-legacy","countries"],(o)=>(Array.isArray(o)?o:[]).map(c=>{const p=pairs.find(x=>x.cid===String(c.id));return p&&!failedCids.has(p.cid)?{...c,fm_nation_id:p.fmId}:c;}));
-      }
+      } catch(verifyError) { verifyFailed=true; pairs.forEach(p=>failedCids.add(p.cid)); } }
       queryClient.invalidateQueries({queryKey:["mf-legacy","countries"]}); const vIds=new Set(pairs.filter(p=>!failedCids.has(p.cid)).map(p=>p.fmId));
       if(vIds.size){setFm26NationMapping(old=>{const n={...old};vIds.forEach(id=>delete n[id]);return n;});setFm26NationJustSaved(prev=>new Set([...prev,...vIds]));}
       if(conflicts.length) errors.push(...conflicts.map(c=>`Conflicto (no guardado) ${c}`));
-      if(errors.length){setFm26Error(`Pendientes: ${errors.slice(0,6).join(" | ")}`);setFm26NationSaveMessage(`Verificadas en servidor: ${verified}. Fallidas: ${errors.length}.`);}else{setFm26NationSaveMessage(`Equivalencias guardadas y verificadas en servidor: ${verified}. Se reutilizarán en futuras importaciones.`);}
+      if(verifyFailed){setFm26Error("La escritura pudo completarse, pero no se ha podido verificar en el servidor.");setFm26NationSaveMessage(`Se guardaron ${pairs.length} escrituras; verificación no disponible. Reintenta.`);}else if(errors.length){setFm26Error(`Pendientes: ${errors.slice(0,6).join(" | ")}`);setFm26NationSaveMessage(`Verificadas en servidor: ${verified}. Fallidas: ${errors.length}.`);}else{setFm26NationSaveMessage(`Equivalencias guardadas y verificadas en servidor: ${verified}. Se reutilizarán en futuras importaciones.`);}
     } finally { setFm26NationSaveBusy(false); }
   };
 
