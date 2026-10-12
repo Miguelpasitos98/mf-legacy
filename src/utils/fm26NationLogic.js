@@ -82,6 +82,9 @@ export const computeNationStatus = (item, fm26NationMapping, countries) => {
     if (manualCountry) {
       if (String(manualCountry.fm_nation_id ?? "") === id)
         return { country: manualCountry, status: "saved", detail: "" };
+      const sharedWith = Object.entries(fm26NationMapping).find(([k, v]) => String(k) !== id && String(v) === String(manualId));
+      if (sharedWith)
+        return { country: manualCountry, status: "conflict", detail: `${manualCountry.name} también está seleccionado para FM ID ${sharedWith[0]}` };
       const existingId = String(manualCountry.fm_nation_id ?? "");
       if (existingId && existingId !== id)
         return { country: manualCountry, status: "conflict", detail: `${manualCountry.name} tiene guardado FM ID ${existingId}` };

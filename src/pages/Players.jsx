@@ -1713,20 +1713,11 @@ export default function Players() {
   const saveFm26NationEquivalences = async () => {
     if (fm26NationSaveBusy || fm26CreateNationBusy || fm26Busy || !fm26Import) return;
     setFm26NationSaveBusy(true); setFm26NationSaveMessage(""); setFm26Error("");
-    const candidates = fm26Nations.filter(item => item.status === "manual" || item.status === "suggested")
-      .map(item => ({ id: item.id, country: item.country }));
-    if (!candidates.length) { setFm26NationSaveMessage("No hay equivalencias nuevas. Las ya guardadas se reutilizan automáticamente."); setFm26NationSaveBusy(false); return; }
-    const targetIds = new Map(); const conflicts = [];
-    for (const item of candidates) {
-      const countryId = String(item.country.id);
-      if (targetIds.has(countryId) && targetIds.get(countryId) !== item.id) conflicts.push(`${item.country.name}: IDs ${targetIds.get(countryId)} y ${item.id}`);
-      targetIds.set(countryId, item.id);
-      const existing = String(item.country.fm_nation_id || "");
-      if (existing && existing !== item.id) conflicts.push(`${item.country.name}: guardado ${existing}, solicitado ${item.id}`);
-      const duplicates = countries.filter(c => String(c.id) !== countryId && String(c.fm_nation_id || "") === item.id);
-      if (duplicates.length) conflicts.push(`FM ID ${item.id} ya pertenece a ${duplicates.map(c => c.name).join(", ")}`);
-    }
-    if (conflicts.length) { setFm26Error(`Conflicto: ${conflicts.slice(0, 5).join(" · ")}. No se sobrescriben vínculos existentes.`); setFm26NationSaveBusy(false); return; }
+    // Solo selecciones manuales válidas. Las sugerencias requieren confirmación explícita.
+    // Los conflictos (ya detectados por computeNationStatus) se aíslan y no bloquean al resto.
+    const candidates = fm26Nations.filter(item => item.status === "manual").map(item => ({ id: item.id, country: item.country }));
+    const conflicts = fm26Nations.filter(item => item.status === "conflict" && fm26NationMapping[item.id]).map(item => `FM ID ${item.id}: ${item.conflictDetail}`);
+    if (!candidates.length) { if (conflicts.length) setFm26Error(`Conflicto: ${conflicts.join(" · ")}. No se guardó nada.`); else setFm26NationSaveMessage("No hay selecciones manuales pendientes. Confirma una sugerencia o selecciona un país antes de guardar."); setFm26NationSaveBusy(false); return; }
     const pairs=[]; const errors=[];
     try {
       for (const item of candidates) {
@@ -1742,7 +1733,8 @@ export default function Players() {
       }
       queryClient.invalidateQueries({queryKey:["mf-legacy","countries"]}); const vIds=new Set(pairs.filter(p=>!failedCids.has(p.cid)).map(p=>p.fmId));
       if(vIds.size) setFm26NationMapping(old=>{const n={...old};vIds.forEach(id=>delete n[id]);return n;});
-      if(errors.length){setFm26Error(`Algunas equivalencias no se verificaron: ${errors.slice(0,4).join(" | ")}`);setFm26NationSaveMessage(`Verificadas en servidor: ${verified}. Fallidas: ${errors.length}.`);}else{setFm26NationSaveMessage(`Equivalencias guardadas y verificadas en servidor: ${verified}. Se reutilizarán en futuras importaciones.`);}
+      if(conflicts.length) errors.push(...conflicts.map(c=>`Conflicto (no guardado) ${c}`));
+      if(errors.length){setFm26Error(`Pendientes: ${errors.slice(0,6).join(" | ")}`);setFm26NationSaveMessage(`Verificadas en servidor: ${verified}. Fallidas: ${errors.length}.`);}else{setFm26NationSaveMessage(`Equivalencias guardadas y verificadas en servidor: ${verified}. Se reutilizarán en futuras importaciones.`);}
     } finally { setFm26NationSaveBusy(false); }
   };
 
