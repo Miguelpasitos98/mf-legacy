@@ -75,6 +75,7 @@ export default function Teams() {
 
   const [unattachedPlayers, setUnattachedPlayers] = useState([]);
   const [unattachedError, setUnattachedError] = useState("");
+  const [unattachedLoading, setUnattachedLoading] = useState(false);
   const [unattachedTab, setUnattachedTab] = useState("free_agent");
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("countries");
@@ -95,6 +96,7 @@ export default function Teams() {
   useEffect(() => {
     if (activeFilter !== "unattached") return;
     let cancelled = false;
+    setUnattachedLoading(true);
     base44.entities.Player.filter({
       $or: [
         { career_status: { $in: ["free_agent", "retired"] } },
@@ -105,7 +107,8 @@ export default function Teams() {
       const rows = Array.isArray(result) ? result : (result?.data || result?.items || []);
       setUnattachedPlayers(rows.filter((p) => ["free_agent", "retired"].includes(p.career_status) || (!p.team_id && !p.teamId)));
       setUnattachedError("");
-    }).catch((err) => { if (!cancelled) setUnattachedError(err?.message || "No se pudieron cargar los jugadores"); });
+      setUnattachedLoading(false);
+    }).catch((err) => { if (!cancelled) { setUnattachedError(err?.message || "No se pudieron cargar los jugadores"); setUnattachedLoading(false); } });
     return () => { cancelled = true; };
   }, [activeFilter]);
 
@@ -708,7 +711,11 @@ export default function Teams() {
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-black text-slate-900">Jugadores sin equipo</h2><p className="text-xs text-slate-500">Agentes libres y retirados: no se crean equipos ficticios.</p></div><div className="flex gap-2">{[{id:"free_agent",title:"Agentes libres"},{id:"retired",title:"Retirados"}].map(tab=><button type="button" key={tab.id} onClick={()=>setUnattachedTab(tab.id)} className={`rounded-xl px-4 py-2 text-xs font-bold ${unattachedTab===tab.id ? "bg-[#003399] text-white" : "border border-slate-200 bg-slate-50 text-slate-700"}`}><img src={careerStatusLogo(tab.id)} alt="" className="mr-1.5 inline-block h-5 w-5 align-middle" />{tab.title} ({unattachedCounts[tab.id] || 0})</button>)}</div></div>
           {unattachedError && <p className="mb-3 text-sm text-red-600">{unattachedError}</p>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{unattachedTabPlayers.map(p=><div key={p.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"><div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-100"><img src={normalizeImageUrl(p.photo_url || p.photoUrl) || careerStatusLogo(unattachedTab)} alt="" className="h-full w-full object-contain" /></div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-900">{p.name}</p><p className="flex items-center gap-1 text-[11px] font-semibold text-slate-500"><img src={careerStatusLogo(unattachedTab)} alt="" className="h-4 w-4" />{unattachedTab === "retired" ? "Retirado" : "Agente libre"}</p><p className="text-xs text-slate-500">Último club: {teamByIdMap.get(String(p.last_team_id || ""))?.name || "No registrado"}</p>{unattachedTab==="retired" && p.retirement_year && <p className="text-xs text-slate-400">Retirado en {p.retirement_year}</p>}</div></div>)}</div>
-          {unattachedTabPlayers.length === 0 && <p className="mt-4 rounded-xl border border-dashed border-slate-200 p-5 text-center text-sm text-slate-500">No se encontraron jugadores en esta categoría.</p>}
+          {unattachedLoading ? (
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-[72px] animate-pulse rounded-xl border border-slate-200 bg-slate-100" />)}
+            </div>
+          ) : unattachedTabPlayers.length === 0 && <p className="mt-4 rounded-xl border border-dashed border-slate-200 p-5 text-center text-sm text-slate-500">No se encontraron jugadores en esta categoría.</p>}
         </section>
       ) : loadError ? (
         <div className="rounded-2xl border border-rose-200 bg-white px-6 py-16 text-center">

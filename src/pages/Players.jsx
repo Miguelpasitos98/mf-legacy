@@ -1987,12 +1987,17 @@ const inferImportedCountryContinent = (countryName) =>
   ] || "Europe";
 
 export default function Players() {
-  const [players, setPlayers] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [countries, setCountries] = useState([]);
   const [leagues, setLeagues] = useState([]);
 
   const queryClient = useQueryClient();const countriesQuery = useCountriesQuery();const teamsQuery = useTeamsQuery();const playersQuery = usePlayersQuery();const isLoading = countriesQuery.isLoading||teamsQuery.isLoading||playersQuery.isLoading;
+
+  // Derived directly from the React Query cache so cached data renders on the
+  // very first paint (no empty-state flash when navigating back from Teams).
+  // Mutations invalidate the query keys, triggering a background refetch that
+  // recomputes these memos automatically.
+  const players = useMemo(() => (playersQuery.data || []).map(normalizePlayer).filter(p => p.id || p.name), [playersQuery.data]);
+  const teams = useMemo(() => (teamsQuery.data || []).map(normalizeTeam).filter(t => t.id && t.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })), [teamsQuery.data]);
+  const countries = useMemo(() => (countriesQuery.data || []).map(normalizeCountry).filter(c => c.id && c.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })), [countriesQuery.data]);
   const [errorMessage, setErrorMessage] = useState("");
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -2161,7 +2166,7 @@ export default function Players() {
       for(const item of updates){
         try {
           await base44.entities.Country.update(item.country.id,{fm_nation_id:item.id});
-          setCountries(old=>old.map(c=>String(c.id)===String(item.country.id)?{...c,fm_nation_id:item.id}:c));queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] });
+          queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] });
           saved++;
         } catch(error) {errors.push(`${item.country.name}: ${error?.message||"error"}`);}
       }
@@ -2206,8 +2211,7 @@ export default function Players() {
       const created=response?.data || response;
       const id=created?.id || created?._id;
       if(!id) throw new Error("Base44 no devolvió el ID del país creado. Comprueba Countries antes de intentarlo de nuevo.");
-      const normalized=normalizeCountry({...payload,...created,id});
-      setCountries(old=>[...old,normalized]);queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] });
+      queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] });
       setFm26NationMapping(old=>({...old,[String(fmId)]:String(id)}));
       setFm26NationSearch(old=>({...old,[String(fmId)]:""}));
       setFm26CreatingNation("");
@@ -2252,7 +2256,7 @@ export default function Players() {
       const data=created?.data||created;
       const id=data?.id||data?._id;
       if(!id) throw new Error("Base44 no devolvió el ID del nuevo equipo.");
-      setTeams(old=>[...old,normalizeTeam({...data,id,name})]);queryClient.invalidateQueries({ queryKey: ["mf-legacy", "teams"] });
+      queryClient.invalidateQueries({ queryKey: ["mf-legacy", "teams"] });
       setFm26ClubChoices(old=>({...old,[group.key]:String(id)}));
       setFm26CreatingClub("");setFm26Message(`Club ${name} creado y vinculado a ${group.count} jugadores.`);
     }catch(error){setFm26Error(`No se pudo crear el equipo: ${error?.message||"error"}`);}
@@ -2387,10 +2391,7 @@ export default function Players() {
   useEffect(() => {
     if (countriesQuery.error || teamsQuery.error || playersQuery.error) { setErrorMessage("No se han podido cargar los datos."); return; }
     if (!isLoading) setErrorMessage("");
-    if (countriesQuery.data) setCountries(countriesQuery.data.map(normalizeCountry).filter(c => c.id && c.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })));
-    if (teamsQuery.data) setTeams(teamsQuery.data.map(normalizeTeam).filter(t => t.id && t.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })));
-    if (playersQuery.data) setPlayers(playersQuery.data.map(normalizePlayer).filter(p => p.id || p.name));
-  }, [countriesQuery.data, teamsQuery.data, playersQuery.data, isLoading, countriesQuery.error, teamsQuery.error, playersQuery.error]);
+  }, [isLoading, countriesQuery.error, teamsQuery.error, playersQuery.error]);
 
   useEffect(() => {
     if (location.state?.mfPlayerViewChange) {
@@ -3790,14 +3791,7 @@ export default function Players() {
         }}
         onPlayerUpdated={(updatedPlayer) => {
           setSelectedPlayer(updatedPlayer);
-
-          setPlayers((currentPlayers) =>
-            currentPlayers.map((currentPlayer) =>
-              currentPlayer.id === updatedPlayer.id
-                ? normalizePlayer(updatedPlayer)
-                : currentPlayer
-            )
-          );queryClient.invalidateQueries({ queryKey: ["mf-legacy", "players"] });
+          queryClient.invalidateQueries({ queryKey: ["mf-legacy", "players"] });
         }}
       />
       </PlayerDetailErrorBoundary>
