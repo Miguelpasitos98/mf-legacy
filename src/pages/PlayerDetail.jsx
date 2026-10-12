@@ -25,16 +25,10 @@ const careerStatusLogo = (status) => CAREER_STATUS_LOGOS[status] || "";
 // Datos públicos verificados en el repositorio My-Legacy. Nunca se importan
 // automáticamente a Base44; esta vista es de solo lectura.
 const FM26_HISTORY_GITHUB_ROOT = "https://raw.githubusercontent.com/Miguelpasitos98/My-Legacy/main/data/fm26/2620/players";
-const historyClubLogo = (clubName, teams = []) => {
-  const simple = (name) => String(name || "")
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
-    .replace(/\b(fc|cf|football club|futbol club|club de futbol)\b/g, "")
-    .replace(/[^a-z0-9]/g, "");
-  const key = simple(clubName);
-  if (!key) return "";
-  const match = teams.find((item) => [item.name, item.short_name].some((value) => simple(value) === key));
-  return normalizeImageUrl(match?.logo || match?.logo_url || "");
-};
+const normalizeClubName = (name) => String(name || "")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  .replace(/\b(fc|cf|football club|futbol club|club de futbol)\b/g, "")
+  .replace(/[^a-z0-9]/g, "");
 
 const historyDate = (iso) => {
   if (!iso || typeof iso !== "string") return "Actualidad";
@@ -792,6 +786,40 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
     setForm(initialForm);
   }, [player, initialForm]);
 
+  // Mapas de búsqueda O(1) para evitar recorrer teams/countries en cada render.
+  const teamMap = useMemo(() => new Map(teams.map((t) => [String(t.id), t])), [teams]);
+  const countryMap = useMemo(() => new Map(countries.map((c) => [String(c.id), c])), [countries]);
+
+  // Colores de las tarjetas de estadísticas (solo dependen del color del equipo).
+  const statCardColors = useMemo(() => {
+    const primaryColor = normalizeHexColor(team?.primary_color || team?.primaryColor, "#003399");
+    return { primaryColor, middleColor: darkenHex(primaryColor, 0.48) };
+  }, [team?.primary_color, team?.primaryColor]);
+
+  // Mapa de logos normalizado para la trayectoria (búsqueda O(1) por club).
+  const historyLogoMap = useMemo(() => {
+    const map = new Map();
+    for (const item of teams) {
+      const logo = normalizeImageUrl(item?.logo || item?.logo_url);
+      if (!logo) continue;
+      for (const value of [item.name, item.short_name]) {
+        const key = normalizeClubName(value);
+        if (key && !map.has(key)) map.set(key, logo);
+      }
+    }
+    return map;
+  }, [teams]);
+
+  // Precalcula las etapas de trayectoria con su logo solo cuando cambian los datos.
+  const careerHistoryItems = useMemo(() => {
+    if (careerHistoryState.status !== "ready") return [];
+    const history = careerHistoryState.data?.career_history || [];
+    return history.slice().reverse().map((item) => ({
+      ...item,
+      logo: historyLogoMap.get(normalizeClubName(item.club_name)) || "",
+    }));
+  }, [careerHistoryState, historyLogoMap]);
+
   const playerName = editablePlayer?.name || "Unnamed player";
   const photoUrl = normalizeImageUrl(
     editablePlayer?.photoUrl || editablePlayer?.photo_url
@@ -799,14 +827,14 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   const currentCareerStatus = editablePlayer?.career_status || (editablePlayer?.team_id || editablePlayer?.teamId ? "active" : "free_agent");
   const teamLogo = currentCareerStatus !== "active" ? careerStatusLogo(currentCareerStatus) : normalizeImageUrl(team?.logo || team?.logo_url);
   const teamName = currentCareerStatus === "retired" ? "Retirado" : currentCareerStatus === "free_agent" ? "Agente libre" : (team?.name || "No club associated");
-  const lastTeam = teams.find(t => String(t.id) === String(editablePlayer?.last_team_id || ""));
+  const lastTeam = teamMap.get(String(editablePlayer?.last_team_id || ""));
   const dateOfBirth =
     editablePlayer?.dateOfBirth ||
     editablePlayer?.date_of_birth ||
     "";
   const age = calculateAge(dateOfBirth);
-  const selectedCountry = countries.find((item) => item?.id === form.countryId) || null;
-  const selectedTeam = teams.find((item) => item?.id === form.teamId) || null;
+  const selectedCountry = countryMap.get(String(form.countryId)) || null;
+  const selectedTeam = teamMap.get(String(form.teamId)) || null;
 
   const [firstName, ...rest] = playerName.split(" ");
   const lastName = rest.join(" ");
@@ -1184,24 +1212,14 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         </aside>
       </section>
 
-      {(() => {
-        const primaryColor = normalizeHexColor(
-          team?.primary_color || team?.primaryColor,
-          "#003399"
-        );
-        const middleColor = darkenHex(primaryColor, 0.48);
-
-        if (typeof document === "undefined") return null;
-
-        return createPortal(
-          <div className="pointer-events-none fixed bottom-20 left-1/2 z-[80] flex w-[min(1100px,calc(100vw-28px))] -translate-x-1/2 gap-4 sm:bottom-20 sm:gap-5">
-            <PlayerStatCard background={primaryColor} grow={1} />
-            <PlayerStatCard background={middleColor} grow={1.65} />
-            <PlayerStatCard background={primaryColor} grow={1} />
-          </div>,
-          document.body
-        );
-      })()}
+      {typeof document !== "undefined" && createPortal(
+        <div className="pointer-events-none fixed bottom-20 left-1/2 z-[80] flex w-[min(1100px,calc(100vw-28px))] -translate-x-1/2 gap-4 sm:bottom-20 sm:gap-5">
+          <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
+          <PlayerStatCard background={statCardColors.middleColor} grow={1.65} />
+          <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
+        </div>,
+        document.body
+      )}
 
       {showCareerHistory && typeof document !== "undefined" && createPortal(
         <div
@@ -1221,9 +1239,9 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
             {careerHistoryState.status !== "ready" && careerHistoryState.status !== "loading" && <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">{careerHistoryState.message || "Todavía no hay datos disponibles."}</div>}
             {careerHistoryState.status === "ready" && (
               <div className="space-y-3">
-                {(careerHistoryState.data.career_history || []).slice().reverse().map((item,index) => (
+                {careerHistoryItems.map((item,index) => (
                   <div key={`${item.club_name}-${item.start_date}-${index}`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#003399]">{historyClubLogo(item.club_name, teams) ? <img src={historyClubLogo(item.club_name, teams)} alt="" className="h-8 w-8 object-contain"/> : <Building2 size={20}/>}</div>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#003399]">{item.logo ? <img src={item.logo} alt="" className="h-8 w-8 object-contain"/> : <Building2 size={20}/>}</div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-slate-900">{String(item.club_name || "Club sin identificar")}</p>
                       <p className="mt-1 text-xs text-slate-600">{item.start_date ? historyDate(item.start_date) : "Inicio desconocido"} – {historyDate(item.end_date)}</p>
@@ -1231,7 +1249,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                     {item.loan === true && <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800">Cesión</span>}
                   </div>
                 ))}
-                {!careerHistoryState.data.career_history?.length && <p className="text-sm text-slate-500">No hay etapas registradas.</p>}
+                {!careerHistoryItems.length && <p className="text-sm text-slate-500">No hay etapas registradas.</p>}
                 <p className="pt-2 text-[11px] text-slate-400">Fuente: {careerHistoryState.data.verification?.source || "Historial verificado"}. Estos datos no modifican Base44.</p>
               </div>
             )}
