@@ -258,6 +258,18 @@ function PlayerCardInner({
     }
   };
 
+  // Evita que el keydown/keyup de la bandera burbujee al contenedor
+  // role="button" y abra la ficha al activarla con Enter o Espacio.
+  // El navegador sintetiza un click tras estas teclas, que handleFlagClick
+  // ya intercepta con stopPropagation.
+  const handleFlagKeyDown = (event) => {
+    event.stopPropagation();
+  };
+
+  const handleFlagKeyUp = (event) => {
+    event.stopPropagation();
+  };
+
   return (
     <div
       role="button"
@@ -301,6 +313,8 @@ function PlayerCardInner({
             <button
               type="button"
               onClick={handleFlagClick}
+              onKeyDown={handleFlagKeyDown}
+              onKeyUp={handleFlagKeyUp}
               title="Copiar nombre"
               aria-label={`Copiar nombre de ${player.name || "jugador"}`}
               className="relative flex h-4 w-6 shrink-0 items-center justify-center rounded-[2px] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
