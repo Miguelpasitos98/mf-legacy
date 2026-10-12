@@ -10,7 +10,7 @@ import {
   Globe,
   Star,
   TrendingUp,
-  Map,
+  Map as MapIcon,
   CircleAlert,
   Plus,
   X,
@@ -34,7 +34,7 @@ import TeamDetail from "@/components/teams/TeamDetail";
 
 const navigationFilters = [
   { id: "countries", label: "Countries", icon: Globe },
-  { id: "continents", label: "Continents", icon: Map },
+  { id: "continents", label: "Continents", icon: MapIcon },
   { id: "reputation", label: "Reputation", icon: Star },
   { id: "market", label: "Market", icon: TrendingUp },
   { id: "incomplete", label: "Incomplete", icon: CircleAlert },
