@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Building2, ChevronDown, Search, Plus } from "lucide-react";
-import {
-  competitionDetails,
-  inputClassName,
-  normalizeImageUrl,
-  getCountryFlagUrl,
-} from "./teamUtils";
+import { competitionDetails, normalizeImageUrl } from "./teamUtils";
 
 export function TeamLogo({ team }) {
   const logoUrl = normalizeImageUrl(team.logo || team.logo_url || team.logoUrl);
@@ -100,7 +94,3 @@ export function CompetitionHeader({ competitionName, teams }) {
     </div>
   );
 }
-
-// Re-export for SearchableTeamSelect consumers that live outside this file.
-export { SearchableTeamSelect } from "./TeamFormComponents";
-export { inputClassName, normalizeImageUrl, getCountryFlagUrl };
