@@ -149,7 +149,7 @@ const fm26Normalize = (name) => String(name || "").normalize("NFD").replace(/[\u
 // FM26 save nation_id is NOT a flag image filename. This verified sample catalogue
 // maps FM26 nation IDs to ISO-3 codes for safe Base44 Country lookup.
 // Unknown IDs must be reviewed, not guessed.
-import { FM26_NATION_ISO3, fm26CountryKey, fm26CountryAutoMatch, buildFm26Nations, fm26PlayerName } from "@/utils/fm26NationLogic";
+import { FM26_NATION_ISO3, fm26CountryKey, resolveSafeNation, buildFm26Nations, fm26PlayerName } from "@/utils/fm26NationLogic";
 
 const fm26Date = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? `${value.slice(8,10)}/${value.slice(5,7)}/${value.slice(0,4)}` : "";
 const fm26Number = (value) => typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -1706,11 +1706,7 @@ export default function Players() {
   }, [fm26Import,teams]);
 
   const fm26Nations = useMemo(() => buildFm26Nations(fm26Import, countries, fm26NationMapping), [fm26Import, countries, fm26NationMapping]);
-  const fm26CountryForId = id => {
-    const manualId=fm26NationMapping[String(id)] || "";
-    if(manualId) return countries.find(c=>String(c.id)===String(manualId)) || null;
-    return fm26CountryAutoMatch(id,countries).country;
-  };
+  const fm26CountryForId = id => resolveSafeNation(id, fm26NationMapping, countries);
 
   // Persistent nation equivalences. One FM ID per country, one country per FM ID.
   // Explicitly selected countries override suggestions only after conflict checks.
@@ -1731,22 +1727,22 @@ export default function Players() {
       if (duplicates.length) conflicts.push(`FM ID ${item.id} ya pertenece a ${duplicates.map(c => c.name).join(", ")}`);
     }
     if (conflicts.length) { setFm26Error(`Conflicto: ${conflicts.slice(0, 5).join(" · ")}. No se sobrescriben vínculos existentes.`); setFm26NationSaveBusy(false); return; }
-    let saved = 0; const errors = []; const savedIds = new Set();
+    const pairs=[]; const errors=[];
     try {
       for (const item of candidates) {
-        try {
-          const response = await base44.entities.Country.update(item.country.id, { fm_nation_id: item.id });
-          const updated = response?.data || response;
-          if (String(updated?.fm_nation_id || "") === String(item.id)) {
-            saved++; savedIds.add(item.id);
-            queryClient.setQueryData(["mf-legacy", "countries"], (oldData) => (Array.isArray(oldData) ? oldData : []).map(c => String(c.id) === String(item.country.id) ? { ...c, fm_nation_id: item.id } : c));
-          } else { errors.push(`${item.country.name}: verificación falló (FM ID no confirmado en la respuesta)`); }
-        } catch (error) { errors.push(`${item.country.name}: ${error?.message || "error"}`); }
+        try { await base44.entities.Country.update(item.country.id, { fm_nation_id: item.id }); pairs.push({cid:String(item.country.id),fmId:String(item.id),name:item.country.name}); }
+        catch (error) { errors.push(`${item.country.name}: ${error?.message || "error"}`); }
       }
-      queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] });
-      if (savedIds.size) setFm26NationMapping(old => { const next = { ...old }; for (const id of savedIds) delete next[id]; return next; });
-      if (errors.length) { setFm26Error(`Algunas equivalencias no se guardaron: ${errors.slice(0, 4).join(" | ")}`); setFm26NationSaveMessage(`Guardadas y verificadas: ${saved}. Fallidas: ${errors.length}. Revisa los errores.`); }
-      else { setFm26NationSaveMessage(`Equivalencias guardadas y verificadas: ${saved}. Se reutilizarán en futuras importaciones.`); }
+      let verified=0; const failedCids=new Set();
+      if (pairs.length) {
+        const resp=await base44.entities.Country.filter({id:{$in:pairs.map(p=>p.cid)}},{limit:500,fields:["fm_nation_id"]});
+        const sm=new Map((resp?.items||resp||[]).map(c=>[String(c.id),String(c.fm_nation_id||"")]));
+        pairs.forEach(p=>sm.get(p.cid)===p.fmId?verified++:(errors.push(`${p.name}: no verificado en servidor`),failedCids.add(p.cid)));
+        queryClient.setQueryData(["mf-legacy","countries"],(o)=>(Array.isArray(o)?o:[]).map(c=>{const p=pairs.find(x=>x.cid===String(c.id));return p&&!failedCids.has(p.cid)?{...c,fm_nation_id:p.fmId}:c;}));
+      }
+      queryClient.invalidateQueries({queryKey:["mf-legacy","countries"]}); const vIds=new Set(pairs.filter(p=>!failedCids.has(p.cid)).map(p=>p.fmId));
+      if(vIds.size) setFm26NationMapping(old=>{const n={...old};vIds.forEach(id=>delete n[id]);return n;});
+      if(errors.length){setFm26Error(`Algunas equivalencias no se verificaron: ${errors.slice(0,4).join(" | ")}`);setFm26NationSaveMessage(`Verificadas en servidor: ${verified}. Fallidas: ${errors.length}.`);}else{setFm26NationSaveMessage(`Equivalencias guardadas y verificadas en servidor: ${verified}. Se reutilizarán en futuras importaciones.`);}
     } finally { setFm26NationSaveBusy(false); }
   };
 
@@ -1894,10 +1890,13 @@ export default function Players() {
           const data = fm26Payload(row, match || {});
           const mappedCountry = fm26CountryForId(row.nation_id);
           if (mappedCountry?.id) data.country_id = mappedCountry.id;
-          const secondCountries=(row.second_nation_ids||[]).map(id=>fm26CountryForId(id)?.id).filter(Boolean);
-          if(secondCountries.length) {
-            data.fm26_second_country_ids=[...new Set(secondCountries.map(String))];
-            data.secondary_country_id=data.fm26_second_country_ids[0];
+          const secondIds=[...new Set((row.second_nation_ids||[]).map(String))];
+          if(secondIds.length) {
+            const secondCountries=secondIds.map(id=>fm26CountryForId(id)?.id).filter(Boolean);
+            if(secondCountries.length===secondIds.length) {
+              data.fm26_second_country_ids=[...new Set(secondCountries.map(String))];
+              data.secondary_country_id=data.fm26_second_country_ids[0];
+            }
           }
           data.team_id = club.id;
           if (match) { await base44.entities.Player.update(match.id, data); updated++; }

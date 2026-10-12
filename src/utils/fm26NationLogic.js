@@ -132,4 +132,18 @@ export const buildFm26Nations = (fm26Import, countries, fm26NationMapping) => {
   });
 };
 
+/**
+ * Resolves a nation ID to a Country that is SAFE to assign during import.
+ * Returns the Country only when status is "saved" (persisted in fm_nation_id)
+ * or "manual" (user-selected, no conflict). Returns null for "suggested",
+ * "conflict", and "unlinked" — unconfirmed matches never reach a player.
+ */
+export const resolveSafeNation = (fmId, fm26NationMapping, countries) => {
+  const auto = fm26CountryAutoMatch(fmId, countries);
+  const item = { id: String(fmId ?? ""), country: auto.country, reason: auto.reason };
+  const statusInfo = computeNationStatus(item, fm26NationMapping, countries);
+  if (statusInfo.status === "saved" || statusInfo.status === "manual") return statusInfo.country;
+  return null;
+};
+
 export { FM26_NATION_ISO3 };
