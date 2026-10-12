@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Globe2,
   Search,
@@ -11,18 +11,18 @@ import {
   Pencil,
 } from "lucide-react";
 
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useCountriesQuery,
+  usePlayersQuery,
+  useTeamsQuery,
+  useLeaguesQuery,
+  useTeamLeaguesQuery,
+} from "@/hooks/useSharedData";
 import { base44 } from "@/api/base44Client";
 
 const inputClassName =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
-
-const getList = (result) => {
-  if (Array.isArray(result)) return result;
-  if (Array.isArray(result?.data)) return result.data;
-  if (Array.isArray(result?.items)) return result.items;
-  if (Array.isArray(result?.results)) return result.results;
-  return [];
-};
 
 const normalizeCountry = (country) => ({
   ...country,
@@ -161,7 +161,7 @@ const normalizeImageUrl = (value) => {
   return `https://${trimmed}`;
 };
 
-function PlayerRow({ player, team }) {
+const PlayerRow = React.memo(function PlayerRow({ player, team }) {
   const photoUrl = normalizeImageUrl(player.photoUrl);
 
   return (
@@ -172,6 +172,7 @@ function PlayerRow({ player, team }) {
             src={photoUrl}
             alt={player.name || "Player"}
             className="h-full w-full object-cover object-top"
+            loading="lazy"
             onError={(event) => {
               event.currentTarget.style.display = "none";
             }}
@@ -204,9 +205,9 @@ function PlayerRow({ player, team }) {
       </div>
     </div>
   );
-}
+});
 
-function TeamCard({ team }) {
+const TeamCard = React.memo(function TeamCard({ team }) {
   const logoUrl = normalizeImageUrl(team.logo);
 
   return (
@@ -217,6 +218,7 @@ function TeamCard({ team }) {
             src={logoUrl}
             alt={`${team.name} logo`}
             className="h-full w-full object-contain"
+            loading="lazy"
           />
         ) : (
           <div className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-extrabold text-slate-700">
@@ -230,7 +232,7 @@ function TeamCard({ team }) {
       </span>
     </div>
   );
-}
+});
 
 function LeagueSection({ league, teams }) {
   return (
@@ -243,6 +245,7 @@ function LeagueSection({ league, teams }) {
                 src={normalizeImageUrl(league.logo)}
                 alt=""
                 className="h-full w-full object-contain"
+                loading="lazy"
               />
             ) : (
               <Trophy size={15} className="text-slate-500" />
@@ -276,17 +279,43 @@ function LeagueSection({ league, teams }) {
   );
 }
 
+const CONTINENT_OPTIONS = [
+  { value: "Europe", label: "Europa" },
+  { value: "South America", label: "Sudamérica" },
+  { value: "North America", label: "Norteamérica" },
+  { value: "Asia", label: "Asia" },
+  { value: "Africa", label: "África" },
+  { value: "Oceania", label: "Oceanía" },
+];
+
+const CONTINENT_ORDER = [
+  "Europe",
+  "South America",
+  "North America",
+  "Asia",
+  "Africa",
+  "Oceania",
+];
+
+const CONTINENT_LABELS = {
+  Europe: "Europa",
+  "South America": "Sudamérica",
+  "North America": "Norteamérica",
+  Asia: "Asia",
+  Africa: "África",
+  Oceania: "Oceanía",
+};
+
 export default function Countries() {
-  const [countries, setCountries] = useState([]);
-  const [players, setPlayers] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [leagues, setLeagues] = useState([]);
-  const [teamLeagues, setTeamLeagues] = useState([]);
+  const queryClient = useQueryClient();
+  const countriesQuery = useCountriesQuery();
+  const playersQuery = usePlayersQuery();
+  const teamsQuery = useTeamsQuery();
+  const leaguesQuery = useLeaguesQuery();
+  const teamLeaguesQuery = useTeamLeaguesQuery();
 
   const [search, setSearch] = useState("");
   const [selectedCountryId, setSelectedCountryId] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
   const [editCountryOpen, setEditCountryOpen] = useState(false);
   const [editCountryForm, setEditCountryForm] = useState({
     flag: "",
@@ -295,85 +324,63 @@ export default function Countries() {
   const [isSavingCountry, setIsSavingCountry] = useState(false);
   const [countryEditError, setCountryEditError] = useState("");
 
-  const CONTINENT_OPTIONS = [
-    { value: "Europe", label: "Europa" },
-    { value: "South America", label: "Sudamérica" },
-    { value: "North America", label: "Norteamérica" },
-    { value: "Asia", label: "Asia" },
-    { value: "Africa", label: "África" },
-    { value: "Oceania", label: "Oceanía" },
-  ];
+  // --- DERIVED DATA FROM SHARED CACHE (synchronous, no flash) ---
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      setErrorMessage("");
+  const countries = useMemo(
+    () =>
+      (countriesQuery.data || [])
+        .map(normalizeCountry)
+        .filter((country) => country.id && country.name)
+        .sort((a, b) =>
+          a.name.localeCompare(b.name, "es", { sensitivity: "base" })
+        ),
+    [countriesQuery.data]
+  );
 
-      try {
-        const [
-          countriesResult,
-          playersResult,
-          teamsResult,
-          leaguesResult,
-          teamLeaguesResult,
-        ] = await Promise.all([
-          base44.entities.Country.list(),
-          base44.entities.Player.list(),
-          base44.entities.Team.list(),
-          base44.entities.League.list(),
-          base44.entities.TeamLeague.list(),
-        ]);
+  const players = useMemo(
+    () =>
+      (playersQuery.data || [])
+        .map(normalizePlayer)
+        .filter((player) => player.id || player.name),
+    [playersQuery.data]
+  );
 
-        setCountries(
-          getList(countriesResult)
-            .map(normalizeCountry)
-            .filter((country) => country.id && country.name)
-            .sort((a, b) =>
-              a.name.localeCompare(b.name, "es", {
-                sensitivity: "base",
-              })
-            )
-        );
+  const teams = useMemo(
+    () =>
+      (teamsQuery.data || [])
+        .map(normalizeTeam)
+        .filter((team) => team.id && team.name),
+    [teamsQuery.data]
+  );
 
-        setPlayers(
-          getList(playersResult)
-            .map(normalizePlayer)
-            .filter((player) => player.id || player.name)
-        );
+  const leagues = useMemo(
+    () =>
+      (leaguesQuery.data || [])
+        .map(normalizeLeague)
+        .filter((league) => league.id && league.name),
+    [leaguesQuery.data]
+  );
 
-        setTeams(
-          getList(teamsResult)
-            .map(normalizeTeam)
-            .filter((team) => team.id && team.name)
-        );
+  const teamLeagues = useMemo(
+    () =>
+      (teamLeaguesQuery.data || [])
+        .map(normalizeTeamLeague)
+        .filter((relation) => relation.teamId && relation.leagueId),
+    [teamLeaguesQuery.data]
+  );
 
-        setLeagues(
-          getList(leaguesResult)
-            .map(normalizeLeague)
-            .filter((league) => league.id && league.name)
-        );
+  // --- LOADING STATES (each query is independent) ---
 
-        setTeamLeagues(
-          getList(teamLeaguesResult)
-            .map(normalizeTeamLeague)
-            .filter(
-              (relation) =>
-                relation.teamId && relation.leagueId
-            )
-        );
-      } catch (error) {
-        console.error("Error loading countries:", error);
+  const countriesLoading = countriesQuery.isLoading && !countriesQuery.data;
+  const countriesError = countriesQuery.error;
+  const playersLoading = playersQuery.isLoading && !playersQuery.data;
+  const teamsLoading = teamsQuery.isLoading && !teamsQuery.data;
+  const teamRelationsLoading =
+    teamsLoading ||
+    (leaguesQuery.isLoading && !leaguesQuery.data) ||
+    (teamLeaguesQuery.isLoading && !teamLeaguesQuery.data);
 
-        setErrorMessage(
-          "No se han podido cargar los países, jugadores, equipos o ligas."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
+  // --- LOOKUP MAPS (O(1) access) ---
 
   const filteredCountries = useMemo(() => {
     const normalizedSearch = search.toLowerCase().trim();
@@ -387,35 +394,55 @@ export default function Countries() {
     );
   }, [countries, search]);
 
-  const countryById = useMemo(
-    () =>
-      countries.reduce((map, country) => {
-        map[country.id] = country;
-        return map;
-      }, {}),
-    [countries]
-  );
+  const countryById = useMemo(() => {
+    const map = new Map();
+    for (const country of countries) {
+      map.set(String(country.id), country);
+    }
+    return map;
+  }, [countries]);
 
-  const teamById = useMemo(
-    () =>
-      teams.reduce((map, team) => {
-        map[team.id] = team;
-        return map;
-      }, {}),
-    [teams]
-  );
+  const teamById = useMemo(() => {
+    const map = new Map();
+    for (const team of teams) {
+      map.set(String(team.id), team);
+    }
+    return map;
+  }, [teams]);
 
-  const leagueById = useMemo(
-    () =>
-      leagues.reduce((map, league) => {
-        map[league.id] = league;
-        return map;
-      }, {}),
-    [leagues]
-  );
+  const leagueById = useMemo(() => {
+    const map = new Map();
+    for (const league of leagues) {
+      map.set(String(league.id), league);
+    }
+    return map;
+  }, [leagues]);
+
+  // Player counts per countryId — single pass over players (replaces per-card filter).
+  const playerCountByCountryId = useMemo(() => {
+    const map = new Map();
+    for (const player of players) {
+      const key = String(player.countryId || "");
+      if (!key) continue;
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+    return map;
+  }, [players]);
+
+  // TeamLeague index by teamId — single pass (replaces per-team filter).
+  const teamLeagueIndex = useMemo(() => {
+    const map = new Map();
+    for (const relation of teamLeagues) {
+      const key = String(relation.teamId || "");
+      if (!key) continue;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(relation);
+    }
+    return map;
+  }, [teamLeagues]);
 
   const selectedCountry = selectedCountryId
-    ? countryById[selectedCountryId]
+    ? countryById.get(String(selectedCountryId))
     : null;
 
   const handleOpenEditCountry = () => {
@@ -463,13 +490,20 @@ export default function Countries() {
         continent,
       });
 
-      setCountries((current) =>
-        current.map((country) =>
-          String(country.id) === String(selectedCountry.id)
+      // Update the shared cache immediately so Players and Teams see the same
+      // values without waiting for a background refetch.
+      queryClient.setQueryData(["mf-legacy", "countries"], (oldData) => {
+        const list = Array.isArray(oldData) ? oldData : [];
+        return list.map((country) =>
+          String(country?.id || country?._id || "") ===
+          String(selectedCountry.id)
             ? { ...country, flag, continent }
             : country
-        )
-      );
+        );
+      });
+
+      // Background refetch to guarantee server consistency.
+      queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] });
 
       setEditCountryOpen(false);
     } catch (error) {
@@ -525,10 +559,8 @@ export default function Countries() {
     const groups = new Map();
 
     selectedCountryTeams.forEach((team) => {
-      const relations = teamLeagues.filter(
-        (relation) =>
-          String(relation.teamId) === String(team.id) &&
-          relation.isCurrent !== false
+      const relations = (teamLeagueIndex.get(String(team.id)) || []).filter(
+        (relation) => relation.isCurrent !== false
       );
 
       if (relations.length === 0) {
@@ -552,7 +584,7 @@ export default function Countries() {
 
       relations.forEach((relation) => {
         const league =
-          leagueById[relation.leagueId] || {
+          leagueById.get(String(relation.leagueId)) || {
             id: relation.leagueId,
             name: "Without league",
             level: 99,
@@ -598,35 +630,17 @@ export default function Countries() {
     });
   }, [
     selectedCountryTeams,
-    teamLeagues,
+    teamLeagueIndex,
     leagueById,
     selectedCountryId,
   ]);
-
-  const continentOrder = [
-    "Europe",
-    "South America",
-    "North America",
-    "Asia",
-    "Africa",
-    "Oceania",
-  ];
-
-  const continentLabels = {
-    Europe: "Europa",
-    "South America": "Sudamérica",
-    "North America": "Norteamérica",
-    Asia: "Asia",
-    Africa: "África",
-    Oceania: "Oceanía",
-  };
 
   const groupedCountriesByContinent = useMemo(() => {
     const groups = new Map();
 
     filteredCountries.forEach((country) => {
       const rawContinent = String(country?.continent || "").trim();
-      const continent = continentOrder.includes(rawContinent)
+      const continent = CONTINENT_ORDER.includes(rawContinent)
         ? rawContinent
         : "Other";
 
@@ -639,15 +653,15 @@ export default function Countries() {
 
     return Array.from(groups.entries())
       .sort((a, b) => {
-        const ia = continentOrder.indexOf(a[0]);
-        const ib = continentOrder.indexOf(b[0]);
+        const ia = CONTINENT_ORDER.indexOf(a[0]);
+        const ib = CONTINENT_ORDER.indexOf(b[0]);
         if (a[0] === "Other") return 1;
         if (b[0] === "Other") return -1;
         return ia - ib;
       })
       .map(([continent, items]) => ({
         continent,
-        label: continentLabels[continent] || "Otros",
+        label: CONTINENT_LABELS[continent] || "Otros",
         countries: items.sort((a, b) =>
           a.name.localeCompare(b.name, "es", { sensitivity: "base" })
         ),
@@ -711,7 +725,7 @@ export default function Countries() {
 
               <div className="rounded-xl bg-[#F1F5F9] px-4 py-3 text-center">
                 <div className="text-lg font-extrabold text-slate-900">
-                  {selectedCountryPlayers.length}
+                  {playersLoading ? "—" : selectedCountryPlayers.length}
                 </div>
                 <div className="text-[11px] text-slate-500">
                   players
@@ -720,7 +734,7 @@ export default function Countries() {
 
               <div className="rounded-xl bg-[#F1F5F9] px-4 py-3 text-center">
                 <div className="text-lg font-extrabold text-slate-900">
-                  {selectedCountryTeams.length}
+                  {teamsLoading ? "—" : selectedCountryTeams.length}
                 </div>
                 <div className="text-[11px] text-slate-500">
                   teams
@@ -742,14 +756,20 @@ export default function Countries() {
               </div>
 
               <span className="text-xs font-medium text-slate-400">
-                {selectedCountryPlayers.length}{" "}
-                {selectedCountryPlayers.length === 1
-                  ? "jugador"
-                  : "jugadores"}
+                {playersLoading ? "—" : `${selectedCountryPlayers.length} ${selectedCountryPlayers.length === 1 ? "jugador" : "jugadores"}`}
               </span>
             </div>
 
-            {selectedCountryPlayers.length > 0 ? (
+            {playersLoading ? (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-20 animate-pulse rounded-2xl border border-slate-200 bg-white"
+                  />
+                ))}
+              </div>
+            ) : selectedCountryPlayers.length > 0 ? (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {selectedCountryPlayers.map((player) => (
                   <PlayerRow
@@ -758,7 +778,7 @@ export default function Countries() {
                       `${player.name}-${player.teamId}`
                     }
                     player={player}
-                    team={teamById[player.teamId]}
+                    team={teamById.get(String(player.teamId))}
                   />
                 ))}
               </div>
@@ -791,14 +811,20 @@ export default function Countries() {
               </div>
 
               <span className="text-xs font-medium text-slate-400">
-                {selectedCountryTeams.length}{" "}
-                {selectedCountryTeams.length === 1
-                  ? "equipo"
-                  : "equipos"}
+                {teamRelationsLoading ? "—" : `${selectedCountryTeams.length} ${selectedCountryTeams.length === 1 ? "equipo" : "equipos"}`}
               </span>
             </div>
 
-            {groupedTeamsByLeague.length > 0 ? (
+            {teamRelationsLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-40 animate-pulse rounded-2xl border border-slate-200 bg-white"
+                  />
+                ))}
+              </div>
+            ) : groupedTeamsByLeague.length > 0 ? (
               <div className="space-y-4">
                 {groupedTeamsByLeague.map((group) => (
                   <LeagueSection
@@ -984,13 +1010,11 @@ export default function Countries() {
           />
         </div>
 
-        {errorMessage && (
+        {countriesError ? (
           <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
+            No se han podido cargar los países.
           </div>
-        )}
-
-        {isLoading ? (
+        ) : countriesLoading ? (
           <div className="space-y-6">
             {Array.from({ length: 3 }).map((_, groupIndex) => (
               <section key={groupIndex}>
@@ -1026,9 +1050,7 @@ export default function Countries() {
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                   {group.countries.map((country) => {
-                    const playerCount = players.filter(
-                      (player) => String(player.countryId) === String(country.id)
-                    ).length;
+                    const playerCount = playerCountByCountryId.get(String(country.id)) || 0;
 
                     const flagUrl = getFlagUrl(country);
 
@@ -1059,7 +1081,9 @@ export default function Countries() {
                             {country.name}
                           </h2>
                           <p className="mt-0.5 text-[11px] text-slate-400">
-                            {playerCount} {playerCount === 1 ? "jugador" : "jugadores"}
+                            {playersLoading
+                              ? "—"
+                              : `${playerCount} ${playerCount === 1 ? "jugador" : "jugadores"}`}
                           </p>
                         </div>
 

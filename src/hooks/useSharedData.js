@@ -67,3 +67,14 @@ export function usePlayersQuery() {
     staleTime: STALE_TIME,
   });
 }
+
+export function useTeamLeaguesQuery() {
+  return useQuery({
+    queryKey: ["mf-legacy", "team-leagues"],
+    queryFn: async () => {
+      const result = await base44.entities.TeamLeague.list();
+      return getList(result);
+    },
+    staleTime: STALE_TIME,
+  });
+}
