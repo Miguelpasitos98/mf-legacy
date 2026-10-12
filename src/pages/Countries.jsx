@@ -101,6 +101,10 @@ const normalizeTeam = (team) => ({
     team?.country_id ||
     team?.countryId ||
     "",
+  leagueId:
+    team?.league_id ||
+    team?.leagueId ||
+    "",
   logo:
     team?.logo ||
     team?.logo_url ||
@@ -568,62 +572,89 @@ export default function Countries() {
   }, [teams, selectedCountryId]);
 
   const groupedTeamsByLeague = useMemo(() => {
+    const normalizeForCompare = (value) =>
+      String(value || "")
+        .trim()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+
+    const normalizedSelectedId = normalizeForCompare(selectedCountryId);
+    const normalizedSelectedName = normalizeForCompare(selectedCountry?.name || "");
+
+    const matchesSelectedCountry = (leagueCountryId) => {
+      const raw = String(leagueCountryId || "").trim();
+      if (!raw) return true;
+      const normalized = normalizeForCompare(raw);
+      return (
+        normalized === normalizedSelectedId ||
+        normalized === normalizedSelectedName
+      );
+    };
+
     const groups = new Map();
 
     selectedCountryTeams.forEach((team) => {
+      // Primary: Team.league_id. Complement: TeamLeague relations.
+      const leagueIds = new Set();
+      if (team.leagueId) leagueIds.add(String(team.leagueId));
+
       const relations = (teamLeagueIndex.get(String(team.id)) || []).filter(
         (relation) => relation.isCurrent !== false
       );
+      for (const relation of relations) {
+        if (relation.leagueId) leagueIds.add(String(relation.leagueId));
+      }
 
-      if (relations.length === 0) {
+      if (leagueIds.size === 0) {
         const key = "__without_league__";
-
         if (!groups.has(key)) {
           groups.set(key, {
-            league: {
-              id: key,
-              name: "Without league",
-              level: 99,
-              logo: "",
-            },
+            league: { id: key, name: "Without league", level: 99, logo: "" },
             teams: [],
           });
         }
-
         groups.get(key).teams.push(team);
         return;
       }
 
-      relations.forEach((relation) => {
-        const league =
-          leagueById.get(String(relation.leagueId)) || {
-            id: relation.leagueId,
-            name: "Without league",
-            level: 99,
-            logo: "",
-          };
+      let addedToAnyGroup = false;
 
-        if (
-          String(league.countryId || "") &&
-          String(league.countryId) !==
-            String(selectedCountryId)
-        ) {
-          return;
-        }
+      leagueIds.forEach((leagueId) => {
+        const league = leagueById.get(leagueId) || {
+          id: leagueId,
+          name: "Without league",
+          level: 99,
+          logo: "",
+        };
+
+        if (!matchesSelectedCountry(league.countryId)) return;
 
         if (!groups.has(league.id)) {
-          groups.set(league.id, {
-            league,
-            teams: [],
-          });
+          groups.set(league.id, { league, teams: [] });
         }
 
         const group = groups.get(league.id);
-
         if (!group.teams.some((item) => item.id === team.id)) {
           group.teams.push(team);
         }
+        addedToAnyGroup = true;
       });
+
+      // Safety net: if every league was filtered by country, keep the team visible.
+      if (!addedToAnyGroup) {
+        const key = "__without_league__";
+        if (!groups.has(key)) {
+          groups.set(key, {
+            league: { id: key, name: "Without league", level: 99, logo: "" },
+            teams: [],
+          });
+        }
+        const group = groups.get(key);
+        if (!group.teams.some((item) => item.id === team.id)) {
+          group.teams.push(team);
+        }
+      }
     });
 
     return Array.from(groups.values()).sort((a, b) => {
@@ -645,6 +676,7 @@ export default function Countries() {
     teamLeagueIndex,
     leagueById,
     selectedCountryId,
+    selectedCountry,
   ]);
 
   const groupedCountriesByContinent = useMemo(() => {
