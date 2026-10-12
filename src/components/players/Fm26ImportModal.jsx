@@ -1,5 +1,6 @@
 import React from "react";
 import { X } from "lucide-react";
+import Fm26ClubPlayers from "./Fm26ClubPlayers";
 
 /**
  * Fm26ImportModal — interfaz del importador FM26 JSON.
@@ -108,6 +109,7 @@ export default function Fm26ImportModal({
               {!!search.trim()&&<div className="mt-1 max-h-32 overflow-y-auto rounded-lg border">{matches.map(t=><button key={t.id} type="button" onClick={()=>{setFm26ClubChoices(old=>({...old,[group.key]:String(t.id)}));setFm26ClubSearch(old=>({...old,[group.key]:""}));setFm26CreatingClub("");}} className="block w-full border-b px-3 py-2 text-left text-xs hover:bg-blue-50">{t.name}</button>)}{!matches.length&&<p className="p-2 text-xs text-slate-500">No hay coincidencias</p>}</div>}
               <div className="mt-2 flex flex-wrap gap-3"><button type="button" className="text-xs font-semibold text-blue-700 underline" onClick={()=>{setFm26CreatingClub(group.key);setFm26NewClubName(group.name);setFm26NewClubCountry("");setFm26NewClubLeague("");}}>Ninguno: crear equipo</button>{picked&&<button type="button" className="text-xs text-slate-500 underline" onClick={()=>setFm26ClubChoices(old=>{const next={...old};delete next[group.key];return next;})}>Quitar asociación</button>}</div>
               {fm26CreatingClub===group.key&&<div className="mt-3 space-y-2 rounded-lg border bg-slate-50 p-3"><p className="text-xs font-bold">Crear equipo en MF LEGACY</p><input value={fm26NewClubName} onChange={e=>setFm26NewClubName(e.target.value)} placeholder="Nombre del equipo" className="w-full rounded border p-2 text-sm"/><select className="w-full rounded border p-2 text-sm" value={fm26NewClubCountry} onChange={e=>setFm26NewClubCountry(e.target.value)}><option value="">Selecciona país</option>{countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select className="w-full rounded border p-2 text-sm" value={fm26NewClubLeague} onChange={e=>setFm26NewClubLeague(e.target.value)}><option value="">Selecciona liga</option>{fm26Leagues.map(l=><option key={l.id||l._id} value={l.id||l._id}>{l.name}</option>)}</select><div className="flex gap-2"><button type="button" disabled={fm26Busy} onClick={()=>handleCreateFm26Club(group)} className="rounded bg-[#003399] px-3 py-2 text-xs font-bold text-white">Crear y asociar</button><button type="button" disabled={fm26Busy} onClick={()=>setFm26CreatingClub("")} className="rounded border px-3 py-2 text-xs">Cancelar</button></div></div>}
+            <Fm26ClubPlayers group={group} />
             </div>;
           })}
         </div>}

@@ -1693,16 +1693,14 @@ export default function Players() {
     : "all";
 
   const fm26Clubs = useMemo(() => {
-    const groups = new Map();
+    const groups = new Map(); const norm = n => String(n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
     for (const row of fm26Import || []) {
       const key=fm26ClubToken(row);
-      if(!groups.has(key)) groups.set(key,{key,uid:row.club_uid,name:String(row.club_name || row.club_short_name || "Sin club"),count:0});
-      groups.get(key).count++;
+      if(!groups.has(key)) groups.set(key,{key,uid:row.club_uid,name:String(row.club_name || row.club_short_name || "Sin club"),count:0,players:[]});
+      const g=groups.get(key); g.count++; g.players.push({name:fm26PlayerName(row),uid:row.uid,club_uid:row.club_uid,club_name:String(row.club_name||row.club_short_name||""),team_slot:row.team_slot??null,on_loan:Boolean(row.on_loan),loan_parent_club_uid:row.loan_parent_club_uid??null,loan_parent_club_name:row.loan_parent_club_name||""});
     }
-    return [...groups.values()].map(group=>({ ...group,
-      suggestions: [...teams].map(t=>({...t,score:Math.max(fm26Similarity(group.name,t.name),fm26Similarity(group.name,t.shortName))}))
-        .filter(t=>t.score>=40).sort((a,b)=>b.score-a.score).slice(0,3)
-    }));
+    const all=[...groups.values()];
+    return all.map(group=>{const nn=norm(group.name);const variants=all.filter(g=>norm(g.name)===nn).map(g=>({uid:g.uid,count:g.count,key:g.key})).sort((a,b)=>b.count-a.count);return { ...group,players:[...group.players].sort((a,b)=>String(a.name).localeCompare(String(b.name))),nameVariants:variants,suggestions:[...teams].map(t=>({...t,score:Math.max(fm26Similarity(group.name,t.name),fm26Similarity(group.name,t.shortName))})).filter(t=>t.score>=40).sort((a,b)=>b.score-a.score).slice(0,3)};});
   }, [fm26Import,teams]);
 
   const fm26Nations = useMemo(() => buildFm26Nations(fm26Import, countries, fm26NationMapping), [fm26Import, countries, fm26NationMapping]);
