@@ -19,7 +19,7 @@ import { useLocation, useSearchParams } from "react-router-dom";
 
 import { parseFootballManagerCsv } from "@/utils/playerCsvImporter";
 import { parsePositionCsv, findPlayerForPositionRow } from "@/utils/positionCsvImporter";
-import { base44 } from "@/api/base44Client";
+import { base44 } from "@/api/base44Client";import { useQueryClient } from "@tanstack/react-query";import { useCountriesQuery,useTeamsQuery,usePlayersQuery } from "@/hooks/useSharedData";
 
 // MF LEGACY: logos de estado integrados, sin dependencias externas.
 const CAREER_STATUS_LOGOS = {
@@ -1992,7 +1992,7 @@ export default function Players() {
   const [countries, setCountries] = useState([]);
   const [leagues, setLeagues] = useState([]);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();const countriesQuery = useCountriesQuery();const teamsQuery = useTeamsQuery();const playersQuery = usePlayersQuery();const isLoading = countriesQuery.isLoading||teamsQuery.isLoading||playersQuery.isLoading;
   const [errorMessage, setErrorMessage] = useState("");
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -2161,7 +2161,7 @@ export default function Players() {
       for(const item of updates){
         try {
           await base44.entities.Country.update(item.country.id,{fm_nation_id:item.id});
-          setCountries(old=>old.map(c=>String(c.id)===String(item.country.id)?{...c,fm_nation_id:item.id}:c));
+          setCountries(old=>old.map(c=>String(c.id)===String(item.country.id)?{...c,fm_nation_id:item.id}:c));queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] });
           saved++;
         } catch(error) {errors.push(`${item.country.name}: ${error?.message||"error"}`);}
       }
@@ -2207,7 +2207,7 @@ export default function Players() {
       const id=created?.id || created?._id;
       if(!id) throw new Error("Base44 no devolvió el ID del país creado. Comprueba Countries antes de intentarlo de nuevo.");
       const normalized=normalizeCountry({...payload,...created,id});
-      setCountries(old=>[...old,normalized]);
+      setCountries(old=>[...old,normalized]);queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] });
       setFm26NationMapping(old=>({...old,[String(fmId)]:String(id)}));
       setFm26NationSearch(old=>({...old,[String(fmId)]:""}));
       setFm26CreatingNation("");
@@ -2252,7 +2252,7 @@ export default function Players() {
       const data=created?.data||created;
       const id=data?.id||data?._id;
       if(!id) throw new Error("Base44 no devolvió el ID del nuevo equipo.");
-      setTeams(old=>[...old,normalizeTeam({...data,id,name})]);
+      setTeams(old=>[...old,normalizeTeam({...data,id,name})]);queryClient.invalidateQueries({ queryKey: ["mf-legacy", "teams"] });
       setFm26ClubChoices(old=>({...old,[group.key]:String(id)}));
       setFm26CreatingClub("");setFm26Message(`Club ${name} creado y vinculado a ${group.count} jugadores.`);
     }catch(error){setFm26Error(`No se pudo crear el equipo: ${error?.message||"error"}`);}
@@ -2377,59 +2377,20 @@ export default function Players() {
   };
 
   const loadData = async () => {
-    setIsLoading(true);
-    setErrorMessage("");
-
-    try {
-      const [
-        playersResult,
-        teamsResult,
-        countriesResult,
-      ] = await Promise.all([
-        base44.entities.Player.list(),
-        base44.entities.Team.list(),
-        base44.entities.Country.list(),
-      ]);
-
-      const loadedPlayers = getList(playersResult)
-        .map(normalizePlayer)
-        .filter((player) => player.id || player.name);
-
-      const loadedTeams = getList(teamsResult)
-        .map(normalizeTeam)
-        .filter((team) => team.id && team.name)
-        .sort((a, b) =>
-          a.name.localeCompare(b.name, "es", {
-            sensitivity: "base",
-          })
-        );
-
-      const loadedCountries = getList(countriesResult)
-        .map(normalizeCountry)
-        .filter((country) => country.id && country.name)
-        .sort((a, b) =>
-          a.name.localeCompare(b.name, "es", {
-            sensitivity: "base",
-          })
-        );
-
-      setPlayers(loadedPlayers);
-      setTeams(loadedTeams);
-      setCountries(loadedCountries);
-    } catch (error) {
-      console.error("Error loading players:", error);
-
-      setErrorMessage(
-        "No se han podido cargar los jugadores, equipos o países. Comprueba que las entidades Player, Team y Country existen en Base44."
-      );
-    } finally {
-      setIsLoading(false);
-    }
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["mf-legacy", "players"] }),
+      queryClient.invalidateQueries({ queryKey: ["mf-legacy", "teams"] }),
+      queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] }),
+    ]);
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (countriesQuery.error || teamsQuery.error || playersQuery.error) { setErrorMessage("No se han podido cargar los datos."); return; }
+    if (!isLoading) setErrorMessage("");
+    if (countriesQuery.data) setCountries(countriesQuery.data.map(normalizeCountry).filter(c => c.id && c.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })));
+    if (teamsQuery.data) setTeams(teamsQuery.data.map(normalizeTeam).filter(t => t.id && t.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })));
+    if (playersQuery.data) setPlayers(playersQuery.data.map(normalizePlayer).filter(p => p.id || p.name));
+  }, [countriesQuery.data, teamsQuery.data, playersQuery.data, isLoading, countriesQuery.error, teamsQuery.error, playersQuery.error]);
 
   useEffect(() => {
     if (location.state?.mfPlayerViewChange) {
@@ -3836,7 +3797,7 @@ export default function Players() {
                 ? normalizePlayer(updatedPlayer)
                 : currentPlayer
             )
-          );
+          );queryClient.invalidateQueries({ queryKey: ["mf-legacy", "players"] });
         }}
       />
       </PlayerDetailErrorBoundary>

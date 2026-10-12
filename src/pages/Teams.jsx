@@ -5,6 +5,12 @@ import React, {
   useState,
 } from "react";
 import { useOutletContext } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useCountriesQuery,
+  useLeaguesQuery,
+  useTeamsQuery,
+} from "@/hooks/useSharedData";
 import {
   Search,
   Globe,
@@ -32,6 +38,26 @@ import { TeamCard, CompetitionHeader } from "@/components/teams/TeamCard";
 import { AddTeamModal, ImportTeamJsonModal } from "@/components/teams/TeamFormComponents";
 import TeamDetail from "@/components/teams/TeamDetail";
 
+const normalizeCountry = (country) => ({
+  ...country,
+  id: country?.id || country?._id || country?.data?.id || "",
+  name: country?.name || "",
+  code: country?.code || country?.country_code || "",
+  continent: country?.continent || "",
+});
+
+const normalizeLeague = (league) => ({
+  ...league,
+  id: league?.id || league?._id || league?.data?.id || "",
+  name: league?.name || "",
+  shortName: league?.short_name || league?.shortName || "",
+  countryId: league?.country_id || league?.countryId || "",
+  level: league?.level ?? league?.league_level ?? "",
+  reputation: league?.reputation ?? league?.league_reputation ?? 0,
+  logo: league?.logo || league?.logo_url || "",
+  isActive: league?.is_active ?? league?.isActive ?? true,
+});
+
 const navigationFilters = [
   { id: "countries", label: "Countries", icon: Globe },
   { id: "continents", label: "Continents", icon: MapIcon },
@@ -42,13 +68,14 @@ const navigationFilters = [
 ];
 
 export default function Teams() {
-  const [teams, setTeams] = useState([]);
+  const queryClient = useQueryClient();
+  const countriesQuery = useCountriesQuery();
+  const leaguesQuery = useLeaguesQuery();
+  const teamsQuery = useTeamsQuery();
+
   const [unattachedPlayers, setUnattachedPlayers] = useState([]);
   const [unattachedError, setUnattachedError] = useState("");
   const [unattachedTab, setUnattachedTab] = useState("free_agent");
-  const [isLoading, setIsLoading] = useState(true);
-  const [countries, setCountries] = useState([]);
-  const [leagues, setLeagues] = useState([]);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("countries");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -100,140 +127,85 @@ export default function Teams() {
     setTeamTheme({ primaryColor, secondaryColor });
   }, [selectedTeam, setTeamTheme, setSidebarVisible]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const countries = useMemo(
+    () => (countriesQuery.data || []).map(normalizeCountry),
+    [countriesQuery.data]
+  );
 
-    const getList = (result) => {
-      if (Array.isArray(result)) return result;
-      if (Array.isArray(result?.data)) return result.data;
-      if (Array.isArray(result?.items)) return result.items;
-      if (Array.isArray(result?.results)) return result.results;
-      return [];
-    };
+  const leagues = useMemo(
+    () => (leaguesQuery.data || []).map(normalizeLeague).filter((league) => league.id && league.name && league.isActive !== false),
+    [leaguesQuery.data]
+  );
 
-    const normalizeCountry = (country) => ({
-      ...country,
-      id: country?.id || country?._id || country?.data?.id || "",
-      name: country?.name || "",
-      code: country?.code || country?.country_code || "",
-      continent: country?.continent || "",
+  const teams = useMemo(() => {
+    const rawTeams = teamsQuery.data || [];
+    if (!rawTeams.length) return [];
+
+    const countryByIdMap = new Map();
+    for (const country of countries) {
+      const key = String(country.id || "");
+      if (key && !countryByIdMap.has(key)) countryByIdMap.set(key, country);
+    }
+    const leagueByIdMap = new Map();
+    for (const league of leagues) {
+      const key = String(league.id || "");
+      if (key && !leagueByIdMap.has(key)) leagueByIdMap.set(key, league);
+    }
+
+    return rawTeams.map((team) => {
+      const teamId = team.id || team._id || "";
+      const teamCountryId = team.country_id || team.countryId || "";
+      const country = countryByIdMap.get(String(teamCountryId));
+      const leagueId = team.league_id || team.leagueId || "";
+      const league = leagueByIdMap.get(String(leagueId));
+      return {
+        ...team,
+        id: teamId,
+        name: team.name || "",
+        shortName: team.short_name || team.shortName || "",
+        countryId: teamCountryId,
+        country: team.country || team.country_name || team.countryName || country?.name || "Unknown country",
+        countryCode: team.country_code || team.countryCode || country?.code || "",
+        continent: team.continent || country?.continent || "Unknown continent",
+        city: team.city || "",
+        logo: team.logo || team.logo_url || "",
+        primaryColor: team.primary_color || team.primaryColor || "",
+        secondaryColor: team.secondary_color || team.secondaryColor || "",
+        foundedYear: team.founded_year || team.foundedYear || null,
+        stadium: team.stadium || "",
+        stadiumId: team.stadium_id || team.stadiumId || "",
+        stadiumCapacity: team.stadium_capacity || team.stadiumCapacity || null,
+        stadiumBuiltYear: team.stadium_built_year || team.stadiumBuiltYear || null,
+        stadiumRenovation: team.stadium_renovation || team.stadiumRenovation || null,
+        pitchDimensions: team.pitch_dimensions || team.pitchDimensions || "",
+        stadiumInteriorUrl: team.stadium_interior_url || team.stadiumInteriorUrl || "",
+        stadiumExteriorUrl: team.stadium_exterior_url || team.stadiumExteriorUrl || "",
+        reputation: numericValue(team.reputation, "0"),
+        market: formatMarketValue(team.market, ""),
+        history: team.history || "",
+        coachName: team.coach_name || team.coachName || "",
+        coachPhotoUrl: team.coach_photo_url || team.coachPhotoUrl || "",
+        captainName: team.captain_name || team.captainName || "",
+        captainPhotoUrl: team.captain_photo_url || team.captainPhotoUrl || "",
+        secondCaptainName: team.second_captain_name || team.secondCaptainName || "",
+        secondCaptainPhotoUrl: team.second_captain_photo_url || team.secondCaptainPhotoUrl || "",
+        keyPlayerName: team.key_player_name || team.keyPlayerName || "",
+        keyPlayerPhotoUrl: team.key_player_photo_url || team.keyPlayerPhotoUrl || "",
+        dataSource: team.data_source || team.dataSource || "Manual",
+        isActive: team.is_active ?? team.isActive ?? true,
+        leagueId,
+        competition: league?.name || "Without competition",
+        competitionLogo: league?.logo || "",
+        competitionLevel: league?.level !== undefined && league?.level !== null && league?.level !== "" ? Number(league.level) : 999,
+        incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
+      };
     });
+  }, [teamsQuery.data, countries, leagues]);
 
-    const normalizeLeague = (league) => ({
-      ...league,
-      id: league?.id || league?._id || league?.data?.id || "",
-      name: league?.name || "",
-      shortName: league?.short_name || league?.shortName || "",
-      countryId: league?.country_id || league?.countryId || "",
-      level: league?.level ?? league?.league_level ?? "",
-      reputation: league?.reputation ?? league?.league_reputation ?? 0,
-      logo: league?.logo || league?.logo_url || "",
-      isActive: league?.is_active ?? league?.isActive ?? true,
-    });
-
-    const loadCountries = async () => {
-      try {
-        const result = await base44.entities.Country.list();
-        const loadedCountries = getList(result).map(normalizeCountry);
-        if (!cancelled) setCountries(loadedCountries);
-        return loadedCountries;
-      } catch (error) {
-        console.error("Error loading countries:", error);
-        return [];
-      }
-    };
-
-    const loadLeagues = async () => {
-      try {
-        const result = await base44.entities.League.list();
-        const loadedLeagues = getList(result).map(normalizeLeague).filter((league) => league.id && league.name && league.isActive !== false);
-        if (!cancelled) setLeagues(loadedLeagues);
-        return loadedLeagues;
-      } catch (error) {
-        console.error("Error loading leagues:", error);
-        return [];
-      }
-    };
-
-    const loadTeams = async (loadedCountries = [], loadedLeagues = []) => {
-      setIsLoading(true);
-      try {
-        const result = await base44.entities.Team.list();
-        const loadedTeams = getList(result);
-
-        const countryByIdMap = new Map();
-        for (const country of loadedCountries) {
-          const key = String(country.id || "");
-          if (key && !countryByIdMap.has(key)) countryByIdMap.set(key, country);
-        }
-        const leagueByIdMap = new Map();
-        for (const league of loadedLeagues) {
-          const key = String(league.id || "");
-          if (key && !leagueByIdMap.has(key)) leagueByIdMap.set(key, league);
-        }
-
-        const normalizedTeams = loadedTeams.map((team) => {
-          const teamId = team.id || team._id || "";
-          const teamCountryId = team.country_id || team.countryId || "";
-          const country = countryByIdMap.get(String(teamCountryId));
-          const leagueId = team.league_id || team.leagueId || "";
-          const league = leagueByIdMap.get(String(leagueId));
-          return {
-            ...team,
-            id: teamId,
-            name: team.name || "",
-            shortName: team.short_name || team.shortName || "",
-            countryId: teamCountryId,
-            country: team.country || team.country_name || team.countryName || country?.name || "Unknown country",
-            countryCode: team.country_code || team.countryCode || country?.code || "",
-            continent: team.continent || country?.continent || "Unknown continent",
-            city: team.city || "",
-            logo: team.logo || team.logo_url || "",
-            primaryColor: team.primary_color || team.primaryColor || "",
-            secondaryColor: team.secondary_color || team.secondaryColor || "",
-            foundedYear: team.founded_year || team.foundedYear || null,
-            stadium: team.stadium || "",
-            stadiumId: team.stadium_id || team.stadiumId || "",
-            stadiumCapacity: team.stadium_capacity || team.stadiumCapacity || null,
-            stadiumBuiltYear: team.stadium_built_year || team.stadiumBuiltYear || null,
-            stadiumRenovation: team.stadium_renovation || team.stadiumRenovation || null,
-            pitchDimensions: team.pitch_dimensions || team.pitchDimensions || "",
-            stadiumInteriorUrl: team.stadium_interior_url || team.stadiumInteriorUrl || "",
-            stadiumExteriorUrl: team.stadium_exterior_url || team.stadiumExteriorUrl || "",
-            reputation: numericValue(team.reputation, "0"),
-            market: formatMarketValue(team.market, ""),
-            history: team.history || "",
-            coachName: team.coach_name || team.coachName || "",
-            coachPhotoUrl: team.coach_photo_url || team.coachPhotoUrl || "",
-            captainName: team.captain_name || team.captainName || "",
-            captainPhotoUrl: team.captain_photo_url || team.captainPhotoUrl || "",
-            secondCaptainName: team.second_captain_name || team.secondCaptainName || "",
-            secondCaptainPhotoUrl: team.second_captain_photo_url || team.secondCaptainPhotoUrl || "",
-            keyPlayerName: team.key_player_name || team.keyPlayerName || "",
-            keyPlayerPhotoUrl: team.key_player_photo_url || team.keyPlayerPhotoUrl || "",
-            dataSource: team.data_source || team.dataSource || "Manual",
-            isActive: team.is_active ?? team.isActive ?? true,
-            leagueId,
-            competition: league?.name || "Without competition",
-            competitionLogo: league?.logo || "",
-            competitionLevel: league?.level !== undefined && league?.level !== null && league?.level !== "" ? Number(league.level) : 999,
-            incomplete: !team.name || !team.short_name || !teamCountryId || !team.logo,
-          };
-        });
-        if (!cancelled) setTeams(normalizedTeams);
-      } catch (error) {
-        console.error("Error loading teams:", error);
-      }
-    };
-
-    const loadData = async () => {
-      const [loadedCountries, loadedLeagues] = await Promise.all([loadCountries(), loadLeagues()]);
-      await loadTeams(loadedCountries, loadedLeagues);
-    };
-
-    loadData();
-    return () => { cancelled = true; };
-  }, []);
+  const isLoading = countriesQuery.isLoading || leaguesQuery.isLoading || teamsQuery.isLoading;
+  const loadError = (countriesQuery.error || leaguesQuery.error || teamsQuery.error)
+    ? "No se han podido cargar los datos. Comprueba tu conexión e inténtalo de nuevo."
+    : "";
 
   // --- DERIVED DATA (memoized) ---
 
@@ -470,7 +442,7 @@ export default function Teams() {
         }
       }
       if (deletedIds.length) {
-        setTeams((previous) => previous.filter((team) => !deletedIds.includes(String(team.id))));
+        queryClient.invalidateQueries({ queryKey: ["mf-legacy", "teams"] });
         setBulkTeamIds((previous) => previous.filter((id) => !deletedIds.includes(id)));
       }
       setBulkTeamsMessage(`${deletedIds.length} de ${targets.length} equipos eliminados.${errors.length ? ` No se pudieron eliminar ${errors.length}: ${errors.slice(0, 3).join(" · ")}` : ""}`);
@@ -574,17 +546,7 @@ export default function Teams() {
           alert("The country was created, but Base44 did not return its ID. Check the Country entity response.");
           return;
         }
-        const normalizedCreatedCountry = {
-          ...countryData,
-          id: countryId,
-          name: countryData?.name || form.country.trim(),
-          code: countryData?.code || form.countryCode.trim().toUpperCase(),
-          continent: countryData?.continent || form.continent || "Europe",
-        };
-        setCountries((currentCountries) => {
-          const alreadyExists = currentCountries.some((country) => String(country.id) === String(countryId));
-          return alreadyExists ? currentCountries : [...currentCountries, normalizedCreatedCountry];
-        });
+        queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] });
       }
 
       newTeam.countryId = countryId;
@@ -613,7 +575,7 @@ export default function Teams() {
             return;
           }
           selectedLeague = { ...createdLeague, id: leagueId, name: newTeam.newLeagueName };
-          setLeagues((currentLeagues) => [...currentLeagues, selectedLeague]);
+          queryClient.invalidateQueries({ queryKey: ["mf-legacy", "leagues"] });
         }
       }
 
@@ -658,10 +620,7 @@ export default function Teams() {
 
       const updatedTeam = { ...newTeam, id: savedTeam.id, competition: selectedLeague?.name || "Without competition", leagueId };
 
-      setTeams((currentTeams) => {
-        if (wasEditing) return currentTeams.map((team) => team.id === editingTeam.id ? updatedTeam : team);
-        return [...currentTeams, updatedTeam];
-      });
+      queryClient.invalidateQueries({ queryKey: ["mf-legacy", "teams"] });
 
       if (wasEditing) setSelectedTeam(updatedTeam);
 
@@ -751,6 +710,25 @@ export default function Teams() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{unattachedTabPlayers.map(p=><div key={p.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"><div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-100"><img src={normalizeImageUrl(p.photo_url || p.photoUrl) || careerStatusLogo(unattachedTab)} alt="" className="h-full w-full object-contain" /></div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-900">{p.name}</p><p className="flex items-center gap-1 text-[11px] font-semibold text-slate-500"><img src={careerStatusLogo(unattachedTab)} alt="" className="h-4 w-4" />{unattachedTab === "retired" ? "Retirado" : "Agente libre"}</p><p className="text-xs text-slate-500">Último club: {teamByIdMap.get(String(p.last_team_id || ""))?.name || "No registrado"}</p>{unattachedTab==="retired" && p.retirement_year && <p className="text-xs text-slate-400">Retirado en {p.retirement_year}</p>}</div></div>)}</div>
           {unattachedTabPlayers.length === 0 && <p className="mt-4 rounded-xl border border-dashed border-slate-200 p-5 text-center text-sm text-slate-500">No se encontraron jugadores en esta categoría.</p>}
         </section>
+      ) : loadError ? (
+        <div className="rounded-2xl border border-rose-200 bg-white px-6 py-16 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50"><CircleAlert size={22} className="text-rose-400" /></div>
+          <h2 className="mt-4 text-base font-bold text-slate-800">No se han podido cargar los datos</h2>
+          <p className="mt-2 text-sm text-slate-500">{loadError}</p>
+        </div>
+      ) : isLoading ? (
+        <div className="space-y-5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="mb-4 h-5 w-40 animate-pulse rounded bg-slate-100"></div>
+              <div className="grid grid-cols-2 gap-2 xl:grid-cols-6">
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <div key={j} className="h-[100px] animate-pulse rounded-xl bg-slate-100"></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : Object.keys(groupedTeams).length > 0 ? (
         <div className="space-y-5">
           {Object.entries(groupedTeams).map(([groupName, groupTeams]) => {
