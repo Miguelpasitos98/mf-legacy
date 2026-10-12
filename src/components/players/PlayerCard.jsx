@@ -333,7 +333,11 @@ function PlayerCardInner({
             </button>
           )}
 
-          <h3 className={`player-display-title min-w-0 truncate ${compact ? "text-sm" : "text-base"}`}>
+          <h3
+            title={player.name || ""}
+            style={{ lineHeight: 0.95 }}
+            className={`player-display-title min-w-0 flex-1 break-words line-clamp-2 ${compact ? "min-h-[1.7rem] text-sm" : "min-h-[1.9rem] text-base"}`}
+          >
             {player.name || "Unnamed player"}
           </h3>
         </div>
