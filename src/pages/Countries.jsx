@@ -372,13 +372,25 @@ export default function Countries() {
   // --- LOADING STATES (each query is independent) ---
 
   const countriesLoading = countriesQuery.isLoading && !countriesQuery.data;
-  const countriesError = countriesQuery.error;
+  const countriesError = countriesQuery.error && !countriesQuery.data;
   const playersLoading = playersQuery.isLoading && !playersQuery.data;
+  const playersError = playersQuery.error && !playersQuery.data;
+  const playersStaleError = playersQuery.error && playersQuery.data;
   const teamsLoading = teamsQuery.isLoading && !teamsQuery.data;
+  const teamsError = teamsQuery.error && !teamsQuery.data;
+  const teamsStaleError = teamsQuery.error && teamsQuery.data;
   const teamRelationsLoading =
     teamsLoading ||
     (leaguesQuery.isLoading && !leaguesQuery.data) ||
     (teamLeaguesQuery.isLoading && !teamLeaguesQuery.data);
+  const teamRelationsError =
+    teamsError ||
+    (leaguesQuery.error && !leaguesQuery.data) ||
+    (teamLeaguesQuery.error && !teamLeaguesQuery.data);
+  const teamRelationsStaleError =
+    teamsStaleError ||
+    (leaguesQuery.error && leaguesQuery.data) ||
+    (teamLeaguesQuery.error && teamLeaguesQuery.data);
 
   // --- LOOKUP MAPS (O(1) access) ---
 
@@ -725,7 +737,7 @@ export default function Countries() {
 
               <div className="rounded-xl bg-[#F1F5F9] px-4 py-3 text-center">
                 <div className="text-lg font-extrabold text-slate-900">
-                  {playersLoading ? "—" : selectedCountryPlayers.length}
+                  {playersLoading || playersError ? "—" : selectedCountryPlayers.length}
                 </div>
                 <div className="text-[11px] text-slate-500">
                   players
@@ -734,7 +746,7 @@ export default function Countries() {
 
               <div className="rounded-xl bg-[#F1F5F9] px-4 py-3 text-center">
                 <div className="text-lg font-extrabold text-slate-900">
-                  {teamsLoading ? "—" : selectedCountryTeams.length}
+                  {teamsLoading || teamsError ? "—" : selectedCountryTeams.length}
                 </div>
                 <div className="text-[11px] text-slate-500">
                   teams
@@ -756,7 +768,7 @@ export default function Countries() {
               </div>
 
               <span className="text-xs font-medium text-slate-400">
-                {playersLoading ? "—" : `${selectedCountryPlayers.length} ${selectedCountryPlayers.length === 1 ? "jugador" : "jugadores"}`}
+                {playersLoading || playersError ? "—" : `${selectedCountryPlayers.length} ${selectedCountryPlayers.length === 1 ? "jugador" : "jugadores"}`}
               </span>
             </div>
 
@@ -769,32 +781,51 @@ export default function Countries() {
                   />
                 ))}
               </div>
-            ) : selectedCountryPlayers.length > 0 ? (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {selectedCountryPlayers.map((player) => (
-                  <PlayerRow
-                    key={
-                      player.id ||
-                      `${player.name}-${player.teamId}`
-                    }
-                    player={player}
-                    team={teamById.get(String(player.teamId))}
-                  />
-                ))}
+            ) : playersError ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+                <Users size={28} className="mx-auto mb-3 text-red-300" />
+                <p className="text-sm font-semibold text-red-700">
+                  No se han podido cargar los jugadores.
+                </p>
+                <p className="mt-1 text-xs text-red-400">
+                  Comprueba tu conexión e inténtalo de nuevo.
+                </p>
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-10 text-center">
-                <Users
-                  size={32}
-                  className="mx-auto mb-3 text-slate-300"
-                />
-                <p className="text-sm font-semibold text-slate-700">
-                  No hay jugadores registrados
-                </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  Los jugadores asociados a este país aparecerán aquí.
-                </p>
-              </div>
+              <>
+                {playersStaleError && (
+                  <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    No se ha podido actualizar la lista de jugadores. Mostrando datos guardados.
+                  </div>
+                )}
+                {selectedCountryPlayers.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {selectedCountryPlayers.map((player) => (
+                      <PlayerRow
+                        key={
+                          player.id ||
+                          `${player.name}-${player.teamId}`
+                        }
+                        player={player}
+                        team={teamById.get(String(player.teamId))}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-10 text-center">
+                    <Users
+                      size={32}
+                      className="mx-auto mb-3 text-slate-300"
+                    />
+                    <p className="text-sm font-semibold text-slate-700">
+                      No hay jugadores registrados
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Los jugadores asociados a este país aparecerán aquí.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </section>
 
@@ -811,7 +842,7 @@ export default function Countries() {
               </div>
 
               <span className="text-xs font-medium text-slate-400">
-                {teamRelationsLoading ? "—" : `${selectedCountryTeams.length} ${selectedCountryTeams.length === 1 ? "equipo" : "equipos"}`}
+                {teamRelationsLoading || teamRelationsError ? "—" : `${selectedCountryTeams.length} ${selectedCountryTeams.length === 1 ? "equipo" : "equipos"}`}
               </span>
             </div>
 
@@ -824,29 +855,48 @@ export default function Countries() {
                   />
                 ))}
               </div>
-            ) : groupedTeamsByLeague.length > 0 ? (
-              <div className="space-y-4">
-                {groupedTeamsByLeague.map((group) => (
-                  <LeagueSection
-                    key={group.league.id}
-                    league={group.league}
-                    teams={group.teams}
-                  />
-                ))}
+            ) : teamRelationsError ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+                <Shield size={28} className="mx-auto mb-3 text-red-300" />
+                <p className="text-sm font-semibold text-red-700">
+                  No se han podido cargar los equipos.
+                </p>
+                <p className="mt-1 text-xs text-red-400">
+                  Comprueba tu conexión e inténtalo de nuevo.
+                </p>
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-10 text-center">
-                <Shield
-                  size={32}
-                  className="mx-auto mb-3 text-slate-300"
-                />
-                <p className="text-sm font-semibold text-slate-700">
-                  No hay equipos registrados
-                </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  Los equipos asociados a este país aparecerán aquí.
-                </p>
-              </div>
+              <>
+                {teamRelationsStaleError && (
+                  <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    No se ha podido actualizar la lista de equipos. Mostrando datos guardados.
+                  </div>
+                )}
+                {groupedTeamsByLeague.length > 0 ? (
+                  <div className="space-y-4">
+                    {groupedTeamsByLeague.map((group) => (
+                      <LeagueSection
+                        key={group.league.id}
+                        league={group.league}
+                        teams={group.teams}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-10 text-center">
+                    <Shield
+                      size={32}
+                      className="mx-auto mb-3 text-slate-300"
+                    />
+                    <p className="text-sm font-semibold text-slate-700">
+                      No hay equipos registrados
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Los equipos asociados a este país aparecerán aquí.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </section>
 
@@ -1081,7 +1131,7 @@ export default function Countries() {
                             {country.name}
                           </h2>
                           <p className="mt-0.5 text-[11px] text-slate-400">
-                            {playersLoading
+                            {playersLoading || playersError
                               ? "—"
                               : `${playerCount} ${playerCount === 1 ? "jugador" : "jugadores"}`}
                           </p>
