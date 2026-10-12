@@ -1,18 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search,
-  Plus,
-  X,
-  Upload,
-  FileText,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Users,
-  CalendarDays,
-  Building2,
-  Globe2,
-  ChevronDown,
+  Search, Plus, X, Upload, FileText, CheckCircle2, AlertCircle,
+  Loader2, Users, Building2, Globe2, ChevronDown,
+  ArrowDownAZ, ArrowUpAZ, Cake, Goal,
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
 import { useLocation, useSearchParams } from "react-router-dom";
@@ -1984,6 +1974,14 @@ export default function Players() {
 
   const filteredPlayers = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const POSITION_SORT_ORDER = { portero: 0, defensa_izquierdo: 1, defensa_derecho: 1, defensa_central: 1, carrilero_izquierdo: 1, carrilero_derecho: 1, mediocentro: 2, centrocampista: 3, centrocampista_izquierdo: 3, centrocampista_derecho: 3, mediapunta_central: 4, mediapunta_por_la_izquierda: 5, mediapunta_por_la_derecha: 5, delantero: 6 };
+    const posOrder = (p) => POSITION_SORT_ORDER[getPrimaryPosition(p)] ?? 7;
+    const posRating = (p) => {
+      const ratings = p?.positionRatings || p?.position_ratings || {};
+      const r = Number(ratings[getPrimaryPosition(p)]);
+      return Number.isFinite(r) ? r : 0;
+    };
+    const cmp = (a, b) => (a.name || "").localeCompare(b.name || "", "es", { sensitivity: "base" });
 
     return players
       .filter((player) => {
@@ -2003,41 +2001,32 @@ export default function Players() {
         }
 
         return (
-          (player.name || "")
-            .toLowerCase()
-            .includes(query) ||
-          (team?.name || "")
-            .toLowerCase()
-            .includes(query) ||
-          (country?.name || "")
-            .toLowerCase()
-            .includes(query)
+          (player.name || "").toLowerCase().includes(query) ||
+          (team?.name || "").toLowerCase().includes(query) ||
+          (country?.name || "").toLowerCase().includes(query)
         );
       })
       .sort((a, b) => {
-        if (sortBy === "ca") {
-          return Number(b.ca || 0) - Number(a.ca || 0);
+        if (sortBy === "ca") return Number(b.ca || 0) - Number(a.ca || 0);
+        if (sortBy === "cp") return Number(b.cp || 0) - Number(a.cp || 0);
+        if (sortBy === "position") {
+          const oa = posOrder(a), ob = posOrder(b);
+          if (oa !== ob) return oa - ob;
+          const ra = posRating(a), rb = posRating(b);
+          return ra !== rb ? rb - ra : cmp(a, b);
         }
-
-        if (sortBy === "cp") {
-          return Number(b.cp || 0) - Number(a.cp || 0);
+        if (sortBy === "name_asc") return cmp(a, b);
+        if (sortBy === "name_desc") return cmp(b, a);
+        if (sortBy === "age_youngest" || sortBy === "age_oldest") {
+          const aa = calculateAge(a.dateOfBirth), ab = calculateAge(b.dateOfBirth);
+          if (aa == null && ab == null) return cmp(a, b);
+          if (aa == null) return 1;
+          if (ab == null) return -1;
+          return sortBy === "age_youngest" ? aa - ab : ab - aa;
         }
-
-        return (a.name || "").localeCompare(
-          b.name || "",
-          "es",
-          { sensitivity: "base" }
-        );
+        return cmp(a, b);
       });
-  }, [
-    players,
-    search,
-    teamById,
-    countryById,
-    sortBy,
-    teamFilterId,
-    positionFilter,
-  ]);
+  }, [players, search, teamById, countryById, sortBy, teamFilterId, positionFilter]);
 
 
 
@@ -3459,43 +3448,15 @@ export default function Players() {
               )}
             </button>
 
-            {/* TOP CA */}
-            <button
-              type="button"
-              onClick={() =>
-                setSortBy((current) =>
-                  current === "ca" ? "" : "ca"
-                )
-              }
-              className={`flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-extrabold transition ${
-                sortBy === "ca"
-                  ? "border-[#003399] bg-[#003399] text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-              }`}
-              aria-label="Order by CA"
-              title="Order by CA"
-            >
-              Top CA
-            </button>
+            <button type="button" onClick={() => setSortBy(c => c === "ca" ? "" : "ca")} className={`flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-extrabold transition ${sortBy === "ca" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Order by CA" title="Order by CA">Top CA</button>
 
-            {/* TOP CP */}
-            <button
-              type="button"
-              onClick={() =>
-                setSortBy((current) =>
-                  current === "cp" ? "" : "cp"
-                )
-              }
-              className={`flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-extrabold transition ${
-                sortBy === "cp"
-                  ? "border-[#003399] bg-[#003399] text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-              }`}
-              aria-label="Order by CP"
-              title="Order by CP"
-            >
-              Top CP
-            </button>
+            <button type="button" onClick={() => setSortBy(c => c === "cp" ? "" : "cp")} className={`flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-extrabold transition ${sortBy === "cp" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Order by CP" title="Order by CP">Top CP</button>
+
+            <button type="button" onClick={() => setSortBy(c => c === "position" ? "" : "position")} className={`flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition ${sortBy === "position" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Order by position" title="Order by position"><Goal size={14} /> Position</button>
+
+            <button type="button" onClick={() => setSortBy(c => c === "name_asc" ? "name_desc" : "name_asc")} className={`flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition ${sortBy === "name_asc" || sortBy === "name_desc" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Order by name" title="Order by name">{sortBy === "name_desc" ? <ArrowUpAZ size={14} /> : <ArrowDownAZ size={14} />} {sortBy === "name_desc" ? "Name Z–A" : "Name A–Z"}</button>
+
+            <button type="button" onClick={() => setSortBy(c => c === "age_youngest" ? "age_oldest" : "age_youngest")} className={`flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition ${sortBy === "age_youngest" || sortBy === "age_oldest" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Order by age" title="Order by age"><Cake size={14} /> {sortBy === "age_oldest" ? "Oldest" : "Youngest"}</button>
 
             <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkDeleteIds([]); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
             <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Error(""); setFm26NationJustSaved(new Set()); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
