@@ -69,7 +69,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
       {columns.map(k=>{
        const value=columnValue(summary,"season",k,config);
        const partial=summary.totals[k]?.partial;
-       return <td key={k} className="px-3 py-3 text-right" title={partial?"Subtotal parcial: faltan estadísticas":undefined}>{fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
+       return <td key={k} className="px-3 py-3 text-right" title={partial?"Subtotal parcial: faltan estadísticas":undefined}>{fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
       })}
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
