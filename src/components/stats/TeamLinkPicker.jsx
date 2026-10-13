@@ -24,7 +24,7 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
   if(initialRecord?.id)return [String(initialRecord.id)];
   return all.filter(r=>(season==="Todas"||r.season===season)&&!r.team_id&&!r.team_name&&!r.fotmob_team_id).map(r=>String(r.id));
  });
- const [openYears,setOpenYears]=useState(()=>new Set([initialRecord?.season||season==="Todas"?season:season].filter(x=>x!=="Todas")));
+ const [openYears,setOpenYears]=useState(()=>new Set([initialRecord?.season||(season!=="Todas"?season:null)].filter(Boolean)));
  const [search,setSearch]=useState(""),[teamId,setTeamId]=useState("");
  const [working,setWorking]=useState(false),[error,setError]=useState("");
  const candidates=useMemo(()=>teams.filter(t=>norm(t.name).includes(norm(search))||norm(t.short_name).includes(norm(search))).sort((a,b)=>String(a.name).localeCompare(String(b.name),"es")).slice(0,75),[teams,search]);
