@@ -3,12 +3,15 @@ import { createPortal } from "react-dom";
 import { aggregate, defaultSeason, groupStatRows, metricsValue, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, BarChart3, Database, Search, Shield, Trophy, Upload, Users, X } from "lucide-react";
+import { ArrowRight, BarChart3, Database, Search, Shield, Settings2, Trophy, Upload, Users, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
 import { metricGroups, normalizeLabel, metricLabel } from "@/utils/statsImport";
 import StatsImport from "@/components/stats/StatsImport";
 import SeasonStatsTable from "@/components/stats/SeasonStatsTable";
+import StatsColumnSettings from "@/components/stats/StatsColumnSettings";
+import TeamLinkPicker from "@/components/stats/TeamLinkPicker";
+import {initialConfig,sanitizeConfig,getColumn,columnValue} from "@/utils/statsColumns";
 import {buildSeasonSummaries,statDisplay} from "@/utils/statsSeason";
 
 const unpack = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || [];
@@ -65,13 +68,14 @@ function Avatar({name,photo,size="md"}) {
   return <div className={classes+" flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#e9f0f9] font-black text-[#31557b]"}>{photo&&!broken?<img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" onError={()=>setBroken(true)}/>:String(name||"?").slice(0,2).toUpperCase()}</div>;
 }
 function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);return <span className="inline-flex max-w-[170px] items-center gap-2">{logo&&!broken?<img src={logo} alt="" className="h-5 w-5 object-contain" onError={()=>setBroken(true)}/>:<Shield size={16} className="text-slate-300"/>}<span className="truncate">{teamName||"Sin equipo"}</span></span>;}
-function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,onLinkTeam,linking}) {
+function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,onLinkTeams,config}) {
   const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
   const [season,setSeason]=useState("auto");
   const activeSeason=season==="auto"?defaultSeason(stats,initialSeason):season;
   const [competition,setCompetition]=useState("Todas");
   const [scope,setScope]=useState("clubs");
   const [category,setCategory]=useState("Resumen");
+  const [teamLinkTarget,setTeamLinkTarget]=useState(null);
   const byTeam=useMemo(()=>new Map(teams.map(t=>[String(t.id),t])),[teams]);
   const uniqueRecords=useMemo(()=>groupStatRows(stats),[stats]);
   const seasonRows=uniqueRecords.filter(s=>activeSeason==="Todas"||s.season===activeSeason);
@@ -82,7 +86,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,on
   const ratingRows=shown.filter(r=>num(r.rating)!==null&&num(r.appearances)>0);
   const ratedGames=ratingRows.reduce((v,r)=>v+Number(r.appearances),0);
   const estimatedRating=ratedGames?ratingRows.reduce((v,r)=>v+Number(r.rating)*Number(r.appearances),0)/ratedGames:null;
-  const selected=metricGroups.find(x=>x[0]===category)?.[1]||[];
+  const selected=config.columns.competition[category]||[];
   const allSeasons=activeSeason==="Todas";
   const partial=Object.values(sums).some(x=>x.partial);
   const inProgress=!allSeasons&&seasonActive(activeSeason);
