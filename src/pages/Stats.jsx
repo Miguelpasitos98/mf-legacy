@@ -332,7 +332,7 @@ export default function Stats(){
   const columns=columnConfig.columns.competition[category]||[];
   const saveColumns=async(draft)=>{
     const clean=sanitizeConfig(draft);
-    const payload={key:"stats_layout_personal_v1",version:1,config_json:JSON.stringify(clean)};
+    const payload={key:"stats_layout_personal_v1",version:clean.version,config_json:JSON.stringify(clean)};
     if(prefsRecord?.id){await base44.entities.StatsViewPreference.update(prefsRecord.id,payload);}
     else{const created=await base44.entities.StatsViewPreference.create(payload);setPrefsRecord({...payload,id:created?.id||created?.data?.id});}
     setColumnConfig(clean);setPrefsWarning("");
