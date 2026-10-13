@@ -1,5 +1,6 @@
 import React,{useState} from "react";
-import {ArrowRight,Shield,AlertCircle} from "lucide-react";
+import {ArrowRight,Shield} from "lucide-react";
+import SortHeader from "@/components/stats/SortHeader";
 import {statDisplay} from "@/utils/statsSeason";
 import {getColumn,columnValue,initialConfig} from "@/utils/statsColumns";
 import {metricLabel} from "@/utils/statsImport";
@@ -33,19 +34,22 @@ function ClubBadge({summary,onTeam}){
   {(otherClubs.length>0||unresolvedTeams>0)&&<p className="mt-0.5 text-[10px] text-amber-700">{otherClubs.length>0?("+"+otherClubs.length+" club(es)"):""} {unresolvedTeams>0?("· "+unresolvedTeams+" competiciones sin club confirmado"):""}</p>}
  </div>;
 }
-export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig()}){
+export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="rating",sortDirection="desc",onSort=()=>{}}){
  const columns=config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen;
  const filtered=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0);
  const pageRows=filtered.slice(page*50,(page+1)*50);
  return <div>
   <div className="max-w-full overflow-x-auto">
    <table className="w-full min-w-[1040px] text-left text-xs">
-    <thead className="bg-[#102e23] text-white"><tr>
-     <th className="px-3 py-3">#</th><th className="min-w-44 px-3 py-3">JUGADOR</th>
-     <th className="px-3 py-3">TEMPORADA</th><th className="min-w-44 px-3 py-3">CLUB PRINCIPAL</th>
-     <th className="px-3 py-3 text-right">PJ</th><th className="px-3 py-3 text-right">MIN</th>
-     <th className="whitespace-nowrap px-3 py-3 text-right">NOTA MEDIA*</th>
-     {columns.map(k=><th className="whitespace-nowrap px-3 py-3 text-right" key={k}>{getColumn(config,k)?.name||labels[k]||metricLabel(k)}</th>)}
+    <thead className="bg-[#003399] text-white"><tr>
+     <th className="px-3 py-3">#</th>
+     <SortHeader column="player" label="JUGADOR" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className="min-w-44"/>
+     <SortHeader column="season" label="TEMPORADA" active={sortKey} direction={sortDirection} onSort={onSort} align="left"/>
+     <SortHeader column="club" label="CLUB PRINCIPAL" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className="min-w-44"/>
+     <SortHeader column="appearances" label="PJ" active={sortKey} direction={sortDirection} onSort={onSort}/>
+     <SortHeader column="minutes" label="MIN" active={sortKey} direction={sortDirection} onSort={onSort}/>
+     <SortHeader column="rating" label="NOTA MEDIA" active={sortKey} direction={sortDirection} onSort={onSort}/>
+     {columns.map(k=><SortHeader key={k} column={k} label={getColumn(config,k)?.name||labels[k]||metricLabel(k)} active={sortKey} direction={sortDirection} onSort={onSort}/>)}
      <th className="px-3 py-3">DETALLE</th>
     </tr></thead>
     <tbody>{pageRows.map(({summary,player},i)=>{
@@ -60,7 +64,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
       <td className="px-3 py-3"><ClubBadge summary={summary} onTeam={onTeam}/></td>
       <td className="px-3 py-3 text-right">{fmt(statDisplay(summary,"appearances"))}</td>
       <td className="px-3 py-3 text-right">{fmt(statDisplay(summary,"minutes"))}</td>
-      <td className="px-3 py-3 text-right font-bold">{fmt(statDisplay(summary,"rating"),2)}{summary.ratingPartial?"*":""}</td>
+      <td className="px-3 py-3 text-right font-bold"><span title="Estimación ponderada por partidos; no es el índice Crafted.">{fmt(statDisplay(summary,"rating"),2)}{summary.ratingPartial?"*":""}</span></td>
       {columns.map(k=>{
        const value=columnValue(summary,"season",k,config);
        const partial=summary.totals[k]?.partial;
@@ -72,10 +76,6 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
     {!pageRows.length&&<tr><td colSpan={8+columns.length} className="px-6 py-12 text-center text-slate-500">No hay temporadas con estadísticas para esta selección.</td></tr>}
     </tbody>
    </table>
-  </div>
-  <div className="flex items-start gap-2 border-t border-slate-100 bg-amber-50/40 px-4 py-3 text-xs text-slate-600">
-   <AlertCircle size={15} className="mt-0.5 shrink-0 text-amber-700"/>
-   <p>* La nota media es una estimación ponderada por partidos, no el índice Crafted. Los totales corresponden a competiciones de clubes importadas. Una cifra marcada con * tiene cobertura parcial. Los ratios /90 se omiten si faltan minutos o métricas; las selecciones están en el desglose.</p>
   </div>
  </div>;
 }
