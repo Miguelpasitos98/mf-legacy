@@ -1,6 +1,7 @@
 import React,{useState} from "react";
 import {ArrowRight,Shield,AlertCircle} from "lucide-react";
 import {statDisplay} from "@/utils/statsSeason";
+import {getColumn,columnValue,initialConfig} from "@/utils/statsColumns";
 import {metricLabel} from "@/utils/statsImport";
 import {seasonActive} from "@/utils/statsViews";
 
@@ -32,8 +33,8 @@ function ClubBadge({summary,onTeam}){
   {(otherClubs.length>0||unresolvedTeams>0)&&<p className="mt-0.5 text-[10px] text-amber-700">{otherClubs.length>0?("+"+otherClubs.length+" club(es)"):""} {unresolvedTeams>0?("· "+unresolvedTeams+" competiciones sin club confirmado"):""}</p>}
  </div>;
 }
-export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0}){
- const columns=seasonColumns[category]||seasonColumns.Resumen;
+export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig()}){
+ const columns=config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen;
  const filtered=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0);
  const pageRows=filtered.slice(page*50,(page+1)*50);
  return <div>
@@ -44,7 +45,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
      <th className="px-3 py-3">TEMPORADA</th><th className="min-w-44 px-3 py-3">CLUB PRINCIPAL</th>
      <th className="px-3 py-3 text-right">PJ</th><th className="px-3 py-3 text-right">MIN</th>
      <th className="whitespace-nowrap px-3 py-3 text-right">NOTA MEDIA*</th>
-     {columns.map(k=><th className="whitespace-nowrap px-3 py-3 text-right" key={k}>{labels[k]||metricLabel(k)}</th>)}
+     {columns.map(k=><th className="whitespace-nowrap px-3 py-3 text-right" key={k}>{getColumn(config,k)?.name||labels[k]||metricLabel(k)}</th>)}
      <th className="px-3 py-3">DETALLE</th>
     </tr></thead>
     <tbody>{pageRows.map(({summary,player},i)=>{
@@ -61,9 +62,9 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
       <td className="px-3 py-3 text-right">{fmt(statDisplay(summary,"minutes"))}</td>
       <td className="px-3 py-3 text-right font-bold">{fmt(statDisplay(summary,"rating"),2)}{summary.ratingPartial?"*":""}</td>
       {columns.map(k=>{
-       const value=statDisplay(summary,k);
+       const value=columnValue(summary,"season",k,config);
        const partial=summary.totals[k]?.partial;
-       return <td key={k} className="px-3 py-3 text-right" title={partial?"Subtotal parcial: faltan estadísticas":undefined}>{fmt(value,dec(k)?2:0)}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
+       return <td key={k} className="px-3 py-3 text-right" title={partial?"Subtotal parcial: faltan estadísticas":undefined}>{fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
       })}
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
