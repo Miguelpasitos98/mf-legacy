@@ -78,6 +78,10 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,on
   const competitions=[...new Set(seasonRows.map(s=>s.competition))].sort();
   const shown=seasonRows.filter(r=>(scope==="all"||!nationalCompetition(r.competition))&&(competition==="Todas"||r.competition===competition));
   const sums=aggregate(shown);
+  const summaryBasics=aggregate(shown,["appearances","minutes"]);
+  const ratingRows=shown.filter(r=>num(r.rating)!==null&&num(r.appearances)>0);
+  const ratedGames=ratingRows.reduce((v,r)=>v+Number(r.appearances),0);
+  const estimatedRating=ratedGames?ratingRows.reduce((v,r)=>v+Number(r.rating)*Number(r.appearances),0)/ratedGames:null;
   const selected=metricGroups.find(x=>x[0]===category)?.[1]||[];
   const allSeasons=activeSeason==="Todas";
   const partial=Object.values(sums).some(x=>x.partial);
@@ -127,7 +131,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,on
             </label>
             <label className="text-xs font-bold text-slate-500">Competición
               <select className="mt-1 block min-w-44 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" value={competition} onChange={e=>setCompetition(e.target.value)}>
-                <option value="Todas">Total temporada · disponibles</option>
+                <option value="Todas">{activeSeason==="Todas"?"Subtotal histórico disponible":"Total temporada disponible"}</option>
                 {competitions.map(x=><option key={x}>{x}</option>)}
               </select>
             </label>
@@ -144,6 +148,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,on
             {allSeasons&&<span className="rounded bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-900">Varias temporadas: no es una cifra oficial de carrera</span>}
             {partial&&<span className="rounded bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-900">Cobertura parcial</span>}
           </div>
+          <div className="mb-3 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-[#f8fbff] px-4 py-3 text-xs text-slate-700"><span><strong>PJ:</strong> {show(summaryBasics.appearances.value)}{summaryBasics.appearances.partial?" (parcial)":""}</span><span><strong>Minutos:</strong> {show(summaryBasics.minutes.value)}{summaryBasics.minutes.partial?" (parcial)":""}</span><span><strong>Nota media aproximada:</strong> {show(estimatedRating,2)}{ratingRows.length<shown.length?" (parcial)":""}</span><span className="text-slate-500">Media ponderada por partidos; no equivale al rating Crafted.</span></div>
           <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-5">
             {[["Goles",sums.goals],["Asistencias",sums.assists],["xG",sums.xg],["xA",sums.xa],["Tiros",sums.shots]].map(([label,d])=><div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
               <div className="text-[10px] font-bold uppercase text-slate-500">{label}</div>
