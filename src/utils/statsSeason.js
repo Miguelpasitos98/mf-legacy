@@ -1,7 +1,7 @@
 // Resúmenes de temporada derivados. No se guardan ni alteran registros FotMob.
 import {aggregate, groupStatRows, metricsValue, nationalCompetition, norm, resolveTeam, statNum} from "./statsViews.js";
 
-const SUM_KEYS=["appearances","minutes","goals","assists","xg","xa","shots","shotsontarget","xgot","tackles","recoveries","interceptions","clearances","cleansheets","chancescreated","bigchancescreated","accuratepasses","successfulcrosses","saves","goalsconcededwhileonpitch","totaldistancecovered","numberofsprints","xgexclpenalty","headedshots","walking","jogging","running","sprinting","accuratelongballs","linebreakingpasses","dribbles","duelswon","aerialswon","touches","touchesinoppositionbox","dispossessed","foulswon","foulscommitted","defensiveactions","blockedscoringattempt","possessionwonfinal3rd","dribbledpast","xgagainstwhileonpitch","yellowcards","redcards","penaltygoals","penaltiesawarded","started"];
+const SUM_KEYS=["appearances","minutes","goals","assists","xg","xa","shots","shotsontarget","xgot","tackles","recoveries","interceptions","clearances","cleansheets","chancescreated","bigchancescreated","accuratepasses","successfulcrosses","saves","goalsconcededwhileonpitch","totaldistancecovered","numberofsprints","xgexclpenalty","headedshots","walking","jogging","running","sprinting","accuratelongballs","linebreakingpasses","dribbles","duelswon","aerialswon","touches","touchesinoppositionbox","dispossessed","foulswon","foulscommitted","defensiveactions","blockedscoringattempt","possessionwonfinal3rd","dribbledpast","xgagainstwhileonpitch","yellowcards","redcards","penaltygoals","penaltiesawarded","started","team_matches"];
 const groupId=row=>String(row.player_id||row.fotmob_player_id||"");
 
 export function seasonSummary(rows,teams=[]){
