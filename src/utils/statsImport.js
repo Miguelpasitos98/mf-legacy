@@ -173,7 +173,29 @@ export const metricGroups = [
 ];
 export const metricLabel = (name) => {
   const key=normalizeLabel(name);
-  const labels={goals:"Goles",assists:"Asistencias",xg:"xG",xa:"xA",xgot:"xGOT",shots:"Tiros",shotsontarget:"Tiros a puerta",tackles:"Entradas",interceptions:"Intercepciones",recoveries:"Recuperaciones",minutes:"Minutos",appearances:"Partidos",rating:"Nota"};
+  const labels={
+    goals:"Goles",goles:"Goles",assists:"Asistencias",asistencias:"Asistencias",xg:"Goles esperados (xG)",
+    xa:"Asistencias esperadas (xA)",xgot:"xG a puerta",npxg:"xG sin penaltis",
+    shots:"Tiros",shotsontarget:"Tiros a puerta",headedshots:"Tiros de cabeza",
+    topspeed:"Velocidad máxima",totaldistancecovered:"Distancia recorrida",running:"Carrera",
+    sprinting:"Sprint",numberofsprints:"Número de sprints",
+    accuratepasses:"Pases completados",passaccuracy:"Precisión de pases (%)",
+    accuratelongballs:"Pases largos precisos",longballaccuracy:"Precisión de pases largos (%)",
+    linebreakingpasses:"Pases que rompen líneas",chancescreated:"Oportunidades creadas",
+    bigchancescreated:"Ocasiones claras creadas",successfulcrosses:"Centros completados",
+    crossaccuracy:"Precisión de centros (%)",dribbles:"Regates exitosos",
+    dribblessuccessrate:"Éxito en regates (%)",duelswon:"Duelos ganados",
+    duelswon:"Duelos ganados",aerialswon:"Duelos aéreos ganados",
+    touches:"Toques",touchesinoppositionbox:"Toques en área rival",
+    dispossessed:"Pérdidas de balón",foulswon:"Faltas recibidas",defensiveactions:"Acciones defensivas",
+    tackles:"Entradas",interceptions:"Intercepciones",blockedscoringattempt:"Tiros bloqueados",
+    foulscommitted:"Faltas",recoveries:"Recuperaciones",possessionwonfinal3rd:"Recuperaciones en campo rival",
+    dribbledpast:"Regateado",clearances:"Despejes",cleansheets:"Porterías a cero",
+    goalsconcededwhileonpitch:"Goles encajados en el campo",xgagainstwhileonpitch:"xG encajado en el campo",
+    yellowcards:"Tarjetas amarillas",redcards:"Tarjetas rojas",
+    saves:"Paradas",savepercentage:"Porcentaje de paradas",
+    minutes:"Minutos",appearances:"Partidos",rating:"Nota FotMob",
+  };
   return labels[key]||name;
 };
 
