@@ -21,9 +21,9 @@ const exactTeam=(r,teams)=>{
  return null;
 };
 export const resolveTeam=(record,teams,peers=[])=>{
+ if(nationalCompetition(record.competition))return {team:null,status:"national",label:"Selección nacional · no identificada"};
  const team=exactTeam(record,teams);
  if(record.team_id&&team)return {team,status:"confirmed",label:"Equipo vinculado"};
- if(nationalCompetition(record.competition))return {team:null,status:"national",label:"Selección nacional · no identificada"};
  if(team)return {team,status:"confirmed",label:"Identificado por nombre o ID FotMob"};
  if(record.team_name)return {team:null,status:"source",label:record.team_name+" · sin vincular"};
  const peersSame=peers.filter(r=>r!==record&&r.season===record.season&&!nationalCompetition(r.competition)).map(r=>exactTeam(r,teams)).filter(Boolean);
