@@ -4,7 +4,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCountriesQuery,
@@ -71,6 +71,9 @@ const navigationFilters = [
 
 export default function Teams() {
   const queryClient = useQueryClient();
+  const navigateFromStats = useNavigate();
+  const [statsQueryParams] = useSearchParams();
+  const statsTeamId = statsQueryParams.get("stats_team");
   const countriesQuery = useCountriesQuery();
   const leaguesQuery = useLeaguesQuery();
   const teamsQuery = useTeamsQuery();
@@ -206,6 +209,12 @@ export default function Teams() {
       };
     });
   }, [teamsQuery.data, countries, leagues]);
+
+  useEffect(() => {
+    if (!statsTeamId) return;
+    const found = teams.find((t) => String(t.id) === String(statsTeamId));
+    if (found) setSelectedTeam(found);
+  }, [statsTeamId, teams]);
 
   const isLoading = countriesQuery.isLoading || leaguesQuery.isLoading || teamsQuery.isLoading;
   const loadError = (countriesQuery.error || leaguesQuery.error || teamsQuery.error)
@@ -648,7 +657,10 @@ export default function Teams() {
     return (
       <TeamDetail
         team={selectedTeam}
-        onClose={() => setSelectedTeam(null)}
+        onClose={() => {
+          setSelectedTeam(null);
+          if (statsTeamId) navigateFromStats("/teams", { replace: true });
+        }}
         onEdit={(team) => setEditingTeam(team)}
         form={form}
         setForm={setForm}
