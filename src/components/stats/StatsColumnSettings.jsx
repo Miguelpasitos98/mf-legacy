@@ -1,7 +1,7 @@
 import React,{useMemo,useState} from "react";
 import {createPortal} from "react-dom";
 import {ArrowDown,ArrowUp,Check,Plus,RotateCcw,Search,Settings2,Trash2,X} from "lucide-react";
-import {CATEGORIES,MODES,RAW_METRICS,COMPUTED_IDS,DEFAULT_COLS,initialConfig,getColumn,parseFormula,evalFormula,rowValues} from "@/utils/statsColumns";
+import {CATEGORIES,MODES,RAW_METRICS,COMPUTED_IDS,DEFAULT_COLS,getColumn,parseFormula,evalFormula,rowValues} from "@/utils/statsColumns";
 const clone=c=>JSON.parse(JSON.stringify(c));
 export default function StatsColumnSettings({config,mode:initialMode="season",category:initialCategory="Resumen",sample=null,onClose,onSave}){
  const [draft,setDraft]=useState(()=>clone(config));

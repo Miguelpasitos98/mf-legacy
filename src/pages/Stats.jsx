@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { aggregate, defaultSeason, groupStatRows, metricsValue, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
+import { aggregate, defaultSeason, groupStatRows, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, BarChart3, Database, Search, Shield, Settings2, Trophy, Upload, Users, X } from "lucide-react";
+import { ArrowRight, Database, Search, Shield, Settings2, Upload, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
-import { metricGroups, normalizeLabel, metricLabel } from "@/utils/statsImport";
+import { normalizeLabel, metricLabel } from "@/utils/statsImport";
 import StatsImport from "@/components/stats/StatsImport";
 import SeasonStatsTable from "@/components/stats/SeasonStatsTable";
 import StatsColumnSettings from "@/components/stats/StatsColumnSettings";
