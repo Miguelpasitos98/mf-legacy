@@ -64,6 +64,10 @@ export function normalizeRecord(item) {
   const competition = asText(item.competition || item.league);
   if (!p || !season || !competition) throw Error("Falta ID FotMob, temporada o competición.");
   const metrics = cleanMetrics(item.metrics);
+  // team_matches es el total disputado por EL EQUIPO, no las apariciones del jugador.
+  const rawTeamMatches=item.team_matches;
+  const teamMatches=asNum(rawTeamMatches);
+  if(rawTeamMatches!==null&&rawTeamMatches!==undefined&&rawTeamMatches!==""&&(!Number.isInteger(teamMatches)||teamMatches<1||teamMatches>200))throw Error("team_matches debe ser un entero entre 1 y 200.");
   const value = (field) => asNum(item[field]) ?? metricValue(metrics, field);
   const rec = {
     external_record_id: recordKey({...item, fotmob_player_id:p, season, competition}),
@@ -78,6 +82,7 @@ export function normalizeRecord(item) {
     appearances:value("appearances") ?? metricValue(metrics,"Matches"),
     minutes:value("minutes") ?? metricValue(metrics,"Minutes played"),
     rating:value("rating") ?? metricValue(metrics,"FotMob Rating"),
+    team_matches:teamMatches,
     market_value:value("market_value"),
     market_date:asText(item.market_date),
     metrics,
@@ -160,7 +165,7 @@ export function parseStatsText(text, filename="archivo.json") {
       const key=rec.external_record_id;
       if(byKey.has(key)){
         const old=byKey.get(key);
-        if(JSON.stringify(old.metrics)!==JSON.stringify(rec.metrics)||old.appearances!==rec.appearances||old.minutes!==rec.minutes){
+        if(JSON.stringify(old.metrics)!==JSON.stringify(rec.metrics)||old.appearances!==rec.appearances||old.minutes!==rec.minutes||(old.team_matches!=null&&rec.team_matches!=null&&old.team_matches!==rec.team_matches)){
           // No sobrescribir silenciosamente bloques con cifras distintas.
           throw Error("Clave duplicada con datos distintos: "+key);
         }
