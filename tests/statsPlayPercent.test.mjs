@@ -49,9 +49,19 @@ test("importar JSON con team_matches opcional conserva y valida el número",()=>
 });
 test("la configuración guardada admite la fórmula Play % y no ejecuta código libre",()=>{
  const old=initialConfig();
+ old.version=1;
  old.computed=old.computed.filter(d=>d.id!=="playpct");
+ old.columns.competition.Resumen=old.columns.competition.Resumen.filter(x=>x!=="playpct");
+ old.columns.season.Resumen=old.columns.season.Resumen.filter(x=>x!=="playpct");
  const migrated=sanitizeConfig(old);
  assert.ok(migrated.computed.some(d=>d.id==="playpct"));
  assert.ok(migrated.columns.competition.Resumen.includes("playpct"));
+ assert.ok(migrated.columns.season.Resumen.includes("playpct"));
+ assert.equal(migrated.version,2);
  assert.equal(getColumn(migrated,"playpct").formula,"minutes / (team_matches * 90) * 100");
+});
+test("quien oculte Play % en v2 mantiene su preferencia",()=>{
+ const current=initialConfig();
+ current.columns.competition.Resumen=current.columns.competition.Resumen.filter(x=>x!=="playpct");
+ assert.ok(!sanitizeConfig(current).columns.competition.Resumen.includes("playpct"));
 });
