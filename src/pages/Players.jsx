@@ -3542,29 +3542,19 @@ export default function Players() {
             {/* ALL PLAYERS */}
             {viewMode === "all" && (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
-                {filteredPlayers.map(
-                  (player) => (
+                {filteredPlayers.map((player, index) => (
                     <PlayerCard
-                          selectionMode={bulkMode}
-                          selected={bulkIds.includes(String(player.id))}
-                          onToggleSelection={toggleBulkPlayer}
-                      key={
-                        player.id ||
-                        `${player.name}-${player.dateOfBirth}`
-                      }
+                      selectionMode={bulkMode}
+                      selected={bulkIds.includes(String(player.id))}
+                      onToggleSelection={toggleBulkPlayer}
+                      key={player.id || `${player.name}-${player.dateOfBirth}`}
                       player={player}
-                      team={
-                        teamById[player.teamId]
-                      }
-                      country={
-                        countryById[
-                          player.countryId
-                        ]
-                      }
+                      priority={index < 6}
+                      team={teamById[player.teamId]}
+                      country={countryById[player.countryId]}
                       onSelect={handleSelectPlayer}
                     />
-                  )
-                )}
+                ))}
               </div>
             )}
 

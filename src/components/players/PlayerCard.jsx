@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Users, Building2 } from "lucide-react";
+import SmartImage from "./SmartImage";
 
 // ============================================================
 // Helpers extraídos de Players.jsx para mantener PlayerCard
@@ -209,6 +210,7 @@ function PlayerCardInner({
   compact = false,
   hideTeam = false,
   useNationalCardPhoto = false,
+  priority = false,
 }) {
   const preferredCardPhoto = useNationalCardPhoto
     ? player.nationalCardPhotoUrl || player.cardPhotoUrl || player.photoUrl
@@ -290,19 +292,17 @@ function PlayerCardInner({
 
       {/* PHOTO */}
       <div className={`relative w-full overflow-hidden bg-slate-50 ${compact ? "aspect-[5/4]" : "aspect-[4/3]"}`}>
-        {photoUrl ? (
-          <img
-            src={photoUrl}
-            alt={player.name || "Player"}
-            loading="lazy"
-            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.025]"
-            onError={(event) => { event.currentTarget.style.display = "none"; }}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <Users size={56} strokeWidth={1.25} className="text-slate-200" />
-          </div>
-        )}
+        <SmartImage
+          src={photoUrl}
+          alt={player.name || "Player"}
+          eager={priority}
+          imgClassName="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.025]"
+          fallback={
+            <div className="flex h-full w-full items-center justify-center">
+              <Users size={56} strokeWidth={1.25} className="text-slate-200" />
+            </div>
+          }
+        />
       </div>
 
       {/* INFO */}
