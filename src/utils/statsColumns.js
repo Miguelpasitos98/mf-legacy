@@ -55,7 +55,7 @@ export const DEFAULT_COLS={
  Físico:["totaldistancecovered","numberofsprints"]
  }
 };
-export const initialConfig=()=>({version:1,columns:structuredClone(DEFAULT_COLS),computed:COMPUTED.map(x=>({...x})),labels:{}});
+export const initialConfig=()=>({version:2,columns:structuredClone(DEFAULT_COLS),computed:COMPUTED.map(x=>({...x})),labels:{}});
 export function sanitizeConfig(data){
  const value=data&&typeof data==="object"?data:{};
  const formulas=Array.isArray(value.computed)?value.computed:COMPUTED;
@@ -73,14 +73,17 @@ export function sanitizeConfig(data){
   columns[mode]={};
   for(const category of CATEGORIES){
    const input=value.columns?.[mode]?.[category];
+   const legacyDefault=mode==="season"?["goals","assists","xg","xa","gaper90","xgaper90"]:["goals","assists","xg","xa","shots","shotsontarget"];
+   const fromOldDefault=Number(value.version||1)<2&&category==="Resumen"&&Array.isArray(input)&&JSON.stringify(input)===JSON.stringify(legacyDefault);
    columns[mode][category]=Array.isArray(input)?[...new Set(input.filter(k=>typeof k==="string"&&ids.has(k)))].slice(0,30):[...DEFAULT_COLS[mode][category]];
+   if(fromOldDefault&&!columns[mode][category].includes("playpct"))columns[mode][category].push("playpct");
   }
  }
  const labels={};
  if(value.labels&&typeof value.labels==="object")for(const [key,display] of Object.entries(value.labels)){
   if(RAW_IDS.has(key)&&typeof display==="string"&&display.trim().length&&display.length<=60)labels[key]=display.trim();
  }
- return {version:1,columns,computed,labels};
+ return {version:2,columns,computed,labels};
 }
 export function parseFormula(expression){
  const input=String(expression||"").trim();
