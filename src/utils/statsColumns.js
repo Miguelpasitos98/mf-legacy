@@ -47,7 +47,7 @@ export const DEFAULT_COLS={
  Físico:["totaldistancecovered","numberofsprints"]
  },
  competition:{
- Resumen:["goals","assists","xg","xa","shots","shotsontarget","team_matches","playpct"],
+ Resumen:["goals","assists","xg","xa","shots","shotsontarget","playpct"],
  Ataque:["goals","assists","xg","xa","xgot","shots","shotsontarget","bigchancescreated"],
  Creación:["accuratepasses","chancescreated","bigchancescreated","xa","successfulcrosses"],
  Defensa:["tackles","interceptions","recoveries","clearances"],
