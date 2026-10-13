@@ -42,8 +42,7 @@ export default function StatsColumnSettings({config,mode:initialMode="season",ca
   setDraft(next);setEditId("");
  };
  const save=async()=>{setBusy(true);setNotice("");try{await onSave(draft);onClose();}catch(e){setNotice("No se han guardado los cambios: "+(e.message||e));}finally{setBusy(false);}};
- const example=sample?(editId&&editId!=="__new"?draft.computed.find(d=>d.id===editId):null):null;
- const preview=example&&sample?(()=>{try{return evalFormula(parseFormula(example.formula),rowValues(sample,mode));}catch{return null;}})():null;
+ const preview=editId&&!rawId&&sample&&!formulaError?(()=>{try{return evalFormula(parseFormula(draftFormula),rowValues(sample,mode));}catch{return null;}})():null;
  return createPortal(<div className="fixed inset-0 z-[10020] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Configurar columnas y fórmulas">
   <div className="flex max-h-[94dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
    <header className="flex items-center gap-3 border-b border-white/10 bg-[#0d2843] px-5 py-4 text-white">
@@ -89,7 +88,7 @@ export default function StatsColumnSettings({config,mode:initialMode="season",ca
      </div>
      {formulaError&&!rawId&&<p className="mt-2 text-xs font-semibold text-red-700">{formulaError}</p>}
      <p className="mt-2 text-[11px] text-slate-600">Disponibles: {availableVars.join(", ")}. Ejemplo: <code>(goals + assists) * 90 / minutes</code>. Las operaciones devuelven «—» cuando falta un dato o el divisor es cero. El histórico usa métricas consolidadas.</p>
-     {example&&<p className="mt-2 text-xs text-slate-500">Valor en el primer registro consultado: <strong>{preview??"—"}</strong></p>}
+     {editId&&!rawId&&sample&&<p className="mt-2 text-xs text-slate-500">Vista previa con el primer registro disponible: <strong>{preview??"—"}</strong></p>}
      <div className="mt-3 flex flex-wrap items-center gap-2">
       <button disabled={Boolean(formulaError)} onClick={saveDefinition} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Aplicar al borrador</button>
       {!rawId&&editId!=="__new"&&!COMPUTED_IDS.has(editId)&&<button onClick={()=>removeCustom(editId)} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700"><Trash2 size={14}/> Eliminar fórmula</button>}
