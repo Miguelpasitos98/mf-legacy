@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {aggregate, groupStatRows, resolveTeam, nationalCompetition, seasonActive} from "../src/utils/statsViews.js";
+import {aggregate, groupStatRows, resolveTeam, nationalCompetition, seasonActive, defaultSeason} from "../src/utils/statsViews.js";
 
 const clubs=[
  {id:"bar",name:"FC Barcelona",logo:"bar.png"},
@@ -50,6 +50,12 @@ test("los subtotales exponen métricas faltantes",()=>{
 test("temporada 2026/2027 en octubre está en curso",()=>{
  assert.equal(seasonActive("2026/2027",new Date("2026-10-13T12:00:00Z")),true);
  assert.equal(seasonActive("2025/2026",new Date("2026-10-13T12:00:00Z")),false);
+});
+test("abre la última temporada finalizada salvo que se elija otra",()=>{
+ const rows=[{season:"2024/2025"},{season:"2025/2026"},{season:"2026/2027"}];
+ const date=new Date("2026-10-13T12:00:00Z");
+ assert.equal(defaultSeason(rows,"",date),"2025/2026");
+ assert.equal(defaultSeason(rows,"2026/2027",date),"2026/2027");
 });
 test("dos clubes explícitos distintos no se fusionan",()=>{
  const other={...raphinha,fotmob_team_id:"8463",team_name:"Leeds United"};
