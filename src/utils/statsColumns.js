@@ -124,6 +124,6 @@ export const rowValues=(row,mode)=>{
 export function columnValue(row,mode,id,config){
  if(!row)return null;
  const definition=config.computed.find(d=>d.id===id);
- if(def){try{return evalFormula(parseFormula(def.formula),rowValues(row,mode));}catch{return null;}}
+ if(definition){try{return evalFormula(parseFormula(definition.formula),rowValues(row,mode));}catch{return null;}}
  return mode==="season"?statDisplay(row,id):metricsValue(row,id);
 }
