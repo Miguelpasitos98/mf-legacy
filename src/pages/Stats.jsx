@@ -19,7 +19,7 @@ const getMetric = (row,name) => {
   if(!row)return null;
   const aliases={goals:["goals","goles"],assists:["assists","asistencias"],xg:["xg","expectedgoals"],xa:["xa","expectedassists"],shots:["shots","tiros"],tackles:["tackles","entradas"],rating:["rating"],saves:["saves"],recoveries:["recoveries"]};
   if(name==="rating" && num(row.rating)!==null)return num(row.rating);
-  const keys=aliases[name]||[name];
+  const keys=aliases[name]||[normalizeLabel(name)];
   const m=(row.metrics||[]).find(m=>keys.includes(normalizeLabel(m.name)));
   return m?num(m.value):null;
 };
