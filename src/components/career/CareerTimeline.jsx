@@ -114,6 +114,11 @@ export default function CareerTimeline({ stages, teamById, onOpenTeam, loading }
                 </div>
 
                 <div className="flex shrink-0 flex-col items-end gap-1">
+                  {stage.review_status === "pending" && (
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                      Pendiente de revisión
+                    </span>
+                  )}
                   {isLoan && (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                       Cesión

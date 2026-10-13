@@ -36,13 +36,14 @@ export default function PlayerCareerHistoryModal({
         const items = Array.isArray(result)
           ? result
           : result?.items || result?.data || [];
-        const approved = items.filter(
-          (stage) => !stage.review_status || stage.review_status === "approved"
+        // Mostrar aprobadas y pendientes; ocultar rechazadas en la vista pública.
+        const visible = items.filter(
+          (stage) => stage.review_status !== "rejected"
         );
         setState({
           status: "ready",
-          stages: approved,
-          message: approved.length ? "" : "Todavía no hay historial importado.",
+          stages: visible,
+          message: visible.length ? "" : "Todavía no hay historial importado.",
         });
       } catch (error) {
         if (controller.signal.aborted) return;
