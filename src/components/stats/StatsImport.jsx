@@ -158,7 +158,8 @@ export default function StatsImport({ players=[], teams=[], onClose, onImported 
           // Solo enriquecimiento: nunca sustituir métricas existentes ni modificar Player/Team.
           const patch={metrics:[...oldMetrics,...extras]};
           let changed=extras.length>0;
-          for(const key of ["appearances","minutes","rating","market_value","market_date"]){
+          if(found.team_matches!==null&&found.team_matches!==undefined&&record.team_matches!==null&&record.team_matches!==undefined&&found.team_matches!==record.team_matches)throw Error("Conflicto de partidos del equipo (team_matches); revisar manualmente.");
+          for(const key of ["appearances","minutes","rating","market_value","market_date","team_matches"]){
             if((found[key]===null||found[key]===undefined||found[key]==="") && record[key]!==null && record[key]!==undefined && record[key]!==""){
               patch[key]=record[key];changed=true;
             }
