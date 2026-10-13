@@ -5,7 +5,7 @@ import {
   ArrowDownAZ, ArrowUpAZ, Cake, Goal,
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 
 import { parseFootballManagerCsv } from "@/utils/playerCsvImporter";
 import { parsePositionCsv, findPlayerForPositionRow } from "@/utils/positionCsvImporter";
