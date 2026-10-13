@@ -13,7 +13,8 @@ import SortHeader from "@/components/stats/SortHeader";
 import {nextSorting,sortStatsItems,defaultSortDirection} from "@/utils/statsSort";
 import StatsColumnSettings from "@/components/stats/StatsColumnSettings";
 import TeamLinkPicker from "@/components/stats/TeamLinkPicker";
-import {initialConfig,sanitizeConfig,getColumn,columnValue} from "@/utils/statsColumns";
+import {initialConfig,sanitizeConfig,getColumn,columnValue,RAW_METRICS} from "@/utils/statsColumns";
+import {bestSeasonPerPlayer} from "@/utils/statsBestSeason";
 import {buildSeasonSummaries} from "@/utils/statsSeason";
 
 const unpack = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || [];
@@ -204,6 +205,7 @@ export default function Stats(){
   const pq=usePlayersQuery(),tq=useTeamsQuery();
   const [season,setSeason]=useState("Todas"),[competition,setCompetition]=useState("Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||"");
   const [viewMode,setViewMode]=useState("season"),[minMinutes,setMinMinutes]=useState(0);
+  const [seasonDisplay,setSeasonDisplay]=useState("all"),[bestMetric,setBestMetric]=useState("rating");
   const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("rating"),[sortDirection,setSortDirection]=useState("desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[revision,setRevision]=useState(0),[page,setPage]=useState(0);
   const {rows,hasMore,loadMore,busy,error}=useStatsRows(season,competition,revision);
   const [columnConfig,setColumnConfig]=useState(initialConfig);
@@ -230,6 +232,11 @@ export default function Stats(){
     if(q)rs=rs.filter(({record:r,player:p})=>[r?.player_name,p?.name,p?.id,r?.team_name,byTeam.get(String(p?.team_id))?.name,r?.fotmob_player_id,playerUID(p)].some(v=>normalizeLabel(v).includes(q)));
     return sortStatsItems(rs,"competition",sort,sortDirection,columnConfig);
   },[stats,players,tab,search,sort,sortDirection,byID,byTeam,columnConfig]);
+  const bestCriteria=useMemo(()=>{
+    const preferred=["rating","goals","assists","xg","xa","gaper90","xgaper90","appearances","minutes"];
+    const known=[...preferred,...RAW_METRICS.map(([id])=>id),...columnConfig.computed.map(d=>d.id)];
+    return [...new Set(known)].map(id=>getColumn(columnConfig,id)).filter(Boolean);
+  },[columnConfig]);
   const seasonVisible=useMemo(()=>{
     const mapped=seasonSummaries.map(summary=>({summary,player:byID.get(String(summary.player_id))||null}));
     if(tab==="todos"){
@@ -239,9 +246,15 @@ export default function Stats(){
     const q=normalizeLabel(search);
     const narrowed=q?mapped.filter(({summary,player})=>[player?.name,player?.id,playerUID(player),summary?.player_name,summary?.fotmob_player_id,summary?.mainClub?.name,summary?.season].some(v=>normalizeLabel(v).includes(q))):mapped;
     const enough=narrowed.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minMinutes:minMinutes===0);
-    return sortStatsItems(enough,"season",sort,sortDirection,columnConfig);
-  },[seasonSummaries,byID,players,tab,search,minMinutes,sort,sortDirection,columnConfig]);
-  const chooseSort=key=>{const next=nextSorting(sort,sortDirection,key);setSort(next.key);setSortDirection(next.direction);setPage(0);};
+    const onePerPlayer=seasonDisplay==="best"?bestSeasonPerPlayer(enough,bestMetric,columnConfig):enough;
+    return sortStatsItems(onePerPlayer,"season",sort,sortDirection,columnConfig);
+  },[seasonSummaries,byID,players,tab,search,minMinutes,sort,sortDirection,columnConfig,seasonDisplay,bestMetric]);
+  const chooseSort=key=>{
+    const next=nextSorting(sort,sortDirection,key);
+    setSort(next.key);setSortDirection(next.direction);
+    if(viewMode==="season"&&seasonDisplay==="best"&&bestCriteria.some(c=>c.id===key))setBestMetric(key);
+    setPage(0);
+  };
   const filtered=visible.slice(page*50,(page+1)*50);
   const activeCount=viewMode==="season"?seasonVisible.length:visible.length;
   const [detailRows,setDetailRows]=useState([]),[detailLoading,setDetailLoading]=useState(false);
