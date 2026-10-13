@@ -11,7 +11,18 @@ export const RAW_METRICS=[
  ["cleansheets","Porterías a cero"],["chancescreated","Oportunidades creadas"],
  ["bigchancescreated","Ocasiones claras"],["accuratepasses","Pases precisos"],
  ["successfulcrosses","Centros precisos"],["saves","Paradas"],["numberofsprints","Sprints"],
- ["totaldistancecovered","Distancia (m)"],["goalsconcededwhileonpitch","Goles encajados en campo"]
+ ["totaldistancecovered","Distancia (m)"],["goalsconcededwhileonpitch","Goles encajados en campo"],
+ ["xgexclpenalty","xG sin penaltis"],["headedshots","Tiros de cabeza"],["topspeed","Velocidad máxima"],
+ ["walking","Distancia andando"],["jogging","Distancia trotando"],["running","Distancia corriendo"],["sprinting","Distancia al sprint"],
+ ["passaccuracy","Precisión de pases (%)"],["accuratelongballs","Pases largos precisos"],["longballaccuracy","Precisión de pases largos (%)"],
+ ["linebreakingpasses","Pases que rompen líneas"],["crossaccuracy","Precisión de centros (%)"],["dribbles","Regates exitosos"],
+ ["dribblessuccessrate","Éxito en regates (%)"],["duelswon","Duelos ganados"],["duelswonvariante2","Éxito en duelos (%)"],
+ ["aerialswon","Duelos aéreos ganados"],["aerialswonvariante2","Éxito en duelos aéreos (%)"],
+ ["touches","Toques"],["touchesinoppositionbox","Toques en área rival"],["dispossessed","Pérdidas de balón"],
+ ["foulswon","Faltas recibidas"],["foulscommitted","Faltas cometidas"],["defensiveactions","Acciones defensivas"],
+ ["blockedscoringattempt","Tiros bloqueados"],["possessionwonfinal3rd","Recuperaciones en campo rival"],["dribbledpast","Regateado"],
+ ["xgagainstwhileonpitch","xG encajado en campo"],["yellowcards","Tarjetas amarillas"],["redcards","Tarjetas rojas"],
+ ["penaltygoals","Goles de penalti"],["penaltiesawarded","Penaltis provocados"],["started","Titularidades"]
 ];
 export const COMPUTED=[
  {id:"ga",name:"Goles + asistencias",formula:"goals + assists",decimals:0},
