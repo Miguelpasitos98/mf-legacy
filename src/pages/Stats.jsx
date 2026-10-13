@@ -241,7 +241,7 @@ export default function Stats(){
   const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("rating"),[sortDirection,setSortDirection]=useState("desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[revision,setRevision]=useState(0),[page,setPage]=useState(0);
   const {rows,hasMore,loadMore,busy,error}=useStatsRows(season,competition,revision);
   const [columnConfig,setColumnConfig]=useState(initialConfig);
-  const [settingsOpen,setSettingsOpen]=useState(false),[prefsRecord,setPrefsRecord]=useState(null),[prefsWarning,setPrefsWarning]=useState("");
+  const [settingsOpen,setSettingsOpen]=useState(false),[settingsContext,setSettingsContext]=useState(null),[prefsRecord,setPrefsRecord]=useState(null),[prefsWarning,setPrefsWarning]=useState("");
   useEffect(()=>{let mounted=true;(async()=>{
     try{const res=await base44.entities.StatsViewPreference.list({limit:50});
       const mine=unpack(res).find(r=>r.key==="stats_layout_personal_v1");
@@ -298,6 +298,14 @@ export default function Stats(){
   const filtered=visible.slice(page*50,(page+1)*50);
   const activeCount=viewMode==="season"?seasonVisible.length:visible.length;
   const [detailRows,setDetailRows]=useState([]),[detailLoading,setDetailLoading]=useState(false);
+  const updateTeamMatches=async(record,matches)=>{
+    if(!record?.id)throw Error("Este registro no tiene identificador y no puede modificarse.");
+    if(!Number.isInteger(matches)||matches<1||matches>200)throw Error("Los PJ del equipo deben ser un entero entre 1 y 200.");
+    await base44.entities.PlayerSeasonStats.update(record.id,{team_matches:matches});
+    setDetailRows(current=>current.map(r=>String(r.id)===String(record.id)?{...r,team_matches:matches}:r));
+    setRevision(v=>v+1);
+  };
+  const openDetailSettings=(detailCategory,sample)=>{setSettingsContext({mode:"competition",category:detailCategory,sample});setSettingsOpen(true);};
   const linkHistoricalTeams=async(ids,teamId)=>{
     const team=teams.find(t=>String(t.id)===String(teamId));
     if(!team)throw Error("No se ha encontrado el equipo elegido.");
@@ -334,7 +342,7 @@ export default function Stats(){
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 md:px-5">
       <p className="text-xs font-black uppercase tracking-[.12em] text-[#0d315b]">STATS <span className="ml-2 font-normal normal-case tracking-normal text-slate-400">Rendimiento por temporada</span></p>
       <div className="flex items-center gap-2">
-        <button type="button" onClick={()=>setSettingsOpen(true)} title="Configurar columnas, cálculos y categorías" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Settings2 size={16}/> Ajustes</button>
+        <button type="button" onClick={()=>{setSettingsContext(null);setSettingsOpen(true);}} title="Configurar columnas, cálculos y categorías" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Settings2 size={16}/> Ajustes</button>
         <button onClick={()=>setImportOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white hover:bg-[#002777]"><Upload size={15}/> Importar</button>
       </div>
     </div>
@@ -363,8 +371,8 @@ export default function Stats(){
 
     </div>
     {prefsWarning&&<p className="px-5 py-2 text-xs text-amber-700">{prefsWarning}</p>}
-    {settingsOpen&&<StatsColumnSettings config={columnConfig} mode={viewMode} category={category} sample={viewMode==="season"?seasonSummaries[0]:stats[0]} onClose={()=>setSettingsOpen(false)} onSave={saveColumns}/>}
+    {settingsOpen&&<StatsColumnSettings config={columnConfig} mode={settingsContext?.mode||viewMode} category={settingsContext?.category||category} sample={settingsContext?.sample||(viewMode==="season"?seasonSummaries[0]:stats[0])} onClose={()=>setSettingsOpen(false)} onSave={saveColumns}/>}
     {importOpen&&<StatsImport players={players} teams={teams} onClose={()=>setImportOpen(false)} onImported={importComplete}/>}
-    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
+    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onOpenSettings={openDetailSettings} onSetTeamMatches={updateTeamMatches} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
   </div>;
 }
