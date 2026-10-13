@@ -212,6 +212,21 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           <button onClick={onClose} className="rounded-lg bg-[#003399] px-5 py-2 text-xs font-bold text-white">Cerrar</button>
         </div>
       </div>
+      {teamMatchesTarget&&<div className="absolute inset-0 z-[2] flex items-center justify-center bg-slate-950/65 p-4" role="dialog" aria-modal="true" aria-label="Editar partidos disputados por el equipo">
+        <form onSubmit={saveTeamMatches} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-5 shadow-2xl">
+          <div className="flex items-start justify-between gap-3">
+            <div><h3 className="text-base font-black text-[#0c2e51]">Partidos del equipo</h3><p className="mt-1 text-xs text-slate-500">{teamMatchesTarget.season} · {teamMatchesTarget.competition}</p></div>
+            <button type="button" onClick={()=>setTeamMatchesTarget(null)} disabled={teamMatchesBusy} aria-label="Cerrar"><X size={18}/></button>
+          </div>
+          <p className="text-xs text-slate-600">Indica cuántos partidos había disputado el equipo en esta competición <strong>hasta la fecha de los datos del jugador</strong>. No son los partidos jugados por el futbolista ni los programados para toda la temporada.</p>
+          <label className="block text-xs font-bold text-slate-700">PJ del equipo
+            <input type="number" min="1" max="200" step="1" required value={teamMatchesValue} onChange={event=>setTeamMatchesValue(event.target.value)} placeholder="Ejemplo: 22" className="mt-1 block w-full rounded-lg border border-slate-200 p-3 text-base outline-none focus:border-[#003399]"/>
+          </label>
+          <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900">Play % = minutos del jugador ÷ (PJ del equipo × 90) × 100. Es una estimación de minutos reglamentarios: las prórrogas y períodos añadidos pueden alterar el porcentaje.</p>
+          {teamMatchesError&&<p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{teamMatchesError}</p>}
+          <div className="flex justify-end gap-2"><button type="button" onClick={()=>setTeamMatchesTarget(null)} disabled={teamMatchesBusy} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Cancelar</button><button type="submit" disabled={teamMatchesBusy} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{teamMatchesBusy?"Guardando…":"Guardar PJ equipo"}</button></div>
+        </form>
+      </div>}
       {teamLinkTarget&&<TeamLinkPicker season={activeSeason} records={stats} teams={teams} initialRecord={teamLinkTarget==="bulk"?null:teamLinkTarget} onClose={()=>setTeamLinkTarget(null)} onApply={onLinkTeams}/>}
     </div>,document.body
   );
