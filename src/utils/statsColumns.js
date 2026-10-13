@@ -4,7 +4,7 @@ import {statDisplay} from "./statsSeason.js";
 export const MODES=["season","competition"];
 export const CATEGORIES=["Resumen","Ataque","Creación","Defensa","Portería","Físico"];
 export const RAW_METRICS=[
- ["appearances","Partidos"],["minutes","Minutos"],["rating","Nota FotMob"],
+ ["appearances","Partidos"],["minutes","Minutos"],["rating","Nota FotMob"],["team_matches","PJ del equipo"],
  ["goals","Goles"],["assists","Asistencias"],["xg","xG"],["xa","xA"],["xgot","xGOT"],
  ["shots","Tiros"],["shotsontarget","Tiros a puerta"],["tackles","Entradas"],
  ["recoveries","Recuperaciones"],["interceptions","Intercepciones"],["clearances","Despejes"],
@@ -32,13 +32,14 @@ export const COMPUTED=[
  {id:"gaper90",name:"G+A /90",formula:"(goals + assists) * 90 / minutes",decimals:2},
  {id:"xgper90",name:"xG /90",formula:"xg * 90 / minutes",decimals:2},
  {id:"xaper90",name:"xA /90",formula:"xa * 90 / minutes",decimals:2},
- {id:"xgaper90",name:"xG+xA /90",formula:"(xg + xa) * 90 / minutes",decimals:2}
+ {id:"xgaper90",name:"xG+xA /90",formula:"(xg + xa) * 90 / minutes",decimals:2},
+ {id:"playpct",name:"Play %",formula:"minutes / (team_matches * 90) * 100",decimals:1}
 ];
 export const RAW_IDS=new Set(RAW_METRICS.map(x=>x[0]));
 export const COMPUTED_IDS=new Set(COMPUTED.map(x=>x.id));
 export const DEFAULT_COLS={
  season:{
- Resumen:["goals","assists","xg","xa","gaper90","xgaper90"],
+ Resumen:["goals","assists","xg","xa","gaper90","xgaper90","playpct"],
  Ataque:["goals","assists","ga","goalsper90","assistsper90","gaper90","xg","xa","xgper90","xaper90","xgaper90","shots","shotsontarget"],
  Creación:["chancescreated","bigchancescreated","accuratepasses","successfulcrosses","xa","xaper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","cleansheets"],
@@ -46,7 +47,7 @@ export const DEFAULT_COLS={
  Físico:["totaldistancecovered","numberofsprints"]
  },
  competition:{
- Resumen:["goals","assists","xg","xa","shots","shotsontarget"],
+ Resumen:["goals","assists","xg","xa","shots","shotsontarget","team_matches","playpct"],
  Ataque:["goals","assists","xg","xa","xgot","shots","shotsontarget","bigchancescreated"],
  Creación:["accuratepasses","chancescreated","bigchancescreated","xa","successfulcrosses"],
  Defensa:["tackles","interceptions","recoveries","clearances"],
@@ -60,7 +61,7 @@ export function sanitizeConfig(data){
  const formulas=Array.isArray(value.computed)?value.computed:COMPUTED;
  const computed=[];
  for(const d of formulas.slice(0,80)){
-  if(!d||typeof d!=="object"||typeof d.id!=="string"||!/^(?:calc_[a-z0-9_]+|ga|xga|goalsper90|assistsper90|gaper90|xgper90|xaper90|xgaper90)$/.test(d.id))continue;
+  if(!d||typeof d!=="object"||typeof d.id!=="string"||!/^(?:calc_[a-z0-9_]+|ga|xga|goalsper90|assistsper90|gaper90|xgper90|xaper90|xgaper90|playpct)$/.test(d.id))continue;
   if(typeof d.name!=="string"||!d.name.trim()||d.name.length>60||typeof d.formula!=="string")continue;
   try{parseFormula(d.formula);}catch{continue;}
   if(!computed.some(a=>a.id===d.id))computed.push({id:d.id,name:d.name.trim(),formula:d.formula,decimals:Math.min(4,Math.max(0,Number(d.decimals)||0))});
@@ -119,7 +120,7 @@ export function evalFormula(ast,values){
 export function getColumn(config,id){
  const def=config.computed.find(d=>d.id===id);
  const raw=RAW_METRICS.find(([key])=>key===id);
- return def?{...def,kind:"computed"}:raw?{id,name:config.labels[id]||raw[1],decimals:["rating","xg","xa","xgot","xgexclpenalty","xgagainstwhileonpitch"].includes(id)?2:["topspeed","passaccuracy","longballaccuracy","crossaccuracy","dribblessuccessrate","duelswonvariante2","aerialswonvariante2"].includes(id)?1:0,kind:"raw"}:null;
+ return def?{...def,kind:"computed",unit:id==="playpct"?"%":""}:raw?{id,name:config.labels[id]||raw[1],decimals:["rating","xg","xa","xgot","xgexclpenalty","xgagainstwhileonpitch"].includes(id)?2:["topspeed","passaccuracy","longballaccuracy","crossaccuracy","dribblessuccessrate","duelswonvariante2","aerialswonvariante2"].includes(id)?1:0,kind:"raw"}:null;
 }
 export const rowValues=(row,mode)=>{
  const values={};
