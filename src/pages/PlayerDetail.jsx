@@ -1071,6 +1071,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         </button>
 
         <div className="flex items-center gap-5">
+          <button type="button" onClick={() => navigate("/stats?stats_player="+encodeURIComponent(player?.id||""))} className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 transition hover:text-[#003399]" aria-label="Ver estadísticas reales por temporada">STATS</button>
           <button
             type="button"
             onClick={() => setShowDbHistory(true)}
