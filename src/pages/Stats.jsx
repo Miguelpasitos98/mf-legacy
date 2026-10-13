@@ -101,15 +101,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,on
       </button>:info.status==="national"?<span className="text-slate-500">Selección nacional</span>:info.status==="source"?<span>{info.label}</span>:info.status==="suggested"?<div className="flex items-center gap-1 text-amber-800"><Shield size={13}/><span>{info.label}</span></div>:<span className="text-slate-400">Club pendiente</span>}
       {info.status==="confirmed"&&<span className="text-[10px] text-emerald-700">Club reconocido en MY LEGACY</span>}
       {info.status==="suggested"&&<span className="text-[10px] text-amber-700">No confirmado</span>}
-      {info.status!=="national"&&!r.team_id&&r.id&&<select
-        aria-label={"Vincular club de "+r.season+" "+r.competition}
-        disabled={linking===r.id}
-        value=""
-        className="max-w-[190px] rounded border border-slate-200 bg-white px-1 py-1 text-[10px] text-slate-600 disabled:opacity-40"
-        onChange={e=>{if(e.target.value)onLinkTeam(r,e.target.value);}}>
-        <option value="">Vincular equipo…</option>
-        {teams.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"es")).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
-      </select>}
+      {info.status!=="national"&&r.id&&<button type="button" onClick={()=>setTeamLinkTarget(r)} className="w-fit rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-bold text-[#003399] hover:bg-blue-100">Buscar / cambiar club</button>}
     </div>;
   };
   return createPortal(
@@ -144,6 +136,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,on
                 <option value="clubs">Solo clubes</option><option value="all">Clubes + selecciones</option>
               </select>
             </label>
+            <button type="button" disabled={activeSeason==="Todas"} title={activeSeason==="Todas"?"Selecciona una temporada concreta":"Vincular varios registros con un club"} onClick={()=>setTeamLinkTarget("bulk")} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-40">Asignar club a la temporada…</button>
             <span className="ml-auto rounded-full bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800">{shown.length} competiciones visibles</span>
           </div>
           {inProgress&&<p className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">Temporada en curso: las estadísticas pueden cambiar y no representan el cierre definitivo.</p>}
@@ -164,12 +157,12 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,on
           <div className="mb-3 flex flex-wrap gap-2">{CAT_TABS.map(x=><button key={x} onClick={()=>setCategory(x)} className={"rounded-lg px-3 py-2 text-xs font-bold "+(category===x?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{x}</button>)}</div>
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[720px] text-left text-xs">
-              <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className="px-3 py-3">Temporada / competición</th><th className="px-3 py-3">Club en esa temporada</th><th className="px-3 py-3">PJ</th><th className="px-3 py-3">Min</th><th className="px-3 py-3">Nota</th>{selected.map(id=><th key={id} className="whitespace-nowrap px-3 py-3">{metricLabel(id)}</th>)}</tr></thead>
+              <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className="px-3 py-3">Temporada / competición</th><th className="px-3 py-3">Club en esa temporada</th><th className="px-3 py-3">PJ</th><th className="px-3 py-3">Min</th><th className="px-3 py-3">Nota</th>{selected.map(id=><th key={id} className="whitespace-nowrap px-3 py-3">{getColumn(config,id)?.name||metricLabel(id)}</th>)}</tr></thead>
               <tbody>{shown.length?shown.sort((a,b)=>b.season.localeCompare(a.season)||a.competition.localeCompare(b.competition)).map((r,i)=><tr key={r.id||r.external_record_id||i} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className="px-3 py-3 font-semibold">{r.season}<div className="font-normal text-slate-500">{r.competition}</div>{r._sourceRows>1&&<span className="text-[10px] text-blue-700">Fuentes consolidadas: {r._sourceRows}</span>}</td>
                 <td className="px-3 py-3">{teamCell(r)}</td>
                 <td className="px-3 py-3">{show(r.appearances)}</td><td className="px-3 py-3">{show(r.minutes)}</td><td className="px-3 py-3">{show(r.rating,2)}</td>
-                {selected.map(id=><td key={id} className="px-3 py-3 font-semibold">{show(metricsValue(r,id),["xg","xa","xgot"].includes(id)?2:0)}</td>)}
+                {selected.map(id=><td key={id} className="px-3 py-3 font-semibold">{show(columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??0)}</td>)}
               </tr>):<tr><td colSpan={5+selected.length} className="p-8 text-center text-slate-500">No hay registros para esta selección. Cambia el ámbito o la temporada.</td></tr>}</tbody>
             </table>
           </div>
