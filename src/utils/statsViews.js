@@ -51,6 +51,12 @@ export const seasonActive=(season,now=new Date())=>{
  const current=now.getUTCMonth()>=6?now.getUTCFullYear():now.getUTCFullYear()-1;
  return start===current;
 };
+export const defaultSeason = (rows, preferred="", now=new Date()) => {
+  const seasons=[...new Set((rows||[]).map(r=>r.season).filter(Boolean))].sort().reverse();
+  if(preferred&&seasons.includes(preferred))return preferred;
+  const latestCompletedEnd=now.getUTCMonth()>=6?now.getUTCFullYear():now.getUTCFullYear()-1;
+  return seasons.find(s=>/^\d{4}\/\d{4}$/.test(s)&&Number(s.slice(5))<=latestCompletedEnd)||seasons[0]||"Todas";
+};
 export const groupStatRows=(rows)=>{
  const grouped=new Map();
  for(const r of rows||[]){
