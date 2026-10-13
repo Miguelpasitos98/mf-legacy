@@ -52,7 +52,20 @@ export default function StatsImport({ players=[], teams=[], onClose, onImported 
   },[playerSearch,uniquePlayers]);
   useEffect(()=>{
     let active=true;
-    base44.entities.PlayerFotmobLink.list({limit:500}).then(r=>{if(active)setLinks(unpack(r));}).catch(()=>{});
+    (async()=>{
+      try{
+        let cursor=null;
+        const all=[];
+        for(let n=0;n<100;n++){
+          const result=await base44.entities.PlayerFotmobLink.list({limit:500,...(cursor?{cursor}:{})});
+          all.push(...unpack(result));
+          const next=result?.next_cursor||result?.nextCursor||null;
+          if(!next||next===cursor)break;
+          cursor=next;
+        }
+        if(active)setLinks(all);
+      }catch(error){if(active)setMessage("No se pudo consultar el mapa de IDs: "+(error.message||error));}
+    })();
     return()=>{active=false;};
   },[]);
   const selectFile=async(e)=>{
