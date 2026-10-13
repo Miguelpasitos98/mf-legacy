@@ -101,6 +101,23 @@ const parseCSVRows = (text) => {
   const headers=rows.shift().map((x)=>x.trim().replace(/^\uFEFF/,""));
   return rows.map((values)=>Object.fromEntries(headers.map((h,i)=>[h,values[i] ?? ""])));
 };
+const cleanJSONC = (text) => {
+  const input=String(text||"").replace(/^\uFEFF/,"");
+  let out="",quoted=false,escaped=false,comment="";
+  for(let i=0;i<input.length;i++){
+    const c=input[i],next=input[i+1];
+    if(comment==="line"){if(c==="\n"){comment="";out+="\n";}continue;}
+    if(comment==="block"){if(c==="*"&&next==="/"){comment="";i++;}else if(c==="\n")out+="\n";continue;}
+    if(quoted){out+=c;if(escaped)escaped=false;else if(c==="\\")escaped=true;else if(c==='"')quoted=false;continue;}
+    if(c==='"'){quoted=true;out+=c;continue;}
+    if(c==="/"&&next==="/"){comment="line";i++;continue;}
+    if(c==="/"&&next==="*"){comment="block";i++;continue;}
+    if(c===","){let j=i+1;while(/\s/.test(input[j]||"")&&j<input.length)j++;if(input[j]==="}"||input[j]==="]")continue;}
+    out+=c;
+  }
+  if(quoted||comment==="block")throw Error("JSONC incompleto: cadena o comentario sin cerrar.");
+  return out;
+};
 export function parseStatsText(text, filename="archivo.json") {
   const csv=/\.csv$/i.test(filename);
   let rows, schema="";
@@ -119,7 +136,7 @@ export function parseStatsText(text, filename="archivo.json") {
       rows=[...byId.values()];
     }
   }else{
-    const raw=JSON.parse(String(text||"").replace(/^\uFEFF/,""));
+    const raw=JSON.parse(cleanJSONC(text));
     if(Array.isArray(raw)) rows=raw;
     else if(raw && typeof raw==="object"){
       schema=asText(raw.schema);
