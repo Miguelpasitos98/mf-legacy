@@ -9,6 +9,7 @@ import {
   Trophy,
   CalendarDays,
   Pencil,
+  RefreshCw,
 } from "lucide-react";
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,6 +21,7 @@ import {
   useTeamLeaguesQuery,
 } from "@/hooks/useSharedData";
 import { base44 } from "@/api/base44Client";
+import FlagSyncModal from "@/components/countries/FlagSyncModal";
 
 const inputClassName =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
@@ -327,6 +329,7 @@ export default function Countries() {
   });
   const [isSavingCountry, setIsSavingCountry] = useState(false);
   const [countryEditError, setCountryEditError] = useState("");
+  const [flagSyncOpen, setFlagSyncOpen] = useState(false);
 
   // --- DERIVED DATA FROM SHARED CACHE (synchronous, no flash) ---
 
@@ -1072,8 +1075,18 @@ export default function Countries() {
             </p>
           </div>
 
-          <div className="hidden rounded-xl bg-[#003399] px-4 py-3 text-sm font-semibold text-white md:block">
-            {countries.length} países
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setFlagSyncOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              <RefreshCw size={14} />
+              Sync Flags
+            </button>
+            <div className="hidden rounded-xl bg-[#003399] px-4 py-3 text-sm font-semibold text-white md:block">
+              {countries.length} países
+            </div>
           </div>
         </div>
 
@@ -1195,6 +1208,15 @@ export default function Countries() {
               Prueba con otro nombre.
             </p>
           </div>
+        )}
+
+        {flagSyncOpen && (
+          <FlagSyncModal
+            open={flagSyncOpen}
+            onClose={() => setFlagSyncOpen(false)}
+            countries={countries}
+            queryClient={queryClient}
+          />
         )}
       </div>
     </div>
