@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search, Plus, X, Upload, FileText, CheckCircle2, AlertCircle,
   Loader2, Users, Building2, Globe2, ChevronDown,
