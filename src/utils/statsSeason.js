@@ -1,7 +1,7 @@
 // Resúmenes de temporada derivados. No se guardan ni alteran registros FotMob.
 import {aggregate, groupStatRows, metricsValue, nationalCompetition, norm, resolveTeam, statNum} from "./statsViews.js";
 
-const SUM_KEYS=["appearances","minutes","goals","assists","xg","xa","shots","shotsontarget","xgot","tackles","recoveries","interceptions","clearances","cleansheets","chancescreated","bigchancescreated","accuratepasses","successfulcrosses","saves","goalsconcededwhileonpitch","totaldistancecovered","numberofsprints"];
+const SUM_KEYS=["appearances","minutes","goals","assists","xg","xa","shots","shotsontarget","xgot","tackles","recoveries","interceptions","clearances","cleansheets","chancescreated","bigchancescreated","accuratepasses","successfulcrosses","saves","goalsconcededwhileonpitch","totaldistancecovered","numberofsprints","xgexclpenalty","headedshots","walking","jogging","running","sprinting","accuratelongballs","linebreakingpasses","dribbles","duelswon","aerialswon","touches","touchesinoppositionbox","dispossessed","foulswon","foulscommitted","defensiveactions","blockedscoringattempt","possessionwonfinal3rd","dribbledpast","xgagainstwhileonpitch","yellowcards","redcards","penaltygoals","penaltiesawarded","started"];
 const groupId=row=>String(row.player_id||row.fotmob_player_id||"");
 
 export function seasonSummary(rows,teams=[]){
@@ -9,6 +9,9 @@ export function seasonSummary(rows,teams=[]){
  if(!records.length)return null;
  const season=records[0].season;
  const totals=aggregate(records,SUM_KEYS);
+ // Velocidad máxima: se toma el máximo observado, nunca se suman velocidades.
+ const speed=records.map(r=>metricsValue(r,"topspeed")).filter(v=>v!==null);
+ totals.topspeed={value:speed.length?Math.max(...speed):null,available:speed.length,total:records.length,partial:speed.length!==records.length};
  const rated=records.filter(r=>statNum(r.rating)!==null && statNum(r.appearances)>0);
  const ratingMatches=rated.reduce((n,r)=>n+Number(r.appearances),0);
  const weightedRating=ratingMatches>0?rated.reduce((n,r)=>n+Number(r.rating)*Number(r.appearances),0)/ratingMatches:null;
