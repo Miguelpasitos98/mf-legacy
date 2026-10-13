@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { aggregate, groupStatRows, metricsValue, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
+import { aggregate, defaultSeason, groupStatRows, metricsValue, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, BarChart3, Database, Search, Shield, Trophy, Upload, Users, X } from "lucide-react";
@@ -63,10 +63,10 @@ function Avatar({name,photo,size="md"}) {
   return <div className={classes+" flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#e9f0f9] font-black text-[#31557b]"}>{photo&&!broken?<img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" onError={()=>setBroken(true)}/>:String(name||"?").slice(0,2).toUpperCase()}</div>;
 }
 function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);return <span className="inline-flex max-w-[170px] items-center gap-2">{logo&&!broken?<img src={logo} alt="" className="h-5 w-5 object-contain" onError={()=>setBroken(true)}/>:<Shield size={16} className="text-slate-300"/>}<span className="truncate">{teamName||"Sin equipo"}</span></span>;}
-function StatDetail({player,stats,teams,onClose,onPlayer,onTeam,onLinkTeam,linking}) {
+function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,onLinkTeam,linking}) {
   const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
   const [season,setSeason]=useState("auto");
-  const activeSeason=season==="auto"?(seasons[0]||"Todas"):season;
+  const activeSeason=season==="auto"?defaultSeason(stats,initialSeason):season;
   const [competition,setCompetition]=useState("Todas");
   const [scope,setScope]=useState("clubs");
   const [category,setCategory]=useState("Resumen");
@@ -241,6 +241,6 @@ export default function Stats(){
       <p className="pb-5 text-xs text-slate-500">Estadísticas asociadas exclusivamente a IDs confirmados. Los atributos de Football Manager permanecen en PLAYERS y nunca se modifican al importar estadísticas. Las cifras pueden requerir revisión y permisos de reutilización antes de publicarse.</p>
     </div>
     {importOpen&&<StatsImport players={players} teams={teams} onClose={()=>setImportOpen(false)} onImported={importComplete}/>}
-    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} teams={teams} onLinkTeam={linkHistoricalTeam} linking={linking} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} onTeam={id=>{setSelected(null);navigate("/teams?stats_team="+encodeURIComponent(id));}}/>}
+    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.record?.season||""} teams={teams} onLinkTeam={linkHistoricalTeam} linking={linking} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} onTeam={id=>{setSelected(null);navigate("/teams?stats_team="+encodeURIComponent(id));}}/>}
   </div>;
 }
