@@ -1,6 +1,15 @@
 // Resolución masiva de clubes para el importador de historiales MF LEGACY.
 // Agrupa clubes por club_qid de Wikidata (o por nombre normalizado si no hay qid)
 // y los clasifica para vinculación/creación masiva sin generar duplicados.
+//
+// Estrategia:
+//  1. ClubLink existente (QID) -> reutilizada automáticamente.
+//  2. Coincidencia exacta de núcleo normalizado (un solo candidato) -> fiable.
+//  3. Varios candidatos -> ambiguo (revisión, sin selección automática).
+//  4. Sin coincidencia y con QID -> creable.
+//  5. Sin QID ni coincidencia -> sin identificar.
+// Los equipos filiales/juveniles se tratan como entidades distintas: si el club
+// importado y un candidato tienen distinto "estatus filial", no se vinculan.
 
 import { normalizeClubName } from "./careerImport";
 
@@ -11,8 +20,44 @@ export const clubKeyFor = (record) => {
   return `name:${normalizeClubName(record?.club_name)}`;
 };
 
+// Tokeniza sin eliminar genéricos (para detectar filiales/juveniles).
+const tokenizeClub = (name) =>
+  String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[.\-_/\\'`´·,;:&()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const RESERVE_WORDS = [
+  "castilla",
+  "filial",
+  "juvenil",
+  "juveniles",
+  "reserves",
+  "reserve",
+  "u19",
+  "u21",
+  "u23",
+  "u17",
+  "u16",
+  "u15",
+  "amateur",
+  "promesas",
+  "aficionados",
+  "subsidiary",
+];
+
+// ¿El nombre tokenizado indica un equipo filial/juvenil?
+const hasReserveToken = (tokenized) => {
+  if (!tokenized) return false;
+  if (/\b(b|bb|ii|iii|iv)\b/.test(tokenized)) return true;
+  return RESERVE_WORDS.some((w) => tokenized.includes(w));
+};
+
 // Detecta grupos de clubes únicos a partir de las entradas parseadas.
-// Devuelve: [{ key, club_qid, club_name, normalized, stageIds, sampleNames }]
+// Devuelve: [{ key, club_qid, club_name, normalized, tokenized, isReserve, stageIds, sampleNames }]
 export const detectClubs = (entries) => {
   if (!Array.isArray(entries)) return [];
   const map = new Map();
@@ -21,11 +66,14 @@ export const detectClubs = (entries) => {
     if (!r) continue;
     const key = clubKeyFor(r);
     if (!map.has(key)) {
+      const tokenized = tokenizeClub(r.club_name);
       map.set(key, {
         key,
         club_qid: String(r.club_qid || "").trim(),
         club_name: String(r.club_name || "").trim(),
         normalized: normalizeClubName(r.club_name),
+        tokenized,
+        isReserve: hasReserveToken(tokenized),
         stageIds: [],
         sampleNames: new Set(),
       });
@@ -41,41 +89,10 @@ export const detectClubs = (entries) => {
   }));
 };
 
-// Coincidencias exactas por nombre normalizado (nombre o short_name del Team).
-// Solo estas se consideran fiables para vinculación automática.
-const matchTeamExact = (normalized, teams) => {
-  if (!normalized) return [];
-  const matches = [];
-  for (const t of teams) {
-    const n = normalizeClubName(t.name);
-    const s = normalizeClubName(t.short_name || t.shortName || "");
-    if (n && n === normalized) matches.push({ team: t, via: "name", score: 1 });
-    else if (s && s === normalized) matches.push({ team: t, via: "short_name", score: 0.98 });
-  }
-  return matches;
-};
-
-// Coincidencias parciales por inclusión textual (solo para señalar ambigüedad,
-// nunca para vincular automáticamente).
-const matchTeamPartial = (normalized, teams) => {
-  if (!normalized || normalized.length < 4) return [];
-  return teams
-    .map((t) => {
-      const n = normalizeClubName(t.name);
-      const s = normalizeClubName(t.short_name || "");
-      let score = 0;
-      if (n && (n.includes(normalized) || normalized.includes(n))) score = 0.82;
-      else if (s && (s.includes(normalized) || normalized.includes(s))) score = 0.78;
-      return score > 0 ? { team: t, score } : null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => b.score - a.score);
-};
-
 // Resuelve un grupo de club a un estado de vinculación.
 // status: "linked" | "matched" | "creatable" | "ambiguous" | "unidentified"
 export const resolveClubGroup = (group, { clubLinks, teams }) => {
-  // 1. Asociación existente en ClubLink.
+  // 1. Asociación existente en ClubLink (reutilizar automáticamente).
   if (group.club_qid && clubLinks && clubLinks[group.club_qid]) {
     const team = teams.find(
       (t) => String(t.id) === String(clubLinks[group.club_qid])
@@ -83,25 +100,56 @@ export const resolveClubGroup = (group, { clubLinks, teams }) => {
     if (team) return { status: "linked", team, candidates: [] };
   }
 
-  // 2. Coincidencia exacta (fiable).
-  const exact = matchTeamExact(group.normalized, teams);
-  if (exact.length === 1) return { status: "matched", team: exact[0].team, candidates: exact };
-  if (exact.length > 1) return { status: "ambiguous", team: null, candidates: exact };
+  const importCore = group.normalized || normalizeClubName(group.club_name);
+  if (!importCore) {
+    // Sin nombre aprovechable: no se puede asociar por nombre.
+    return group.club_qid
+      ? { status: "creatable", team: null, candidates: [] }
+      : { status: "unidentified", team: null, candidates: [] };
+  }
+  const importReserve = group.isReserve ?? hasReserveToken(group.tokenized || tokenizeClub(group.club_name));
 
-  // 3. Sin coincidencia exacta: similitud textual → ambiguo (no se auto-vincula).
-  const partial = matchTeamPartial(group.normalized, teams);
-  if (partial.length) return { status: "ambiguous", team: null, candidates: partial.slice(0, 5) };
+  const candidates = [];
+  for (const t of teams) {
+    const tCore = normalizeClubName(t.name);
+    const tTok = tokenizeClub(t.name);
+    const tReserve = hasReserveToken(tTok);
 
-  // 4. Creable si tiene club_qid (evita duplicados al reutilizar la asociación).
-  if (group.club_qid) return { status: "creatable", team: null, candidates: [] };
+    // Distinto estatus filial -> clubes diferentes, no se vinculan.
+    if (tReserve !== importReserve) continue;
 
-  return { status: "unidentified", team: null, candidates: [] };
+    let score = 0;
+    if (tCore && tCore === importCore) {
+      score = 1;
+    } else if (tCore && importCore.length >= 5 && (tCore.includes(importCore) || importCore.includes(tCore))) {
+      score = 0.85;
+    } else {
+      const sCore = normalizeClubName(t.short_name || t.shortName || "");
+      if (sCore && sCore === importCore && importCore.length >= 3) score = 0.9;
+    }
+    if (score > 0) candidates.push({ team: t, score });
+  }
+  candidates.sort((a, b) => b.score - a.score);
+
+  // Coincidencia inequívoca: un único candidato.
+  if (candidates.length === 1) {
+    return { status: "matched", team: candidates[0].team, candidates };
+  }
+  // Varios candidatos: revisión manual, sin selección automática.
+  if (candidates.length > 1) {
+    return { status: "ambiguous", team: null, candidates: candidates.slice(0, 5) };
+  }
+
+  // Sin coincidencia: creable si tiene QID (evita duplicados al reutilizar).
+  return group.club_qid
+    ? { status: "creatable", team: null, candidates: [] }
+    : { status: "unidentified", team: null, candidates: [] };
 };
 
 export const CLUB_STATUS_LABELS = {
-  linked: "Ya vinculados",
-  matched: "Coincidencia fiable",
-  creatable: "Creables",
+  linked: "Vinculados",
+  matched: "Coincidencias fiables",
+  creatable: "Nuevos",
   ambiguous: "Ambiguos",
   unidentified: "Sin identificar",
   resolved: "Resueltos",

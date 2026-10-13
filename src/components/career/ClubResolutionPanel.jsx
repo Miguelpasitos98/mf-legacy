@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Loader2,
   ShieldCheck,
+  RefreshCw,
 } from "lucide-react";
 import { CLUB_STATUS_LABELS } from "@/utils/clubResolution";
 
@@ -23,6 +24,7 @@ export default function ClubResolutionPanel({
   onCreateMissing,
   onSelectAllValid,
   onImportAllValid,
+  onReanalyze,
   onConfirmAction,
   onCancelAction,
   validStageCount,
@@ -92,6 +94,14 @@ export default function ClubResolutionPanel({
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
           Importar todas las etapas válidas
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onReanalyze}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+        >
+          <RefreshCw size={14} /> Reanalizar clubes
         </button>
       </div>
 

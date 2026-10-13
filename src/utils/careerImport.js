@@ -52,14 +52,26 @@ const asArray = (value) => {
   return [];
 };
 
-// Normaliza un nombre de club para comparaciones tolerantes (sin FC/CF/acentos).
-export const normalizeClubName = (name) =>
-  String(name || "")
+// Normaliza un nombre de club para generar candidatos de coincidencia.
+// Elimina acentos, unifica puntuación (f.c. -> fc) y quita términos genéricos
+// como palabras completas. La eliminación de genéricos SOLO sirve para generar
+// candidatos; la vinculación automática exige coincidencia inequívoca.
+export const normalizeClubName = (name) => {
+  let s = String(name || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\b(fc|cf|football club|futbol club|club de futbol|afc|sc|ac|bk|nk|sk)\b/g, " ")
-    .replace(/[^a-z0-9]/g, "");
+    .toLowerCase();
+  // Unificar puntuación y separadores a espacios: "f.c." -> "f c".
+  s = s.replace(/[.\-_/\\'`´·,;:&()]/g, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  // Eliminar términos genéricos como palabras completas.
+  s = s.replace(
+    /\b(fc|cf|fbc|afc|sc|ac|bk|nk|sk|ss|cd|sd|fk|kk|rc|ca|cg|vc|sv|ig|vfl|vfb|tsv|psv|rsc|football|club|futbol|association|calcio|balompie|polideportivo|deportivo|deportiva)\b/g,
+    " "
+  );
+  s = s.replace(/\s+/g, " ").trim();
+  return s.replace(/[^a-z0-9]/g, "");
+};
 
 // Convierte un registro crudo del JSON en un objeto plano de PlayerCareer.
 export const normalizeRecord = (raw) => {

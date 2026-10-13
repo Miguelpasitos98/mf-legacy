@@ -11,7 +11,7 @@ import {
   History,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
+import { usePlayersQuery } from "@/hooks/useSharedData";
 import { parseCareerFile, resolvePlayer } from "@/utils/careerImport";
 import {
   detectClubs,
@@ -74,7 +74,7 @@ const persistClubLink = async (club_qid, team_id, club_name) => {
 export default function ImportHistory() {
   const queryClient = useQueryClient();
   const playersQuery = usePlayersQuery();
-  const teamsQuery = useTeamsQuery();
+  const [allTeams, setAllTeams] = useState([]);
 
   const players = useMemo(
     () =>
@@ -92,7 +92,7 @@ export default function ImportHistory() {
 
   const teams = useMemo(
     () =>
-      (teamsQuery.data || [])
+      (allTeams || [])
         .map((t) => ({
           ...t,
           id: t?.id || t?._id || "",
@@ -101,7 +101,7 @@ export default function ImportHistory() {
           logo: t?.logo || "",
         }))
         .filter((t) => t.id && t.name),
-    [teamsQuery.data]
+    [allTeams]
   );
 
   const [isAdmin, setIsAdmin] = useState(null);
@@ -136,25 +136,56 @@ export default function ImportHistory() {
     };
   }, []);
 
-  const loadClubLinks = useCallback(async () => {
-    try {
-      const result = await base44.entities.ClubLink.list({ limit: 500 });
-      const list = Array.isArray(result)
-        ? result
-        : result?.items || result?.data || [];
-      const map = {};
-      for (const link of list) {
+  // Carga completa (con paginación) de asociaciones ClubLink -> mapa qid:teamId.
+  const fetchClubLinksMap = useCallback(async () => {
+    const map = {};
+    let cursor;
+    do {
+      const page = await base44.entities.ClubLink.list({ limit: 500, cursor });
+      const items = Array.isArray(page) ? page : page?.items || page?.data || [];
+      for (const link of items) {
         if (link.club_qid && link.team_id) map[link.club_qid] = link.team_id;
       }
-      setClubLinks(map);
+      cursor = Array.isArray(page) ? undefined : page?.next_cursor;
+    } while (cursor);
+    return map;
+  }, []);
+
+  const loadClubLinks = useCallback(async () => {
+    try {
+      setClubLinks(await fetchClubLinksMap());
     } catch (error) {
       console.warn("No se pudieron cargar las asociaciones de clubes:", error);
     }
+  }, [fetchClubLinksMap]);
+
+  // Carga completa (con paginación) de todos los equipos para resolución.
+  const fetchAllTeams = useCallback(async () => {
+    const all = [];
+    let cursor;
+    do {
+      const page = await base44.entities.Team.list({ limit: 500, cursor });
+      const items = Array.isArray(page) ? page : page?.items || page?.data || [];
+      all.push(...items);
+      cursor = Array.isArray(page) ? undefined : page?.next_cursor;
+    } while (cursor);
+    return all;
   }, []);
 
+  const loadAllTeams = useCallback(async () => {
+    try {
+      setAllTeams(await fetchAllTeams());
+    } catch (error) {
+      console.warn("No se pudieron cargar todos los equipos:", error);
+    }
+  }, [fetchAllTeams]);
+
   useEffect(() => {
-    if (isAdmin) loadClubLinks();
-  }, [isAdmin, loadClubLinks]);
+    if (isAdmin) {
+      loadAllTeams();
+      loadClubLinks();
+    }
+  }, [isAdmin, loadAllTeams, loadClubLinks]);
 
   useEffect(() => {
     if (!parsed?.entries?.length) {
@@ -453,18 +484,39 @@ export default function ImportHistory() {
   const executeCreateClubs = async () => {
     const groups = pendingAction.groups;
     setBusy(true);
-    setProgress({ current: 0, total: groups.length, label: "Creando clubes..." });
+    setProgress({ current: 0, total: groups.length, label: "Comprobando duplicados..." });
+    // Segunda búsqueda completa contra Team y ClubLink para evitar duplicados
+    // de clubes que ya existan pero no estuvieran en caché.
+    const freshTeams = await fetchAllTeams();
+    const freshLinks = await fetchClubLinksMap();
     const newResolutions = {};
     let created = 0;
     let linked = 0;
+    let skipped = 0;
     const details = [];
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
       setProgress({
         current: i,
         total: groups.length,
-        label: `Creando ${i + 1}/${groups.length}: ${g.club_name}`,
+        label: `Procesando ${i + 1}/${groups.length}: ${g.club_name}`,
       });
+      // Re-resolver contra la lista fresca antes de crear.
+      const res = resolveClubGroup(g, { clubLinks: freshLinks, teams: freshTeams });
+      if (res.team) {
+        // Ya existe un equipo coincidente: no crear, vincular la asociación.
+        newResolutions[g.key] = res.team.id;
+        skipped += 1;
+        if (g.club_qid) {
+          await persistClubLink(g.club_qid, res.team.id, g.club_name);
+        }
+        continue;
+      }
+      if (res.status === "ambiguous") {
+        // Ambiguo tras la segunda búsqueda: no crear para no duplicar.
+        skipped += 1;
+        continue;
+      }
       try {
         const team = await base44.entities.Team.create({
           name: g.club_name,
@@ -492,16 +544,27 @@ export default function ImportHistory() {
     }
     setClubResolutions((prev) => ({ ...prev, ...newResolutions }));
     await queryClient.invalidateQueries({ queryKey: ["mf-legacy", "teams"] });
+    setAllTeams(await fetchAllTeams());
     await loadClubLinks();
     setProgress({
       current: groups.length,
       total: groups.length,
-      label: `Creación completada · ${created} clubes · ${linked} asociaciones`,
+      label: `Creación completada · ${created} creados · ${skipped} ya existían · ${linked} asociaciones`,
     });
     setPendingAction(null);
     setBusy(false);
     if (details.length)
       console.warn("Incidencias al crear clubes:", details);
+  };
+
+  const handleReanalyze = async () => {
+    setBusy(true);
+    setPendingAction(null);
+    setProgress({ current: 0, total: 1, label: "Reanalizando clubes..." });
+    await loadAllTeams();
+    await loadClubLinks();
+    setProgress({ current: 1, total: 1, label: "Reanálisis completado" });
+    setBusy(false);
   };
 
   const handleSelectAllValid = () => {
@@ -759,6 +822,7 @@ export default function ImportHistory() {
               onCreateMissing={handleCreateMissing}
               onSelectAllValid={handleSelectAllValid}
               onImportAllValid={handleImportAllValid}
+              onReanalyze={handleReanalyze}
               onConfirmAction={handleConfirmAction}
               onCancelAction={() => setPendingAction(null)}
               validStageCount={validRows.length}
