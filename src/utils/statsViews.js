@@ -33,7 +33,7 @@ export const resolveTeam=(record,teams,peers=[])=>{
 };
 export const metricsValue=(r,name)=>{
  if(!r)return null;
- if(["minutes","appearances","rating"].includes(name))return statNum(r[name]);
+ if(["minutes","appearances","rating","team_matches"].includes(name))return statNum(r[name]);
  const aliases={goals:["goals","goles"],assists:["assists","asistencias"],xg:["xg","expectedgoals"],xa:["xa","expectedassists"],shots:["shots","tiros"],tackles:["tackles","entradas"],recoveries:["recoveries","recuperaciones"],shotsontarget:["shotsontarget","tirosapuerta"]};
  const candidate=(r.metrics||[]).find(m=>(aliases[name]||[norm(name)]).includes(norm(m.name)));
  return candidate?statNum(candidate.value):null;
@@ -71,7 +71,7 @@ export const groupStatRows=(rows)=>{
   const ordered=[...pack].sort((a,b)=>(b.metrics?.length||0)-(a.metrics?.length||0));
   const first={...ordered[0]};
   for(const r of ordered){
-   for(const field of ["team_id","fotmob_team_id","team_name","appearances","minutes","rating"]){
+   for(const field of ["team_id","fotmob_team_id","team_name","appearances","minutes","rating","team_matches"]){
     if((first[field]===null||first[field]===undefined||first[field]==="")&&r[field]!==null&&r[field]!==undefined&&r[field]!=="")first[field]=r[field];
    }
   }
