@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertCircle, FileJson2, Upload, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { normalizeLabel, parseStatsText } from "@/utils/statsImport";
@@ -181,8 +182,8 @@ export default function StatsImport({ players=[], teams=[], onClose, onImported 
     setWorking(false);
     onImported?.();
   };
-  return (
-    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Importar estadísticas">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Importar estadísticas">
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 bg-[#0d243b] px-5 py-4 text-white">
           <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-200">MF LEGACY · STATS</p><h2 className="mt-1 text-lg font-black">Importar estadísticas de FotMob Studio</h2></div>
@@ -228,7 +229,7 @@ export default function StatsImport({ players=[], teams=[], onClose, onImported 
           </div>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
 
