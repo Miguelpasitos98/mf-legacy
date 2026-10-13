@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, BarChart3, Database, Search, Shield, Trophy, Upload, Users, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
@@ -102,8 +102,9 @@ function StatDetail({player,stats,teams,onClose,onPlayer,onTeam}) {
 }
 export default function Stats(){
   const navigate=useNavigate(),queryClient=useQueryClient();
+  const [statsParams]=useSearchParams();
   const pq=usePlayersQuery(),tq=useTeamsQuery();
-  const [season,setSeason]=useState("2025/2026"),[competition,setCompetition]=useState("Todas"),[search,setSearch]=useState("");
+  const [season,setSeason]=useState("2025/2026"),[competition,setCompetition]=useState("Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||"");
   const [tab,setTab]=useState("todos"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("rating"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[revision,setRevision]=useState(0),[page,setPage]=useState(0);
   const {rows,hasMore,loadMore,busy,error}=useStatsRows(season,competition,revision);
   const players=pq.data||[],teams=tq.data||[];
@@ -118,7 +119,7 @@ export default function Stats(){
       rs=rs.concat(players.filter(p=>!ids.has(String(p.id))).map(p=>({record:null,player:p})));
     }
     const q=normalizeLabel(search);
-    if(q)rs=rs.filter(({record:r,player:p})=>[r?.player_name,p?.name,r?.team_name,byTeam.get(String(p?.team_id))?.name,r?.fotmob_player_id,playerUID(p)].some(v=>normalizeLabel(v).includes(q)));
+    if(q)rs=rs.filter(({record:r,player:p})=>[r?.player_name,p?.name,p?.id,r?.team_name,byTeam.get(String(p?.team_id))?.name,r?.fotmob_player_id,playerUID(p)].some(v=>normalizeLabel(v).includes(q)));
     rs.sort((a,b)=>{const av=sort==="rating"?num(a.record?.rating):getMetric(a.record,sort);const bv=sort==="rating"?num(b.record?.rating):getMetric(b.record,sort);return (bv??-Infinity)-(av??-Infinity)||String(a.player?.name||a.record?.player_name||"").localeCompare(String(b.player?.name||b.record?.player_name||""),"es")});
     return rs;
   },[stats,players,tab,search,sort,byID,byTeam]);
