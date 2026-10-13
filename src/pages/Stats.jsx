@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { aggregate, groupStatRows, metricsValue, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, BarChart3, Database, Search, Shield, Trophy, Upload, Users, X } from "lucide-react";
@@ -61,44 +63,120 @@ function Avatar({name,photo,size="md"}) {
   return <div className={classes+" flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#e9f0f9] font-black text-[#31557b]"}>{photo&&!broken?<img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" onError={()=>setBroken(true)}/>:String(name||"?").slice(0,2).toUpperCase()}</div>;
 }
 function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);return <span className="inline-flex max-w-[170px] items-center gap-2">{logo&&!broken?<img src={logo} alt="" className="h-5 w-5 object-contain" onError={()=>setBroken(true)}/>:<Shield size={16} className="text-slate-300"/>}<span className="truncate">{teamName||"Sin equipo"}</span></span>;}
-function StatDetail({player,stats,teams,onClose,onPlayer,onTeam}) {
-  const [season,setSeason]=useState("Todas"),[competition,setCompetition]=useState("Todas"),[category,setCategory]=useState("Resumen");
-  const seasons=[...new Set(stats.map(s=>s.season))].sort().reverse();
-  const seasonRows=stats.filter(s=>season==="Todas"||s.season===season);
+function StatDetail({player,stats,teams,onClose,onPlayer,onTeam,onLinkTeam,linking}) {
+  const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
+  const [season,setSeason]=useState("auto");
+  const activeSeason=season==="auto"?(seasons[0]||"Todas"):season;
+  const [competition,setCompetition]=useState("Todas");
+  const [scope,setScope]=useState("clubs");
+  const [category,setCategory]=useState("Resumen");
+  const byTeam=useMemo(()=>new Map(teams.map(t=>[String(t.id),t])),[teams]);
+  const uniqueRecords=useMemo(()=>groupStatRows(stats),[stats]);
+  const seasonRows=uniqueRecords.filter(s=>activeSeason==="Todas"||s.season===activeSeason);
   const competitions=[...new Set(seasonRows.map(s=>s.competition))].sort();
-  const rows=seasonRows.filter(s=>competition==="Todas"||s.competition===competition);
-  const byTeam=new Map(teams.map(t=>[String(t.id),t]));
-  const aggregated=()=>{
-    const out={};for(const key of ["goals","assists","xg","xa","shots","tackles","recoveries"]){let count=0,total=0;for(const r of rows){const n=getMetric(r,key);if(n!==null){total+=n;count++;}}out[key]=count?{value:total,count}:null;}return out;
-  };
-  const sums=aggregated();
+  const shown=seasonRows.filter(r=>(scope==="all"||!nationalCompetition(r.competition))&&(competition==="Todas"||r.competition===competition));
+  const sums=aggregate(shown);
   const selected=metricGroups.find(x=>x[0]===category)?.[1]||[];
-  return <div className="fixed inset-0 z-[450] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Ficha estadística">
-    <div className="flex max-h-[93vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-      <div className="flex items-center gap-4 bg-[#0e2844] p-5 text-white"><Avatar size="lg" name={player?.name||stats[0]?.player_name} photo={playerPhoto(player)}/>
-      <div className="min-w-0 flex-1"><p className="text-[10px] uppercase tracking-[.2em] text-blue-200">MY LEGACY · INFORME DE RENDIMIENTO</p><h2 className="truncate text-2xl font-black">{player?.name||stats[0]?.player_name||"Jugador FotMob"}</h2><p className="text-xs text-blue-200">Estadísticas reales importadas · Separadas de las valoraciones FM26</p></div>
-      {player&&<button onClick={()=>onPlayer(player.id)} className="hidden rounded-lg border border-blue-300 px-4 py-2 text-xs font-bold hover:bg-white/10 sm:block">Ver ficha en PLAYERS <ArrowRight size={13} className="ml-1 inline"/></button>}
-      <button className="rounded-lg p-2 hover:bg-white/10" onClick={onClose} aria-label="Cerrar"><X size={21}/></button></div>
-      <div className="flex-1 overflow-y-auto p-5">
-        <div className="mb-5 flex flex-wrap items-end gap-3">
-          <label className="text-xs font-bold text-slate-500">Temporada<select className="mt-1 block min-w-32 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" value={season} onChange={e=>{setSeason(e.target.value);setCompetition("Todas");}}><option>Todas</option>{seasons.map(x=><option key={x}>{x}</option>)}</select></label>
-          <label className="text-xs font-bold text-slate-500">Competición<select className="mt-1 block min-w-44 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" value={competition} onChange={e=>setCompetition(e.target.value)}><option>Todas</option>{competitions.map(x=><option key={x}>{x}</option>)}</select></label>
-          <span className="ml-auto rounded-full bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800">{rows.length} registros · {new Set(rows.map(r=>r.season)).size} temporadas</span>
+  const allSeasons=activeSeason==="Todas";
+  const partial=Object.values(sums).some(x=>x.partial);
+  const inProgress=!allSeasons&&seasonActive(activeSeason);
+  const totalsTitle=allSeasons?"Subtotal histórico (no total de carrera)":competition==="Todas"?"Subtotal de temporada":"Estadísticas de la competición";
+  const teamCell=r=>{
+    const info=resolveTeam(r,teams,uniqueRecords);
+    const team=info.team;
+    const confirmed=info.status==="confirmed";
+    return <div className="flex min-w-[155px] flex-col gap-1">
+      {team&&confirmed?<button onClick={()=>onTeam(team.id)} className="w-fit text-left hover:underline">
+        <TeamBadge teamName={team.name} logo={teamLogo(team)}/>
+      </button>:info.status==="national"?<span className="text-slate-500">Selección nacional</span>:info.status==="source"?<span>{info.label}</span>:info.status==="suggested"?<div className="flex items-center gap-1 text-amber-800"><Shield size={13}/><span>{info.label}</span></div>:<span className="text-slate-400">Club pendiente</span>}
+      {info.status==="confirmed"&&<span className="text-[10px] text-emerald-700">Club identificado</span>}
+      {info.status==="suggested"&&<span className="text-[10px] text-amber-700">No confirmado</span>}
+      {info.status!=="national"&&!r.team_id&&r.id&&<select
+        aria-label={"Vincular club de "+r.season+" "+r.competition}
+        disabled={linking===r.id}
+        value=""
+        className="max-w-[190px] rounded border border-slate-200 bg-white px-1 py-1 text-[10px] text-slate-600 disabled:opacity-40"
+        onChange={e=>{if(e.target.value)onLinkTeam(r,e.target.value);}}>
+        <option value="">Vincular equipo…</option>
+        {teams.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"es")).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+      </select>}
+    </div>;
+  };
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Ficha estadística">
+      <div className="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center gap-4 bg-[#0e2844] p-4 text-white sm:p-5">
+          <Avatar size="lg" name={player?.name||stats[0]?.player_name} photo={playerPhoto(player)}/>
+          <div className="min-w-0 flex-1"><p className="text-[10px] uppercase tracking-[.2em] text-blue-200">MY LEGACY · INFORME DE RENDIMIENTO</p>
+            <h2 className="truncate text-2xl font-black">{player?.name||stats[0]?.player_name||"Jugador FotMob"}</h2>
+            <p className="text-xs text-blue-200">Estadísticas importadas · pendientes de validación de fuente · independientes de FM26</p>
+          </div>
+          {player&&<button onClick={()=>onPlayer(player.id)} className="hidden rounded-lg border border-blue-300 px-4 py-2 text-xs font-bold hover:bg-white/10 sm:block">Ver ficha en PLAYERS <ArrowRight size={13} className="ml-1 inline"/></button>}
+          <button className="rounded-lg p-2 hover:bg-white/10" onClick={onClose} aria-label="Cerrar"><X size={21}/></button>
         </div>
-        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-5">
-          {[["Goles",sums.goals],["Asistencias",sums.assists],["xG",sums.xg],["xA",sums.xa],["Tiros",sums.shots]].map(([label,d])=><div key={label} className="rounded-xl bg-slate-50 p-4"><div className="text-[10px] font-bold uppercase text-slate-500">{label}</div><div className="mt-1 text-2xl font-black text-[#0d315b]">{d?show(d.value,["xG","xA"].includes(label)?2:0):"—"}</div><p className="text-[10px] text-slate-400">{d?"Subtotal de "+d.count+" registros":"No disponible"}</p></div>)}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+          <div className="mb-4 flex flex-wrap items-end gap-3">
+            <label className="text-xs font-bold text-slate-500">Temporada
+              <select className="mt-1 block min-w-36 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" value={activeSeason}
+                onChange={e=>{setSeason(e.target.value);setCompetition("Todas");}}>
+                <option value="Todas">Todas las temporadas (histórico)</option>
+                {seasons.map(x=><option key={x} value={x}>{x}</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-bold text-slate-500">Competición
+              <select className="mt-1 block min-w-44 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800" value={competition} onChange={e=>setCompetition(e.target.value)}>
+                <option value="Todas">Total temporada · disponibles</option>
+                {competitions.map(x=><option key={x}>{x}</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-bold text-slate-500">Ámbito
+              <select className="mt-1 block min-w-40 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={scope} onChange={e=>setScope(e.target.value)}>
+                <option value="clubs">Solo clubes</option><option value="all">Clubes + selecciones</option>
+              </select>
+            </label>
+            <span className="ml-auto rounded-full bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800">{shown.length} competiciones visibles</span>
+          </div>
+          {inProgress&&<p className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">Temporada en curso: las estadísticas pueden cambiar y no representan el cierre definitivo.</p>}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <h3 className="font-black text-[#123456]">{totalsTitle}</h3>
+            {allSeasons&&<span className="rounded bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-900">Varias temporadas: no es una cifra oficial de carrera</span>}
+            {partial&&<span className="rounded bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-900">Cobertura parcial</span>}
+          </div>
+          <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-5">
+            {[["Goles",sums.goals],["Asistencias",sums.assists],["xG",sums.xg],["xA",sums.xa],["Tiros",sums.shots]].map(([label,d])=><div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <div className="text-[10px] font-bold uppercase text-slate-500">{label}</div>
+              <div className="mt-1 text-2xl font-black text-[#0d315b]">{d.value===null?"—":show(d.value,["xG","xA"].includes(label)?2:0)}</div>
+              <p className="text-[10px] text-slate-500">{d.value===null?"Sin datos":d.available+"/"+d.total+" competiciones con cifra"}</p>
+            </div>)}
+          </div>
+          <p className="mb-4 text-xs text-slate-500">Sumamos únicamente métricas acumulativas importadas, sin mezclar porcentajes, notas ni velocidades. Son subtotales de competiciones disponibles; no se interpretan como una temporada o carrera completa hasta verificar cobertura y duplicados. Las selecciones están excluidas por defecto.</p>
+          <div className="mb-3 flex flex-wrap gap-2">{CAT_TABS.map(x=><button key={x} onClick={()=>setCategory(x)} className={"rounded-lg px-3 py-2 text-xs font-bold "+(category===x?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{x}</button>)}</div>
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[720px] text-left text-xs">
+              <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className="px-3 py-3">Temporada / competición</th><th className="px-3 py-3">Club en esa temporada</th><th className="px-3 py-3">PJ</th><th className="px-3 py-3">Min</th><th className="px-3 py-3">Nota</th>{selected.map(id=><th key={id} className="whitespace-nowrap px-3 py-3">{metricLabel(id)}</th>)}</tr></thead>
+              <tbody>{shown.length?shown.sort((a,b)=>b.season.localeCompare(a.season)||a.competition.localeCompare(b.competition)).map((r,i)=><tr key={r.id||r.external_record_id||i} className="border-t border-slate-100 hover:bg-slate-50">
+                <td className="px-3 py-3 font-semibold">{r.season}<div className="font-normal text-slate-500">{r.competition}</div>{r._sourceRows>1&&<span className="text-[10px] text-blue-700">Fuentes consolidadas: {r._sourceRows}</span>}</td>
+                <td className="px-3 py-3">{teamCell(r)}</td>
+                <td className="px-3 py-3">{show(r.appearances)}</td><td className="px-3 py-3">{show(r.minutes)}</td><td className="px-3 py-3">{show(r.rating,2)}</td>
+                {selected.map(id=><td key={id} className="px-3 py-3 font-semibold">{show(metricsValue(r,id),["xg","xa","xgot"].includes(id)?2:0)}</td>)}
+              </tr>):<tr><td colSpan={5+selected.length} className="p-8 text-center text-slate-500">No hay registros para esta selección. Cambia el ámbito o la temporada.</td></tr>}</tbody>
+            </table>
+          </div>
+          {shown.some(r=>r.metrics?.length>0)&&<section className="mt-5 rounded-xl border border-slate-200 p-4">
+            <h3 className="mb-3 font-black text-slate-800">Todas las métricas importadas</h3>
+            {shown.map((r,i)=><details key={r.id||i} className="mb-2 rounded-lg border border-slate-100 bg-slate-50 p-3">
+              <summary className="cursor-pointer text-xs font-bold text-blue-900">{r.season} · {r.competition} · {r.metrics?.length||0} métricas</summary>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">{(r.metrics||[]).map((m,j)=><div key={j} className="rounded-lg bg-white px-3 py-2"><p className="text-[11px] text-slate-500">{metricLabel(m.name)}</p><p className="font-extrabold">{show(m.value,Number(m.value)%1?2:0)}</p></div>)}</div>
+            </details>)}
+          </section>}
         </div>
-        <p className="mb-4 text-xs text-slate-500">Los totales suman únicamente métricas acumulativas de las competiciones cargadas. No se suman porcentajes, notas, percentiles ni valores de mercado. La ausencia de una métrica no equivale a cero.</p>
-        <div className="mb-3 flex flex-wrap gap-2">{CAT_TABS.map(x=><button key={x} onClick={()=>setCategory(x)} className={"rounded-lg px-3 py-2 text-xs font-bold "+(category===x?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{x}</button>)}</div>
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[620px] text-left text-xs"><thead className="bg-[#eaf0f8] text-slate-700"><tr><th className="px-4 py-3">Temporada / competición</th><th className="px-4 py-3">Club en esa temporada</th><th className="px-4 py-3">PJ</th><th className="px-4 py-3">Min</th><th className="px-4 py-3">Nota</th>{selected.map(id=><th key={id} className="whitespace-nowrap px-4 py-3">{metricLabel(id)}</th>)}</tr></thead>
-          <tbody>{rows.length?rows.map(r=><tr key={r.id||r.external_record_id} className="border-t border-slate-100 hover:bg-slate-50"><td className="px-4 py-3 font-semibold">{r.season}<div className="font-normal text-slate-500">{r.competition}</div></td><td className="px-4 py-3">{r.team_id?<button onClick={()=>onTeam(r.team_id)} className="hover:underline"><TeamBadge teamName={r.team_name} logo={teamLogo(byTeam.get(String(r.team_id)))}/></button>:<TeamBadge teamName={r.team_name} logo={teamLogo(byTeam.get(String(r.team_id)))}/>}</td><td className="px-4 py-3">{show(r.appearances)}</td><td className="px-4 py-3">{show(r.minutes)}</td><td className="px-4 py-3">{show(r.rating,2)}</td>{selected.map(id=><td key={id} className="px-4 py-3 font-semibold">{show(getMetric(r,id),["xg","xa","xgot"].includes(id)?2:0)}</td>)}</tr>):<tr><td colSpan={5+selected.length} className="p-8 text-center text-slate-500">No hay registros para esta selección.</td></tr>}</tbody></table>
+        <div className="flex justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3">
+          <span className="text-xs text-slate-500">Fuente: archivos FotMob Studio · registros sujetos a revisión.</span>
+          <button onClick={onClose} className="rounded-lg bg-[#003399] px-5 py-2 text-xs font-bold text-white">Cerrar</button>
         </div>
-        {rows.some(r=>r.metrics?.length>0)&&<section className="mt-5 rounded-xl border border-slate-200 p-4"><h3 className="mb-3 font-black text-slate-800">Todas las métricas importadas</h3>{rows.slice(0,10).map(r=><div key={r.external_record_id} className="mb-3 border-b border-slate-100 pb-3"><p className="mb-2 text-xs font-bold text-blue-900">{r.season} · {r.competition} · {r.team_name||"Club sin vincular"}</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">{r.metrics.map((m,i)=><div key={i} className="rounded-lg bg-slate-50 px-3 py-2"><p className="text-[11px] text-slate-500">{metricLabel(m.name)}</p><p className="font-extrabold">{show(m.value,Number(m.value)%1?2:0)}</p></div>)}</div></div>)}</section>}
       </div>
-      <div className="flex justify-between border-t border-slate-200 bg-slate-50 px-5 py-3"><span className="text-xs text-slate-500">Fuente: archivos importados desde FotMob Studio. Revisar procedencia y autorizaciones de uso.</span><button onClick={onClose} className="rounded-lg bg-[#003399] px-5 py-2 text-xs font-bold text-white">Cerrar</button></div>
-    </div>
-  </div>;
+    </div>,document.body
+  );
 }
 export default function Stats(){
   const navigate=useNavigate(),queryClient=useQueryClient();
@@ -153,4 +231,3 @@ export default function Stats(){
     {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} teams={teams} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} onTeam={id=>{setSelected(null);navigate("/teams?stats_team="+encodeURIComponent(id));}}/>}
   </div>;
 }
-
