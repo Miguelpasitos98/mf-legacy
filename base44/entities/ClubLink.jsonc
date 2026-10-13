@@ -1,0 +1,44 @@
+{
+  "name": "ClubLink",
+  "type": "object",
+  "properties": {
+    "club_qid": {
+      "type": "string",
+      "description": "Identificador del club en Wikidata. Clave de la asociacion."
+    },
+    "team_id": {
+      "type": "string",
+      "description": "ID del equipo en Team vinculado al club_qid"
+    },
+    "club_name": {
+      "type": "string",
+      "description": "Nombre original del club para trazabilidad"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indica si la asociacion fue confirmada por un administrador"
+    }
+  },
+  "required": [
+    "club_qid"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

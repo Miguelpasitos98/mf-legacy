@@ -1,0 +1,143 @@
+{
+  "name": "PlayerCareer",
+  "type": "object",
+  "properties": {
+    "player_id": {
+      "type": "string",
+      "description": "ID del jugador existente en Player"
+    },
+    "fm26_uid": {
+      "type": "string",
+      "description": "Identificador de referencia de Football Manager"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "ID del equipo existente en Team vinculado a la etapa (opcional)"
+    },
+    "club_name": {
+      "type": "string",
+      "description": "Nombre original del club"
+    },
+    "club_qid": {
+      "type": "string",
+      "description": "Identificador del club en Wikidata"
+    },
+    "external_stage_id": {
+      "type": "string",
+      "description": "Identificador unico y estable de la etapa. Clave de sincronizacion para evitar duplicados."
+    },
+    "start_date": {
+      "type": "string",
+      "description": "Fecha de inicio (ISO o texto). No inventar cuando solo se dispone de anio o mes."
+    },
+    "end_date": {
+      "type": "string",
+      "description": "Fecha de finalizacion. Vacia no implica que sigue jugando actualmente."
+    },
+    "start_year": {
+      "type": "integer",
+      "description": "Anio de inicio opcional"
+    },
+    "end_year": {
+      "type": "integer",
+      "description": "Anio de finalizacion opcional"
+    },
+    "start_precision": {
+      "type": "string",
+      "enum": [
+        "anio",
+        "mes",
+        "dia"
+      ],
+      "description": "Precision de la fecha de inicio"
+    },
+    "end_precision": {
+      "type": "string",
+      "enum": [
+        "anio",
+        "mes",
+        "dia"
+      ],
+      "description": "Precision de la fecha de finalizacion"
+    },
+    "movement_type": {
+      "type": "string",
+      "enum": [
+        "cesion",
+        "traspaso",
+        "libre",
+        "desconocido",
+        "ascenso_filial",
+        "formacion"
+      ],
+      "description": "Tipo de movimiento entre clubes"
+    },
+    "is_reserve": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indica si la etapa corresponde a un equipo filial o reserva"
+    },
+    "source": {
+      "type": "string",
+      "description": "Origen de los datos"
+    },
+    "source_url": {
+      "type": "string",
+      "description": "URL de la fuente de informacion"
+    },
+    "source_license": {
+      "type": "string",
+      "description": "Licencia de la fuente (Wikidata CC0, Wikipedia, etc.)"
+    },
+    "review_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Marcadores de revision"
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "default": "pending",
+      "description": "Estado de validacion de la etapa"
+    },
+    "provisional_identity": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indica si la identidad del jugador es provisional y requiere confirmacion"
+    },
+    "manually_verified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indica si la etapa fue verificada manualmente por un administrador"
+    }
+  },
+  "required": [
+    "player_id",
+    "club_name",
+    "external_stage_id"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

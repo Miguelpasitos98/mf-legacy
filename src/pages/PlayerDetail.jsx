@@ -12,8 +12,11 @@ import {
   ChevronDown,
   Globe2,
   Plus,
+  History,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryModal";
 
 // MF LEGACY: logos de estado integrados, sin dependencias externas.
 const CAREER_STATUS_LOGOS = {
@@ -681,6 +684,8 @@ const PlayerStatCard = ({ background, grow = 1 }) => {
 };
 
 export default function PlayerDetail({ player, team, country, teams = [], countries = [], onBack, onPlayerUpdated }) {
+  const navigate = useNavigate();
+  const [showDbHistory, setShowDbHistory] = useState(false);
   const initialPositionRatings = useMemo(
     () => ({
       ...Object.fromEntries(POSITION_RATING_FIELDS.map(([key]) => [key, 0])),
@@ -1068,6 +1073,14 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         <div className="flex items-center gap-5">
           <button
             type="button"
+            onClick={() => setShowDbHistory(true)}
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 transition hover:text-[#003399]"
+            aria-label="Ver historial de clubes"
+          >
+            <History size={15} /> HISTORIAL
+          </button>
+          <button
+            type="button"
             onClick={() => setShowCareerHistory(true)}
             className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 transition hover:text-[#003399]"
             aria-label="Ver trayectoria de clubes"
@@ -1257,6 +1270,17 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         </div>,
         document.body
       )}
+
+      <PlayerCareerHistoryModal
+        open={showDbHistory}
+        onClose={() => setShowDbHistory(false)}
+        player={editablePlayer}
+        teams={teams}
+        onOpenTeam={(teamId) => {
+          setShowDbHistory(false);
+          navigate("/teams");
+        }}
+      />
 
       {editOpen && typeof document !== "undefined"
         ? createPortal(
