@@ -36,30 +36,6 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
     };
   }, []);
 
-  // Precargar las imágenes de las camisetas lo antes posible (antes del
-  // render del <img>) para reducir el retraso de la primera equipación.
-  // El navegador deduplica solicitudes idénticas y reutiliza la caché en
-  // visitas posteriores. No modifica las URL originales.
-  useEffect(() => {
-    const targets = [
-      { href: kitHomeUrl, high: true },
-      { href: kitsOverviewUrl, high: false },
-    ].filter((t) => t.href);
-    if (!targets.length) return;
-    const links = targets.map(({ href, high }) => {
-      const link = document.createElement("link");
-      link.rel = "preload";
-      link.as = "image";
-      link.href = href;
-      if (high) link.setAttribute("fetchpriority", "high");
-      document.head.appendChild(link);
-      return link;
-    });
-    return () => {
-      links.forEach((link) => link.remove());
-    };
-  }, [kitHomeUrl, kitsOverviewUrl]);
-
   const goToSection = (sectionIndex) => {
     const container = detailScrollRef.current;
     if (!container || isPageTransitioning) return;
@@ -97,6 +73,30 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
   const kitsOverviewUrl = normalizeImageUrl(
     team.kits_overview_url || team.kitsOverviewUrl || team.kits_image_url || team.kitsImageUrl || ""
   );
+
+  // Precargar las imágenes de las camisetas lo antes posible (antes del
+  // render del <img>) para reducir el retraso de la primera equipación.
+  // El navegador deduplica solicitudes idénticas y reutiliza la caché en
+  // visitas posteriores. No modifica las URL originales.
+  useEffect(() => {
+    const targets = [
+      { href: kitHomeUrl, high: true },
+      { href: kitsOverviewUrl, high: false },
+    ].filter((t) => t.href);
+    if (!targets.length) return;
+    const links = targets.map(({ href, high }) => {
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = href;
+      if (high) link.setAttribute("fetchpriority", "high");
+      document.head.appendChild(link);
+      return link;
+    });
+    return () => {
+      links.forEach((link) => link.remove());
+    };
+  }, [kitHomeUrl, kitsOverviewUrl]);
 
   const countryMapUrl = normalizeImageUrl(team.country_map_url || team.countryMapUrl || "");
   const countryTeamMapUrl = normalizeImageUrl(team.country_team_map_url || team.countryTeamMapUrl || "");
