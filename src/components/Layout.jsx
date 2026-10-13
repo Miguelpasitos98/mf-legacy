@@ -31,7 +31,7 @@ export default function Layout() {
     >
       {/* MARCO EXTERIOR */}
       <div
-        className={`relative w-[95vw] ${isStatsPage ? "h-[90vh]" : "h-[75vh]"} rounded-[20px] ${
+        className={`relative w-[95vw] ${isStatsPage ? "h-[96dvh]" : "h-[75vh]"} rounded-[20px] ${
           isPlayerProfile ? "overflow-visible" : "overflow-hidden"
         }`}
         style={{
