@@ -89,7 +89,7 @@ function StatDetail({player,stats,teams,onClose,onPlayer,onTeam,onLinkTeam,linki
       {team&&confirmed?<button onClick={()=>onTeam(team.id)} className="w-fit text-left hover:underline">
         <TeamBadge teamName={team.name} logo={teamLogo(team)}/>
       </button>:info.status==="national"?<span className="text-slate-500">Selección nacional</span>:info.status==="source"?<span>{info.label}</span>:info.status==="suggested"?<div className="flex items-center gap-1 text-amber-800"><Shield size={13}/><span>{info.label}</span></div>:<span className="text-slate-400">Club pendiente</span>}
-      {info.status==="confirmed"&&<span className="text-[10px] text-emerald-700">Club identificado</span>}
+      {info.status==="confirmed"&&<span className="text-[10px] text-emerald-700">Club reconocido en MY LEGACY</span>}
       {info.status==="suggested"&&<span className="text-[10px] text-amber-700">No confirmado</span>}
       {info.status!=="national"&&!r.team_id&&r.id&&<select
         aria-label={"Vincular club de "+r.season+" "+r.competition}
