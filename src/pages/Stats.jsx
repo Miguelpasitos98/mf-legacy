@@ -252,7 +252,9 @@ export default function Stats(){
     const team=teams.find(t=>String(t.id)===String(teamId));
     if(!team)throw Error("No se ha encontrado el equipo elegido.");
     const matching=detailRows.filter(r=>ids.includes(String(r.id))&&!nationalCompetition(r.competition));
-    const updatedIds=[];const failed=[];
+    if(!matching.length)throw Error("Espera a que se termine de cargar la ficha completa antes de vincular equipos.");
+    const updatedIds=[];
+    const failed=ids.filter(id=>!matching.some(r=>String(r.id)===String(id))).map(id=>({id,label:"Registro no encontrado en la ficha actual"}));
     for(const record of matching){
       try{await base44.entities.PlayerSeasonStats.update(record.id,{team_id:String(team.id)});updatedIds.push(String(record.id));}
       catch(e){failed.push({id:record.id,label:record.competition+" ("+record.season+"): "+(e?.message||"error")});}
