@@ -85,7 +85,7 @@ function Avatar({name,photo,size="md"}) {
   return <div className={classes+" flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#e9f0f9] font-black text-[#31557b]"}>{photo&&!broken?<img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" onError={()=>setBroken(true)}/>:String(name||"?").slice(0,2).toUpperCase()}</div>;
 }
 function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);return <span className="inline-flex max-w-[170px] items-center gap-2">{logo&&!broken?<img src={logo} alt="" className="h-5 w-5 object-contain" onError={()=>setBroken(true)}/>:<Shield size={16} className="text-slate-300"/>}<span className="truncate">{teamName||"Sin equipo"}</span></span>;}
-function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,onLinkTeams,config}) {
+function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,config}) {
   const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
   const [season,setSeason]=useState("auto");
   const activeSeason=season==="auto"?defaultSeason(stats,initialSeason):season;
@@ -224,33 +224,41 @@ export default function Stats(){
   const stats=useMemo(()=>groupStatRows(rows.filter(r=>r.player_id)),[rows]);
   const seasonSummaries=useMemo(()=>buildSeasonSummaries(rows.filter(r=>r.player_id),teams),[rows,teams]);
   const competitions=useMemo(()=>[...new Set(rows.map(r=>r.competition))].filter(Boolean).sort(),[rows]);
-  const visible=useMemo(()=>{
+  const allCompetitionsRanked=useMemo(()=>{
     let rs=stats.map(r=>({record:r,player:byID.get(String(r.player_id))||null}));
     if(tab==="todos"){
       const ids=new Set(stats.map(r=>String(r.player_id)));
       rs=rs.concat(players.filter(p=>!ids.has(String(p.id))).map(p=>({record:null,player:p})));
     }
-    const q=normalizeLabel(search);
-    if(q)rs=rs.filter(({record:r,player:p})=>[r?.player_name,p?.name,p?.id,r?.team_name,byTeam.get(String(p?.team_id))?.name,r?.fotmob_player_id,playerUID(p)].some(v=>normalizeLabel(v).includes(q)));
     return sortStatsItems(rs,"competition",sort,sortDirection,columnConfig);
-  },[stats,players,tab,search,sort,sortDirection,byID,byTeam,columnConfig]);
+  },[stats,players,tab,sort,sortDirection,byID,columnConfig]);
+  const visible=useMemo(()=>{
+    const q=normalizeLabel(search);
+    if(!q)return allCompetitionsRanked;
+    return allCompetitionsRanked.filter(({record:r,player:p})=>[r?.player_name,p?.name,p?.id,r?.team_name,byTeam.get(String(p?.team_id))?.name,r?.fotmob_player_id,playerUID(p)].some(v=>normalizeLabel(v).includes(q)));
+  },[allCompetitionsRanked,search,byTeam]);
+  const globalCompetitionRanks=useMemo(()=>rankPositions(allCompetitionsRanked,"competition"),[allCompetitionsRanked]);
   const bestCriteria=useMemo(()=>{
     const preferred=["rating","goals","assists","xg","xa","gaper90","xgaper90","appearances","minutes"];
     const known=[...preferred,...RAW_METRICS.map(([id])=>id),...columnConfig.computed.map(d=>d.id)];
     return [...new Set(known)].map(id=>getColumn(columnConfig,id)).filter(Boolean);
   },[columnConfig]);
-  const seasonVisible=useMemo(()=>{
+  const allSeasonsRanked=useMemo(()=>{
     const mapped=seasonSummaries.map(summary=>({summary,player:byID.get(String(summary.player_id))||null}));
     if(tab==="todos"){
       const existing=new Set(seasonSummaries.map(s=>String(s.player_id)));
       mapped.push(...players.filter(p=>!existing.has(String(p.id))).map(player=>({summary:null,player})));
     }
+    const enough=mapped.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minMinutes:minMinutes===0);
+    const ranked=seasonDisplay==="best"?bestSeasonPerPlayer(enough,bestMetric,columnConfig):enough;
+    return sortStatsItems(ranked,"season",sort,sortDirection,columnConfig);
+  },[seasonSummaries,byID,players,tab,minMinutes,sort,sortDirection,columnConfig,seasonDisplay,bestMetric]);
+  const seasonVisible=useMemo(()=>{
     const q=normalizeLabel(search);
-    const narrowed=q?mapped.filter(({summary,player})=>[player?.name,player?.id,playerUID(player),summary?.player_name,summary?.fotmob_player_id,summary?.mainClub?.name,summary?.season].some(v=>normalizeLabel(v).includes(q))):mapped;
-    const enough=narrowed.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minMinutes:minMinutes===0);
-    const onePerPlayer=seasonDisplay==="best"?bestSeasonPerPlayer(enough,bestMetric,columnConfig):enough;
-    return sortStatsItems(onePerPlayer,"season",sort,sortDirection,columnConfig);
-  },[seasonSummaries,byID,players,tab,search,minMinutes,sort,sortDirection,columnConfig,seasonDisplay,bestMetric]);
+    if(!q)return allSeasonsRanked;
+    return allSeasonsRanked.filter(({summary,player})=>[player?.name,player?.id,playerUID(player),summary?.player_name,summary?.fotmob_player_id,summary?.mainClub?.name,summary?.season].some(v=>normalizeLabel(v).includes(q)));
+  },[allSeasonsRanked,search]);
+  const globalSeasonRanks=useMemo(()=>rankPositions(allSeasonsRanked,"season"),[allSeasonsRanked]);
   const chooseSort=key=>{
     const next=nextSorting(sort,sortDirection,key);
     setSort(next.key);setSortDirection(next.direction);
