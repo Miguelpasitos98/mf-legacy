@@ -1,7 +1,7 @@
 // Resúmenes de temporada derivados. No se guardan ni alteran registros FotMob.
 import {aggregate, groupStatRows, metricsValue, nationalCompetition, norm, resolveTeam, statNum} from "./statsViews.js";
 
-const SUM_KEYS=["appearances","minutes","goals","assists","xg","xa","shots","shotsontarget","tackles","recoveries"];
+const SUM_KEYS=["appearances","minutes","goals","assists","xg","xa","shots","shotsontarget","xgot","tackles","recoveries","interceptions","clearances","cleansheets","chancescreated","bigchancescreated","accuratepasses","successfulcrosses","saves","goalsconcededwhileonpitch","totaldistancecovered","numberofsprints"];
 const groupId=row=>String(row.player_id||row.fotmob_player_id||"");
 
 export function seasonSummary(rows,teams=[]){
@@ -40,7 +40,7 @@ export function seasonSummary(rows,teams=[]){
   return {value:one.value+two.value,partial:one.partial||two.partial};
  };
  const ga=combined(goals,assists),xga=combined(xg,xa);
- const per90combined=(parts,combinedTotal)=>{
+ const per90combined=combinedTotal=>{
   if(!combinedTotal||combinedTotal.partial||minutes.value===null||minutes.partial||minutes.value<=0)return null;
   return combinedTotal.value*90/minutes.value;
  };
@@ -58,8 +58,8 @@ export function seasonSummary(rows,teams=[]){
   goalsAndAssists:ga, xgAndXa:xga,
   per90:{
    goals:safePer90("goals"),assists:safePer90("assists"),xg:safePer90("xg"),xa:safePer90("xa"),
-   ga:per90combined(["goals","assists"],ga),
-   xga:per90combined(["xg","xa"],xga)
+   ga:per90combined(ga),
+   xga:per90combined(xga)
   },
   // Identifica si hay competiciones incompletas, no afirma haber encontrado todas.
   partial:Object.values(totals).some(v=>v.partial)
