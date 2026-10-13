@@ -8,6 +8,8 @@ import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
 import { metricGroups, normalizeLabel, metricLabel } from "@/utils/statsImport";
 import StatsImport from "@/components/stats/StatsImport";
+import SeasonStatsTable from "@/components/stats/SeasonStatsTable";
+import {buildSeasonSummaries,statDisplay} from "@/utils/statsSeason";
 
 const unpack = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || [];
 const options = Array.from({length:12},(_,i)=>{const y=2027-i;return (y-1)+"/"+y;});
@@ -183,12 +185,14 @@ export default function Stats(){
   const [statsParams]=useSearchParams();
   const pq=usePlayersQuery(),tq=useTeamsQuery();
   const [season,setSeason]=useState("2025/2026"),[competition,setCompetition]=useState("Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||"");
+  const [viewMode,setViewMode]=useState("season"),[minMinutes,setMinMinutes]=useState(0);
   const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("rating"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[revision,setRevision]=useState(0),[page,setPage]=useState(0);
   const {rows,hasMore,loadMore,busy,error}=useStatsRows(season,competition,revision);
   const players=pq.data||[],teams=tq.data||[];
   const byID=useMemo(()=>new Map(players.map(p=>[String(p.id),p])),[players]);
   const byTeam=useMemo(()=>new Map(teams.map(t=>[String(t.id),t])),[teams]);
   const stats=useMemo(()=>groupStatRows(rows.filter(r=>r.player_id)),[rows]);
+  const seasonSummaries=useMemo(()=>buildSeasonSummaries(rows.filter(r=>r.player_id),teams),[rows,teams]);
   const competitions=useMemo(()=>[...new Set(rows.map(r=>r.competition))].filter(Boolean).sort(),[rows]);
   const visible=useMemo(()=>{
     let rs=stats.map(r=>({record:r,player:byID.get(String(r.player_id))||null}));
@@ -201,7 +205,24 @@ export default function Stats(){
     rs.sort((a,b)=>{const av=sort==="rating"?num(a.record?.rating):getMetric(a.record,sort);const bv=sort==="rating"?num(b.record?.rating):getMetric(b.record,sort);return (bv??-Infinity)-(av??-Infinity)||String(a.player?.name||a.record?.player_name||"").localeCompare(String(b.player?.name||b.record?.player_name||""),"es")});
     return rs;
   },[stats,players,tab,search,sort,byID,byTeam]);
+  const seasonVisible=useMemo(()=>{
+    const mapped=seasonSummaries.map(summary=>({summary,player:byID.get(String(summary.player_id))||null}));
+    if(tab==="todos"){
+      const existing=new Set(seasonSummaries.map(s=>String(s.player_id)));
+      mapped.push(...players.filter(p=>!existing.has(String(p.id))).map(player=>({summary:null,player})));
+    }
+    const q=normalizeLabel(search);
+    const narrowed=q?mapped.filter(({summary,player})=>[player?.name,player?.id,playerUID(player),summary?.player_name,summary?.fotmob_player_id,summary?.mainClub?.name,summary?.season].some(v=>normalizeLabel(v).includes(q))):mapped;
+    const enough=narrowed.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minMinutes:minMinutes===0);
+    enough.sort((a,b)=>{
+      const av=a.summary?statDisplay(a.summary,sort):null;
+      const bv=b.summary?statDisplay(b.summary,sort):null;
+      return (bv??-Infinity)-(av??-Infinity)||String(a.player?.name||a.summary?.player_name||"").localeCompare(String(b.player?.name||b.summary?.player_name||""),"es");
+    });
+    return enough;
+  },[seasonSummaries,byID,players,tab,search,minMinutes,sort]);
   const filtered=visible.slice(page*50,(page+1)*50);
+  const activeCount=viewMode==="season"?seasonVisible.length:visible.length;
   const [detailRows,setDetailRows]=useState([]),[detailLoading,setDetailLoading]=useState(false);
   const [linking,setLinking]=useState("");
   const linkHistoricalTeam=async(record,id)=>{
@@ -216,6 +237,7 @@ export default function Stats(){
     }catch(error){window.alert("No se pudo vincular el club: "+(error?.message||"error desconocido"));}
     finally{setLinking("");}
   };
+  const openSeasonDetail=(summary,player)=>openDetail({record:summary?.records?.[0]||null,player,season:summary?.season});
   const openDetail=async(row)=>{
     setSelected(row);setDetailRows([]);setDetailLoading(true);
     try{const filter=row.player?{player_id:String(row.player.id)}:{fotmob_player_id:row.record.fotmob_player_id};
@@ -241,6 +263,6 @@ export default function Stats(){
       <p className="pb-5 text-xs text-slate-500">Estadísticas asociadas exclusivamente a IDs confirmados. Los atributos de Football Manager permanecen en PLAYERS y nunca se modifican al importar estadísticas. Las cifras pueden requerir revisión y permisos de reutilización antes de publicarse.</p>
     </div>
     {importOpen&&<StatsImport players={players} teams={teams} onClose={()=>setImportOpen(false)} onImported={importComplete}/>}
-    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.record?.season||""} teams={teams} onLinkTeam={linkHistoricalTeam} linking={linking} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} onTeam={id=>{setSelected(null);navigate("/teams?stats_team="+encodeURIComponent(id));}}/>}
+    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} onLinkTeam={linkHistoricalTeam} linking={linking} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} onTeam={id=>{setSelected(null);navigate("/teams?stats_team="+encodeURIComponent(id));}}/>}
   </div>;
 }
