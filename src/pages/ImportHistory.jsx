@@ -109,7 +109,8 @@ export default function ImportHistory() {
   const [parseError, setParseError] = useState("");
   const [parsed, setParsed] = useState(null);
   const [clubLinks, setClubLinks] = useState({});
-  const [existingIds, setExistingIds] = useState(new Set());
+  const [existingStages, setExistingStages] = useState(new Map());
+  const [importedThisSession, setImportedThisSession] = useState(new Set());
   const [playerOverrides, setPlayerOverrides] = useState({});
   const [teamOverrides, setTeamOverrides] = useState({});
   const [clubResolutions, setClubResolutions] = useState({}); // clubKey -> teamId
@@ -187,40 +188,42 @@ export default function ImportHistory() {
     }
   }, [isAdmin, loadAllTeams, loadClubLinks]);
 
-  useEffect(() => {
+  // Consulta PlayerCareer por external_stage_id para detectar etapas ya
+  // guardadas (evita duplicados al recargar o re-subir el mismo JSON).
+  const refreshExistingStages = useCallback(async () => {
     if (!parsed?.entries?.length) {
-      setExistingIds(new Set());
+      setExistingStages(new Map());
       return;
     }
-    let active = true;
-    (async () => {
-      const ids = parsed.entries
-        .map((e) => e.record.external_stage_id)
-        .filter(Boolean);
-      if (!ids.length) {
-        if (active) setExistingIds(new Set());
-        return;
+    const ids = parsed.entries
+      .map((e) => e.record.external_stage_id)
+      .filter(Boolean);
+    if (!ids.length) {
+      setExistingStages(new Map());
+      return;
+    }
+    try {
+      const result = await base44.entities.PlayerCareer.filter(
+        { external_stage_id: { $in: ids } },
+        { limit: 1000 }
+      );
+      const items = Array.isArray(result)
+        ? result
+        : result?.items || result?.data || [];
+      const map = new Map();
+      for (const it of items) {
+        if (it.external_stage_id)
+          map.set(String(it.external_stage_id), it.id);
       }
-      try {
-        const result = await base44.entities.PlayerCareer.filter(
-          { external_stage_id: { $in: ids } },
-          { limit: 1000, fields: ["external_stage_id"] }
-        );
-        const items = Array.isArray(result)
-          ? result
-          : result?.items || result?.data || [];
-        if (active)
-          setExistingIds(
-            new Set(items.map((i) => String(i.external_stage_id)))
-          );
-      } catch (error) {
-        console.warn("No se pudieron comprobar etapas existentes:", error);
-      }
-    })();
-    return () => {
-      active = false;
-    };
+      setExistingStages(map);
+    } catch (error) {
+      console.warn("No se pudieron comprobar etapas existentes:", error);
+    }
   }, [parsed]);
+
+  useEffect(() => {
+    refreshExistingStages();
+  }, [refreshExistingStages]);
 
   // Detección de clubes únicos (agrupados por club_qid o nombre normalizado).
   const clubGroups = useMemo(
@@ -310,10 +313,14 @@ export default function ImportHistory() {
         errors.push("Sugerencia de revisión: no se importa automáticamente.");
       if (!player && !overridePid) errors.push("Jugador no vinculado.");
 
+      const exists = existingStages.has(String(stageId));
+      const imported = importedThisSession.has(stageId);
       const defaultSelected =
         reviewStatus === "approved" &&
         !provisionalIdentity &&
         !reviewOnly &&
+        !exists &&
+        !imported &&
         errors.filter((e) => e !== "Jugador no vinculado.").length === 0;
 
       return {
@@ -324,7 +331,9 @@ export default function ImportHistory() {
         team,
         teamOverride: overrideTid || "",
         suggestion,
-        exists: existingIds.has(String(stageId)),
+        exists,
+        imported,
+        existingId: existingStages.get(String(stageId)) || null,
         provisionalIdentity,
         reviewStatus,
         reviewOnly,
@@ -336,7 +345,7 @@ export default function ImportHistory() {
             : false,
       };
     });
-  }, [parsed, players, teams, resolvedTeamByKey, existingIds, playerOverrides, teamOverrides, selected]);
+  }, [parsed, players, teams, resolvedTeamByKey, existingStages, importedThisSession, playerOverrides, teamOverrides, selected]);
 
   const stats = useMemo(() => {
     const detectedPlayers = new Set(
@@ -352,7 +361,7 @@ export default function ImportHistory() {
   }, [rows]);
 
   const validRows = useMemo(
-    () => rows.filter((r) => r.player && !r.errors.length),
+    () => rows.filter((r) => r.player && !r.errors.length && !r.exists),
     [rows]
   );
 
@@ -596,9 +605,11 @@ export default function ImportHistory() {
   };
 
   const runImport = async (rowsToImport) => {
-    const target = (rowsToImport || selectedRows).filter(
-      (r) => r.player && !r.errors.length
+    const source = rowsToImport || selectedRows;
+    const target = source.filter(
+      (r) => r.player && !r.errors.length && !r.exists
     );
+    const skippedExisting = source.filter((r) => r.exists).length;
     if (!target.length || busy) return;
     setBusy(true);
     setReport(null);
@@ -607,12 +618,13 @@ export default function ImportHistory() {
     const result = {
       created: 0,
       updated: 0,
-      skipped: 0,
+      skipped: skippedExisting,
       failed: 0,
       clubLinksSaved: 0,
       details: [],
     };
     const newClubLinks = [];
+    const importedIds = [];
 
     for (let i = 0; i < target.length; i++) {
       const row = target[i];
@@ -624,6 +636,7 @@ export default function ImportHistory() {
         }`,
       });
 
+      // Las etapas existentes se omiten (no se duplican ni se modifican).
       const payload = {
         player_id: row.player.id,
         fm26_uid: row.record.fm26_uid || row.player.fm26_uid || "",
@@ -643,22 +656,15 @@ export default function ImportHistory() {
         source_url: row.record.source_url || "",
         source_license: row.record.source_license || "",
         review_flags: row.record.review_flags || [],
-        review_status: row.record.review_status || "pending",
+        review_status: "approved",
         provisional_identity: Boolean(row.record.provisional_identity),
-        manually_verified: Boolean(row.record.manually_verified),
+        manually_verified: true,
       };
 
       try {
-        if (row.exists) {
-          await base44.entities.PlayerCareer.update(
-            row.record.external_stage_id,
-            payload
-          );
-          result.updated += 1;
-        } else {
-          await base44.entities.PlayerCareer.create(payload);
-          result.created += 1;
-        }
+        await base44.entities.PlayerCareer.create(payload);
+        result.created += 1;
+        importedIds.push(row.record.external_stage_id);
 
         if (row.record.club_qid && row.team?.id) {
           newClubLinks.push({
@@ -703,10 +709,31 @@ export default function ImportHistory() {
 
     await loadClubLinks();
 
+    // Desmarcar las etapas importadas correctamente y marcarlas como
+    // importadas para que no se vuelvan a seleccionar automáticamente.
+    if (importedIds.length) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const id of importedIds) {
+          next.delete(id);
+          next.delete(`__off__${id}`);
+        }
+        return next;
+      });
+      setImportedThisSession((prev) => {
+        const next = new Set(prev);
+        for (const id of importedIds) next.add(id);
+        return next;
+      });
+    }
+
+    // Refrescar etapas existentes para mostrarlas como Importada/Existente.
+    await refreshExistingStages();
+
     setProgress({
       current: target.length,
       total: target.length,
-      label: `Importación completada · ${result.created} creados · ${result.updated} actualizados · ${result.failed} errores`,
+      label: `Importación completada · ${result.created} creadas · ${result.skipped} omitidas · ${result.failed} errores`,
     });
     setReport(result);
     setBusy(false);
@@ -722,6 +749,8 @@ export default function ImportHistory() {
     setTeamOverrides({});
     setClubResolutions({});
     setSelected(new Set());
+    setExistingStages(new Map());
+    setImportedThisSession(new Set());
     setReport(null);
     setPendingAction(null);
     setProgress({ current: 0, total: 0, label: "" });
@@ -911,6 +940,12 @@ export default function ImportHistory() {
                         </p>
                       </div>
                       <div>
+                        <p className="uppercase text-emerald-700/70">Omitidas</p>
+                        <p className="text-lg font-extrabold text-emerald-900">
+                          {report.skipped || 0}
+                        </p>
+                      </div>
+                      <div>
                         <p className="uppercase text-emerald-700/70">Actualizadas</p>
                         <p className="text-lg font-extrabold text-emerald-900">
                           {report.updated}
@@ -920,12 +955,6 @@ export default function ImportHistory() {
                         <p className="uppercase text-emerald-700/70">Fallidas</p>
                         <p className="text-lg font-extrabold text-emerald-900">
                           {report.failed}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="uppercase text-emerald-700/70">Clubes vinculados</p>
-                        <p className="text-lg font-extrabold text-emerald-900">
-                          {report.clubLinksSaved}
                         </p>
                       </div>
                     </div>
@@ -956,30 +985,51 @@ export default function ImportHistory() {
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-slate-500">
                 {selectedRows.length} etapa(s) seleccionada(s) para importar.
-                Las etapas sin club asignado conservan su nombre original.
+                Las etapas ya guardadas se omiten sin duplicarse.
               </p>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  disabled={busy}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleImport}
-                  disabled={busy || !selectedRows.length}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#003399] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {busy ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Upload size={16} />
-                  )}
-                  {busy ? "Importando..." : "Confirmar importación"}
-                </button>
+                {report ? (
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    disabled={busy}
+                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={16} /> Finalizar y cerrar lote
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    disabled={busy}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                )}
+                {report && selectedRows.length === 0 ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-bold text-emerald-700"
+                  >
+                    <CheckCircle2 size={16} /> Importación finalizada
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleImport}
+                    disabled={busy || selectedRows.length === 0}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#003399] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#002477] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busy ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Upload size={16} />
+                    )}
+                    {busy ? "Importando..." : "Confirmar importación"}
+                  </button>
+                )}
               </div>
             </div>
           </>

@@ -19,6 +19,13 @@ const StageStatus = ({ row }) => {
       </span>
     );
   }
+  if (row.imported) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+        <CheckCircle2 size={11} /> Importada
+      </span>
+    );
+  }
   if (row.exists) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
@@ -74,7 +81,7 @@ export default function CareerPreviewTable({
                   <input
                     type="checkbox"
                     checked={row.selected}
-                    disabled={disabled || row.errors.length > 0 || playerMissing}
+                    disabled={disabled || row.errors.length > 0 || playerMissing || row.exists || row.imported}
                     onChange={() => onToggleRow(row.record.external_stage_id)}
                     className="h-4 w-4 rounded border-slate-300 text-[#003399] focus:ring-[#003399]/30"
                     aria-label="Seleccionar etapa"
