@@ -16,6 +16,7 @@ import TeamLinkPicker from "@/components/stats/TeamLinkPicker";
 import {initialConfig,sanitizeConfig,getColumn,columnValue,RAW_METRICS} from "@/utils/statsColumns";
 import {bestSeasonPerPlayer} from "@/utils/statsBestSeason";
 import {buildSeasonSummaries} from "@/utils/statsSeason";
+import {rankPositions} from "@/utils/statsRank";
 
 const unpack = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || [];
 const options = Array.from({length:12},(_,i)=>{const y=2027-i;return (y-1)+"/"+y;});
@@ -109,16 +110,17 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,on
   const totalsTitle=allSeasons?"Subtotal histórico (no total de carrera)":competition==="Todas"?"Subtotal de temporada":"Estadísticas de la competición";
   const teamCell=r=>{
     const info=resolveTeam(r,teams,uniqueRecords);
+    if(info.status==="national")return <span className="text-slate-500">Selección nacional</span>;
     const team=info.team;
-    const confirmed=info.status==="confirmed";
-    return <div className="flex min-w-[155px] flex-col gap-1">
-      {team&&confirmed?<button onClick={()=>onTeam(team.id)} className="w-fit text-left hover:underline">
-        <TeamBadge teamName={team.name} logo={teamLogo(team)}/>
-      </button>:info.status==="national"?<span className="text-slate-500">Selección nacional</span>:info.status==="source"?<span>{info.label}</span>:info.status==="suggested"?<div className="flex items-center gap-1 text-amber-800"><Shield size={13}/><span>{info.label}</span></div>:<span className="text-slate-400">Club pendiente</span>}
-      {info.status==="confirmed"&&<span className="text-[10px] text-emerald-700">Club reconocido en MY LEGACY</span>}
-      {info.status==="suggested"&&<span className="text-[10px] text-amber-700">No confirmado</span>}
-      {info.status!=="national"&&r.id&&<button type="button" onClick={()=>setTeamLinkTarget(r)} className="w-fit rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-bold text-[#003399] hover:bg-blue-100">Buscar / cambiar club</button>}
-    </div>;
+    const suggested=info.status==="suggested";
+    const name=team?.name||r.team_name||"Asignar club";
+    const title=info.status==="confirmed"?"Pulsa el nombre para cambiar el club de esta competición":suggested?"Club sugerido, pendiente de confirmar. Pulsa para elegir el correcto.":"Pulsa para buscar y asignar el club de esta competición";
+    const label=<span className="group inline-flex max-w-[195px] items-center gap-1.5 text-left">
+      <TeamBadge teamName={name} logo={teamLogo(team)}/>
+      {suggested&&<span className="text-[10px] font-bold text-amber-600" aria-label="Club sin confirmar">?</span>}
+      {r.id&&<span className="text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">✎</span>}
+    </span>;
+    return r.id?<button type="button" onClick={()=>setTeamLinkTarget(r)} title={title} aria-label={"Cambiar club de "+r.competition+" "+r.season+": "+name} className="rounded-md py-1 text-slate-800 hover:text-[#003399] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#003399]">{label}</button>:label;
   };
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Ficha estadística">
