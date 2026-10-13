@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Activity, ArrowDownUp, ArrowLeft, ArrowRight, BarChart3, CalendarDays, CheckCircle2, ChevronDown, Database, FileSpreadsheet, Search, Shield, TrendingUp, Trophy, Upload, Users, X } from "lucide-react";
+import { ArrowRight, BarChart3, Database, Search, Shield, Trophy, Upload, Users, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
 import { metricGroups, normalizeLabel, metricLabel } from "@/utils/statsImport";

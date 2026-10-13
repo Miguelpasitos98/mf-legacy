@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, CheckCircle2, FileJson2, Link2, Upload, X } from "lucide-react";
+import { AlertCircle, FileJson2, Upload, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { normalizeLabel, parseStatsText } from "@/utils/statsImport";
 
