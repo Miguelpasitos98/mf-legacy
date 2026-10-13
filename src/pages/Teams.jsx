@@ -33,6 +33,8 @@ import {
   numericValue,
   normalizeImageUrl,
   mapTeamToForm,
+  resolveCountry,
+  resolveLeague,
 } from "@/components/teams/teamUtils";
 import { TeamCard, CompetitionHeader } from "@/components/teams/TeamCard";
 import { AddTeamModal, ImportTeamJsonModal } from "@/components/teams/TeamFormComponents";

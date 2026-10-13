@@ -6,6 +6,7 @@ import {
   Search,
   Plus,
 } from "lucide-react";
+import TeamLogo from "@/components/teams/TeamLogo";
 
 /**
  * MF LEGACY — Shared constants and helpers for the player form.
@@ -306,11 +307,6 @@ export function SearchableEntitySelect({
       ? item?.code || ""
       : item?.short_name || "";
 
-  const getImage = (item) =>
-    kind === "country"
-      ? getCountryFlagUrl(item)
-      : normalizeImageUrl(item?.logo);
-
   const filteredOptions = options.filter((item) => {
     const searchText = [
       item?.name,
@@ -344,34 +340,32 @@ export function SearchableEntitySelect({
   const renderVisual = (item) => {
     if (!item) return null;
 
-    const image = getImage(item);
+    if (kind === "country") {
+      const image = getCountryFlagUrl(item);
+      return (
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-50">
+          {image ? (
+            <img
+              src={image}
+              alt=""
+              className="h-5 w-7 rounded-[2px] object-cover"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <Globe2
+              size={15}
+              className="text-slate-300"
+            />
+          )}
+        </span>
+      );
+    }
 
     return (
       <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-50">
-        {image ? (
-          <img
-            src={image}
-            alt=""
-            className={
-              kind === "country"
-                ? "h-5 w-7 rounded-[2px] object-cover"
-                : "h-6 w-6 object-contain"
-            }
-            onError={(event) => {
-              event.currentTarget.style.display = "none";
-            }}
-          />
-        ) : kind === "country" ? (
-          <Globe2
-            size={15}
-            className="text-slate-300"
-          />
-        ) : (
-          <Building2
-            size={15}
-            className="text-slate-300"
-          />
-        )}
+        <TeamLogo src={item?.logo || item?.logo_url || item?.logoUrl} imgClassName="h-6 w-6 object-contain" iconSize={15} iconClassName="text-slate-300" />
       </span>
     );
   };

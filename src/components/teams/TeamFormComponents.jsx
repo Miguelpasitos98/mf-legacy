@@ -27,6 +27,7 @@ import {
   mapImportedTeamToForm,
   normalizeImportedTeamText,
 } from "./teamUtils";
+import TeamLogo from "./TeamLogo";
 
 function FormField({ label, children, hint }) {
   return (
@@ -94,9 +95,6 @@ function SearchableTeamSelect({
   const getLabel = (item) => item?.name || "Unnamed";
   const getMeta = (item) =>
     kind === "country" ? item?.code || "" : item?.shortName || item?.short_name || "";
-  const getImage = (item) =>
-    kind === "country" ? getCountryFlagUrl(item) : normalizeImageUrl(item?.logo || item?.logo_url || item?.logoUrl);
-
   const filteredOptions = options
     .filter((item) => item?.id && item?.name)
     .filter((item) => {
@@ -118,19 +116,26 @@ function SearchableTeamSelect({
 
   const renderVisual = (item) => {
     if (!item) return null;
-    const image = getImage(item);
+    if (kind === "country") {
+      const image = getCountryFlagUrl(item);
+      return (
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-50">
+          {image ? (
+            <img
+              src={image}
+              alt=""
+              className="h-5 w-7 rounded-[2px] object-cover"
+              onError={(event) => { event.currentTarget.style.display = "none"; }}
+            />
+          ) : (
+            <span className="text-[10px] font-bold text-slate-300">•</span>
+          )}
+        </span>
+      );
+    }
     return (
       <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-50">
-        {image ? (
-          <img
-            src={image}
-            alt=""
-            className={kind === "country" ? "h-5 w-7 rounded-[2px] object-cover" : "h-6 w-6 object-contain"}
-            onError={(event) => { event.currentTarget.style.display = "none"; }}
-          />
-        ) : (
-          <span className="text-[10px] font-bold text-slate-300">{kind === "country" ? "•" : "FC"}</span>
-        )}
+        <TeamLogo src={item?.logo || item?.logo_url || item?.logoUrl} imgClassName="h-6 w-6 object-contain" iconSize={15} iconClassName="text-slate-300" />
       </span>
     );
   };

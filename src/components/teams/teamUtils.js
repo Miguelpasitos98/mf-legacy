@@ -368,3 +368,135 @@ export function normalizeImportedTeamText(value) {
   }
   return parseLabeledTeamText(value);
 }
+
+/**
+ * Normaliza un nombre de entidad: elimina acentos, mayúsculas y espacios
+ * extra para poder comparar nombres de país/liga de forma tolerante.
+ */
+export const normalizeEntityName = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[’'`´]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Alias de países: nombre común o traducción → nombre canónico.
+// Clave y valor están normalizados con normalizeEntityName.
+export const COUNTRY_ALIASES = {
+  inglaterra: "england",
+  espana: "spain",
+  "estados unidos": "united states",
+  estadosunidos: "united states",
+  holanda: "netherlands",
+  "paises bajos": "netherlands",
+  alemania: "germany",
+  italia: "italy",
+  francia: "france",
+  portugal: "portugal",
+  brasil: "brazil",
+  argentina: "argentina",
+  escocia: "scotland",
+  gales: "wales",
+  irlanda: "ireland",
+  belgica: "belgium",
+  suecia: "sweden",
+  noruega: "norway",
+  dinamarca: "denmark",
+  finlandia: "finland",
+  suiza: "switzerland",
+  austria: "austria",
+  grecia: "greece",
+  turquia: "turkey",
+  rusia: "russia",
+  ucrania: "ukraine",
+  polonia: "poland",
+  "republica checa": "czech republic",
+  hungria: "hungary",
+  rumania: "romania",
+  servia: "serbia",
+  croacia: "croatia",
+  japon: "japan",
+  "corea del sur": "south korea",
+  "arabia saudi": "saudi arabia",
+  egipto: "egypt",
+  marruecos: "morocco",
+  nigeria: "nigeria",
+  ghana: "ghana",
+  senegal: "senegal",
+  camerun: "cameroon",
+  "costa de marfil": "ivory coast",
+  mexico: "mexico",
+  canada: "canada",
+  australia: "australia",
+};
+
+const resolveAliasKey = (name) => {
+  const key = normalizeEntityName(name);
+  return COUNTRY_ALIASES[key] ? normalizeEntityName(COUNTRY_ALIASES[key]) : key;
+};
+
+/**
+ * Busca un país existente en la entidad Country por nombre (con alias),
+ * código ISO o ID. Aplica normalización de acentos, mayúsculas y espacios.
+ *
+ * Devuelve { country, ambiguous, candidates }:
+ *  - country: el país si hay una única coincidencia inequívoca.
+ *  - ambiguous: true si varias coincidencias requieren selección manual.
+ *  - candidates: lista de coincidencias para depuración/UI.
+ *
+ * No crea países: solo vincula el country_id existente para evitar duplicados.
+ */
+export const resolveCountry = (countries, { name, code, id } = {}) => {
+  if (!Array.isArray(countries)) return { country: null, ambiguous: false, candidates: [] };
+
+  if (id) {
+    const byId = countries.find((c) => String(c.id) === String(id));
+    if (byId) return { country: byId, ambiguous: false, candidates: [] };
+  }
+
+  const codeKey = String(code || "").trim().toUpperCase();
+  const nameAlias = resolveAliasKey(name);
+
+  const candidates = countries.filter((c) => {
+    const cAlias = resolveAliasKey(c.name);
+    if (nameAlias && cAlias && cAlias === nameAlias) return true;
+    if (codeKey && String(c.code || "").trim().toUpperCase() === codeKey) return true;
+    return false;
+  });
+
+  if (candidates.length === 1) return { country: candidates[0], ambiguous: false, candidates };
+  if (candidates.length > 1) return { country: null, ambiguous: true, candidates };
+  return { country: null, ambiguous: false, candidates: [] };
+};
+
+/**
+ * Busca una liga existente por nombre o abreviatura (short_name).
+ * Reutiliza siempre el league_id existente; no crea duplicados.
+ */
+export const resolveLeague = (leagues, { name, shortName, id } = {}) => {
+  if (!Array.isArray(leagues)) return { league: null, ambiguous: false, candidates: [] };
+
+  if (id) {
+    const byId = leagues.find((l) => String(l.id) === String(id));
+    if (byId) return { league: byId, ambiguous: false, candidates: [] };
+  }
+
+  const nameKey = normalizeEntityName(name);
+  const shortKey = normalizeEntityName(shortName);
+
+  const candidates = leagues.filter((l) => {
+    const lName = normalizeEntityName(l.name);
+    const lShort = normalizeEntityName(l.shortName || l.short_name || "");
+    if (nameKey && lName && lName === nameKey) return true;
+    if (shortKey && lShort && lShort === shortKey) return true;
+    return false;
+  });
+
+  if (candidates.length === 1) return { league: candidates[0], ambiguous: false, candidates };
+  if (candidates.length > 1) return { league: null, ambiguous: true, candidates };
+  return { league: null, ambiguous: false, candidates: [] };
+};
