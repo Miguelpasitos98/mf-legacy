@@ -183,12 +183,12 @@ export default function Stats(){
   const [statsParams]=useSearchParams();
   const pq=usePlayersQuery(),tq=useTeamsQuery();
   const [season,setSeason]=useState("2025/2026"),[competition,setCompetition]=useState("Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||"");
-  const [tab,setTab]=useState("todos"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("rating"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[revision,setRevision]=useState(0),[page,setPage]=useState(0);
+  const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("rating"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[revision,setRevision]=useState(0),[page,setPage]=useState(0);
   const {rows,hasMore,loadMore,busy,error}=useStatsRows(season,competition,revision);
   const players=pq.data||[],teams=tq.data||[];
   const byID=useMemo(()=>new Map(players.map(p=>[String(p.id),p])),[players]);
   const byTeam=useMemo(()=>new Map(teams.map(t=>[String(t.id),t])),[teams]);
-  const stats=useMemo(()=>rows.filter(r=>r.player_id),[rows]);
+  const stats=useMemo(()=>groupStatRows(rows.filter(r=>r.player_id)),[rows]);
   const competitions=useMemo(()=>[...new Set(rows.map(r=>r.competition))].filter(Boolean).sort(),[rows]);
   const visible=useMemo(()=>{
     let rs=stats.map(r=>({record:r,player:byID.get(String(r.player_id))||null}));
@@ -203,6 +203,19 @@ export default function Stats(){
   },[stats,players,tab,search,sort,byID,byTeam]);
   const filtered=visible.slice(page*50,(page+1)*50);
   const [detailRows,setDetailRows]=useState([]),[detailLoading,setDetailLoading]=useState(false);
+  const [linking,setLinking]=useState("");
+  const linkHistoricalTeam=async(record,id)=>{
+    const team=teams.find(t=>String(t.id)===String(id));
+    if(!record?.id||!team)return;
+    if(!window.confirm("¿Confirmas que "+(selected?.player?.name||"este jugador")+" jugó la competición "+record.competition+" ("+record.season+") con "+team.name+"? Esta vinculación se guardará únicamente para el registro seleccionado."))return;
+    setLinking(record.id);
+    try {
+      await base44.entities.PlayerSeasonStats.update(record.id,{team_id:String(team.id)});
+      setDetailRows(current=>current.map(row=>String(row.id)===String(record.id)?{...row,team_id:String(team.id)}:row));
+      setRevision(value=>value+1);
+    }catch(error){window.alert("No se pudo vincular el club: "+(error?.message||"error desconocido"));}
+    finally{setLinking("");}
+  };
   const openDetail=async(row)=>{
     setSelected(row);setDetailRows([]);setDetailLoading(true);
     try{const filter=row.player?{player_id:String(row.player.id)}:{fotmob_player_id:row.record.fotmob_player_id};
@@ -215,7 +228,7 @@ export default function Stats(){
   const importComplete=()=>{setRevision(x=>x+1);queryClient.invalidateQueries({queryKey:["mf-legacy","stats"]});};
   return <div className="h-full w-full overflow-y-auto bg-[#f3f5f8]">
     <div className="border-b border-[#dfe6ee] bg-white px-6 pb-6 pt-6 md:px-9"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[.23em] text-[#003399]"><span className="h-px w-7 bg-[#003399]"/> THE DATA ROOM</div><h1 className="font-heading text-4xl font-black tracking-tight text-[#10253d]">Player Stats</h1><p className="mt-2 text-sm text-slate-500">Rankings y rendimiento por temporada · Jugadores conectados con MY LEGACY</p></div><button onClick={()=>setImportOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-[#003399] px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-[#002777]"><Upload size={17}/> Importar CSV / JSON</button></div>
-    <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">{[["Jugadores en MY LEGACY",players.length,Users],["Etapas estadísticas cargadas",stats.length,Database],["Jugadores con datos",new Set(stats.map(r=>r.player_id)).size,BarChart3],["Competiciones visibles",new Set(stats.map(r=>r.competition)).size,Trophy]].map(([label,val,Icon])=><div key={label} className="flex items-center gap-3 rounded-xl border border-[#e6ebf2] bg-[#f9fbfd] px-4 py-3"><Icon size={19} className="text-[#003399]"/><div><p className="text-[11px] font-semibold text-slate-500">{label}</p><p className="text-xl font-black text-[#0a2948]">{show(val)}</p></div></div>)}</div></div>
+    <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">{[["Jugadores en MY LEGACY",players.length,Users],["Etapas del filtro actual",stats.length,Database],["Jugadores con datos en filtro",new Set(stats.map(r=>r.player_id)).size,BarChart3],["Competiciones en filtro",new Set(stats.map(r=>r.competition)).size,Trophy]].map(([label,val,Icon])=><div key={label} className="flex items-center gap-3 rounded-xl border border-[#e6ebf2] bg-[#f9fbfd] px-4 py-3"><Icon size={19} className="text-[#003399]"/><div><p className="text-[11px] font-semibold text-slate-500">{label}</p><p className="text-xl font-black text-[#0a2948]">{show(val)}</p></div></div>)}</div></div>
     <div className="space-y-4 px-6 py-5 md:px-9">
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-wrap gap-3"><label className="text-[11px] font-bold text-slate-500">TEMPORADA<select className="mt-1 block min-w-36 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-[#193a5b]" value={season} onChange={e=>{setSeason(e.target.value);setCompetition("Todas");setPage(0);}}><option>Todas</option>{options.map(x=><option key={x}>{x}</option>)}</select></label><label className="text-[11px] font-bold text-slate-500">COMPETICIÓN<select className="mt-1 block min-w-40 rounded-lg border border-slate-200 px-3 py-2 text-sm" value={competition} onChange={e=>{setCompetition(e.target.value);setPage(0);}}><option>Todas</option>{competitions.map(x=><option key={x}>{x}</option>)}</select></label><label className="min-w-[220px] flex-1 text-[11px] font-bold text-slate-500">BUSCAR JUGADOR, CLUB O ID<div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3"><Search size={16} className="text-slate-400"/><input value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}} className="w-full bg-transparent py-2 text-sm font-normal outline-none" placeholder="Buscar en MY LEGACY…"/></div></label><label className="text-[11px] font-bold text-slate-500">ORDENAR<select className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-sm" value={sort} onChange={e=>{setSort(e.target.value);setPage(0);}}><option value="rating">Nota FotMob</option><option value="goals">Goles</option><option value="assists">Asistencias</option><option value="xg">xG</option><option value="xa">xA</option><option value="tackles">Entradas</option></select></label></div></div>
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">STAT COLUMNS</p><div className="flex flex-wrap gap-2">{CAT_TABS.map(label=><button key={label} onClick={()=>{setCategory(label);setPage(0);}} className={"rounded-lg px-4 py-2 text-xs font-bold "+(category===label?"bg-[#102e23] text-white":"border border-slate-200 text-slate-700 hover:bg-slate-50")}>{label}</button>)}</div></div>
@@ -228,6 +241,6 @@ export default function Stats(){
       <p className="pb-5 text-xs text-slate-500">Estadísticas asociadas exclusivamente a IDs confirmados. Los atributos de Football Manager permanecen en PLAYERS y nunca se modifican al importar estadísticas. Las cifras pueden requerir revisión y permisos de reutilización antes de publicarse.</p>
     </div>
     {importOpen&&<StatsImport players={players} teams={teams} onClose={()=>setImportOpen(false)} onImported={importComplete}/>}
-    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} teams={teams} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} onTeam={id=>{setSelected(null);navigate("/teams?stats_team="+encodeURIComponent(id));}}/>}
+    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} teams={teams} onLinkTeam={linkHistoricalTeam} linking={linking} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} onTeam={id=>{setSelected(null);navigate("/teams?stats_team="+encodeURIComponent(id));}}/>}
   </div>;
 }
