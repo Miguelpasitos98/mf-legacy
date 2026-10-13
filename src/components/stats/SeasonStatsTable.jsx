@@ -34,7 +34,7 @@ function ClubBadge({summary,onTeam}){
 }
 export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0}){
  const columns=seasonColumns[category]||seasonColumns.Resumen;
- const filtered=items.filter(({summary})=>(summary.totals.minutes.value||0)>=minimumMinutes);
+ const filtered=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0);
  const pageRows=filtered.slice(page*50,(page+1)*50);
  return <div>
   <div className="max-w-full overflow-x-auto">
@@ -48,7 +48,8 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
      <th className="px-3 py-3">DETALLE</th>
     </tr></thead>
     <tbody>{pageRows.map(({summary,player},i)=>{
-     const name=player?.name||summary.player_name||"Jugador";
+     const name=player?.name||summary?.player_name||"Jugador";
+     if(!summary)return <tr key={String(player?.id||i)} className="border-b border-slate-100 text-xs"><td className="px-3 py-3 text-right text-slate-400">{page*50+i+1}</td><td className="px-3 py-2"><div className="flex items-center gap-2"><PlayerPhoto player={player} name={name}/><span className="font-semibold text-slate-700">{name}</span></div></td><td colSpan={6+columns.length} className="px-3 py-3 text-slate-400">Sin estadísticas importadas para esta temporada</td></tr>;
      return <tr key={summary.id} className="border-b border-slate-100 align-middle odd:bg-white even:bg-[#f6f8f6] hover:bg-[#edf3fb]">
       <td className="px-3 py-3 text-right text-slate-400">{page*50+i+1}</td>
       <td className="px-3 py-2"><button onClick={()=>onOpen(summary,player)} className="flex items-center gap-2 text-left">
