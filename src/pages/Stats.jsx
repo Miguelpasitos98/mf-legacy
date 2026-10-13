@@ -51,11 +51,24 @@ const useStatsRows=(season,competition,revision)=>{
     }catch(e){setError(e.message||String(e));}
     finally{setBusy(false);}
   };
-  useEffect(()=>{setFetched([]);setNext(null);let ignore=false;
+  useEffect(()=>{let ignore=false;setFetched([]);setNext(null);
     const fetch=async()=>{setBusy(true);setError("");
-      try{const filter={};if(season!=="Todas")filter.season=season;if(competition!=="Todas")filter.competition=competition;
-        const r=Object.keys(filter).length?await base44.entities.PlayerSeasonStats.filter(filter,{limit:500}):await base44.entities.PlayerSeasonStats.list({limit:500});
-        if(!ignore){setFetched(unpack(r).map(parseData));setNext(r?.next_cursor||r?.nextCursor||null);}
+      try{
+        const filter={};if(season!=="Todas")filter.season=season;if(competition!=="Todas")filter.competition=competition;
+        let cursor=null,continuation=null,all=[];
+        // Todas las temporadas se cargan con paginación real de Base44.
+        // 40 páginas (20.000 registros) para evitar solicitudes interminables; el resto queda cargable manualmente.
+        for(let index=0;index<40&&!ignore;index++){
+          const options={limit:500,...(cursor?{cursor}:{})};
+          const response=Object.keys(filter).length?await base44.entities.PlayerSeasonStats.filter(filter,options):await base44.entities.PlayerSeasonStats.list(options);
+          const page=unpack(response).map(parseData);
+          all=all.concat(page);
+          const nextCursor=response?.next_cursor||response?.nextCursor||null;
+          continuation=nextCursor&&nextCursor!==cursor?nextCursor:null;
+          if(!ignore){setFetched([...all]);setNext(continuation);}
+          if(!continuation||page.length===0)break;
+          cursor=continuation;
+        }
       }catch(e){if(!ignore)setError(e.message||String(e));}
       finally{if(!ignore)setBusy(false);}
     };fetch();return()=>{ignore=true;};
