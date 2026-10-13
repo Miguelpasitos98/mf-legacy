@@ -15,7 +15,6 @@ export default function Layout() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
   const isTeamsPage = location.pathname.startsWith("/teams");
-  const isStatsPage = location.pathname.startsWith("/stats");
 
   // PERFIL INDIVIDUAL DE JUGADOR
   const isPlayerProfile =
@@ -31,7 +30,7 @@ export default function Layout() {
     >
       {/* MARCO EXTERIOR */}
       <div
-        className={`relative w-[95vw] ${isStatsPage ? "h-[96dvh]" : "h-[75vh]"} rounded-[20px] ${
+        className={`relative w-[95vw] h-[75vh] rounded-[20px] ${
           isPlayerProfile ? "overflow-visible" : "overflow-hidden"
         }`}
         style={{
