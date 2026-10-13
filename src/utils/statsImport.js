@@ -38,17 +38,24 @@ const metricValue = (metrics, label) => {
 };
 const cleanMetrics = (metrics) => {
   if (!Array.isArray(metrics)) return [];
-  const out = new Map();
+  const out = [];
+  const seen = new Map();
   for (const m of metrics) {
     if (!m || typeof m !== "object") continue;
     const name = asText(m.name || m.title || m.statistic);
     const value = asNum(m.value ?? m.statValue);
     if (!name || value === null) continue;
     const key = normalizeLabel(name);
-    if (!out.has(key)) out.set(key, {name, value, per90:asNum(m.per90), percentile:asNum(m.percentile)});
-    else if (out.get(key).value !== value) throw Error("Estadística contradictoria: " + name);
+    const same = seen.get(key) || [];
+    if (same.some(existing => existing.value === value)) continue;
+    // FotMob puede usar una misma etiqueta en categorías o desgloses distintos.
+    // Conservar ambos valores sin atribuir al segundo un significado inventado.
+    const uniqueName = same.length ? name + " (variante " + (same.length + 1) + ")" : name;
+    const item = {name:uniqueName, value, per90:asNum(m.per90), percentile:asNum(m.percentile)};
+    out.push(item);
+    seen.set(key, [...same,item]);
   }
-  return [...out.values()];
+  return out;
 };
 export function normalizeRecord(item) {
   if (!item || typeof item !== "object") throw Error("Registro no válido.");
