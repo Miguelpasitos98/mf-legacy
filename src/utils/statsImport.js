@@ -1,1 +1,162 @@
-/* Stats import support */
+// Contrato local de FotMob Legacy Studio: formatos de caché y estadística detallada.
+// No mezcla atributos FM26 con rendimiento real.
+export const DATA_SOURCES = ["mf_legacy_fotmob_stats_review_v1","mf_legacy_fotmob_player_stats_batch_review_v1","mf_legacy_fotmob_player_stats_review_v1"];
+const asText = (v) => String(v ?? "").trim();
+const asNum = (v) => {
+  if (v === null || v === undefined || v === "") return null;
+  const value = typeof v === "string" ? v.trim().replace(/%|km\/h|km/g, "").replace(",", ".") : v;
+  if (value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+export const normalizeLabel = (v) => asText(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const normalizedSeason = (v) => {
+  const text = asText(v);
+  const match = text.match(/^(\d{4})[\/-](\d{2}|\d{4})$/);
+  if (!match) return text;
+  return match[1] + "/" + (match[2].length === 2 ? match[1].slice(0, 2) + match[2] : match[2]);
+};
+const slug = (v) => asText(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+export const recordKey = (r) => {
+  const pid = asText(r.fotmob_player_id);
+  const tid = asText(r.fotmob_team_id) || slug(r.team_name) || "team-unknown";
+  return "fotmob:" + pid + ":" + tid + ":" + slug(r.season) + ":" + slug(r.competition);
+};
+const metricAliases = {
+  "goals":"goals","goles":"goals","assists":"assists","asistencias":"assists",
+  "expectedgoals":"xg","xg":"xg","expectedassists":"xa","xa":"xa",
+  "xgot":"xgot","shots":"shots","tiros":"shots","shotsontarget":"shots_on_target",
+  "tackles":"tackles","entradas":"tackles","interceptions":"interceptions",
+  "recoveries":"recoveries","yellowcards":"yellow_cards","redcards":"red_cards",
+  "minutes":"minutes","minutesplayed":"minutes","matches":"appearances","appearances":"appearances",
+  "rating":"rating","fotmobrating":"rating"
+};
+const metricValue = (metrics, label) => {
+  const wanted = normalizeLabel(label);
+  const entry = (metrics || []).find((m) => normalizeLabel(m.name) === wanted);
+  return entry ? entry.value : null;
+};
+const cleanMetrics = (metrics) => {
+  if (!Array.isArray(metrics)) return [];
+  const out = new Map();
+  for (const m of metrics) {
+    if (!m || typeof m !== "object") continue;
+    const name = asText(m.name || m.title || m.statistic);
+    const value = asNum(m.value ?? m.statValue);
+    if (!name || value === null) continue;
+    const key = normalizeLabel(name);
+    if (!out.has(key)) out.set(key, {name, value, per90:asNum(m.per90), percentile:asNum(m.percentile)});
+    else if (out.get(key).value !== value) throw Error("Estadística contradictoria: " + name);
+  }
+  return [...out.values()];
+};
+export function normalizeRecord(item) {
+  if (!item || typeof item !== "object") throw Error("Registro no válido.");
+  const p = asText(item.fotmob_player_id || item.player_id_fotmob);
+  const season = normalizedSeason(item.season);
+  const competition = asText(item.competition || item.league);
+  if (!p || !season || !competition) throw Error("Falta ID FotMob, temporada o competición.");
+  const metrics = cleanMetrics(item.metrics);
+  const value = (field) => asNum(item[field]) ?? metricValue(metrics, field);
+  const rec = {
+    external_record_id: recordKey({...item, fotmob_player_id:p, season, competition}),
+    player_id: asText(item.base44_player_id || item.player_id_base44),
+    fm26_uid: asText(item.fm26_uid),
+    fotmob_player_id:p,
+    player_name:asText(item.player_name || item.name),
+    team_id:asText(item.base44_team_id || item.team_id_base44),
+    fotmob_team_id:asText(item.fotmob_team_id),
+    team_name:asText(item.team_name),
+    season, competition,
+    appearances:value("appearances") ?? metricValue(metrics,"Matches"),
+    minutes:value("minutes") ?? metricValue(metrics,"Minutes played"),
+    rating:value("rating") ?? metricValue(metrics,"FotMob Rating"),
+    market_value:value("market_value"),
+    market_date:asText(item.market_date),
+    metrics,
+    source:asText(item.source) || "FotMob · archivo importado",
+    verification_status:asText(item.verification_status) || "pendiente_revision",
+    review_status:"pending",
+  };
+  return rec;
+}
+const parseCSVRows = (text) => {
+  const source = String(text || "").replace(/^\uFEFF/, "");
+  const firstLine = source.split(/\r?\n/,1)[0] || "";
+  const delimiter = (firstLine.match(/;/g)||[]).length >= (firstLine.match(/,/g)||[]).length ? ";" : ",";
+  const rows=[];let row=[],field="",quoted=false;
+  for (let i=0;i<source.length;i++){
+    const ch=source[i];
+    if(ch==='"'){
+      if(quoted && source[i+1]==='"'){field+='"';i++;}else quoted=!quoted;
+    }else if(!quoted && ch===delimiter){row.push(field);field="";}
+    else if(!quoted && (ch==='\r'||ch==='\n')){
+      if(ch==='\r'&&source[i+1]==='\n')i++;
+      row.push(field);if(row.some((x)=>x.trim()))rows.push(row);row=[];field="";
+    }else field+=ch;
+  }
+  if(quoted)throw Error("CSV con comillas sin cerrar.");
+  row.push(field);if(row.some((x)=>x.trim()))rows.push(row);
+  if(rows.length<2)throw Error("CSV vacío o sin registros.");
+  const headers=rows.shift().map((x)=>x.trim().replace(/^\uFEFF/,""));
+  return rows.map((values)=>Object.fromEntries(headers.map((h,i)=>[h,values[i] ?? ""])));
+};
+export function parseStatsText(text, filename="archivo.json") {
+  const csv=/\.csv$/i.test(filename);
+  let rows, schema="";
+  if(csv){
+    rows=parseCSVRows(text);
+    if(rows[0] && ("statistic" in rows[0] || "statistic_id" in rows[0])){
+      const byId=new Map();
+      for(const row of rows){
+        const key=asText(row.external_record_id)||[row.fotmob_player_id,row.fotmob_team_id,row.season,row.competition].join("|");
+        if(!byId.has(key))byId.set(key,{...row,metrics:[]});
+        const item=byId.get(key);
+        if(row.statistic && row.value !== ""){
+          item.metrics.push({name:row.statistic,value:row.value,per90:row.per90,percentile:row.percentile});
+        }
+      }
+      rows=[...byId.values()];
+    }
+  }else{
+    const raw=JSON.parse(String(text||"").replace(/^\uFEFF/,""));
+    if(Array.isArray(raw)) rows=raw;
+    else if(raw && typeof raw==="object"){
+      schema=asText(raw.schema);
+      rows=Array.isArray(raw.records)?raw.records:raw.record?[raw.record]:[];
+    }
+    if(!Array.isArray(rows))throw Error("El JSON debe contener un array records.");
+  }
+  if(!rows?.length)throw Error("Este archivo no contiene estadísticas importables.");
+  if(rows.length>30000)throw Error("Lote demasiado grande. Divide el archivo en lotes de hasta 30.000.");
+  const byKey=new Map();const errors=[];
+  rows.forEach((r,i)=>{
+    try {
+      const rec=normalizeRecord(r);
+      const key=rec.external_record_id;
+      if(byKey.has(key)){
+        const old=byKey.get(key);
+        if(JSON.stringify(old.metrics)!==JSON.stringify(rec.metrics)||old.appearances!==rec.appearances||old.minutes!==rec.minutes){
+          // No sobrescribir silenciosamente bloques con cifras distintas.
+          throw Error("Clave duplicada con datos distintos: "+key);
+        }
+      }else byKey.set(key,rec);
+    }catch(err){errors.push("Fila "+(i+2)+": "+(err.message||err));}
+  });
+  if(errors.length)throw Error(errors.slice(0,7).join("\n")+(errors.length>7?"\n... ("+errors.length+" errores)": ""));
+  return {records:[...byKey.values()],schema,originalCount:rows.length};
+}
+export const metricGroups = [
+  ["Resumen",["goals","assists","xg","xa","shots","shots_on_target"]],
+  ["Ataque",["goals","assists","xg","xa","xgot","shots","shots_on_target","bigchancescreated"]],
+  ["Creación",["accuratepasses","passaccuracy","chancescreated","keypasses","xa","crossaccuracy"]],
+  ["Defensa",["tackles","interceptions","clearances","recoveries","duelswon","cleansheets"]],
+  ["Portería",["saves","savepercentage","cleansheets","goalsconceded"]],
+  ["Físico",["topspeed","totaldistancecovered","numberofsprints"]],
+];
+export const metricLabel = (name) => {
+  const key=normalizeLabel(name);
+  const labels={goals:"Goles",assists:"Asistencias",xg:"xG",xa:"xA",xgot:"xGOT",shots:"Tiros",shotsontarget:"Tiros a puerta",tackles:"Entradas",interceptions:"Intercepciones",recoveries:"Recuperaciones",minutes:"Minutos",appearances:"Partidos",rating:"Nota"};
+  return labels[key]||name;
+};
+
