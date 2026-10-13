@@ -14,7 +14,7 @@ import {nextSorting,sortStatsItems,defaultSortDirection} from "@/utils/statsSort
 import StatsColumnSettings from "@/components/stats/StatsColumnSettings";
 import TeamLinkPicker from "@/components/stats/TeamLinkPicker";
 import {initialConfig,sanitizeConfig,getColumn,columnValue} from "@/utils/statsColumns";
-import {buildSeasonSummaries,statDisplay} from "@/utils/statsSeason";
+import {buildSeasonSummaries} from "@/utils/statsSeason";
 
 const unpack = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || [];
 const options = Array.from({length:12},(_,i)=>{const y=2027-i;return (y-1)+"/"+y;});
