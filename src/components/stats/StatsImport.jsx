@@ -10,7 +10,7 @@ const playerName = (p) => String(p.name || "");
 const same = (a,b) => String(a||"")===String(b||"");
 const isID = (id) => Boolean(String(id||"").trim());
 
-export default function StatsImport({ players=[], onClose, onImported }) {
+export default function StatsImport({ players=[], teams=[], onClose, onImported }) {
   const [rows,setRows]=useState([]);
   const [filename,setFilename]=useState("");
   const [message,setMessage]=useState("");
@@ -25,6 +25,7 @@ export default function StatsImport({ players=[], onClose, onImported }) {
   const stopRef=useRef(false);
   const uniquePlayers=useMemo(()=>[...new Map(players.filter(p=>p?.id).map(p=>[String(p.id),p])).values()], [players]);
   const byID=useMemo(()=>new Map(uniquePlayers.map(p=>[String(p.id),p])),[uniquePlayers]);
+  const byTeamName=useMemo(()=>{const map=new Map();for(const t of teams){const key=normalizeLabel(t.name);if(!key)continue;if(!map.has(key))map.set(key,[]);map.get(key).push(t);}return map;},[teams]);
   const byFM=useMemo(()=>{
     const by=new Map();
     for(const p of uniquePlayers){const id=playerFM(p);if(!id)continue;if(!by.has(id))by.set(id,[]);by.get(id).push(p);}
@@ -63,6 +64,38 @@ export default function StatsImport({ players=[], onClose, onImported }) {
       setRows(parsed.records);
       setMessage("Archivo analizado: "+parsed.records.length.toLocaleString("es")+" registros. Los datos no se han guardado todavía.");
     }catch(error){setMessage("Error: "+error.message);}
+  };
+  const applyMapFile=async(event)=>{
+    const file=event.target.files?.[0];
+    if(!file)return;
+    try{
+      const text=(await file.text()).replace(/^\uFEFF/,"");
+      const lines=text.trim().split(/\r?\n/);
+      const delim=lines[0].includes(";")?";":",";
+      const headers=lines.shift().split(delim).map(x=>x.trim().toLowerCase());
+      const idCol=headers.indexOf("fotmob_player_id");
+      const fmCol=headers.indexOf("fm26_uid");
+      const bCol=headers.indexOf("base44_player_id");
+      if(idCol<0||(fmCol<0&&bCol<0))throw Error("El CSV necesita fotmob_player_id y fm26_uid o base44_player_id.");
+      const found={};let accepted=0,skipped=0;
+      for(const line of lines){
+        if(!line.trim())continue;
+        const fields=line.split(delim).map(v=>v.trim().replace(/^"|"$/g,""));
+        const pid=String(fields[idCol]||"");
+        if(!pid){skipped++;continue;}
+        const direct=bCol>=0?String(fields[bCol]||""):"";
+        const fm=fmCol>=0?String(fields[fmCol]||""):"";
+        const candidate=direct?byID.get(direct):(byFM.get(fm)||[]).length===1?byFM.get(fm)[0]:null;
+        if(!candidate){skipped++;continue;}
+        const existing=linkMap.get(pid);
+        if(existing&&String(existing.player_id)!==String(candidate.id))throw Error("ID FotMob "+pid+" ya está vinculado a otro jugador.");
+        if(found[pid]&&found[pid]!==String(candidate.id))throw Error("Mapeo contradictorio para FotMob "+pid);
+        found[pid]=String(candidate.id);accepted++;
+      }
+      setManual(old=>({...old,...found}));
+      setMessage("Equivalencias analizadas: "+accepted+" vinculadas y "+skipped+" sin correspondencia. Revisa la previsualización antes de importar.");
+    }catch(error){setMessage("Error de equivalencias: "+(error.message||error));}
+    event.target.value="";
   };
   const assign=()=>{
     if(!targetFotmob)return;
@@ -120,7 +153,9 @@ export default function StatsImport({ players=[], onClose, onImported }) {
           else existing++;
         }else{
           const {matching,...r}=record;
-          await base44.entities.PlayerSeasonStats.create({...r,player_id:String(person.id),fm26_uid:r.fm26_uid||playerFM(person),player_name:r.player_name||playerName(person),review_status:"pending",import_batch:filename,updated_from_file:new Date().toISOString()});
+          const teamMatches=byTeamName.get(normalizeLabel(r.team_name))||[];
+          const confirmedTeamId=r.team_id||((teamMatches.length===1)?String(teamMatches[0].id):"");
+          await base44.entities.PlayerSeasonStats.create({...r,team_id:confirmedTeamId,player_id:String(person.id),fm26_uid:r.fm26_uid||playerFM(person),player_name:r.player_name||playerName(person),review_status:"pending",import_batch:filename,updated_from_file:new Date().toISOString()});
           created++;
         }
       }catch(error){failed++;failures.push(record.player_name+" · "+record.season+" · "+record.competition+": "+(error?.message||"error"));}
@@ -146,6 +181,8 @@ export default function StatsImport({ players=[], onClose, onImported }) {
             <FileJson2 size={22}/><span>{filename || "Elegir archivo CSV, JSON o JSONC"}</span>
             <input ref={fileRef} type="file" accept=".csv,.json,.jsonc" onChange={selectFile} className="sr-only" disabled={working}/>
           </label>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-[#003399] hover:bg-blue-50"><Upload size={15}/> Cargar CSV de equivalencias de IDs <input type="file" accept=".csv" onChange={applyMapFile} className="sr-only" disabled={working}/></label>
+          <p className="text-[11px] text-slate-500">Formato del mapeo: fotmob_player_id;fm26_uid;base44_player_id. Solo se aceptan IDs que coinciden con jugadores existentes.</p>
           {rows.length>0&&<>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {[["Registros",rows.length],["Vinculados",ready.length],["Sin vincular",pending.length],["Jugadores",new Set(rows.map(r=>r.fotmob_player_id)).size]].map(([label,n])=><div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-xs text-slate-500">{label}</p><p className="text-xl font-black text-[#0c315a]">{n.toLocaleString("es")}</p></div>)}
