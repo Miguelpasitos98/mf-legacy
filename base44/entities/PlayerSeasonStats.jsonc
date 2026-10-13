@@ -83,6 +83,12 @@
     },
     "updated_from_file": {
       "type": "string"
+    },
+    "team_matches": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 200,
+      "description": "Partidos reales disputados por el equipo (NO el jugador) en esa temporada y competici\u00f3n. Opcional y verificado; se usa como denominador de Play %."
     }
   },
   "required": [
