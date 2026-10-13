@@ -84,7 +84,7 @@ export default function StatsImport({ players=[], onClose, onImported }) {
     if(!ready.length||working)return;
     if(!window.confirm("Importar "+ready.length+" registros vinculados en PlayerSeasonStats? Se omitirán los que ya existan. Los pendientes no se importan."))return;
     setWorking(true);stopRef.current=false;setFailedNames([]);
-    let created=0,existing=0,failed=0,done=0;
+    let created=0,updated=0,existing=0,failed=0,done=0;
     const failures=[];
     const manualDone=new Set();
     for(const record of ready){
@@ -96,19 +96,40 @@ export default function StatsImport({ players=[], onClose, onImported }) {
           manualDone.add(record.fotmob_player_id);
         }
         const previous=await base44.entities.PlayerSeasonStats.filter({external_record_id:record.external_record_id},{limit:1});
-        if(unpack(previous).length){existing++;}
-        else{
+        const found=unpack(previous)[0];
+        if(found){
+          if(String(found.player_id)!==String(person.id))throw Error("Conflicto: la etapa existente pertenece a otro Player.");
+          const oldMetrics=Array.isArray(found.metrics)?found.metrics:[];
+          const incoming=record.metrics||[];
+          const byName=new Map(oldMetrics.map(m=>[normalizeLabel(m.name),m]));
+          const extras=[];
+          for(const m of incoming){
+            const was=byName.get(normalizeLabel(m.name));
+            if(!was)extras.push(m);
+            else if(Number(was.value)!==Number(m.value))throw Error("Conflicto de estadística "+m.name+": revisar, no se sobrescribe.");
+          }
+          // Solo enriquecimiento: nunca sustituir métricas existentes ni modificar Player/Team.
+          const patch={metrics:[...oldMetrics,...extras]};
+          let changed=extras.length>0;
+          for(const key of ["appearances","minutes","rating","market_value","market_date"]){
+            if((found[key]===null||found[key]===undefined||found[key]==="") && record[key]!==null && record[key]!==undefined && record[key]!==""){
+              patch[key]=record[key];changed=true;
+            }
+          }
+          if(changed){await base44.entities.PlayerSeasonStats.update(found.id,patch);updated++;}
+          else existing++;
+        }else{
           const {matching,...r}=record;
           await base44.entities.PlayerSeasonStats.create({...r,player_id:String(person.id),fm26_uid:r.fm26_uid||playerFM(person),player_name:r.player_name||playerName(person),review_status:"pending",import_batch:filename,updated_from_file:new Date().toISOString()});
           created++;
         }
       }catch(error){failed++;failures.push(record.player_name+" · "+record.season+" · "+record.competition+": "+(error?.message||"error"));}
       done++;
-      if(done%5===0||done===ready.length)setProgress({done,total:ready.length,created,existing,failed});
+      if(done%5===0||done===ready.length)setProgress({done,total:ready.length,created,updated,existing,failed});
     }
-    setProgress({done,total:ready.length,created,existing,failed});
+    setProgress({done,total:ready.length,created,updated,existing,failed});
     setFailedNames(failures.slice(0,25));
-    setMessage("Proceso terminado · "+created+" creados · "+existing+" ya existentes · "+failed+" errores. "+(stopRef.current?"Interrumpido por el usuario.":""));
+    setMessage("Proceso terminado · "+created+" creados · "+updated+" enriquecidos · "+existing+" ya existentes · "+failed+" errores. "+(stopRef.current?"Interrumpido por el usuario.":""));
     setWorking(false);
     onImported?.();
   };
@@ -146,7 +167,7 @@ export default function StatsImport({ players=[], onClose, onImported }) {
             {rows.length>35&&<p className="text-xs text-slate-500">Vista previa de 35 registros. Al importar se procesan todos los vinculados.</p>}
           </>}
           {message&&<p className="rounded-lg bg-slate-100 p-3 text-sm text-slate-700" role="status">{message}</p>}
-          {working||progress.total>0?<div><div className="mb-1 flex justify-between text-xs text-slate-600"><span>{working?"Importando…":"Último resultado"}</span><span>{progress.done}/{progress.total}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-blue-600 transition-all" style={{width:(progress.total?progress.done/progress.total*100:0)+"%"}}/></div><p className="mt-2 text-xs text-slate-500">Nuevos: {progress.created} · Existentes: {progress.existing} · Errores: {progress.failed}</p></div>:null}
+          {working||progress.total>0?<div><div className="mb-1 flex justify-between text-xs text-slate-600"><span>{working?"Importando…":"Último resultado"}</span><span>{progress.done}/{progress.total}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-blue-600 transition-all" style={{width:(progress.total?progress.done/progress.total*100:0)+"%"}}/></div><p className="mt-2 text-xs text-slate-500">Nuevos: {progress.created} · Enriquecidos: {progress.updated||0} · Existentes: {progress.existing} · Errores: {progress.failed}</p></div>:null}
           {failedNames.length>0&&<div className="rounded-lg border border-rose-200 p-3 text-xs text-rose-700">{failedNames.map((s,i)=><div key={i}>{s}</div>)}</div>}
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4">
