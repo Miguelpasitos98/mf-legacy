@@ -13,6 +13,7 @@ import Home from "@/pages/Home";
 import Countries from "@/pages/Countries";
 import Teams from "@/pages/Teams";
 import Players from "@/pages/Players";
+import Stats from "@/pages/Stats";
 import ImportHistory from "@/pages/ImportHistory";
 
 const AuthenticatedApp = () => {
@@ -50,6 +51,7 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Home />} />
         <Route path="/teams" element={<Teams />} />
         <Route path="/players" element={<Players />} />
+        <Route path="/stats" element={<Stats />} />
         <Route path="/countries" element={<Countries />} />
         <Route path="/import-histories" element={<ImportHistory />} />
       </Route>
