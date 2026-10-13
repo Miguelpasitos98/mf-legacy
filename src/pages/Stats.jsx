@@ -85,7 +85,7 @@ function Avatar({name,photo,size="md"}) {
   return <div className={classes+" flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#e9f0f9] font-black text-[#31557b]"}>{photo&&!broken?<img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" onError={()=>setBroken(true)}/>:String(name||"?").slice(0,2).toUpperCase()}</div>;
 }
 function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);return <span className="inline-flex max-w-[170px] items-center gap-2">{logo&&!broken?<img src={logo} alt="" className="h-5 w-5 object-contain" onError={()=>setBroken(true)}/>:<Shield size={16} className="text-slate-300"/>}<span className="truncate">{teamName||"Sin equipo"}</span></span>;}
-function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,config}) {
+function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,onOpenSettings,onSetTeamMatches,config}) {
   const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
   const [season,setSeason]=useState("auto");
   const activeSeason=season==="auto"?defaultSeason(stats,initialSeason):season;
@@ -93,6 +93,20 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const [scope,setScope]=useState("clubs");
   const [category,setCategory]=useState("Resumen");
   const [teamLinkTarget,setTeamLinkTarget]=useState(null);
+  const [teamMatchesTarget,setTeamMatchesTarget]=useState(null);
+  const [teamMatchesValue,setTeamMatchesValue]=useState("");
+  const [teamMatchesBusy,setTeamMatchesBusy]=useState(false);
+  const [teamMatchesError,setTeamMatchesError]=useState("");
+  const editTeamMatches=record=>{setTeamMatchesTarget(record);setTeamMatchesValue(record.team_matches==null?"":String(record.team_matches));setTeamMatchesError("");};
+  const saveTeamMatches=async event=>{
+    event.preventDefault();
+    const matches=Number(teamMatchesValue);
+    if(!Number.isInteger(matches)||matches<1||matches>200){setTeamMatchesError("Introduce un número entero de 1 a 200.");return;}
+    setTeamMatchesBusy(true);setTeamMatchesError("");
+    try{await onSetTeamMatches(teamMatchesTarget,matches);setTeamMatchesTarget(null);}
+    catch(error){setTeamMatchesError(error?.message||"No se pudo guardar el número de partidos.");}
+    finally{setTeamMatchesBusy(false);}
+  };
   const byTeam=useMemo(()=>new Map(teams.map(t=>[String(t.id),t])),[teams]);
   const uniqueRecords=useMemo(()=>groupStatRows(stats),[stats]);
   const seasonRows=uniqueRecords.filter(s=>activeSeason==="Todas"||s.season===activeSeason);
@@ -131,6 +145,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <h2 className="truncate text-2xl font-black">{player?.name||stats[0]?.player_name||"Jugador FotMob"}</h2>
             <p className="text-xs text-blue-200">Estadísticas importadas · pendientes de validación de fuente · independientes de FM26</p>
           </div>
+          <button type="button" onClick={()=>onOpenSettings(category,shown[0]||stats[0]||null)} className="inline-flex items-center gap-2 rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold hover:bg-white/10" title="Configurar las columnas, los nombres y las fórmulas del desglose" aria-label="Ajustes del informe estadístico"><Settings2 size={16}/> <span className="hidden sm:inline">Ajustes</span></button>
           {player&&<button onClick={()=>onPlayer(player.id)} className="hidden rounded-lg border border-blue-300 px-4 py-2 text-xs font-bold hover:bg-white/10 sm:block">Ver ficha en PLAYERS <ArrowRight size={13} className="ml-1 inline"/></button>}
           <button className="rounded-lg p-2 hover:bg-white/10" onClick={onClose} aria-label="Cerrar"><X size={21}/></button>
         </div>
@@ -175,13 +190,13 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           <div className="mb-3 flex flex-wrap gap-2">{CAT_TABS.map(x=><button key={x} onClick={()=>setCategory(x)} className={"rounded-lg px-3 py-2 text-xs font-bold "+(category===x?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{x}</button>)}</div>
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[720px] text-left text-xs">
-              <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className="px-3 py-3">Temporada / competición</th><th className="px-3 py-3">Club en esa temporada</th><th className="px-3 py-3">PJ</th><th className="px-3 py-3">Min</th><th className="px-3 py-3">Nota</th>{selected.map(id=><th key={id} className="whitespace-nowrap px-3 py-3">{getColumn(config,id)?.name||metricLabel(id)}</th>)}</tr></thead>
+              <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className="px-3 py-3">Temporada / competición</th><th className="px-3 py-3">Club en esa temporada</th><th className="px-3 py-3">PJ</th><th className="px-3 py-3">Min</th><th className="whitespace-nowrap px-2 py-3" title="Partidos disputados por el equipo en esta competición, a la fecha del registro; pulsa el dato para editarlo">PJ equipo</th><th className="px-3 py-3">Nota</th>{selected.map(id=><th key={id} className="whitespace-nowrap px-3 py-3">{getColumn(config,id)?.name||metricLabel(id)}</th>)}</tr></thead>
               <tbody>{shown.length?shown.sort((a,b)=>b.season.localeCompare(a.season)||a.competition.localeCompare(b.competition)).map((r,i)=><tr key={r.id||r.external_record_id||i} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className="px-3 py-3 font-semibold">{r.season}<div className="font-normal text-slate-500">{r.competition}</div>{r._sourceRows>1&&<span className="text-[10px] text-blue-700">Fuentes consolidadas: {r._sourceRows}</span>}</td>
                 <td className="px-3 py-3">{teamCell(r)}</td>
-                <td className="px-3 py-3">{show(r.appearances)}</td><td className="px-3 py-3">{show(r.minutes)}</td><td className="px-3 py-3">{show(r.rating,2)}</td>
-                {selected.map(id=><td key={id} className="px-3 py-3 font-semibold">{show(columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??0)}</td>)}
-              </tr>):<tr><td colSpan={5+selected.length} className="p-8 text-center text-slate-500">No hay registros para esta selección. Cambia el ámbito o la temporada.</td></tr>}</tbody>
+                <td className="px-3 py-3">{show(r.appearances)}</td><td className="px-3 py-3">{show(r.minutes)}</td><td className="px-2 py-3"><button type="button" onClick={()=>editTeamMatches(r)} disabled={!r.id} aria-label={"Editar partidos del equipo de "+r.competition+" "+r.season} title="Editar partidos disputados por el equipo en esta competición" className="whitespace-nowrap rounded-md border border-transparent px-2 py-1 font-semibold text-[#003399] hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400">{r.team_matches==null?"Añadir +":show(r.team_matches)}</button></td><td className="px-3 py-3">{show(r.rating,2)}</td>
+                {selected.map(id=><td key={id} className="px-3 py-3 font-semibold">{show(columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??0)}{columnValue(r,"competition",id,config)!==null&&getColumn(config,id)?.unit?" "+getColumn(config,id).unit:""}</td>)}
+              </tr>):<tr><td colSpan={6+selected.length} className="p-8 text-center text-slate-500">No hay registros para esta selección. Cambia el ámbito o la temporada.</td></tr>}</tbody>
             </table>
           </div>
           {shown.some(r=>r.metrics?.length>0)&&<section className="mt-5 rounded-xl border border-slate-200 p-4">
