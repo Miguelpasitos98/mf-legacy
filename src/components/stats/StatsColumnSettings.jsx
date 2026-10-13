@@ -87,7 +87,7 @@ export default function StatsColumnSettings({config,mode:initialMode="season",ca
       <label className="text-xs font-bold text-slate-600">Decimales<select value={decimals} disabled={Boolean(rawId)} onChange={e=>setDecimals(Number(e.target.value))} className="mt-1 block rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">{[0,1,2,3,4].map(n=><option key={n}>{n}</option>)}</select></label>
      </div>
      {formulaError&&!rawId&&<p className="mt-2 text-xs font-semibold text-red-700">{formulaError}</p>}
-     <p className="mt-2 text-[11px] text-slate-600">Disponibles: {availableVars.join(", ")}. Ejemplo: <code>(goals + assists) * 90 / minutes</code>. Las operaciones devuelven «—» cuando falta un dato o el divisor es cero. El histórico usa métricas consolidadas.</p>
+     <p className="mt-2 text-[11px] text-slate-600">Disponibles: {availableVars.join(", ")}. Ejemplo: <code>(goals + assists) * 90 / minutes</code>. Las operaciones devuelven «—» cuando falta un dato o el divisor es cero. El histórico usa métricas consolidadas. Los porcentajes de las competiciones no se suman: en temporadas aparecen sin valor si no tenemos los denominadores necesarios.</p>
      {editId&&!rawId&&sample&&<p className="mt-2 text-xs text-slate-500">Vista previa con el primer registro disponible: <strong>{preview??"—"}</strong></p>}
      <div className="mt-3 flex flex-wrap items-center gap-2">
       <button disabled={Boolean(formulaError)} onClick={saveDefinition} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Aplicar al borrador</button>
