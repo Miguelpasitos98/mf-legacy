@@ -1397,6 +1397,13 @@ export default function Players() {
 
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const navigateFromStats = useNavigate();
+  const statsPlayerId = searchParams.get("stats_player");
+  useEffect(() => {
+    if (!statsPlayerId) return;
+    const found = players.find((p) => String(p.id) === String(statsPlayerId));
+    if (found) setSelectedPlayer(found);
+  }, [statsPlayerId, players]);
 
   const rawViewMode = searchParams.get("view");
   const viewMode = PLAYER_VIEW_MODES.includes(rawViewMode)
@@ -3063,6 +3070,7 @@ export default function Players() {
         countries={countries}
         onBack={() => {
           setSelectedPlayer(null);
+          if (statsPlayerId) navigateFromStats("/players", { replace: true });
         }}
         onPlayerUpdated={(updatedPlayer) => {
           setSelectedPlayer(updatedPlayer);

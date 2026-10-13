@@ -1,0 +1,112 @@
+{
+  "name": "PlayerSeasonStats",
+  "type": "object",
+  "properties": {
+    "external_record_id": {
+      "type": "string",
+      "description": "Clave \u00fanica l\u00f3gica jugador FotMob + equipo + temporada + competici\u00f3n; usada para evitar duplicados"
+    },
+    "player_id": {
+      "type": "string",
+      "description": "ID Base44 Player confirmado, no se deduce solo por nombre"
+    },
+    "fm26_uid": {
+      "type": "string"
+    },
+    "fotmob_player_id": {
+      "type": "string"
+    },
+    "player_name": {
+      "type": "string"
+    },
+    "team_id": {
+      "type": "string"
+    },
+    "fotmob_team_id": {
+      "type": "string"
+    },
+    "team_name": {
+      "type": "string"
+    },
+    "season": {
+      "type": "string"
+    },
+    "competition": {
+      "type": "string"
+    },
+    "appearances": {
+      "type": "number"
+    },
+    "minutes": {
+      "type": "number"
+    },
+    "rating": {
+      "type": "number"
+    },
+    "market_value": {
+      "type": "number"
+    },
+    "market_date": {
+      "type": "string"
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "per90": {
+            "type": "number"
+          },
+          "percentile": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "string"
+    },
+    "verification_status": {
+      "type": "string"
+    },
+    "review_status": {
+      "type": "string"
+    },
+    "import_batch": {
+      "type": "string"
+    },
+    "updated_from_file": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "external_record_id",
+    "player_id",
+    "season",
+    "competition"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

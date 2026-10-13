@@ -1,0 +1,46 @@
+{
+  "name": "PlayerFotmobLink",
+  "type": "object",
+  "properties": {
+    "fotmob_player_id": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "fm26_uid": {
+      "type": "string"
+    },
+    "player_name": {
+      "type": "string"
+    },
+    "verification": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "fotmob_player_id",
+    "player_id"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
