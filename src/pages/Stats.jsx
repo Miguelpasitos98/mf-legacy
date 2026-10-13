@@ -191,6 +191,14 @@ export default function Stats(){
   const [viewMode,setViewMode]=useState("season"),[minMinutes,setMinMinutes]=useState(0);
   const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("rating"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[revision,setRevision]=useState(0),[page,setPage]=useState(0);
   const {rows,hasMore,loadMore,busy,error}=useStatsRows(season,competition,revision);
+  const [columnConfig,setColumnConfig]=useState(initialConfig);
+  const [settingsOpen,setSettingsOpen]=useState(false),[prefsRecord,setPrefsRecord]=useState(null),[prefsWarning,setPrefsWarning]=useState("");
+  useEffect(()=>{let mounted=true;(async()=>{
+    try{const res=await base44.entities.StatsViewPreference.list({limit:50});
+      const mine=unpack(res).find(r=>r.key==="stats_layout_personal_v1");
+      if(mounted&&mine){setColumnConfig(sanitizeConfig(JSON.parse(mine.config_json)));setPrefsRecord(mine);}
+    }catch(e){if(mounted)setPrefsWarning("No se pudieron recuperar los ajustes personales: "+(e?.message||e));}
+  })();return()=>{mounted=false;};},[]);
   const players=pq.data||[],teams=tq.data||[];
   const byID=useMemo(()=>new Map(players.map(p=>[String(p.id),p])),[players]);
   const byTeam=useMemo(()=>new Map(teams.map(t=>[String(t.id),t])),[teams]);
@@ -248,7 +256,14 @@ export default function Stats(){
     }catch{setDetailRows(row.record?[row.record]:[]);}
     finally{setDetailLoading(false);}
   };
-  const columns=metricGroups.find(group=>group[0]===category)?.[1]||[];
+  const columns=columnConfig.columns.competition[category]||[];
+  const saveColumns=async(draft)=>{
+    const clean=sanitizeConfig(draft);
+    const payload={key:"stats_layout_personal_v1",version:1,config_json:JSON.stringify(clean)};
+    if(prefsRecord?.id){await base44.entities.StatsViewPreference.update(prefsRecord.id,payload);}
+    else{const created=await base44.entities.StatsViewPreference.create(payload);setPrefsRecord({...payload,id:created?.id||created?.data?.id});}
+    setColumnConfig(clean);setPrefsWarning("");
+  };
   const importComplete=()=>{setRevision(x=>x+1);queryClient.invalidateQueries({queryKey:["mf-legacy","stats"]});};
   return <div className="h-full w-full overflow-y-auto bg-[#f3f5f8]">
     <div className="border-b border-[#dfe6ee] bg-white px-6 pb-6 pt-6 md:px-9"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[.23em] text-[#003399]"><span className="h-px w-7 bg-[#003399]"/> THE DATA ROOM</div><h1 className="font-heading text-4xl font-black tracking-tight text-[#10253d]">Player Stats</h1><p className="mt-2 text-sm text-slate-500">Clasificación global por temporada y desglose por competición · Vinculado a MY LEGACY</p></div><button onClick={()=>setImportOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-[#003399] px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-[#002777]"><Upload size={17}/> Importar CSV / JSON</button></div>
@@ -265,6 +280,6 @@ export default function Stats(){
       <p className="pb-5 text-xs text-slate-500">Los resúmenes por temporada son cálculos derivados y no constituyen una nueva importación. Estadísticas asociadas exclusivamente a IDs confirmados. Los atributos de Football Manager permanecen en PLAYERS y nunca se modifican al importar estadísticas. Las cifras pueden requerir revisión y permisos de reutilización antes de publicarse.</p>
     </div>
     {importOpen&&<StatsImport players={players} teams={teams} onClose={()=>setImportOpen(false)} onImported={importComplete}/>}
-    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} onLinkTeam={linkHistoricalTeam} linking={linking} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} onTeam={id=>{setSelected(null);navigate("/teams?stats_team="+encodeURIComponent(id));}}/>}
+    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} onTeam={id=>{setSelected(null);navigate("/teams?stats_team="+encodeURIComponent(id));}}/>}
   </div>;
 }
