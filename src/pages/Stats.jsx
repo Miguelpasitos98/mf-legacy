@@ -179,6 +179,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onTeam,on
           <button onClick={onClose} className="rounded-lg bg-[#003399] px-5 py-2 text-xs font-bold text-white">Cerrar</button>
         </div>
       </div>
+      {teamLinkTarget&&<TeamLinkPicker season={activeSeason} records={stats} teams={teams} initialRecord={teamLinkTarget==="bulk"?null:teamLinkTarget} onClose={()=>setTeamLinkTarget(null)} onApply={onLinkTeams}/>}
     </div>,document.body
   );
 }
@@ -186,7 +187,7 @@ export default function Stats(){
   const navigate=useNavigate(),queryClient=useQueryClient();
   const [statsParams]=useSearchParams();
   const pq=usePlayersQuery(),tq=useTeamsQuery();
-  const [season,setSeason]=useState("2025/2026"),[competition,setCompetition]=useState("Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||"");
+  const [season,setSeason]=useState("Todas"),[competition,setCompetition]=useState("Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||"");
   const [viewMode,setViewMode]=useState("season"),[minMinutes,setMinMinutes]=useState(0);
   const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("rating"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[revision,setRevision]=useState(0),[page,setPage]=useState(0);
   const {rows,hasMore,loadMore,busy,error}=useStatsRows(season,competition,revision);
@@ -226,18 +227,17 @@ export default function Stats(){
   const filtered=visible.slice(page*50,(page+1)*50);
   const activeCount=viewMode==="season"?seasonVisible.length:visible.length;
   const [detailRows,setDetailRows]=useState([]),[detailLoading,setDetailLoading]=useState(false);
-  const [linking,setLinking]=useState("");
-  const linkHistoricalTeam=async(record,id)=>{
-    const team=teams.find(t=>String(t.id)===String(id));
-    if(!record?.id||!team)return;
-    if(!window.confirm("¿Confirmas que "+(selected?.player?.name||"este jugador")+" jugó la competición "+record.competition+" ("+record.season+") con "+team.name+"? Esta vinculación se guardará únicamente para el registro seleccionado."))return;
-    setLinking(record.id);
-    try {
-      await base44.entities.PlayerSeasonStats.update(record.id,{team_id:String(team.id)});
-      setDetailRows(current=>current.map(row=>String(row.id)===String(record.id)?{...row,team_id:String(team.id)}:row));
-      setRevision(value=>value+1);
-    }catch(error){window.alert("No se pudo vincular el club: "+(error?.message||"error desconocido"));}
-    finally{setLinking("");}
+  const linkHistoricalTeams=async(ids,teamId)=>{
+    const team=teams.find(t=>String(t.id)===String(teamId));
+    if(!team)throw Error("No se ha encontrado el equipo elegido.");
+    const matching=detailRows.filter(r=>ids.includes(String(r.id))&&!nationalCompetition(r.competition));
+    const updatedIds=[];const failed=[];
+    for(const record of matching){
+      try{await base44.entities.PlayerSeasonStats.update(record.id,{team_id:String(team.id)});updatedIds.push(String(record.id));}
+      catch(e){failed.push({id:record.id,label:record.competition+" ("+record.season+"): "+(e?.message||"error")});}
+    }
+    if(updatedIds.length){setDetailRows(current=>current.map(r=>updatedIds.includes(String(r.id))?{...r,team_id:String(team.id)}:r));setRevision(v=>v+1);}
+    return {updated:updatedIds.length,failed};
   };
   const openSeasonDetail=(summary,player)=>openDetail({record:summary?.records?.[0]||null,player,season:summary?.season});
   const openDetail=async(row)=>{
