@@ -57,7 +57,7 @@ test("en caso de empate gana la temporada con más minutos; después la más rec
 });
 test("las fórmulas personalizadas también pueden elegir mejor temporada",()=>{
  const custom=initialConfig();
- custom.computed.push({id:"calc_score",name:"Índice",formula:"xg * 2 + goals",decimals:0});
+ custom.computed.push({id:"calc_score",name:"Índice",formula:"xg * 4 + goals",decimals:0});
  const result=bestSeasonPerPlayer(seasons,"calc_score",custom);
  assert.equal(result.find(x=>x.summary.player_id==="Raphinha").summary.season,"2025/2026");
 });
