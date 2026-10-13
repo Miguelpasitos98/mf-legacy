@@ -29,6 +29,7 @@ test("registros con mismo identificador y datos distintos dan error",()=>{
   const different={...fixture,metrics:[{name:"Goals",value:9}]};
   assert.throws(()=>parseStatsText(JSON.stringify({records:[fixture,different]}),"lote.json"),/duplicada/i);
 });
+test("etiquetas repetidas con distintos valores se conservan sin inventar su significado",()=>{ const input={...fixture,metrics:[{name:"Duels won %",value:60.2},{name:"Duels won %",value:67.6},{name:"Goals",value:4}]};const out=parseStatsText(JSON.stringify({records:[input]}),"detalladas.json");assert.equal(out.records.length,1);assert.equal(out.records[0].metrics.length,3);assert.equal(out.records[0].metrics[1].name,"Duels won % (variante 2)");});
 test("jugador sin FotMob ID no se importa",()=>{
   assert.throws(()=>parseStatsText(JSON.stringify({records:[{...fixture,fotmob_player_id:""}]}),"lote.json"),/Falta ID/);
 });
