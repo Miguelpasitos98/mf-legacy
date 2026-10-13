@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { normalizeImageUrl, formatMarketValue } from "./teamUtils";
 import { AddTeamModal } from "./TeamFormComponents";
+import KitImage from "./KitImage";
 
 export default function TeamDetail({ team, onClose, onEdit, form, setForm, countries, leagues, onCloseEdit, onSubmit }) {
   const [editPanelOpen, setEditPanelOpen] = useState(false);
@@ -34,6 +35,30 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
       if (transitionTimeoutRef.current) window.clearTimeout(transitionTimeoutRef.current);
     };
   }, []);
+
+  // Precargar las imágenes de las camisetas lo antes posible (antes del
+  // render del <img>) para reducir el retraso de la primera equipación.
+  // El navegador deduplica solicitudes idénticas y reutiliza la caché en
+  // visitas posteriores. No modifica las URL originales.
+  useEffect(() => {
+    const targets = [
+      { href: kitHomeUrl, high: true },
+      { href: kitsOverviewUrl, high: false },
+    ].filter((t) => t.href);
+    if (!targets.length) return;
+    const links = targets.map(({ href, high }) => {
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = href;
+      if (high) link.setAttribute("fetchpriority", "high");
+      document.head.appendChild(link);
+      return link;
+    });
+    return () => {
+      links.forEach((link) => link.remove());
+    };
+  }, [kitHomeUrl, kitsOverviewUrl]);
 
   const goToSection = (sectionIndex) => {
     const container = detailScrollRef.current;
@@ -145,7 +170,13 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
 
               {kitHomeUrl && (
                 <div className="relative z-10 flex w-full items-center justify-center px-4 py-6 md:absolute md:left-1/2 md:top-1/2 md:w-[68%] md:-translate-x-1/2 md:-translate-y-1/2 md:px-0">
-                  <img src={kitHomeUrl} alt={`${teamName} primera equipación`} className="max-h-[520px] w-full max-w-[520px] object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-105 sm:max-h-[560px] sm:max-w-[560px] md:max-h-[650px] md:max-w-[620px]" />
+                  <KitImage
+                    src={kitHomeUrl}
+                    alt={`${teamName} primera equipación`}
+                    priority
+                    placeholderMinHeight={420}
+                    className="max-h-[520px] w-full max-w-[520px] object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.45)] transition-all duration-500 hover:scale-105 sm:max-h-[560px] sm:max-w-[560px] md:max-h-[650px] md:max-w-[620px]"
+                  />
                 </div>
               )}
 
@@ -187,7 +218,12 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
               {kitsOverviewUrl || kitHomeUrl ? (
                 <>
                   <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-3xl md:h-[420px] md:w-[420px]" />
-                  <img src={kitsOverviewUrl || kitHomeUrl} alt={kitsOverviewUrl ? `${teamName} tres equipaciones` : `${teamName} camiseta local`} className="relative z-10 mx-auto h-auto max-h-[460px] w-full object-contain drop-shadow-[0_25px_30px_rgba(0,0,0,0.45)] transition-transform duration-500 hover:scale-[1.04]" />
+                  <KitImage
+                    src={kitsOverviewUrl || kitHomeUrl}
+                    alt={kitsOverviewUrl ? `${teamName} tres equipaciones` : `${teamName} camiseta local`}
+                    placeholderMinHeight={360}
+                    className="relative z-10 mx-auto h-auto max-h-[460px] w-full object-contain drop-shadow-[0_25px_30px_rgba(0,0,0,0.45)] transition-all duration-500 hover:scale-[1.04]"
+                  />
                 </>
               ) : (
                 <p className="text-center text-xs uppercase tracking-[0.3em] text-white/60">Añade la imagen de las tres equipaciones</p>
