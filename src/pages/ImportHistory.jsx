@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   CheckCircle2,
@@ -11,13 +12,15 @@ import {
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
+import { parseCareerFile, resolvePlayer } from "@/utils/careerImport";
 import {
-  parseCareerFile,
-  resolvePlayer,
-  suggestTeam,
-} from "@/utils/careerImport";
+  detectClubs,
+  resolveClubGroup,
+  clubKeyFor,
+} from "@/utils/clubResolution";
 import ImportDropzone from "@/components/career/ImportDropzone";
 import CareerPreviewTable from "@/components/career/CareerPreviewTable";
+import ClubResolutionPanel from "@/components/career/ClubResolutionPanel";
 
 const downloadReport = (report) => {
   const blob = new Blob([JSON.stringify(report, null, 2)], {
@@ -36,7 +39,40 @@ const downloadReport = (report) => {
   URL.revokeObjectURL(url);
 };
 
+// Persiste (crea o actualiza) una asociación ClubLink confirmada.
+const persistClubLink = async (club_qid, team_id, club_name) => {
+  if (!club_qid || !team_id) return false;
+  try {
+    const existing = await base44.entities.ClubLink.filter(
+      { club_qid },
+      { limit: 1, fields: ["id"] }
+    );
+    const items = Array.isArray(existing)
+      ? existing
+      : existing?.items || existing?.data || [];
+    if (items.length) {
+      await base44.entities.ClubLink.update(items[0].id, {
+        team_id,
+        club_name,
+        confirmed: true,
+      });
+    } else {
+      await base44.entities.ClubLink.create({
+        club_qid,
+        team_id,
+        club_name,
+        confirmed: true,
+      });
+    }
+    return true;
+  } catch (error) {
+    console.warn("No se pudo guardar ClubLink:", club_qid, error);
+    return false;
+  }
+};
+
 export default function ImportHistory() {
+  const queryClient = useQueryClient();
   const playersQuery = usePlayersQuery();
   const teamsQuery = useTeamsQuery();
 
@@ -68,20 +104,21 @@ export default function ImportHistory() {
     [teamsQuery.data]
   );
 
-  const [isAdmin, setIsAdmin] = useState(null); // null = checking
+  const [isAdmin, setIsAdmin] = useState(null);
   const [fileName, setFileName] = useState("");
   const [parseError, setParseError] = useState("");
-  const [parsed, setParsed] = useState(null); // { format, entries }
-  const [clubLinks, setClubLinks] = useState({}); // club_qid -> team_id
+  const [parsed, setParsed] = useState(null);
+  const [clubLinks, setClubLinks] = useState({});
   const [existingIds, setExistingIds] = useState(new Set());
-  const [playerOverrides, setPlayerOverrides] = useState({}); // stageId -> playerId
-  const [teamOverrides, setTeamOverrides] = useState({}); // stageId -> teamId
+  const [playerOverrides, setPlayerOverrides] = useState({});
+  const [teamOverrides, setTeamOverrides] = useState({});
+  const [clubResolutions, setClubResolutions] = useState({}); // clubKey -> teamId
   const [selected, setSelected] = useState(new Set());
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, label: "" });
   const [report, setReport] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
 
-  // Verificar rol de administrador.
   useEffect(() => {
     let active = true;
     (async () => {
@@ -99,7 +136,6 @@ export default function ImportHistory() {
     };
   }, []);
 
-  // Cargar asociaciones ClubLink existentes (club_qid -> team_id).
   const loadClubLinks = useCallback(async () => {
     try {
       const result = await base44.entities.ClubLink.list({ limit: 500 });
@@ -120,7 +156,6 @@ export default function ImportHistory() {
     if (isAdmin) loadClubLinks();
   }, [isAdmin, loadClubLinks]);
 
-  // Filtrar etapas existentes por external_stage_id al cargar un lote.
   useEffect(() => {
     if (!parsed?.entries?.length) {
       setExistingIds(new Set());
@@ -156,6 +191,49 @@ export default function ImportHistory() {
     };
   }, [parsed]);
 
+  // Detección de clubes únicos (agrupados por club_qid o nombre normalizado).
+  const clubGroups = useMemo(
+    () => (parsed?.entries ? detectClubs(parsed.entries) : []),
+    [parsed]
+  );
+
+  // Resolución por club: estado + equipo + candidatos.
+  const resolvedTeamByKey = useMemo(() => {
+    const map = {};
+    for (const g of clubGroups) {
+      const res = resolveClubGroup(g, { clubLinks, teams });
+      const override = clubResolutions[g.key];
+      if (override) {
+        const t =
+          teams.find((t) => String(t.id) === String(override)) || null;
+        map[g.key] = {
+          team: t,
+          status: t ? "resolved" : res.status,
+          candidates: res.candidates,
+        };
+      } else {
+        map[g.key] = res;
+      }
+    }
+    return map;
+  }, [clubGroups, clubLinks, teams, clubResolutions]);
+
+  const clubStats = useMemo(() => {
+    const counts = {
+      linked: 0,
+      matched: 0,
+      creatable: 0,
+      ambiguous: 0,
+      unidentified: 0,
+      resolved: 0,
+    };
+    for (const g of clubGroups) {
+      const r = resolvedTeamByKey[g.key];
+      if (r && counts[r.status] !== undefined) counts[r.status] += 1;
+    }
+    return counts;
+  }, [clubGroups, resolvedTeamByKey]);
+
   // Construir filas de previsualización.
   const rows = useMemo(() => {
     if (!parsed?.entries) return [];
@@ -163,7 +241,6 @@ export default function ImportHistory() {
       const record = entry.record;
       const stageId = record.external_stage_id;
 
-      // Resolver jugador.
       let player = null;
       let playerMethod = null;
       const overridePid = playerOverrides[stageId];
@@ -176,28 +253,23 @@ export default function ImportHistory() {
         playerMethod = resolved.method;
       }
 
-      // Resolver equipo.
-      let team = null;
+      // Resolver equipo a nivel de club (no por etapa).
+      const clubKey = clubKeyFor(record);
+      const resolvedClub = resolvedTeamByKey[clubKey] || {};
+      let team = resolvedClub.team || null;
       const overrideTid = teamOverrides[stageId];
       if (overrideTid) {
         team = teams.find((t) => String(t.id) === String(overrideTid)) || null;
       }
-      let suggestion = null;
-      if (!team) {
-        const linkedTeamId = record.club_qid ? clubLinks[record.club_qid] : null;
-        if (linkedTeamId) {
-          team = teams.find((t) => String(t.id) === String(linkedTeamId)) || null;
-        }
-      }
-      if (!team && record.team_id) {
-        team = teams.find((t) => String(t.id) === String(record.team_id)) || null;
-      }
-      if (!team) {
-        suggestion = suggestTeam(record.club_name, teams);
-        if (suggestion.team && !suggestion.ambiguous) {
-          // Auto-sugerencia fiable (no se aplica sin confirmación del admin).
-        }
-      }
+      const suggestion =
+        !team && resolvedClub.candidates?.length
+          ? {
+              team: resolvedClub.candidates[0].team,
+              ambiguous: true,
+              confidence: resolvedClub.candidates[0].score || 0.82,
+              candidates: resolvedClub.candidates,
+            }
+          : null;
 
       const reviewStatus = record.review_status || "pending";
       const provisionalIdentity = Boolean(record.provisional_identity);
@@ -207,7 +279,6 @@ export default function ImportHistory() {
         errors.push("Sugerencia de revisión: no se importa automáticamente.");
       if (!player && !overridePid) errors.push("Jugador no vinculado.");
 
-      // Selección por defecto: solo aprobadas, no provisionales, no de solo revisión.
       const defaultSelected =
         reviewStatus === "approved" &&
         !provisionalIdentity &&
@@ -234,14 +305,11 @@ export default function ImportHistory() {
             : false,
       };
     });
-  }, [parsed, players, teams, clubLinks, existingIds, playerOverrides, teamOverrides, selected]);
+  }, [parsed, players, teams, resolvedTeamByKey, existingIds, playerOverrides, teamOverrides, selected]);
 
-  // Estadísticas.
   const stats = useMemo(() => {
     const detectedPlayers = new Set(
-      rows
-        .filter((r) => r.player)
-        .map((r) => String(r.player.id))
+      rows.filter((r) => r.player).map((r) => String(r.player.id))
     ).size;
     const newStages = rows.filter((r) => !r.exists && !r.errors.length).length;
     const existingStages = rows.filter((r) => r.exists).length;
@@ -252,8 +320,19 @@ export default function ImportHistory() {
     return { detectedPlayers, newStages, existingStages, pending, conflicts };
   }, [rows]);
 
+  const validRows = useMemo(
+    () => rows.filter((r) => r.player && !r.errors.length),
+    [rows]
+  );
+
+  const selectedRows = useMemo(
+    () => rows.filter((r) => r.selected && r.player && !r.errors.length),
+    [rows]
+  );
+
   const handleFile = useCallback(async (file, error) => {
     setReport(null);
+    setPendingAction(null);
     if (error) {
       setParseError(error);
       setParsed(null);
@@ -265,6 +344,7 @@ export default function ImportHistory() {
     setFileName(file.name);
     setPlayerOverrides({});
     setTeamOverrides({});
+    setClubResolutions({});
     setSelected(new Set());
     try {
       const text = await file.text();
@@ -280,8 +360,8 @@ export default function ImportHistory() {
         return;
       }
       setParsed({ format: result.format, entries: result.entries });
-    } catch (error) {
-      setParseError(`No se ha podido leer el archivo: ${error.message}`);
+    } catch (err) {
+      setParseError(`No se ha podido leer el archivo: ${err.message}`);
       setParsed(null);
     }
   }, []);
@@ -313,16 +393,153 @@ export default function ImportHistory() {
     setTeamOverrides((prev) => ({ ...prev, [stageId]: teamId }));
   }, []);
 
-  const selectedRows = useMemo(
-    () => rows.filter((r) => r.selected && r.player && !r.errors.length),
-    [rows]
-  );
+  // --- Acciones masivas ---
 
-  const handleImport = async () => {
-    if (!selectedRows.length || busy) return;
+  const handleAutoLinkSafe = () => {
+    const matched = clubGroups.filter(
+      (g) => resolvedTeamByKey[g.key]?.status === "matched"
+    );
+    if (!matched.length) return;
+    setPendingAction({
+      type: "auto-link",
+      groups: matched,
+      summary: `Se vincularán ${matched.length} clubes por coincidencia exacta y se guardarán sus asociaciones en ClubLink para reutilizar en futuros lotes.`,
+    });
+  };
+
+  const executeAutoLink = async () => {
+    const groups = pendingAction.groups;
+    setBusy(true);
+    setProgress({ current: 0, total: groups.length, label: "Vinculando..." });
+    const newResolutions = {};
+    let saved = 0;
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[i];
+      const res = resolvedTeamByKey[g.key];
+      const team = res?.team;
+      setProgress({
+        current: i,
+        total: groups.length,
+        label: `Vinculando ${i + 1}/${groups.length}: ${g.club_name}`,
+      });
+      if (team) {
+        newResolutions[g.key] = team.id;
+        if (await persistClubLink(g.club_qid, team.id, g.club_name)) saved += 1;
+      }
+    }
+    setClubResolutions((prev) => ({ ...prev, ...newResolutions }));
+    await loadClubLinks();
+    setProgress({
+      current: groups.length,
+      total: groups.length,
+      label: `Vinculación completada · ${saved} asociaciones guardadas`,
+    });
+    setPendingAction(null);
+    setBusy(false);
+  };
+
+  const handleCreateMissing = () => {
+    const creatable = clubGroups.filter(
+      (g) => resolvedTeamByKey[g.key]?.status === "creatable"
+    );
+    if (!creatable.length) return;
+    setPendingAction({
+      type: "create-clubs",
+      groups: creatable,
+      summary: `Se crearán ${creatable.length} clubes nuevos (incompletos, data_source "Other", is_complete false) y se guardarán sus asociaciones ClubLink. No se modifican clubes existentes.`,
+    });
+  };
+
+  const executeCreateClubs = async () => {
+    const groups = pendingAction.groups;
+    setBusy(true);
+    setProgress({ current: 0, total: groups.length, label: "Creando clubes..." });
+    const newResolutions = {};
+    let created = 0;
+    let linked = 0;
+    const details = [];
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[i];
+      setProgress({
+        current: i,
+        total: groups.length,
+        label: `Creando ${i + 1}/${groups.length}: ${g.club_name}`,
+      });
+      try {
+        const team = await base44.entities.Team.create({
+          name: g.club_name,
+          short_name: "",
+          country_id: "",
+          league_id: "",
+          data_source: "Other",
+          is_complete: false,
+          is_active: true,
+        });
+        newResolutions[g.key] = team.id;
+        created += 1;
+        if (g.club_qid) {
+          await base44.entities.ClubLink.create({
+            club_qid: g.club_qid,
+            team_id: team.id,
+            club_name: g.club_name,
+            confirmed: true,
+          });
+          linked += 1;
+        }
+      } catch (error) {
+        details.push(`${g.club_name}: ${error?.message || "error"}`);
+      }
+    }
+    setClubResolutions((prev) => ({ ...prev, ...newResolutions }));
+    await queryClient.invalidateQueries({ queryKey: ["mf-legacy", "teams"] });
+    await loadClubLinks();
+    setProgress({
+      current: groups.length,
+      total: groups.length,
+      label: `Creación completada · ${created} clubes · ${linked} asociaciones`,
+    });
+    setPendingAction(null);
+    setBusy(false);
+    if (details.length)
+      console.warn("Incidencias al crear clubes:", details);
+  };
+
+  const handleSelectAllValid = () => {
+    const next = new Set();
+    for (const r of validRows) next.add(r.record.external_stage_id);
+    setSelected(next);
+  };
+
+  const handleImportAllValid = () => {
+    setPendingAction({
+      type: "import-all",
+      groups: [],
+      summary: `Se importarán ${validRows.length} etapas válidas. Las etapas sin club asignado conservarán su nombre original sin team_id.`,
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
+    if (pendingAction.type === "auto-link") {
+      await executeAutoLink();
+    } else if (pendingAction.type === "create-clubs") {
+      await executeCreateClubs();
+    } else if (pendingAction.type === "import-all") {
+      handleSelectAllValid();
+      setPendingAction(null);
+      // Importa en el siguiente tick, cuando `selected` ya tenga las válidas.
+      setTimeout(() => runImport(validRows), 0);
+    }
+  };
+
+  const runImport = async (rowsToImport) => {
+    const target = (rowsToImport || selectedRows).filter(
+      (r) => r.player && !r.errors.length
+    );
+    if (!target.length || busy) return;
     setBusy(true);
     setReport(null);
-    setProgress({ current: 0, total: selectedRows.length, label: "Iniciando..." });
+    setProgress({ current: 0, total: target.length, label: "Iniciando..." });
 
     const result = {
       created: 0,
@@ -334,12 +551,12 @@ export default function ImportHistory() {
     };
     const newClubLinks = [];
 
-    for (let i = 0; i < selectedRows.length; i++) {
-      const row = selectedRows[i];
+    for (let i = 0; i < target.length; i++) {
+      const row = target[i];
       setProgress({
         current: i,
-        total: selectedRows.length,
-        label: `Importando ${i + 1}/${selectedRows.length}: ${row.player.name} · ${
+        total: target.length,
+        label: `Importando ${i + 1}/${target.length}: ${row.player.name} · ${
           row.team?.name || row.record.club_name
         }`,
       });
@@ -370,7 +587,6 @@ export default function ImportHistory() {
 
       try {
         if (row.exists) {
-          // Actualizar solo etapas existentes seleccionadas explícitamente.
           await base44.entities.PlayerCareer.update(
             row.record.external_stage_id,
             payload
@@ -381,7 +597,6 @@ export default function ImportHistory() {
           result.created += 1;
         }
 
-        // Guardar asociación club_qid ↔ team_id confirmada.
         if (row.record.club_qid && row.team?.id) {
           newClubLinks.push({
             club_qid: row.record.club_qid,
@@ -399,7 +614,6 @@ export default function ImportHistory() {
       }
     }
 
-    // Persistir ClubLinks nuevos/actualizados.
     for (const link of newClubLinks) {
       try {
         const existing = await base44.entities.ClubLink.filter(
@@ -420,7 +634,6 @@ export default function ImportHistory() {
         }
         result.clubLinksSaved += 1;
       } catch (error) {
-        // No bloquea la importación; la asociación se reintentará la próxima vez.
         console.warn("No se pudo guardar ClubLink:", link, error);
       }
     }
@@ -428,13 +641,15 @@ export default function ImportHistory() {
     await loadClubLinks();
 
     setProgress({
-      current: selectedRows.length,
-      total: selectedRows.length,
+      current: target.length,
+      total: target.length,
       label: `Importación completada · ${result.created} creados · ${result.updated} actualizados · ${result.failed} errores`,
     });
     setReport(result);
     setBusy(false);
   };
+
+  const handleImport = () => runImport(selectedRows);
 
   const handleReset = () => {
     setParsed(null);
@@ -442,8 +657,10 @@ export default function ImportHistory() {
     setParseError("");
     setPlayerOverrides({});
     setTeamOverrides({});
+    setClubResolutions({});
     setSelected(new Set());
     setReport(null);
+    setPendingAction(null);
     setProgress({ current: 0, total: 0, label: "" });
   };
 
@@ -484,8 +701,8 @@ export default function ImportHistory() {
               <History size={22} /> Importar historiales
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Sube lotes de Career Studio, revisa la previsualización y confirma
-              la importación. No se modifican datos de Player ni Team.
+              Sube lotes de Career Studio, resuelve clubes masivamente y confirma
+              la importación. No se modifican datos de Player ni de clubes existentes.
             </p>
           </div>
           {parsed && (
@@ -522,8 +739,9 @@ export default function ImportHistory() {
                 </li>
               </ul>
               <p className="mt-2">
-                Las sugerencias marcadas como revisión no se importan
-                automáticamente. La identidad provisional exige confirmación.
+                Los clubes se agrupan por <strong>club_qid</strong> de Wikidata y se
+                resuelven masivamente. Las asociaciones confirmadas se guardan en
+                ClubLink para reutilizarlas en futuros lotes.
               </p>
             </div>
           </div>
@@ -531,7 +749,22 @@ export default function ImportHistory() {
 
         {parsed && (
           <>
-            <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <ClubResolutionPanel
+              clubStats={clubStats}
+              clubGroups={clubGroups}
+              resolvedTeamByKey={resolvedTeamByKey}
+              pendingAction={pendingAction}
+              busy={busy}
+              onAutoLinkSafe={handleAutoLinkSafe}
+              onCreateMissing={handleCreateMissing}
+              onSelectAllValid={handleSelectAllValid}
+              onImportAllValid={handleImportAllValid}
+              onConfirmAction={handleConfirmAction}
+              onCancelAction={() => setPendingAction(null)}
+              validStageCount={validRows.length}
+            />
+
+            <div className="my-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {[
                 ["Jugadores", stats.detectedPlayers],
                 ["Etapas nuevas", stats.newStages],
@@ -574,7 +807,7 @@ export default function ImportHistory() {
                 <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-700">
                   <span>
                     {progress.label ||
-                      (busy ? "Importando..." : "Importación finalizada")}
+                      (busy ? "Procesando..." : "Operación finalizada")}
                   </span>
                   <span>
                     {Math.min(progress.current, progress.total)}/
@@ -659,7 +892,7 @@ export default function ImportHistory() {
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-slate-500">
                 {selectedRows.length} etapa(s) seleccionada(s) para importar.
-                Revisa los clubes y jugadores antes de confirmar.
+                Las etapas sin club asignado conservan su nombre original.
               </p>
               <div className="flex gap-2">
                 <button
