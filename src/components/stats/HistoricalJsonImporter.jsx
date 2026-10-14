@@ -2,12 +2,26 @@ import React, { useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, ClipboardPaste, Loader2, ShieldCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { formatEur } from "@/utils/historicalValuation";
-import { prepareHistoricalJson, rowChanges } from "@/utils/historicalJson";
+import { canonicalHistoricalCompetition, prepareHistoricalJson, rowChanges } from "@/utils/historicalJson";
 
 const unpack = (v) => Array.isArray(v) ? v : v?.items || v?.data || [];
 const text = (v) => String(v ?? "").trim();
-const sameKey = (r, p) => r.season === p.season && text(r.competition).toLowerCase() === text(p.competition).toLowerCase() &&
-  (r.team_id && p.team_id ? r.team_id === p.team_id : r.fotmob_team_id && p.fotmob_team_id && r.fotmob_team_id === p.fotmob_team_id);
+const sameKey = (r, p) => r.season === p.season &&
+  canonicalHistoricalCompetition(r.competition) === canonicalHistoricalCompetition(p.competition) &&
+  ((r.team_id && p.team_id && text(r.team_id) === text(p.team_id)) ||
+   (r.fotmob_team_id && p.fotmob_team_id && text(r.fotmob_team_id) === text(p.fotmob_team_id)));
+const uniqueRecords = (records) => [...new Map(records.filter(Boolean).map(r => [r.id, r])).values()];
+const fetchTeamMatchesFor = async (payload) => {
+  const requests = [];
+  if (payload.team_id) requests.push(base44.entities.TeamSeasonMatches.filter(
+    { team_id: payload.team_id, season: payload.season }, { limit: 500 }
+  ));
+  if (payload.fotmob_team_id) requests.push(base44.entities.TeamSeasonMatches.filter(
+    { fotmob_team_id: payload.fotmob_team_id, season: payload.season }, { limit: 500 }
+  ));
+  const all = uniqueRecords((await Promise.all(requests)).flatMap(unpack));
+  return all.filter(r => sameKey(r, payload));
+};
 const formatChange = (field, value) => {
   if (value === null || value === undefined || value === "") return "—";
   if (field === "transfermarkt_value_eur") return formatEur(value);
@@ -61,7 +75,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
       for (const r of parsed.filter((r) => r.type === "team" && r.payload.team_id))
         teamKeys.set(r.payload.team_id, true);
       const fotmobKeys = new Map();
-      for (const r of parsed.filter((r) => r.type === "team" && !r.payload.team_id && r.payload.fotmob_team_id))
+      for (const r of parsed.filter((r) => r.type === "team" && r.payload.fotmob_team_id))
         fotmobKeys.set(r.payload.fotmob_team_id, true);
       const existingTeams = [];
       for (let ids = [...teamKeys.keys()], i = 0; i < ids.length; i += 60) {
@@ -81,7 +95,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
       const decorated = parsed.map((r) => {
         const matches = r.type === "valuation"
           ? existingValuations.filter((e) => e.season === r.season)
-          : existingTeams.filter((e) => sameKey(e, r.payload));
+          : uniqueRecords(existingTeams.filter((e) => sameKey(e, r.payload)));
         const errors = [...r.errors];
         if (matches.length > 1) errors.push("Existen registros duplicados en Base44. Revísalos antes de importar.");
         const previous = matches[0] || null;
@@ -152,10 +166,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
           }
         } else {
           const p = item.payload;
-          const filter = p.team_id
-            ? { team_id: p.team_id, season: p.season, competition: p.competition }
-            : { fotmob_team_id: p.fotmob_team_id, season: p.season, competition: p.competition };
-          const found = unpack(await base44.entities.TeamSeasonMatches.filter(filter, { limit: 5 }));
+          const found = await fetchTeamMatchesFor(p);
           if (found.length > 1) throw Error("Registros duplicados en Base44.");
           const old = found[0] || null;
           if (Boolean(old) !== Boolean(item.existing)) throw Error("Este dato cambió desde la vista previa. Vuelve a analizar.");
