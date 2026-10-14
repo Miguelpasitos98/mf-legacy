@@ -27,10 +27,10 @@ test("temporada con dos competiciones usa suma de minutos y PJ equipo",()=>{
  const pct=columnValue(summary,"season","playpct",config);
  assert.ok(Math.abs(pct-(1932/(29*90)*100))<0.0001);
 });
-test("no calcular Play % de la temporada si falta algún denominador",()=>{
+test("Play % usa únicamente los partidos y minutos con denominador conocido",()=>{
  const summary=buildSeasonSummaries([mk("LaLiga",1388,22),mk("Champions League",544,null)],[])[0];
  assert.equal(summary.totals.team_matches.partial,true);
- assert.equal(columnValue(summary,"season","playpct",config),null);
+ assert.ok(Math.abs(columnValue(summary,"season","playpct",config)-1388/(22*90)*100)<0.0001);
  assert.ok(columnValue(mk("LaLiga",1388,22),"competition","playpct",config)>0);
 });
 test("deduplicación conserva los PJ del equipo si están en la fuente básica",()=>{
