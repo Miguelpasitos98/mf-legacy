@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { historicalRole, buildHistoricalObservations, historicalPercentile, compareHistoricalObservation } from "../src/utils/historicalPeers.js";
+import { historicalRole, historicalNationalCompetition, buildHistoricalObservations, historicalPercentile, compareHistoricalObservation } from "../src/utils/historicalPeers.js";
 
 const players=[
   {id:"h",name:"Haaland",position:"DC"},
@@ -69,6 +69,47 @@ test("estadísticas internacionales quedan excluidas de los agregados de clubes"
  const o=buildHistoricalObservations({stats,players});
  assert.equal(o[0].values.xa_p90,.2);
 });
+test("excluye EURO y campeonatos juveniles de selecciones, manteniendo Europa League de clubes",()=>{
+  assert.equal(historicalNationalCompetition("EURO"),true);
+  assert.equal(historicalNationalCompetition("UEFA U19 Championship"),true);
+  assert.equal(historicalNationalCompetition("EURO Qualification qualification"),true);
+  assert.equal(historicalNationalCompetition("Europa League"),false);
+  const rows=[
+    record("h","2024/2025","Serie A",900,"xA",2),
+    record("h","2024/2025","EURO",300,"xA",30),
+    record("h","2024/2025","UEFA U19 Championship",400,"xA",20),
+  ];
+  const o=buildHistoricalObservations({stats:rows,players});
+  assert.equal(o[0].values.xa_p90,.2);
+});
+
+test("no concede percentil ni aportación de FC si las 12 temporadas son del mismo jugador",()=>{
+  const seasons=Array.from({length:12},(_,i)=>String(2014+i));
+  const stats=seasons.map((season,i)=>record("h",season,"Premier League",900,"xA",1+i));
+  const valuations=seasons.map((season,i)=>({player_id:"h",season,fifa_fc_overall:75+i,transfermarkt_value_eur:1000000*(i+1)}));
+  const observations=buildHistoricalObservations({stats,players,valuations});
+  const out=compareHistoricalObservation(observations[11],observations);
+  const fc=out.rows.find(r=>r.key==="fc27_ovr");
+  const market=out.rows.find(r=>r.key==="market_value");
+  assert.equal(fc.n,12);
+  assert.equal(fc.nPlayers,1);
+  assert.equal(fc.percentile,null);
+  assert.equal(fc.contribution,null);
+  assert.equal(market.percentile,null);
+  assert.equal(market.contribution,null);
+});
+
+test("con dos jugadores ST, los percentiles son calculables pero provisionales",()=>{
+  const stats=[record("h","2022/2023","Premier League",900,"xA",4),
+    record("k","2022/2023","Premier League",900,"xA",2)];
+  const o=buildHistoricalObservations({stats,players});
+  const peer=compareHistoricalObservation(o[0],o);
+  const m=peer.rows.find(r=>r.key==="xa_p90");
+  assert.equal(m.percentile,100);
+  assert.equal(m.nPlayers,2);
+  assert.equal(m.provisional,true);
+});
+
 test("valores FC y Transfermarkt solo de la misma temporada por player_id",()=>{
  const stats=[record("h","2022/2023","Premier League",900,"xA",2)];
  const valuations=[
