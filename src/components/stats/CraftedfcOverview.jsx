@@ -40,9 +40,9 @@ export default function CraftedfcOverview({ snapshot, status, fotmobRating }) {
         <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-[#003399]">Overview</h3>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Card
-            label="Nota FotMob (temp.)"
+            label="Nota FotMob (filtros)"
             value={show(fotmobRating, 2)}
-            sub="Media ponderada por partidos"
+            sub="Media de los registros seleccionados, ponderada por partidos"
             accent="text-[#0d315b]"
           />
           <Card
@@ -85,7 +85,7 @@ export default function CraftedfcOverview({ snapshot, status, fotmobRating }) {
       <p className="rounded-lg bg-blue-50 px-3 py-2 text-[11px] text-blue-900">
         El <strong>CFC Rating</strong> y el <strong>World Rank</strong> son datos globales de la captura CraftedFC y no
         representan el ranking histórico de una temporada concreta. La <strong>Nota FotMob</strong> es la media ponderada
-        por partidos de la temporada seleccionada.
+        por partidos de la temporada o competición seleccionada; puede ser parcial.
       </p>
       {hasSnap && (
         <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
