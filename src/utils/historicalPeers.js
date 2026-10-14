@@ -143,6 +143,14 @@ const playShare=(records, lookup)=>{
   return denominator>0?mins/denominator*100:null;
 };
 const valKey=(playerId,season)=>playerId+"|"+season;
+// Historical club-only comparisons must also exclude competitions whose
+// short name (EURO) or youth category is not caught by the generic filter.
+export const historicalNationalCompetition = name => {
+  const x=String(name??"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  return nationalCompetition(name) ||
+    /^euro(?:$|u\d{2}|qualification)/.test(x) ||
+    /^(uefau\d{2}championship|uefaeuropeanchampionship|africacupofnations)$/.test(x);
+};
 export function buildHistoricalObservations({stats=[],players=[],valuations=[],teamMatches=[]}={}){
   const byPlayer=new Map(players.filter(p=>p?.id).map(p=>[str(p.id),p]));
   const valueMaps=new Map();
@@ -154,7 +162,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
   }
   const tmLookup=teamMatchesLookup(teamMatches);
   const groups=new Map();
-  for(const r of groupStatRows(stats).filter(r=>r?.season && !nationalCompetition(r.competition))){
+  for(const r of groupStatRows(stats).filter(r=>r?.season && !historicalNationalCompetition(r.competition))){
     const id=str(r.player_id);
     if(!id || !byPlayer.has(id))continue; // exact Base44 Player ID only
     const key=valKey(id,str(r.season));
@@ -206,12 +214,16 @@ export function compareHistoricalObservation(observation,observations,minimum=10
     [...new Set(peers.flatMap(p=>Object.keys(p.values)))];
   const items=keys.map(key=>{
     const current=num(observation.values[key]);
-    const values=peers.map(p=>num(p.values[key])).filter(v=>v!==null);
-    const percentile=current!==null?historicalPercentile(current,values):null;
+    const eligible=peers.filter(p=>num(p.values[key])!==null);
+    const values=eligible.map(p=>num(p.values[key]));
+    const nPlayers=new Set(eligible.map(p=>p.playerId)).size;
+    // A history with 11 seasons from one footballer does not establish a
+    // cross-player percentile, regardless of the number of observations.
+    const percentile=current!==null && nPlayers>=2?historicalPercentile(current,values):null;
     return {
-      key,value:current,percentile,n:values.length,
-      provisional:percentile!==null && values.length<minimum,
-      status:current===null?"no_value":percentile===null?"insufficient":values.length<minimum?"provisional":"ready",
+      key,value:current,percentile,n:values.length,nPlayers,
+      provisional:percentile!==null && nPlayers<minimum,
+      status:current===null?"no_value":percentile===null?"insufficient":nPlayers<minimum?"provisional":"ready",
       // Negative weights are signed: more losses -> higher raw percentile -> larger deduction.
       penalty:(WEIGHTS_BY_ROLE[role]?.[key]||0)<0,
     };
