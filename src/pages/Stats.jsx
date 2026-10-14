@@ -112,14 +112,16 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const seasonRows=uniqueRecords.filter(s=>activeSeason==="Todas"||s.season===activeSeason);
   const competitions=[...new Set(seasonRows.map(s=>s.competition))].sort();
   const shown=seasonRows.filter(r=>(scope==="all"||!nationalCompetition(r.competition))&&(competition==="Todas"||r.competition===competition));
-  const sums=aggregate(shown);
-  const summaryBasics=aggregate(shown,["appearances","minutes"]);
-  const ratingRows=shown.filter(r=>num(r.rating)!==null&&num(r.appearances)>0);
+  const calculationRows=shown.filter(r=>num(r.minutes)>0&&num(r.appearances)>0);
+  const excludedRows=shown.filter(r=>!calculationRows.includes(r));
+  const sums=aggregate(calculationRows);
+  const summaryBasics=aggregate(calculationRows,["appearances","minutes"]);
+  const ratingRows=calculationRows.filter(r=>num(r.rating)!==null&&num(r.appearances)>0);
   const ratedGames=ratingRows.reduce((v,r)=>v+Number(r.appearances),0);
   const estimatedRating=ratedGames?ratingRows.reduce((v,r)=>v+Number(r.rating)*Number(r.appearances),0)/ratedGames:null;
   const selected=config.columns.competition[category]||[];
   const allSeasons=activeSeason==="Todas";
-  const partial=Object.values(sums).some(x=>x.partial);
+  const partial=Object.values(sums).some(x=>x.partial)||excludedRows.length>0;
   const inProgress=!allSeasons&&seasonActive(activeSeason);
   const totalsTitle=allSeasons?"Subtotal histórico (no total de carrera)":competition==="Todas"?"Subtotal de temporada":"Estadísticas de la competición";
   const teamCell=r=>{
@@ -178,7 +180,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             {allSeasons&&<span className="rounded bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-900">Varias temporadas: no es una cifra oficial de carrera</span>}
             {partial&&<span className="rounded bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-900">Cobertura parcial</span>}
           </div>
-          <div className="mb-3 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-[#f8fbff] px-4 py-3 text-xs text-slate-700"><span><strong>PJ:</strong> {show(summaryBasics.appearances.value)}{summaryBasics.appearances.partial?" (parcial)":""}</span><span><strong>Minutos:</strong> {show(summaryBasics.minutes.value)}{summaryBasics.minutes.partial?" (parcial)":""}</span><span><strong>Nota media aproximada:</strong> {show(estimatedRating,2)}{ratingRows.length<shown.length?" (parcial)":""}</span><span className="text-slate-500">Media ponderada por partidos; no equivale al rating Crafted.</span></div>
+          <div className="mb-3 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-[#f8fbff] px-4 py-3 text-xs text-slate-700"><span><strong>PJ:</strong> {show(summaryBasics.appearances.value)}{summaryBasics.appearances.partial?" (parcial)":""}</span><span><strong>Minutos:</strong> {show(summaryBasics.minutes.value)}{summaryBasics.minutes.partial?" (parcial)":""}</span><span><strong>Nota media aproximada:</strong> {show(estimatedRating,2)}{ratingRows.length<calculationRows.length?" (parcial)":""}</span><span className="text-slate-500">Media ponderada por partidos; no equivale al rating Crafted.</span></div>
           <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-5">
             {[["Goles",sums.goals],["Asistencias",sums.assists],["xG",sums.xg],["xA",sums.xa],["Tiros",sums.shots]].map(([label,d])=><div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
               <div className="text-[10px] font-bold uppercase text-slate-500">{label}</div>
@@ -186,7 +188,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
               <p className="text-[10px] text-slate-500">{d.value===null?"Sin datos":d.available+"/"+d.total+" competiciones con cifra"}</p>
             </div>)}
           </div>
-          <p className="mb-4 text-xs text-slate-500">Sumamos únicamente métricas acumulativas importadas, sin mezclar porcentajes, notas ni velocidades. Son subtotales de competiciones disponibles; no se interpretan como una temporada o carrera completa hasta verificar cobertura y duplicados. Las selecciones están excluidas por defecto.</p>
+          <p className="mb-4 text-xs text-slate-500">{excludedRows.length>0?excludedRows.length+" competición(es) sin PJ o minutos válidos excluidas de los cálculos: "+excludedRows.map(r=>r.competition).join(", ")+". Permanecen visibles abajo. ":""}Los totales y medias se calculan con las competiciones que tienen partidos y minutos disponibles; los indicadores ausentes siguen marcados como cobertura parcial. Las selecciones están excluidas por defecto.</p>
           <div className="mb-3 flex flex-wrap gap-2">{CAT_TABS.map(x=><button key={x} onClick={()=>setCategory(x)} className={"rounded-lg px-3 py-2 text-xs font-bold "+(category===x?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{x}</button>)}</div>
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[720px] text-left text-xs">
