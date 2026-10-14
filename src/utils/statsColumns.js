@@ -137,6 +137,15 @@ export const rowValues=(row,mode)=>{
  }
  return values;
 };
+export function formulaCoverage(row,mode,id,config){
+ if(mode!=="season"||!Array.isArray(row?.records))return null;
+ const def=config.computed.find(d=>d.id===id);
+ if(!def)return null;
+ try{
+  const vars=[...new Set(def.formula.match(/[a-zA-Z][a-zA-Z0-9_]*/g)||[])];
+  return alignedFormulaInputs(row.records,vars);
+ }catch{return null;}
+}
 export function columnValue(row,mode,id,config){
  if(!row)return null;
  const definition=config.computed.find(d=>d.id===id);
