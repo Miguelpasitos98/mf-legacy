@@ -11,6 +11,19 @@ const sameKey = (r, p) => r.season === p.season &&
   ((r.team_id && p.team_id && text(r.team_id) === text(p.team_id)) ||
    (r.fotmob_team_id && p.fotmob_team_id && text(r.fotmob_team_id) === text(p.fotmob_team_id)));
 const uniqueRecords = (records) => [...new Map(records.filter(Boolean).map(r => [r.id, r])).values()];
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const isRateLimited = (error) => error?.status === 429 || error?.response?.status === 429 || error?.originalError?.response?.status === 429 || /rate limit|too many requests|429/i.test(String(error?.message || error));
+const retryRead = async (read, progress = () => {}) => {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try { return await read(); }
+    catch (error) {
+      if (!isRateLimited(error) || attempt === 3) throw error;
+      const delay = [4000, 8000, 16000][attempt];
+      progress(`Base44 está limitando solicitudes. Reintentando consulta en ${delay / 1000} s…`);
+      await sleep(delay);
+    }
+  }
+};
 const fetchTeamMatchesFor = async (payload) => {
   const requests = [];
   if (payload.team_id) requests.push(base44.entities.TeamSeasonMatches.filter(
