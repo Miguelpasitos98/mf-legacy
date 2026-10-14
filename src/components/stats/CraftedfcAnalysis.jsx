@@ -149,7 +149,7 @@ export default function CraftedfcAnalysis({ snapshot, status }) {
       {advancedEntries.length > 0 && (
         <div>
           <h4 className="mb-2 text-xs font-black uppercase tracking-widest text-slate-600">
-            Estadísticas avanzadas (per 90 / %)
+            Estadísticas avanzadas (por 90, porcentajes y otros indicadores)
           </h4>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {advancedEntries.map(([key, value]) => (
