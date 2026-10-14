@@ -8,7 +8,6 @@ import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
 import { normalizeLabel, metricLabel } from "@/utils/statsImport";
 import StatsImport from "@/components/stats/StatsImport";
-import HistoricalValuationTool from "@/components/stats/HistoricalValuationTool";
 import HistoricalSingleEntryImporter from "@/components/stats/HistoricalSingleEntryImporter";
 import HistoricalValuationsTable from "@/components/stats/HistoricalValuationsTable";
 import { useHistoricalValuations } from "@/hooks/useHistoricalValuations";
@@ -297,7 +296,6 @@ export default function Stats(){
   const [columnConfig,setColumnConfig]=useState(initialConfig);
   const [settingsOpen,setSettingsOpen]=useState(false),[settingsContext,setSettingsContext]=useState(null),[prefsRecord,setPrefsRecord]=useState(null),[prefsWarning,setPrefsWarning]=useState("");
   const [unifiedOpen,setUnifiedOpen]=useState(false);
-  const [valuationOpen,setValuationOpen]=useState(false);
   useEffect(()=>{let mounted=true;(async()=>{
     try{const res=await base44.entities.StatsViewPreference.list({limit:50});
       const mine=unpack(res).find(r=>r.key==="stats_layout_personal_v1");
@@ -404,7 +402,6 @@ export default function Stats(){
       <div className="flex items-center gap-2">
         <button type="button" onClick={()=>{setSettingsContext(null);setSettingsOpen(true);}} title="Configurar columnas, cálculos y categorías" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Settings2 size={16}/> Ajustes</button>
         <button onClick={()=>setImportOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] hover:bg-blue-50"><Upload size={15}/> Solo FotMob</button>
-        <button onClick={()=>setValuationOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] hover:bg-blue-50">FIFA/FC + Transfermarkt</button>
         <button onClick={()=>setUnifiedOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white hover:bg-[#002777]"><Upload size={15}/> Importar FotMob + CraftedFC</button>
       </div>
     </div>
@@ -435,7 +432,6 @@ export default function Stats(){
     {prefsWarning&&<p className="px-5 py-2 text-xs text-amber-700">{prefsWarning}</p>}
     {settingsOpen&&<StatsColumnSettings config={columnConfig} mode={settingsContext?.mode||viewMode} category={settingsContext?.category||category} sample={settingsContext?.sample||(viewMode==="season"?seasonSummaries[0]:stats[0])} onClose={()=>setSettingsOpen(false)} onSave={saveColumns}/>}
     {importOpen&&<StatsImport players={players} teams={teams} onClose={()=>setImportOpen(false)} onImported={importComplete} onOpenUnified={()=>{setImportOpen(false);setUnifiedOpen(true);}}/>}
-    {valuationOpen&&<HistoricalValuationTool onClose={()=>setValuationOpen(false)} onImported={importComplete}/>}
     {unifiedOpen&&createPortal(
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Importar FotMob y CraftedFC">
         <div className="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
