@@ -88,6 +88,13 @@ export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], pos
       </div>
     );
   }
+  if (!snapshot) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
+        No hay snapshot de CraftedFC vinculado a este jugador. Importa datos de CraftedFC para ver el análisis.
+      </div>
+    );
+  }
   const stats = payloadField(snapshot, "stats") || {};
   const advancedEntries = Object.entries(stats)
     .filter(([, v]) => v !== null && v !== undefined)
