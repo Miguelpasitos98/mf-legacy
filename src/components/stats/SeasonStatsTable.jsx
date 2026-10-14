@@ -3,7 +3,7 @@ import {ArrowRight,Shield} from "lucide-react";
 import SortHeader from "@/components/stats/SortHeader";
 import {rankIdentity} from "@/utils/statsRank";
 import {statDisplay} from "@/utils/statsSeason";
-import {getColumn,columnValue,initialConfig} from "@/utils/statsColumns";
+import {getColumn,columnValue,formulaCoverage,initialConfig} from "@/utils/statsColumns";
 import {metricLabel} from "@/utils/statsImport";
 import {seasonActive} from "@/utils/statsViews";
 
@@ -68,8 +68,10 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
       <td className="px-3 py-3 text-right font-bold"><span title="Estimación ponderada por partidos; no es el índice Crafted.">{fmt(statDisplay(summary,"rating"),2)}{summary.ratingPartial?"*":""}</span></td>
       {columns.map(k=>{
        const value=columnValue(summary,"season",k,config);
-       const partial=summary.totals[k]?.partial;
-       return <td key={k} className="px-3 py-3 text-right" title={partial?"Subtotal parcial: faltan estadísticas":undefined}>{fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
+       const coverage=formulaCoverage(summary,"season",k,config);
+       const partial=coverage?coverage.available<coverage.total:summary.totals[k]?.partial;
+       const hint=coverage?coverage.available+" de "+coverage.total+" competiciones · "+coverage.minutes.toLocaleString("es-ES")+" minutos disponibles para esta fórmula":partial?"Subtotal parcial: faltan estadísticas":undefined;
+       return <td key={k} className="px-3 py-3 text-right" title={hint}>{fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
       })}
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
