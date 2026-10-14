@@ -74,7 +74,7 @@ const formatChange = (field, value) => {
   return String(value);
 };
 
-export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats = [], teams = [], onSaved }) {
+export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats = [], teams = [], onSaved, onBusyChange }) {
   const [raw, setRaw] = useState("");
   const [rows, setRows] = useState([]);
   const [included, setIncluded] = useState(new Set());
@@ -117,7 +117,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
       if (resetMessages) setNotice("Datos analizados. Los registros nuevos están seleccionados; las actualizaciones requieren tu autorización individual.");
     } catch (err) {
       setError(err?.message || "No se pudo analizar el JSON.");
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setProgress(""); }
   };
 
   const toggle = (id) => {
@@ -138,6 +138,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
       " (" + updates + " actualizaciones existentes). Los campos vacíos no borran información. ¿Confirmar?"
     )) return;
     setSaving(true);
+    onBusyChange?.(true);
     setError(""); setNotice("");
     let created = 0; let updated = 0; let unchanged = 0;
     const failures = [];
@@ -222,10 +223,10 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
         : "No se ha podido verificar el estado actual de los registros; no se han iniciado nuevas escrituras.";
       failures.push(err?.message || "Error de conexión");
     }
-    setProgress(""); setSaving(false);
+    setProgress(""); setSaving(false); onBusyChange?.(false);
     if (created + updated > 0) onSaved?.();
-    setNotice("Resultado real: " + created + " nuevos · " + updated + " actualizados · " + unchanged + " sin cambios · " + failures.length + " errores.");
-    if (failures.length) setError(failures.slice(0, 8).join(" | "));
+    setNotice("Resultado confirmado: " + created + " nuevos · " + updated + " actualizados · " + unchanged + " sin cambios." + (haltMessage ? " Importación detenida con seguridad." : ""));
+    if (failures.length) setError((haltMessage ? haltMessage + " " : "") + failures.slice(0, 4).join(" | ") + (failures.length > 4 ? " · Más incidencias pendientes." : ""));
     // For a successful/partial operation, force a fresh preview before any further writes.
     setRows([]); setIncluded(new Set());
   };
@@ -256,6 +257,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
       </div>
       {notice && <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">{notice}</p>}
       {error && <p role="alert" className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><AlertCircle className="shrink-0" size={15}/>{error}</p>}
+      {busy && progress && <p role="status" className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-900">{progress}</p>}
       {rows.length > 0 && <>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
           {[
