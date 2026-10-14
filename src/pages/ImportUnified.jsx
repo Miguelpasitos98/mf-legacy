@@ -108,45 +108,72 @@ export default function ImportUnified() {
     const queue=plan.filter(r=>r.action==="crear"||r.action==="actualizar");
     setBusy(true);setError("");setProgress({done:0,total:queue.length});
     const reportItems=[];
-    for(const [idx,row] of queue.entries()){
-      try{
-        if(row.kind==="season"){
-          if(!row.linkedId)throw Error("No se pueden crear estadísticas históricas sin Player confirmado.");
-          const data={
-            external_record_id:row.external_record_id, player_id:row.linkedId,
-            fotmob_player_id:row.player_fotmob_id, player_name:row.player_name,
-            fotmob_team_id:row.fotmob_team_id, team_name:row.team_name,
-            team_id:teamLinks.get(row.fotmob_team_id)||"",
-            season:row.season,competition:row.competition,
-            appearances:row.appearances,minutes:row.minutes,rating:row.rating,
-            market_value:row.market_value,market_date:row.market_date,
-            metrics:row.metrics,source:row.source,verification_status:row.verification_status,
-            review_status:"pending",import_batch:fileName,updated_from_file:localDate()
-          };
-          if(row.team_matches!=null)data.team_matches=row.team_matches;
-          await base44.entities.PlayerSeasonStats.create(data);
-        }else{
-          const data={
-            external_key:row.external_key,kind:row.kind,source:"CraftedFC",
-            fotmob_id:row.fotmob_id||"",base44_entity_id:row.linkedId||"",
-            name:row.name||"",snapshot_date:row.snapshot_date||"",
-            rating:row.rating,rank:row.rank,raw_score:row.raw_score,
-            archetype:row.archetype||"",team_strength:row.team_strength,
-            league_strength:row.league_strength,payload:row.payload,
-            link_status:row.linkStatus,import_batch:fileName
-          };
-          Object.keys(data).forEach(k=>data[k]===undefined&&delete data[k]);
-          if(row.action==="actualizar")await base44.entities.ExternalFootballSnapshot.update(row.existingId,data);
-          else await base44.entities.ExternalFootballSnapshot.create(data);
-        }
-        reportItems.push({key:row.external_key||row.external_record_id,status:row.action==="crear"?"creado":"actualizado"});
-      }catch(e){
-        reportItems.push({key:row.external_key||row.external_record_id,status:"error",reason:String(e.message||e)});
+    const entityFor = r => r.kind==="season"?"PlayerSeasonStats":"ExternalFootballSnapshot";
+    const keyFor = r => r.external_key||r.external_record_id;
+    const recordFor = row => {
+      if(row.kind==="season"){
+        if(!row.linkedId)throw Error("No se permite historial sin Player confirmado.");
+        const data={
+          external_record_id:row.external_record_id,player_id:row.linkedId,
+          fotmob_player_id:row.player_fotmob_id,player_name:row.player_name,
+          fotmob_team_id:row.fotmob_team_id,team_name:row.team_name,
+          team_id:teamLinks.get(row.fotmob_team_id)||"",
+          season:row.season,competition:row.competition,
+          appearances:row.appearances,minutes:row.minutes,rating:row.rating,
+          market_value:row.market_value,market_date:row.market_date,metrics:row.metrics,
+          source:row.source,verification_status:row.verification_status,
+          review_status:"pending",import_batch:fileName,updated_from_file:localDate()
+        };
+        if(row.team_matches!=null)data.team_matches=row.team_matches;
+        return data;
       }
-      setProgress({done:idx+1,total:queue.length});
-      if(idx%10===0)await sleep();
+      const data={
+        external_key:row.external_key,kind:row.kind,source:"CraftedFC",
+        fotmob_id:row.fotmob_id||"",base44_entity_id:row.linkedId||"",
+        name:row.name||"",snapshot_date:row.snapshot_date||"",
+        rating:row.rating,rank:row.rank,raw_score:row.raw_score,
+        archetype:row.archetype||"",team_strength:row.team_strength,
+        league_strength:row.league_strength,payload:row.payload,
+        link_status:row.linkStatus,import_batch:fileName
+      };
+      Object.keys(data).forEach(k=>data[k]===undefined&&delete data[k]);
+      return data;
+    };
+    for(let pos=0;pos<queue.length;){
+      const first=queue[pos];
+      let group=[first];
+      // Base44 supports bulkCreate. Small groups reduce requests without risking huge transactions.
+      if(first.action==="crear"){
+        while(group.length<25 && pos+group.length<queue.length &&
+          queue[pos+group.length].action==="crear" &&
+          entityFor(queue[pos+group.length])===entityFor(first)){
+          group.push(queue[pos+group.length]);
+        }
+      }
+      try{
+        const entity=base44.entities[entityFor(first)];
+        const records=group.map(recordFor);
+        if(first.action==="actualizar"){
+          await entity.update(first.existingId,records[0]);
+        }else if(records.length>1){
+          await entity.bulkCreate(records);
+        }else{
+          await entity.create(records[0]);
+        }
+        group.forEach(row=>reportItems.push({key:keyFor(row),status:row.action==="actualizar"?"actualizado":"creado"}));
+      }catch(e){
+        // Never retry an uncertain bulk failure automatically: it could already be partially committed.
+        group.forEach(row=>reportItems.push({key:keyFor(row),status:"error",reason:String(e?.message||e)+(group.length>1?" · Verificar existencia antes de reintentar este lote.":"")}));
+      }
+      pos+=group.length;
+      setProgress({done:pos,total:queue.length});
+      await sleep();
     }
-    setReport({file:fileName,importedAt:new Date().toISOString(),total:queue.length,created:reportItems.filter(r=>r.status==="creado").length,updated:reportItems.filter(r=>r.status==="actualizado").length,errors:reportItems.filter(r=>r.status==="error").length,skipped:plan.length-queue.length,items:reportItems});
+    setReport({file:fileName,importedAt:new Date().toISOString(),total:queue.length,
+      created:reportItems.filter(r=>r.status==="creado").length,
+      updated:reportItems.filter(r=>r.status==="actualizado").length,
+      errors:reportItems.filter(r=>r.status==="error").length,
+      skipped:plan.length-queue.length,items:reportItems});
     setAuthorized(false);setPlan(null);setBusy(false);
   };
 
