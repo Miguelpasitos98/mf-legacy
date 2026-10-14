@@ -14,8 +14,6 @@ export default function TopNavbar() {
     { label: "PLAYERS", path: "/players" },
     { label: "TEAMS", path: "/teams" },
     { label: "COUNTRIES", path: "/countries" },
-    { label: "HISTORIAL", path: "/import-histories" },
-    { label: "FUENTES", path: "/import-unified" },
   ];
 
   const handleNavigation = (path) => {
