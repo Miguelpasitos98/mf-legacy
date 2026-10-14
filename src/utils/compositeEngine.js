@@ -32,7 +32,7 @@ const METRIC_LABELS={
  goals_prevented_p90:["Goals prevented"], // only when FotMob really gives a comparable percentile
 };
 export const METRIC_NAMES={
- rating:"Nota FotMob (percentil)",npxg_p90:"xG sin penaltis /90",xg_chain_p90:"xG Chain /90",fc27_ovr:"FC27 Overall",xa_p90:"xA /90",xgot_p90:"xGOT /90",market_value:"Valor de mercado",finishing_xgot_minus_npxg:"Finalización (xGOT - npxG)",play_share:"Participación de minutos",xg_buildup_p90:"xG Buildup /90",shots_on_target_p90:"Tiros a puerta /90",big_chances_created_p90:"Ocasiones claras creadas /90",possession_won_final_3rd_p90:"Recuperaciones en último tercio /90",aerial_duels_won_pct:"Duelos aéreos ganados (%)",accurate_long_balls_p90:"Pases largos precisos /90",ground_duels_won_pct:"Duelos terrestres ganados (%)",successful_dribbles_p90:"Regates completados /90",dispossessed_p90:"Pérdidas de balón /90",dribbled_past_p90:"Regateado /90",ball_security:"Seguridad de balón",def_actions_poss_adj_p90:"Acciones defensivas ajustadas /90",goals_prevented_p90:"Goles evitados /90",save_pct:"Paradas (%)",accurate_passes_p90:"Pases precisos /90"};
+ rating:"Nota FotMob (percentil)",npxg_p90:"xG sin penaltis /90",xg_chain_p90:"xG Chain /90", fc27_ovr:"FC Overall",xa_p90:"xA /90",xgot_p90:"xGOT /90",market_value:"Valor de mercado",finishing_xgot_minus_npxg:"Finalización (xGOT - npxG)",play_share:"Participación de minutos",xg_buildup_p90:"xG Buildup /90",shots_on_target_p90:"Tiros a puerta /90",big_chances_created_p90:"Ocasiones claras creadas /90",possession_won_final_3rd_p90:"Recuperaciones en último tercio /90",aerial_duels_won_pct:"Duelos aéreos ganados (%)",accurate_long_balls_p90:"Pases largos precisos /90",ground_duels_won_pct:"Duelos terrestres ganados (%)",successful_dribbles_p90:"Regates completados /90",dispossessed_p90:"Pérdidas de balón /90",dribbled_past_p90:"Regateado /90",ball_security:"Seguridad de balón",def_actions_poss_adj_p90:"Acciones defensivas ajustadas /90",goals_prevented_p90:"Goles evitados /90",save_pct:"Paradas (%)",accurate_passes_p90:"Pases precisos /90"};
 const pct=v=>v===null||v===undefined||v===""?null:Number.isFinite(Number(v))&&Number(v)>=0&&Number(v)<=100?Number(v):null;
 const round=v=>Math.round(v*100)/100;
 export function metricPercentiles(row) {
@@ -86,7 +86,7 @@ export function derivedCompositeValues(row){
     play_share:playShare
   };
 }
-export function calculateCompositeMF(row,positionOrRole,percentilesOverride=null){
+export function calculateCompositeMF(row,positionOrRole,percentilesOverride=null,historicalValues=null){
   const role=normalizeRole(positionOrRole)|| (COMPOSITE_ROLES.includes(positionOrRole)?positionOrRole:null);
   if(!role) return {role:null,score:null,coverage:0,status:"unknown_role",rows:[],missing:[]};
   const observed=WEIGHTS_BY_ROLE[role];
@@ -94,6 +94,10 @@ export function calculateCompositeMF(row,positionOrRole,percentilesOverride=null
   const weights={...observed,rating:missingRating};
   const input=percentilesOverride||metricPercentiles(row);
   const derived=derivedCompositeValues(row);
+  // Connect fc27_ovr and market_value to historical FIFA/FC + Transfermarkt values.
+  // These display their real value but receive NO percentile (no invented comparisons).
+  if(historicalValues&&historicalValues.fifa_fc_overall!=null)derived.fc27_ovr=historicalValues.fifa_fc_overall;
+  if(historicalValues&&historicalValues.transfermarkt_value_eur!=null)derived.market_value=historicalValues.transfermarkt_value_eur;
   const entries=Object.entries(weights);
   const absTotal=entries.reduce((n,[,w])=>n+Math.abs(w),0);
   let presentAbs=0,availableWeight=0,scoreSum=0;

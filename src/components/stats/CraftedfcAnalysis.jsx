@@ -1,6 +1,7 @@
-import React, {useState} from "react";
+import React, {useState, useMemo} from "react";
 import {calculateCompositeMF, COMPOSITE_ROLES, normalizeRole} from "@/utils/compositeEngine";
 import { payloadField } from "@/utils/craftedfc";
+import { formatEur } from "@/utils/historicalValuation";
 
 const show = (v, d = 0) =>
   v === null || v === undefined || !Number.isFinite(Number(v))
@@ -71,9 +72,15 @@ const MiniCard = ({ label, value, accent }) => (
 // CraftedFC Analysis shows the published snapshot independently from
 // MF Legacy's experimental percentile-weighted Composite for one FotMob season.
 // Neither value is presented as the official CraftedFC season Composite.
-export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], position="" }) {
+export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], position="", historicalValuations=[] }) {
   const [rowIndex,setRowIndex] = useState(0);
   const [chosenRole,setChosenRole] = useState("");
+  const available=Array.isArray(fotmobRows)?fotmobRows:[];
+  const active=available[Math.min(rowIndex,Math.max(0,available.length-1))]||null;
+  const historicalForSeason=useMemo(()=>{
+    if(!active?.season)return null;
+    return (historicalValuations||[]).find(v=>String(v.season)===String(active.season))||null;
+  },[historicalValuations,active?.season]);
   if (status === "loading") {
     return (
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
@@ -86,13 +93,10 @@ export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], pos
     .filter(([, v]) => v !== null && v !== undefined)
     .sort(([a], [b]) => a.localeCompare(b));
 
-  // Historical FotMob percentiles and displayed CraftedFC position weights remain
-  // explicitly separated from CraftedFC's published global Rating.
-  const available=Array.isArray(fotmobRows)?fotmobRows:[];
-  const active=available[Math.min(rowIndex,Math.max(0,available.length-1))]||null;
   const inferredRole=normalizeRole(snapshot?.archetype||payloadField(snapshot,"primary_archetype")||position);
   const appliedRole=chosenRole||inferredRole||"";
-  const composite=calculateCompositeMF(active,appliedRole);
+  const historicalValues=historicalForSeason?{fifa_fc_overall:historicalForSeason.fifa_fc_overall??null,transfermarkt_value_eur:historicalForSeason.transfermarkt_value_eur??null}:null;
+  const composite=calculateCompositeMF(active,appliedRole,null,historicalValues);
   const breakdownRows=composite.rows;
 
   return (
@@ -133,6 +137,30 @@ export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], pos
             <div className="text-[11px] text-slate-600">Cobertura: {show(composite.coverage,1)} % · {composite.count||0}/{composite.total||0} indicadores</div>
           </div>
         </div>
+        {historicalForSeason&&<div className="mt-3 flex flex-wrap gap-3">
+          <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-wide text-amber-700">FC Overall</p>
+              <p className="text-lg font-black text-amber-900">{historicalForSeason.fifa_fc_overall!=null?historicalForSeason.fifa_fc_overall:"—"}</p>
+              <p className="text-[9px] text-amber-600">FIFA/EA SPORTS FC historico{historicalForSeason.fifa_edition?` · ${historicalForSeason.fifa_edition}`:""}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-wide text-emerald-700">Valor de mercado</p>
+              <p className="text-lg font-black text-emerald-900">{formatEur(historicalForSeason.transfermarkt_value_eur)}</p>
+              <p className="text-[9px] text-emerald-600">Transfermarkt historico{historicalForSeason.market_value_as_of?` · ${historicalForSeason.market_value_as_of}`:""}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Demas indicadores</p>
+              <p className="text-xs font-bold text-slate-600">FotMob</p>
+              <p className="text-[9px] text-slate-400">Rendimiento por temporada</p>
+            </div>
+          </div>
+        </div>}
+        {!historicalForSeason&&active?.season&&<p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] text-slate-500">Sin valoraciones historicas importadas para {active.season}. Usa "Importar valores historicos" para anadir FIFA/FC Overall y Transfermarkt.</p>}
         {(!active||!appliedRole)&&<p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Hace falta una competición con métricas y elegir un arquetipo. DM/MCD no se equipara automáticamente a CM hasta definir su baremo.</p>}
         {composite.status==="partial"&&<p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Cálculo parcial: los indicadores que faltan no reciben cero ni se inventan. El índice renormaliza únicamente los pesos disponibles y no se debe comparar directamente con un Composite de cobertura distinta.</p>}
         {!!breakdownRows.length&&<div className="mt-4 max-h-[430px] overflow-auto rounded-lg border border-slate-200 bg-white">
@@ -141,8 +169,13 @@ export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], pos
               <tr><th className="px-3 py-2">Indicador</th><th className="px-3 py-2 text-right">Tu valor</th><th className="min-w-[150px] px-3 py-2 text-center">vs jugadores</th><th className="px-3 py-2 text-right">Peso</th><th className="px-3 py-2 text-right">Aporta</th></tr>
             </thead>
             <tbody>{breakdownRows.map(r=><tr key={r.key} className={"border-t border-slate-100 "+(r.percentile===null?"text-slate-400":"text-slate-800")}>
-              <td className="px-3 py-3 font-semibold">{r.name}</td>
-              <td className="px-3 py-3 text-right font-semibold">{show(r.derivedValue, r.key==="play_share"?1:2)}{r.derivedValue!==null&&r.derivedValue!==undefined&&["play_share","aerial_duels_won_pct","ground_duels_won_pct","save_pct"].includes(r.key)?" %":""}</td>
+              <td className="px-3 py-3 font-semibold">
+                {r.name}
+                {r.key==="fc27_ovr"&&<span className="ml-1 rounded bg-amber-100 px-1 text-[8px] font-normal text-amber-700">FIFA/FC hist.</span>}
+                {r.key==="market_value"&&<span className="ml-1 rounded bg-emerald-100 px-1 text-[8px] font-normal text-emerald-700">Transfermarkt hist.</span>}
+                {!["fc27_ovr","market_value"].includes(r.key)&&<span className="ml-1 rounded bg-slate-100 px-1 text-[8px] font-normal text-slate-500">FotMob</span>}
+              </td>
+              <td className="px-3 py-3 text-right font-semibold">{r.key==="market_value"?formatEur(r.derivedValue):show(r.derivedValue, r.key==="play_share"?1:2)}{r.derivedValue!==null&&r.derivedValue!==undefined&&["play_share","aerial_duels_won_pct","ground_duels_won_pct","save_pct"].includes(r.key)?" %":""}</td>
               <td className="px-3 py-3">
                 {r.percentile===null?<span className="block text-center text-slate-400" title="Sin percentil comparable">—</span>:<div className="flex items-center justify-end gap-2" title={"Percentil FotMob: "+show(r.percentile,1)+" de 100"}>
                   <div className="h-2.5 w-full min-w-[65px] max-w-[110px] overflow-hidden rounded-full bg-slate-200" role="meter" aria-label={"Percentil de "+r.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(r.percentile)}>

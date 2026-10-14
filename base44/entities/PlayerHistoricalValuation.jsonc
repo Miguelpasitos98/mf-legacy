@@ -1,0 +1,87 @@
+{
+  "name": "PlayerHistoricalValuation",
+  "type": "object",
+  "properties": {
+    "player_id": {
+      "type": "string",
+      "description": "ID interno Base44 del jugador. Clave de unicidad junto a season."
+    },
+    "fotmob_player_id": {
+      "type": "string",
+      "description": "ID FotMob del jugador si esta disponible. Referencia, no clave primaria."
+    },
+    "fm26_uid": {
+      "type": "string",
+      "description": "Identificador FM26 del jugador para trazabilidad. Opcional."
+    },
+    "season": {
+      "type": "string",
+      "description": "Temporada normalizada. Ano natural (2016) o campana partida (2019/2020). Clave de unicidad junto a player_id."
+    },
+    "fifa_edition": {
+      "type": "string",
+      "description": "Edicion del videojuego (FIFA 23, FC 24, etc.). Opcional; se deduce para temporadas partidas."
+    },
+    "fifa_fc_overall": {
+      "type": "integer",
+      "description": "Overall historico de FIFA/EA SPORTS FC (1-99). Nullable: ausencia de informacion. No es Potential ni CA/PA FM26."
+    },
+    "fifa_source_url": {
+      "type": "string",
+      "description": "URL de la fuente del Overall. Opcional."
+    },
+    "transfermarkt_value_eur": {
+      "type": "integer",
+      "description": "Valor de mercado de Transfermarkt en euros. Nullable: ausencia de informacion. No es precio de fichaje."
+    },
+    "transfermarkt_source_url": {
+      "type": "string",
+      "description": "URL de la fuente del valor de mercado. Opcional."
+    },
+    "market_value_as_of": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha de valoracion del valor de mercado. Nullable."
+    },
+    "market_value_status": {
+      "type": "string",
+      "description": "Estado del valor de mercado: provisional para temporadas en curso, definitivo para cierre. Vacio si no aplica."
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "verified",
+        "review"
+      ],
+      "default": "pending",
+      "description": "Estado de verificacion. Pendiente por defecto al importar; no se marca verificado solo por importar."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas o comentarios sobre el registro."
+    }
+  },
+  "required": [
+    "player_id",
+    "season"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
