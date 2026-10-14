@@ -2,6 +2,7 @@ import React, {useEffect, useMemo, useState} from "react";
 import {base44} from "@/api/base44Client";
 import {AlertTriangle, CheckCircle2, CloudUpload, Database, FileJson, ShieldCheck, Loader2, Download, RefreshCw} from "lucide-react";
 import {parseUnifiedBatch, rowsFromResponse, UNIFIED_BATCH_SCHEMA} from "@/utils/unifiedImport";
+import {assessHistoricalEnrichment} from "@/utils/statsEnrichment";
 
 const localDate = () => new Date().toISOString().slice(0, 10);
 const number = v => (v == null ? "—" : Number(v).toLocaleString("es-ES"));
@@ -24,6 +25,7 @@ export default function ImportUnified() {
   const [error,setError] = useState("");
   const [allowUnlinked,setAllowUnlinked] = useState(false);
   const [updateExisting,setUpdateExisting] = useState(false);
+  const [enrichExisting,setEnrichExisting] = useState(false);
   const [authorized,setAuthorized] = useState(false);
   const [busy,setBusy] = useState(false);
   const [plan,setPlan] = useState(null);
@@ -49,7 +51,7 @@ export default function ImportUnified() {
     return ()=>{live=false;};
   },[]);
 
-  useEffect(()=>{setPlan(null);setAuthorized(false);setReport(null);},[batch,allowUnlinked,updateExisting]);
+  useEffect(()=>{setPlan(null);setAuthorized(false);setReport(null);},[batch,allowUnlinked,updateExisting,enrichExisting]);
 
   const prepared=useMemo(()=>{
     if(!batch)return [];
@@ -110,7 +112,16 @@ export default function ImportUnified() {
       const next=prepared.map(x=>{
         const key=x.kind==="season"?x.external_record_id:x.external_key;
         const old=existing.get(x.kind+":"+key);
-        return {...x,action:(!x.linkedId&&(x.kind==="season"||!allowUnlinked))?"sin_vinculo":old?(updateExisting&&x.kind!=="season"?"actualizar":"existente"):"crear",existingId:old?.id||null};
+        if(!x.linkedId && (x.kind==="season"||!allowUnlinked)) {
+          return {...x,action:"sin_vinculo",existingId:old?.id||null};
+        }
+        if(old && x.kind==="season" && enrichExisting){
+          const analysis=assessHistoricalEnrichment(old,x,x.linkedId);
+          return {...x,action:!analysis.ok?"revisar":analysis.added?"enriquecer":"existente",
+            existingId:old?.id||null,newMetricsCount:analysis.added,
+            conflicts:analysis.conflicts,reviewNotes:analysis.errors};
+        }
+        return {...x,action:old?(updateExisting&&x.kind!=="season"?"actualizar":"existente"):"crear",existingId:old?.id||null};
       });
       setPlan(next);
     }catch(e){setError("No se pudo verificar la existencia previa; no se guardará nada. "+e.message);}
@@ -119,7 +130,7 @@ export default function ImportUnified() {
 
   const importBatch=async()=>{
     if(!plan||!authorized||isAdmin!==true||busy)return;
-    const queue=plan.filter(r=>r.action==="crear"||r.action==="actualizar");
+    const queue=plan.filter(r=>["crear","actualizar","enriquecer"].includes(r.action));
     setBusy(true);setError("");setProgress({done:0,total:queue.length});
     const reportItems=[];
     const entityFor = r => r.kind==="season"?"PlayerSeasonStats":"ExternalFootballSnapshot";
@@ -167,14 +178,26 @@ export default function ImportUnified() {
       try{
         const entity=base44.entities[entityFor(first)];
         const records=group.map(recordFor);
-        if(first.action==="actualizar"){
+        if(first.action==="enriquecer"){
+          // Re-read the current record before writing, protecting manual edits
+          // made since the preview. Only the array of additional metrics is updated.
+          const matches=rowsFromResponse(await entity.filter(
+            {external_record_id:first.external_record_id},{limit:2}
+          ));
+          if(matches.length!==1 || matches[0].id!==first.existingId)
+            throw Error("Registro original modificado o no único. Repetir verificación.");
+          const analysis=assessHistoricalEnrichment(matches[0],first,first.linkedId);
+          if(!analysis.ok)throw Error(analysis.errors.join(" "));
+          if(analysis.added===0)throw Error("Sin estadísticas nuevas; repite la verificación.");
+          await entity.update(first.existingId,{metrics:analysis.metrics});
+        }else if(first.action==="actualizar"){
           await entity.update(first.existingId,records[0]);
         }else if(records.length>1){
           await entity.bulkCreate(records);
         }else{
           await entity.create(records[0]);
         }
-        group.forEach(row=>reportItems.push({key:keyFor(row),status:row.action==="actualizar"?"actualizado":"creado"}));
+        group.forEach(row=>reportItems.push({key:keyFor(row),status:row.action==="enriquecer"?"enriquecido":row.action==="actualizar"?"actualizado":"creado",added_metrics:row.action==="enriquecer"?row.newMetricsCount:undefined,conflicts_kept:row.conflicts?.length||0}));
       }catch(e){
         // Never retry an uncertain bulk failure automatically: it could already be partially committed.
         group.forEach(row=>reportItems.push({key:keyFor(row),status:"error",reason:String(e?.message||e)+(group.length>1?" · Verificar existencia antes de reintentar este lote.":"")}));
@@ -186,6 +209,7 @@ export default function ImportUnified() {
     setReport({file:fileName,importedAt:new Date().toISOString(),total:queue.length,
       created:reportItems.filter(r=>r.status==="creado").length,
       updated:reportItems.filter(r=>r.status==="actualizado").length,
+      enriched:reportItems.filter(r=>r.status==="enriquecido").length,
       errors:reportItems.filter(r=>r.status==="error").length,
       skipped:plan.length-queue.length,items:reportItems});
     setAuthorized(false);setPlan(null);setBusy(false);
@@ -193,6 +217,9 @@ export default function ImportUnified() {
 
   const toCreate=plan?.filter(r=>r.action==="crear").length||0;
   const toUpdate=plan?.filter(r=>r.action==="actualizar").length||0;
+  const toEnrich=plan?.filter(r=>r.action==="enriquecer").length||0;
+  const needReview=plan?.filter(r=>r.action==="revisar").length||0;
+  const metricsToAdd=plan?.filter(r=>r.action==="enriquecer").reduce((n,r)=>n+(r.newMetricsCount||0),0)||0;
   const skipped=plan?.filter(r=>r.action==="existente").length||0;
   const unmatched=plan?.filter(r=>r.action==="sin_vinculo").length||0;
 
@@ -239,7 +266,9 @@ export default function ImportUnified() {
         <label className="flex gap-2 items-start text-sm"><input type="checkbox" className="mt-1" checked={allowUnlinked} onChange={e=>setAllowUnlinked(e.target.checked)}/>
           <span>Guardar también snapshots <b>sin vincular</b>, exclusivamente como referencias externas, nunca dentro de fichas de jugadores. Los historiales sin Player confirmado siempre quedan excluidos.</span></label>
         <label className="flex gap-2 items-start text-sm"><input type="checkbox" className="mt-1" checked={updateExisting} onChange={e=>setUpdateExisting(e.target.checked)}/>
-          <span>Actualizar snapshots externos existentes con la nueva captura (nunca sobrescribir estadísticas históricas ya importadas).</span></label>
+          <span>Actualizar snapshots externos existentes con la nueva captura (no afecta a datos históricos).</span></label>
+        <label className="flex gap-2 items-start text-sm rounded-lg border border-blue-200 bg-blue-50 p-3"><input type="checkbox" className="mt-1" checked={enrichExisting} onChange={e=>setEnrichExisting(e.target.checked)}/>
+          <span><strong>Enriquecer historiales existentes con estadísticas detalladas.</strong><span className="block text-xs text-slate-600">Añade solo métricas que faltan. Conserva partidos, minutos, nota, equipo, tus ediciones y los valores de métricas que ya existan. Las coberturas distintas quedan bloqueadas para revisión.</span></span></label>
         <div className="overflow-auto max-h-[340px] border rounded-lg">
           <table className="w-full text-xs"><thead className="bg-slate-100 sticky top-0"><tr>{["Tipo","ID externo","Nombre / competición","Vínculo","Acción"].map(x=><th key={x} className="p-3 text-left whitespace-nowrap">{x}</th>)}</tr></thead>
           <tbody>{prepared.slice(0,45).map((r,i)=><tr key={i} className="border-t">
@@ -247,7 +276,7 @@ export default function ImportUnified() {
             <td className="p-3 font-mono">{r.fotmob_id||r.player_fotmob_id||r.external_key?.split(":").pop()}</td>
             <td className="p-3">{r.name||r.player_name||r.competition}</td>
             <td className="p-3">{r.linkedId?<span className="text-emerald-700">Confirmado</span>:<span className="text-amber-700">Sin confirmar</span>}</td>
-            <td className="p-3">{plan?.[i]?.action||"Pendiente"}</td>
+            <td className="p-3">{plan?.[i]?.action||"Pendiente"}{plan?.[i]?.action==="enriquecer"&&<span className="ml-1 text-emerald-700">(+{plan[i].newMetricsCount} métricas)</span>}{plan?.[i]?.action==="revisar"&&<span className="block text-rose-700">{plan[i].reviewNotes?.join("; ")}</span>}</td>
           </tr>)}</tbody></table>
         </div>
         {prepared.length>45&&<p className="text-xs text-slate-500">Mostrando las primeras 45 filas de {prepared.length}.</p>}
@@ -259,12 +288,12 @@ export default function ImportUnified() {
       {plan&&<section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
         <h2 className="font-bold">3. Confirmar cambios</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-          {[[toCreate,"Nuevos"],[toUpdate,"Actualizaciones"],[skipped,"Ya existentes"],[unmatched,"Sin vincular, excluidos"]].map(([num,title])=><div key={title} className="p-3 bg-slate-50 rounded-lg"><div className="text-xl font-bold">{number(num)}</div><p className="text-xs">{title}</p></div>)}
+          {[[toCreate,"Nuevos"],[toEnrich,"Historiales a enriquecer"],[toUpdate,"Snapshots a actualizar"],[skipped,"Ya existentes"],[unmatched,"Sin vincular"],[needReview,"Revisión obligatoria"]].map(([num,title])=><div key={title} className="p-3 bg-slate-50 rounded-lg"><div className="text-xl font-bold">{number(num)}</div><p className="text-xs">{title}</p></div>)}
         </div>
-        <p className="text-sm text-slate-700">No se escribirá ningún campo de <b>Player, Team, League, FM26 ni CA/PA</b>. Los nuevos registros de historial solo se crean si el ID del jugador está confirmado.</p>
+        <p className="text-sm text-slate-700">No se escribirá ningún campo de <b>Player, Team, League, FM26 ni CA/PA</b>. Los historiales existentes solo reciben métricas nuevas si autorizas «Enriquecer». Se añadirán <b>{metricsToAdd} métricas</b> a {toEnrich} historiales, sin alterar PJ, minutos ni notas.</p>
         <label className="flex gap-2 items-center text-sm font-semibold"><input type="checkbox" checked={authorized} onChange={e=>setAuthorized(e.target.checked)}/> He revisado la vista previa y autorizo los cambios indicados.</label>
-        <button onClick={importBatch} disabled={!authorized||busy||!(toCreate+toUpdate)} className="px-5 py-2.5 rounded-lg bg-emerald-700 text-white font-bold text-sm disabled:opacity-40">
-          {busy?"Importando…":`Importar ${toCreate+toUpdate} registros`}
+        <button onClick={importBatch} disabled={!authorized||busy||!(toCreate+toUpdate+toEnrich)} className="px-5 py-2.5 rounded-lg bg-emerald-700 text-white font-bold text-sm disabled:opacity-40">
+          {busy?"Importando…":`Aplicar ${toCreate+toUpdate+toEnrich} cambios`}
         </button>
       </section>}
 
@@ -274,7 +303,7 @@ export default function ImportUnified() {
       </section>}
       {report&&<section className="rounded-xl bg-white border border-emerald-300 p-5 space-y-2">
         <p className="font-bold flex items-center gap-2"><CheckCircle2 className="text-emerald-700" size={18}/> Importación terminada</p>
-        <p className="text-sm">Creados: {report.created} · Actualizados: {report.updated} · Omitidos: {report.skipped} · Errores: {report.errors}</p>
+        <p className="text-sm">Creados: {report.created} · Enriquecidos: {report.enriched||0} · Actualizados: {report.updated} · Omitidos: {report.skipped} · Errores: {report.errors}</p>
         <button onClick={()=>download(report,`MF_Legacy_informe_${localDate()}.json`)} className="text-blue-700 text-sm font-bold flex gap-2"><Download size={16}/> Descargar informe de auditoría</button>
       </section>}
       <p className="text-xs text-slate-500">Fuente CraftedFC: snapshot externo independiente. No se convierte su rating global en nota de partido ni se asigna retroactivamente a temporadas FotMob.</p>
