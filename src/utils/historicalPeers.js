@@ -3,6 +3,7 @@
 // Population: one season per player, all club competitions, same current-position archetype.
 import { groupStatRows, nationalCompetition } from "./statsViews.js";
 import { metricName, WEIGHTS_BY_ROLE, calculateCompositeMF } from "./compositeEngine.js";
+import { canonicalHistoricalCompetition } from "./historicalJson.js";
 
 const num = value => value === "" || value === null || value === undefined ||
   !Number.isFinite(Number(value)) ? null : Number(value);
@@ -107,7 +108,7 @@ const weightedRating=records=>{
   }
   return total>0?sum/total:null;
 };
-const matchesKey=(r, id)=>id+"|"+r.season+"|"+metricName(r.competition);
+const matchesKey=(r, id)=>id+"|"+r.season+"|"+canonicalHistoricalCompetition(r.competition);
 const safeTeamMatches=(row, lookup)=>{
   const candidates=[
     row.team_id && matchesKey(row,str(row.team_id)),
@@ -221,7 +222,8 @@ export function compareHistoricalObservation(observation,observations,minimum=10
     : null;
   const rows=items.map(item=>{
     const result=calc?.rows.find(r=>r.key===item.key);
-    return {...item,weight:result?.weight??null,contribution:result?.contribution??null,
+    const rawContribution=result?.contribution??null;
+    return {...item,weight:result?.weight??null,contribution:Object.is(rawContribution,-0)?0:rawContribution,
       name:result?.name||item.key};
   });
   return {role,playerId:observation.playerId,season:observation.season,
