@@ -18,13 +18,14 @@ export const toggleSeasonSelection=(selected,items)=> {
  return all?selected.filter(id=>!ids.includes(id)):[...new Set([...selected,...ids])];
 };
 export default function TeamLinkPicker({season,records=[],teams=[],initialRecord=null,onClose,onApply}){
- const groups=useMemo(()=>groupClubRecords(records),[records]);
+ const groups=useMemo(()=>groupClubRecords(records).map(g=>({...g,pending:g.items.filter(r=>resolveTeam(r,teams,records).status!=="confirmed"),linked:g.items.filter(r=>resolveTeam(r,teams,records).status==="confirmed")})).sort((a,b)=>(b.pending.length>0?1:0)-(a.pending.length>0?1:0)||b.year.localeCompare(a.year)),[records,teams]);
  const all=useMemo(()=>groups.flatMap(g=>g.items),[groups]);
  const [selected,setSelected]=useState(()=>{
   if(initialRecord?.id)return [String(initialRecord.id)];
-  return all.filter(r=>(season==="Todas"||r.season===season)&&!r.team_id&&!r.team_name&&!r.fotmob_team_id).map(r=>String(r.id));
+  return [];
  });
- const [openYears,setOpenYears]=useState(()=>new Set([initialRecord?.season||(season!=="Todas"?season:null)].filter(Boolean)));
+ const [openYears,setOpenYears]=useState(()=>new Set([initialRecord?.season||(season!=="Todas"?season:null)].filter(Boolean))); 
+ const [showLinked,setShowLinked]=useState(false),[allowReplace,setAllowReplace]=useState(false);
  const [search,setSearch]=useState(""),[teamId,setTeamId]=useState("");
  const [working,setWorking]=useState(false),[error,setError]=useState("");
  const candidates=useMemo(()=>teams.filter(t=>norm(t.name).includes(norm(search))||norm(t.short_name).includes(norm(search))).sort((a,b)=>String(a.name).localeCompare(String(b.name),"es")).slice(0,75),[teams,search]);
@@ -39,13 +40,12 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
  }):[];
  const groupSummary=groups.filter(g=>g.items.some(r=>selected.includes(String(r.id)))).map(g=>g.year+" ("+g.items.filter(r=>selected.includes(String(r.id))).length+")");
  const toggle=id=>setSelected(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id]);
- const selectPending=()=>setSelected(all.filter(r=>!r.team_id&&!r.team_name&&!r.fotmob_team_id).map(r=>String(r.id)));
+ const selectPending=()=>setSelected(all.filter(r=>resolveTeam(r,teams,all).status!=="confirmed").map(r=>String(r.id)));
  const expand=year=>setOpenYears(current=>{const s=new Set(current);if(s.has(year))s.delete(year);else s.add(year);return s;});
  const selectYear=group=>{setSelected(current=>toggleSeasonSelection(current,group.items));setOpenYears(current=>new Set([...current,group.year]));};
  const confirm=async()=>{
   if(!selectedTeam||!selected.length)return;
-  if(conflicts.length&&!window.confirm("ATENCIÓN: "+conflicts.length+" registro(s) ya tienen otro club identificado. ¿Quieres corregir también esos vínculos?"))return;
-  if(!window.confirm("Asignar "+selectedTeam.name+" a "+selected.length+" registro(s) de: "+groupSummary.join(", ")+". Se excluyen selecciones y no se modifica el club actual del jugador. ¿Confirmar?"))return;
+  if(conflicts.length&&!allowReplace){setError("Hay registros asociados a otro club. Marca la autorización de reemplazo antes de guardar.");return;}
   setError("");setWorking(true);
   try{
    const result=await onApply(selected,teamId);
@@ -74,24 +74,25 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
     <section>
      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
       <h3 className="text-xs font-extrabold text-slate-700">2. SELECCIONA TEMPORADAS Y COMPETICIONES</h3>
-      <div className="flex gap-2"><button onClick={selectPending} className="rounded-lg border border-blue-200 px-2 py-1 text-[11px] font-bold text-[#003399]">Sin identificar</button><button onClick={()=>setSelected([])} className="rounded-lg border border-slate-200 px-2 py-1 text-[11px]">Limpiar</button></div>
+      <div className="flex gap-2"><button onClick={selectPending} className="rounded-lg border border-blue-200 px-2 py-1 text-[11px] font-bold text-[#003399]">Seleccionar pendientes</button><button onClick={()=>setShowLinked(x=>!x)} className="rounded-lg border border-slate-200 px-2 py-1 text-[11px]">{showLinked?"Ocultar vinculados":"Mostrar vinculados"}</button><button onClick={()=>setSelected([])} className="rounded-lg border border-slate-200 px-2 py-1 text-[11px]">Limpiar</button></div>
      </div>
      <div className="max-h-[34dvh] space-y-1.5 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-2">
-      {groups.map(group=>{
+      {groups.filter(g=>showLinked||g.pending.length||g.items.some(r=>selected.includes(String(r.id)))).map(group=>{
+       const available=showLinked?group.items:group.pending;
        const count=group.items.filter(r=>selected.includes(String(r.id))).length;
        const expanded=openYears.has(group.year);
        return <section key={group.year} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="flex items-center gap-2 px-3 py-2">
-         <input type="checkbox" aria-label={"Seleccionar todas las competiciones de "+group.year} checked={count===group.items.length} ref={el=>{if(el)el.indeterminate=count>0&&count<group.items.length;}} onChange={()=>selectYear(group)} className="h-4 w-4 accent-[#003399]"/>
+         <input type="checkbox" aria-label={"Seleccionar todas las competiciones de "+group.year} checked={available.length>0&&available.every(r=>selected.includes(String(r.id)))} ref={el=>{if(el)el.indeterminate=count>0&&!available.every(r=>selected.includes(String(r.id)));}} onChange={()=>selectYear({...group,items:available})} className="h-4 w-4 accent-[#003399]"/>
          <button type="button" onClick={()=>expand(group.year)} className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-bold text-[#0e3155]">
           {expanded?<ChevronDown size={15}/>:<ChevronRight size={15}/>}
           {group.year}
-          <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-[#003399]">{count}/{group.items.length} seleccionadas</span>
+          <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-[#003399]">{group.pending.length?group.pending.length+" pendientes · ":""}{count} seleccionadas</span>
          </button>
-         <button type="button" onClick={()=>selectYear(group)} className="shrink-0 rounded-md border border-blue-200 px-2 py-1 text-[11px] font-bold text-[#003399]">{count===group.items.length?"Quitar año":"Seleccionar año"}</button>
+         <button type="button" onClick={()=>selectYear({...group,items:available})} className="shrink-0 rounded-md border border-blue-200 px-2 py-1 text-[11px] font-bold text-[#003399]">{available.every(r=>selected.includes(String(r.id)))?"Quitar selección":"Seleccionar pendientes"}</button>
         </div>
         {expanded&&<div className="border-t border-slate-100">
-         {group.items.map(row=>{
+         {available.map(row=>{
           const known=resolveTeam(row,teams,all);
           const label=known.status==="confirmed"&&known.team?known.team.name:row.team_name||(known.status==="suggested"?"Club sugerido (sin confirmar)":"Sin club identificado");
           return <label key={row.id} className="flex cursor-pointer items-center gap-3 border-b border-slate-50 px-4 py-2 text-xs hover:bg-blue-50/40">
@@ -110,12 +111,12 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
      <strong>{selected.length} registros seleccionados</strong>{groupSummary.length?" · "+groupSummary.join(" · "):""}
      {selectedTeam&&<span className="mt-1 block">Club elegido: <strong>{selectedTeam.name}</strong></span>}
     </div>
-    {conflicts.length>0&&<p className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"><AlertTriangle size={16} className="shrink-0"/> Hay {conflicts.length} registro(s) con otro club identificado. Se solicitará confirmación expresa para reemplazar esos vínculos.</p>}
+    {conflicts.length>0&&<label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"><input type="checkbox" checked={allowReplace} onChange={e=>setAllowReplace(e.target.checked)} className="mt-0.5 accent-amber-700"/><span><AlertTriangle size={14} className="mr-1 inline"/> {conflicts.length} registro(s) ya señalan otro club. Autorizo expresamente sustituir esos vínculos por <strong>{selectedTeam?.name}</strong>.</span></label>}
     {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{error}</p>}
    </div>
    <footer className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3">
     <p className="max-w-sm text-[11px] text-slate-500">Solo cambia el vínculo de los registros marcados. Nunca el equipo actual ni las estadísticas.</p>
-    <div className="flex gap-2"><button disabled={working} onClick={onClose} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">Cancelar</button><button disabled={working||!selectedTeam||!selected.length} onClick={confirm} className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{working?"Guardando…":"Asignar "+selected.length+" registros"}</button></div>
+    <div className="flex gap-2"><button disabled={working} onClick={onClose} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">Cancelar</button><button disabled={working||!selectedTeam||!selected.length||(conflicts.length>0&&!allowReplace)} onClick={confirm} className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{working?"Guardando…":"Asignar "+selected.length+" registros"}</button></div>
    </footer>
   </div>
  </div>,document.body);
