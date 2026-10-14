@@ -1,6 +1,7 @@
 // Calculadora segura y configurable para columnas de STATS: nunca ejecuta JavaScript del usuario.
 import {metricsValue,statNum} from "./statsViews.js";
 import {statDisplay} from "./statsSeason.js";
+import {alignedFormulaInputs} from "./statsAligned.js";
 export const MODES=["season","competition"];
 export const CATEGORIES=["Resumen","Ataque","Creación","Defensa","Portería","Físico"];
 export const RAW_METRICS=[
@@ -139,6 +140,16 @@ export const rowValues=(row,mode)=>{
 export function columnValue(row,mode,id,config){
  if(!row)return null;
  const definition=config.computed.find(d=>d.id===id);
- if(definition){try{return evalFormula(parseFormula(definition.formula),rowValues(row,mode));}catch{return null;}}
+ if(definition){try{
+  const ast=parseFormula(definition.formula);
+  if(mode==="season"&&Array.isArray(row.records)){
+   const vars=[...new Set((definition.formula.match(/[a-zA-Z][a-zA-Z0-9_]*/g)||[]))];
+   const aligned=alignedFormulaInputs(row.records,vars);
+   if(!aligned.available)return null;
+   // Cada variable procede exactamente de las mismas competiciones.
+   return evalFormula(ast,aligned.totals);
+  }
+  return evalFormula(ast,rowValues(row,mode));
+ }catch{return null;}}
  return mode==="season"?statDisplay(row,id):metricsValue(row,id);
 }
