@@ -29,9 +29,9 @@ const PositionBar = ({item}) => {
   if(item.rank===null)return <span className="text-slate-400">—</span>;
   const good=strength(item);
   return <div className="inline-flex w-full items-center justify-end gap-2"
-    title={`Puesto ${item.rank} de ${item.n} temporadas ST comparables en esta estadística. No es un ranking de ${item.n} jugadores distintos.`}>
+    title={`Puesto ${item.rank} de ${item.n} temporadas del mismo arquetipo comparables en esta estadística. No es un ranking de ${item.n} jugadores distintos.`}>
     <div className="h-2 w-full min-w-[40px] max-w-[65px] overflow-hidden rounded-full bg-slate-200"
-      role="meter" aria-label={`Posición histórica de ${item.name}`}
+      role="meter" aria-label={`Barra de posición histórica de ${item.name}`}
       aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(good.toFixed(1))}>
       <div className={`h-full rounded-full transition-all ${barColor(good)}`}
         style={{width:Math.max(0,Math.min(100,good))+"%"}}/>
