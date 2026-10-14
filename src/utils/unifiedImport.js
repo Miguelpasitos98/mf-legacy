@@ -87,7 +87,7 @@ export function parseUnifiedBatch(source) {
   const errors = [], dedupe = new Map();
   for (const [index, row] of source.records.entries()) {
     try {
-      const parsed = normalizeUnifiedItem(row);
+      const parsed = normalizeUnifiedItem({...row, snapshot_date: row.snapshot_date || source.snapshot_date || ""});
       const key = parsed.kind === "season" ? parsed.external_record_id : parsed.external_key;
       if (dedupe.has(key)) throw new Error("Identificador repetido dentro del lote.");
       dedupe.set(key, parsed);
