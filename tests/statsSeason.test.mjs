@@ -34,13 +34,13 @@ test("equipo desconocido no se convierte en el club actual",()=>{
  assert.equal(summary.mainClub.id,"b");
  assert.equal(summary.unresolvedTeams,1);
 });
-test("una competición incompleta impide ratio global engañoso",()=>{
+test("una competición incompleta no aporta minutos al ratio de una métrica ausente",()=>{
  const missing={...base,competition:"Champions League",minutes:400,metrics:[]};
  const summary=seasonSummary([base,missing],teams);
  assert.equal(summary.totals.goals.value,10);
  assert.equal(summary.totals.goals.partial,true);
- assert.equal(summary.per90.goals,null);
- assert.equal(summary.per90.ga,null);
+ assert.equal(summary.per90.goals,10*90/1600);
+ assert.equal(summary.per90.ga,(10+5)*90/1600);
 });
 test("desconocido no se convierte en cero y rating requiere ponderación",()=>{
  const unknown={...base,competition:"LaLiga",rating:null,minutes:null,appearances:null,metrics:[]};
