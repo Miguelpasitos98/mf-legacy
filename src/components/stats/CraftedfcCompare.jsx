@@ -1,5 +1,6 @@
 import React from "react";
 import { payloadField } from "@/utils/craftedfc";
+import { coverageForComparison } from "@/utils/craftedfcCoverage";
 
 const show = (v, d = 0) =>
   v === null || v === undefined || !Number.isFinite(Number(v))
@@ -22,7 +23,8 @@ const COMPARE_ROWS = [
   { label: "Partidos", fotmob: (s) => s?.appearances?.value, cfc: (snap) => payloadField(snap, "current_matches_played") },
 ];
 
-const cellStatus = (fotmob, cfc) => {
+const cellStatus = (fotmob, cfc, aligned) => {
+  if (!aligned) return { label: "Cobertura no comparable", color: "text-slate-500" };
   const values = [fotmob, cfc].filter((v) => v !== null && v !== undefined);
   if (values.length === 0) return { label: "Dato ausente", color: "text-slate-400" };
   if (values.length === 1) return { label: "Fuente no comparable", color: "text-slate-500" };
@@ -33,7 +35,8 @@ const cellStatus = (fotmob, cfc) => {
 
 // Compare Sources: compara estadísticas compatibles entre FotMob, CraftedFC y
 // MF Legacy. No promedia automáticamente estadísticas de distinta cobertura.
-export default function CraftedfcCompare({ snapshot, status, fotmobSummary }) {
+export default function CraftedfcCompare({ snapshot, status, fotmobSummary, fotmobRows }) {
+  const coverage = coverageForComparison(snapshot, fotmobRows);
   if (status === "loading") {
     return (
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
@@ -59,7 +62,7 @@ export default function CraftedfcCompare({ snapshot, status, fotmobSummary }) {
             {COMPARE_ROWS.map((row) => {
               const f = row.fotmob(fotmobSummary) ?? null;
               const c = snapshot ? row.cfc(snapshot) ?? null : null;
-              const st = cellStatus(f, c);
+              const st = cellStatus(f, c, coverage.comparable);
               return (
                 <tr key={row.label} className="border-t border-slate-100 hover:bg-slate-50">
                   <td className="px-3 py-3 font-semibold text-slate-700">{row.label}</td>
@@ -73,10 +76,13 @@ export default function CraftedfcCompare({ snapshot, status, fotmobSummary }) {
           </tbody>
         </table>
       </div>
+      <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+        <strong>{coverage.comparable ? "Cobertura preliminar alineada" : "Fuentes no comparables directamente"}</strong>
+        <p className="mt-1">{coverage.reason}</p>
+      </div>
       <p className="text-[11px] text-slate-500">
-        La columna FotMob refleja la temporada seleccionada; la columna CraftedFC muestra los datos de la temporada
-        actual publicada en el snapshot. No se promedian automáticamente estadísticas de distinta cobertura. Los datos
-        agregados de CraftedFC no se escriben sobre las estadísticas por competición de FotMob.
+        FotMob muestra los datos de la selección actual; CraftedFC, los de su propia competición y temporada actual
+        en la fecha del snapshot. No se promedian automáticamente valores de coberturas distintas.
       </p>
     </div>
   );
