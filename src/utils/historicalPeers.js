@@ -220,12 +220,17 @@ export function compareHistoricalObservation(observation,observations,minimum=10
     // A history with 11 seasons from one footballer does not establish a
     // cross-player percentile, regardless of the number of observations.
     const percentile=current!==null && nPlayers>=2?historicalPercentile(current,values):null;
+    const penalty=(WEIGHTS_BY_ROLE[role]?.[key]||0)<0;
+    // Position among historical SEASONS (not distinct players).
+    // In negative-weight metrics fewer losses means a better place.
+    // Equal values share the same place (competition rank).
+    const rank=percentile===null?null:1+values.filter(v=>penalty?v<current:v>current).length;
     return {
-      key,value:current,percentile,n:values.length,nPlayers,
+      key,value:current,percentile,n:values.length,nPlayers,rank,
       provisional:percentile!==null && nPlayers<minimum,
       status:current===null?"no_value":percentile===null?"insufficient":nPlayers<minimum?"provisional":"ready",
       // Negative weights are signed: more losses -> higher raw percentile -> larger deduction.
-      penalty:(WEIGHTS_BY_ROLE[role]?.[key]||0)<0,
+      penalty,
     };
   });
   const percentiles=Object.fromEntries(items.map(r=>[r.key,r.percentile]));
