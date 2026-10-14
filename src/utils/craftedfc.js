@@ -21,7 +21,7 @@ export const CFC_COLUMNS = [
 // abrir y cerrar el mismo modal o cambiar de pestaña dentro de STATS.
 const cache = new Map();
 
-const unpack = (r) => (Array.isArray(r) ? r : r?.items || r?.data || []);
+const unpack = (r) => (Array.isArray(r) ? r : r?.items || r?.data || r?.entities || []);
 
 // Devuelve el snapshot más reciente de CraftedFC para un jugador de Base44.
 export const fetchCraftedfcSnapshot = async (playerId, { force = false } = {}) => {
@@ -63,33 +63,34 @@ export const payloadField = (snapshot, ...path) => {
 export const fetchCraftedfcBatch = async (playerIds, { force = false } = {}) => {
   const result = new Map();
   const ids = [...new Set((playerIds || []).map(String).filter(Boolean))];
-  if (!ids.length) return result;
   for (const id of ids) result.set(id, cache.get(id) ?? null);
-  const missing = force ? ids : ids.filter((id) => !cache.has(id));
-  if (!missing.length) return result;
-  try {
-    const r = await base44.entities.ExternalFootballSnapshot.filter(
-      { base44_entity_id: { $in: missing }, kind: "player", source: "CraftedFC" },
-      { sort: "-snapshot_date", limit: 500 }
-    );
-    for (const snap of unpack(r)) {
-      const pid = String(snap.base44_entity_id || "");
-      if (pid && !result.has(pid)) {
+  const missing = force ? ids : ids.filter(id => !cache.has(id));
+  // Consultas pequeñas: la tabla puede tener miles de futbolistas, pero las
+  // columnas CraftedFC solo deben solicitar los IDs visibles.
+  for (let start = 0; start < missing.length; start += 100) {
+    const chunk = missing.slice(start, start + 100);
+    const remaining = new Set(chunk);
+    try {
+      const response = await base44.entities.ExternalFootballSnapshot.filter(
+        { base44_entity_id: { $in: chunk }, kind: "player", source: "CraftedFC" },
+        { sort: "-snapshot_date", limit: 500 }
+      );
+      for (const snap of unpack(response)) {
+        const pid = String(snap?.base44_entity_id || "");
+        // La primera fila por jugador es la más reciente, por el orden solicitado.
+        if (!remaining.has(pid)) continue;
+        remaining.delete(pid);
         cache.set(pid, snap);
         result.set(pid, snap);
       }
-    }
-    for (const id of missing) {
-      if (!result.has(id)) {
+      for (const id of remaining) {
         cache.set(id, null);
         result.set(id, null);
       }
-    }
-  } catch {
-    // Cachea null para no reintentar en cada render.
-    for (const id of missing) {
-      cache.set(id, null);
-      result.set(id, null);
+    } catch {
+      // Una consulta fallida no debe generar falsos "sin CraftedFC" en caché.
+      // Así se podrá reintentar desde la pantalla cuando vuelva a estar disponible.
+      for (const id of chunk) result.set(id, cache.get(id) ?? null);
     }
   }
   return result;
