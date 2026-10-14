@@ -11,7 +11,7 @@ const playerName = (p) => String(p.name || "");
 const same = (a,b) => String(a||"")===String(b||"");
 const isID = (id) => Boolean(String(id||"").trim());
 
-export default function StatsImport({ players=[], teams=[], onClose, onImported }) {
+export default function StatsImport({ players=[], teams=[], onClose, onImported, onOpenUnified }) {
   const [rows,setRows]=useState([]);
   const [filename,setFilename]=useState("");
   const [message,setMessage]=useState("");
@@ -80,8 +80,8 @@ export default function StatsImport({ players=[], teams=[], onClose, onImported 
       setMessage("Archivo analizado: "+parsed.records.length.toLocaleString("es")+" registros. Los datos no se han guardado todavía.");
     }catch(error){
       const message=String(error?.message||error);
-      setUnifiedDetected(message.includes("FUENTES → Importar FotMob + CraftedFC"));
-      setMessage(message.includes("FUENTES → Importar FotMob + CraftedFC")?message:"Error: "+message);
+      setUnifiedDetected(message.includes("Este JSON combina FotMob + CraftedFC"));
+      setMessage(message.includes("Este JSON combina FotMob + CraftedFC")?message:"Error: "+message);
     }
   };
   const applyMapFile=async(event)=>{
@@ -199,7 +199,7 @@ export default function StatsImport({ players=[], teams=[], onClose, onImported 
           <button disabled={working} onClick={onClose} aria-label="Cerrar importador" className="rounded-lg p-2 hover:bg-white/10 disabled:opacity-50"><X size={20}/></button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
-          <p className="text-sm text-slate-600">Acepta <strong>JSON, JSONC o CSV</strong> de estadísticas FotMob independientes. Los JSON combinados <strong>FotMob + CraftedFC</strong> se importan desde <strong>FUENTES</strong>. No modifica Player, Team ni atributos de Football Manager.</p>
+          <p className="text-sm text-slate-600">Acepta <strong>JSON, JSONC o CSV</strong> de estadísticas FotMob independientes. Los JSON combinados <strong>FotMob + CraftedFC</strong> se importan con el botón combinado de <strong>STATS</strong>. No modifica Player, Team ni atributos de Football Manager.</p>
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-blue-300 bg-blue-50 p-4 text-sm font-semibold text-blue-900 hover:bg-blue-100">
             <FileJson2 size={22}/><span>{filename || "Elegir archivo CSV, JSON o JSONC"}</span>
             <input ref={fileRef} type="file" accept=".csv,.json,.jsonc" onChange={selectFile} className="sr-only" disabled={working}/>
@@ -228,7 +228,7 @@ export default function StatsImport({ players=[], teams=[], onClose, onImported 
           </>}
           {message&&<div className={`rounded-lg p-3 text-sm ${unifiedDetected?"border border-blue-200 bg-blue-50 text-blue-900":"bg-slate-100 text-slate-700"}`} role="status">
             <p>{message}</p>
-            {unifiedDetected&&<a className="mt-3 inline-flex rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white hover:bg-blue-900" href="/import-unified">Abrir FUENTES — Importar FotMob + CraftedFC</a>}
+            {unifiedDetected&&(onOpenUnified?<button type="button" className="mt-3 inline-flex rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white hover:bg-blue-900" onClick={onOpenUnified}>Abrir importador FotMob + CraftedFC en STATS</button>:<a className="mt-3 inline-flex rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white" href="/import-unified">Importar FotMob + CraftedFC</a>)}
           </div>}
           {working||progress.total>0?<div><div className="mb-1 flex justify-between text-xs text-slate-600"><span>{working?"Importando…":"Último resultado"}</span><span>{progress.done}/{progress.total}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-blue-600 transition-all" style={{width:(progress.total?progress.done/progress.total*100:0)+"%"}}/></div><p className="mt-2 text-xs text-slate-500">Nuevos: {progress.created} · Enriquecidos: {progress.updated||0} · Existentes: {progress.existing} · Errores: {progress.failed}</p></div>:null}
           {failedNames.length>0&&<div className="rounded-lg border border-rose-200 p-3 text-xs text-rose-700">{failedNames.map((s,i)=><div key={i}>{s}</div>)}</div>}
