@@ -208,14 +208,25 @@ export function prepareHistoricalJson(rawText, { playerId, fotmobPlayerId, stats
     const resolved = resolveHistoricalTeam(r, stats, teams);
     if (resolved.error) errors.push(resolved.error);
     const team = resolved.team;
-    const dupKey = "t:" + (team?.team_id || team?.fotmob_team_id || keyText(r.team_name)) + "|" + season + "|" + keyText(competition);
+    const dupKey = "t:" + (team?.team_id || team?.fotmob_team_id || keyText(r.team_name)) + "|" + season + "|" + canonicalHistoricalCompetition(competition);
     if (seen.has(dupKey)) { errors.push("Competición del club duplicada en el JSON."); duplicateKeys.add(dupKey); }
     seen.add(dupKey);
+    // Prefer FotMob's competition label already present in this player's data.
+    // A competition in which he never played retains its original JSON label;
+    // the lookup compares safely-normalized aliases in either case.
+    const observedCompetition = team
+      ? stats.find(s => text(s.season) === season &&
+          canonicalHistoricalCompetition(s.competition) === canonicalHistoricalCompetition(competition) &&
+          (team.fotmob_team_id
+            ? text(s.fotmob_team_id) === team.fotmob_team_id
+            : text(s.team_id) === team.team_id))
+      : null;
+    const storedCompetition = observedCompetition ? text(observedCompetition.competition) : competition;
     const payload = team ? {
       team_id: team.team_id,
       fotmob_team_id: team.fotmob_team_id,
       team_name: team.team_name || text(r.team_name),
-      season, competition,
+      season, competition: storedCompetition,
       team_matches: n,
       fotmob_tournament_id: text(r.fotmob_tournament_id),
       source: text(r.source) || "Investigación histórica",
