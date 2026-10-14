@@ -59,9 +59,9 @@ const MiniCard = ({ label, value, accent }) => (
   </div>
 );
 
-// CraftedFC Analysis: muestra los datos reales del snapshot y una tabla
-// Rating Breakdown extensible. El Composite solo se muestra si existe en una
-// fuente verificable; si no, se indica "Desglose no disponible".
+// CraftedFC Analysis shows the published snapshot independently from
+// MF Legacy's experimental percentile-weighted Composite for one FotMob season.
+// Neither value is presented as the official CraftedFC season Composite.
 export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], position="" }) {
   const [rowIndex,setRowIndex] = useState(0);
   const [chosenRole,setChosenRole] = useState("");
@@ -77,9 +77,8 @@ export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], pos
     .filter(([, v]) => v !== null && v !== undefined)
     .sort(([a], [b]) => a.localeCompare(b));
 
-  // Estructura extensible: se poblará con desgloses oficiales por métrica cuando
-  // CraftedFC publique percentiles y pesos verificables por competición/temporada.
-  // No se crean puntuaciones artificiales.
+  // Historical FotMob percentiles and displayed CraftedFC position weights remain
+  // explicitly separated from CraftedFC's published global Rating.
   const available=Array.isArray(fotmobRows)?fotmobRows:[];
   const active=available[Math.min(rowIndex,Math.max(0,available.length-1))]||null;
   const inferredRole=normalizeRole(snapshot?.archetype||payloadField(snapshot,"primary_archetype")||position);
