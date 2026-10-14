@@ -82,7 +82,7 @@ export function sanitizeConfig(data){
  }
  const dividers={season:{},competition:{}};
  for(const mode of MODES)for(const category of CATEGORIES){
-  const allowed=new Set([...columns[mode][category],...(mode==="season"?["rank","player","season","club","appearances","minutes","rating"]:["season_competition","club","appearances","minutes","team_matches","rating"])]);
+  const allowed=new Set([...columns[mode][category],...(mode==="season"?["rank","player","season","club","appearances","minutes","rating"]:["rank","player","season","competition","season_competition","club","appearances","minutes","team_matches","rating"])]);
   dividers[mode][category]=[...new Set((Array.isArray(value.dividers?.[mode]?.[category])?value.dividers[mode][category]:[]).filter(id=>typeof id==="string"&&allowed.has(id)))];
  }
  const labels={};
