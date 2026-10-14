@@ -156,7 +156,7 @@ export function parseStatsText(text, filename="archivo.json") {
       // Its season fields live in records[].data and its player snapshot must
       // be imported together through FUENTES, never silently discarded here.
       if(schema==="mf_legacy_external_batch_v1") {
-        throw Error("Este JSON combina FotMob + CraftedFC. Ábrelo desde FUENTES → Importar FotMob + CraftedFC, no desde STATS → Importar estadísticas. Así se conserva el snapshot y se revisan los clubes pendientes.");
+        throw Error("Este JSON combina FotMob + CraftedFC. Usa Importar FotMob + CraftedFC dentro de STATS (no Solo FotMob). Se conserva el snapshot y se revisan los clubes pendientes.");
       }
       rows=Array.isArray(raw.records)?raw.records:raw.record?[raw.record]:[];
     }
