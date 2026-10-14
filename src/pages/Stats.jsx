@@ -9,7 +9,7 @@ import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
 import { normalizeLabel, metricLabel } from "@/utils/statsImport";
 import StatsImport from "@/components/stats/StatsImport";
 import HistoricalValuationTool from "@/components/stats/HistoricalValuationTool";
-import HistoricalValuationImporter from "@/components/stats/HistoricalValuationImporter";
+import HistoricalSingleEntryImporter from "@/components/stats/HistoricalSingleEntryImporter";
 import HistoricalValuationsTable from "@/components/stats/HistoricalValuationsTable";
 import { useHistoricalValuations } from "@/hooks/useHistoricalValuations";
 import { useTeamMatchesLookup } from "@/hooks/useTeamMatchesLookup";
@@ -97,7 +97,7 @@ function Avatar({name,photo,size="md"}) {
 function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);return <span className="inline-flex max-w-[170px] items-center gap-2">{logo&&!broken?<img src={logo} alt="" className="h-5 w-5 object-contain" onError={()=>setBroken(true)}/>:<Shield size={16} className="text-slate-300"/>}<span className="truncate">{teamName||"Sin equipo"}</span></span>;}
 function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,onOpenSettings,onSetTeamMatches,config}) {
   const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
-  const {valuations:historicalValuations,loading:historicalLoading,refresh:historicalRefresh}=useHistoricalValuations(player?.id);
+  const {valuations:historicalValuations,loading:historicalLoading,refresh:historicalRefresh}=useHistoricalValuations(player?.id||stats[0]?.player_id);
   const {getTeamMatches,refresh:refreshTeamMatches}=useTeamMatchesLookup(stats);
   const [valuationImporterOpen,setValuationImporterOpen]=useState(false);
   const fotmobPlayerId=stats[0]?.fotmob_player_id||"";
@@ -184,7 +184,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <p className="text-xs text-blue-200">Estadísticas importadas · pendientes de validación de fuente · independientes de FM26</p>
           </div>
           <button type="button" onClick={copySeasonsForValuation} className="inline-flex items-center gap-2 rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold text-[#0e2844] hover:bg-cyan-100" title="Copiar nombre y todas las temporadas del jugador para valorar FIFA/FC y Transfermarkt"><Copy size={15}/> Copiar temporadas para valorar</button>
-          <button type="button" onClick={()=>setValuationImporterOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-[#0e2844] hover:bg-amber-100" title="Importar valoraciones historicas de FIFA/FC y Transfermarkt para este jugador"><ClipboardPaste size={15}/> <span className="hidden lg:inline">Importar valores historicos</span></button>
+          <button type="button" onClick={()=>setValuationImporterOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-[#0e2844] hover:bg-amber-100" title="Introducir individualmente FIFA/FC, Transfermarkt o PJ Equipo"><ClipboardPaste size={15}/> <span className="hidden lg:inline">Introducir datos históricos</span></button>
           <button type="button" onClick={()=>onOpenSettings(category,shown[0]||stats[0]||null)} className="inline-flex items-center gap-2 rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold hover:bg-white/10" title="Configurar las columnas, los nombres y las fórmulas del desglose" aria-label="Ajustes del informe estadístico"><Settings2 size={16}/> <span className="hidden sm:inline">Ajustes</span></button>
           {player&&<button onClick={()=>onPlayer(player.id)} className="hidden rounded-lg border border-blue-300 px-4 py-2 text-xs font-bold hover:bg-white/10 sm:block">Ver ficha en PLAYERS <ArrowRight size={13} className="ml-1 inline"/></button>}
           <button className="rounded-lg p-2 hover:bg-white/10" onClick={onClose} aria-label="Cerrar"><X size={21}/></button>
@@ -281,7 +281,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
         </form>
       </div>}
       {teamLinkTarget&&<TeamLinkPicker season={activeSeason} records={stats} teams={teams} initialRecord={teamLinkTarget==="bulk"?null:teamLinkTarget} onClose={()=>setTeamLinkTarget(null)} onApply={onLinkTeams}/>}
-      <HistoricalValuationImporter open={valuationImporterOpen} onClose={()=>setValuationImporterOpen(false)} player={player} fotmobPlayerId={fotmobPlayerId} fm26Uid={player?.fm26_uid||""} onSaved={()=>{historicalRefresh();refreshTeamMatches();}} stats={stats} teams={teams}/>
+      <HistoricalSingleEntryImporter open={valuationImporterOpen} onClose={()=>setValuationImporterOpen(false)} player={player} fotmobPlayerId={fotmobPlayerId} fm26Uid={player?.fm26_uid||""} onSaved={()=>{historicalRefresh();refreshTeamMatches();}} stats={stats} teams={teams} initialSeason={activeSeason}/>
     </div>,document.body
   );
 }
