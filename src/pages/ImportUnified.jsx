@@ -96,7 +96,7 @@ export default function ImportUnified() {
       const next=prepared.map(x=>{
         const key=x.kind==="season"?x.external_record_id:x.external_key;
         const old=existing.get(x.kind+":"+key);
-        return {...x,action:old?(updateExisting&&x.kind!=="season"?"actualizar":"existente"):(!x.linkedId&&(x.kind==="season"||!allowUnlinked)?"sin_vinculo":"crear"),existingId:old?.id||null};
+        return {...x,action:(!x.linkedId&&(x.kind==="season"||!allowUnlinked))?"sin_vinculo":old?(updateExisting&&x.kind!=="season"?"actualizar":"existente"):"crear",existingId:old?.id||null};
       });
       setPlan(next);
     }catch(e){setError("No se pudo verificar la existencia previa; no se guardará nada. "+e.message);}
