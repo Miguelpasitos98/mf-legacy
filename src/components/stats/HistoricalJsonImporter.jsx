@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, ClipboardPaste, Loader2, ShieldCheck } from 
 import { base44 } from "@/api/base44Client";
 import { formatEur } from "@/utils/historicalValuation";
 import { canonicalHistoricalCompetition, prepareHistoricalJson, rowChanges } from "@/utils/historicalJson";
+import { planHistoricalActions } from "@/utils/historicalBatch";
 
 const unpack = (v) => Array.isArray(v) ? v : v?.items || v?.data || [];
 const text = (v) => String(v ?? "").trim();
@@ -173,14 +174,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
         queue.push({ ...live, status: old.existing ? "update" : "new" });
       }
 
-      const actions = [];
-      for (const type of ["valuation", "team"]) {
-        const newItems = queue.filter(item => item.type === type && item.status === "new");
-        for (let i = 0; i < newItems.length; i += 10)
-          actions.push({ type, action: "create", items: newItems.slice(i, i + 10) });
-      }
-      for (const item of queue.filter(item => item.status === "update"))
-        actions.push({ type: item.type, action: "update", items: [item] });
+      const actions = planHistoricalActions(queue, 10);
 
       for (let i = 0; i < actions.length; i++) {
         const task = actions[i];
