@@ -25,7 +25,7 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
   return [];
  });
  const [openYears,setOpenYears]=useState(()=>new Set([initialRecord?.season||(season!=="Todas"?season:null)].filter(Boolean))); 
- const [showLinked,setShowLinked]=useState(false),[allowReplace,setAllowReplace]=useState(false);
+ const [showLinked,setShowLinked]=useState(()=>Boolean(initialRecord?.id&&resolveTeam(initialRecord,teams,records).status==="confirmed")),[allowReplace,setAllowReplace]=useState(false);
  const [search,setSearch]=useState(""),[teamId,setTeamId]=useState("");
  const [working,setWorking]=useState(false),[error,setError]=useState("");
  const candidates=useMemo(()=>teams.filter(t=>norm(t.name).includes(norm(search))||norm(t.short_name).includes(norm(search))).sort((a,b)=>String(a.name).localeCompare(String(b.name),"es")).slice(0,75),[teams,search]);
@@ -78,7 +78,7 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
      </div>
      <div className="max-h-[34dvh] space-y-1.5 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-2">
       {groups.filter(g=>showLinked||g.pending.length||g.items.some(r=>selected.includes(String(r.id)))).map(group=>{
-       const available=showLinked?group.items:group.pending;
+       const available=showLinked?group.items:group.items.filter(r=>group.pending.includes(r)||selected.includes(String(r.id)));
        const count=group.items.filter(r=>selected.includes(String(r.id))).length;
        const expanded=openYears.has(group.year);
        return <section key={group.year} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -105,6 +105,7 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
        </section>;
       })}
       {!groups.length&&<p className="p-4 text-xs text-slate-500">No hay estadísticas de clubes asignables.</p>}
+      {groups.length>0&&!showLinked&&groups.every(g=>g.pending.length===0)&&!selected.length&&<div className="rounded-lg bg-emerald-50 p-4 text-xs text-emerald-800">Todas las competiciones tienen un club reconocido. Pulsa «Mostrar vinculados» si necesitas revisar o modificar alguno.</div>}
      </div>
     </section>
     <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
