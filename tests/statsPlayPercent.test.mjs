@@ -57,7 +57,7 @@ test("la configuración guardada admite la fórmula Play % y no ejecuta código 
  assert.ok(migrated.computed.some(d=>d.id==="playpct"));
  assert.ok(migrated.columns.competition.Resumen.includes("playpct"));
  assert.ok(migrated.columns.season.Resumen.includes("playpct"));
- assert.equal(migrated.version,2);
+ assert.equal(migrated.version,3);
  assert.equal(getColumn(migrated,"playpct").formula,"minutes / (team_matches * 90) * 100");
 });
 test("quien oculte Play % en v2 mantiene su preferencia",()=>{
