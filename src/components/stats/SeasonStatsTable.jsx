@@ -35,7 +35,7 @@ function ClubBadge({summary,onTeam}){
   {(otherClubs.length>0||unresolvedTeams>0)&&<p className="mt-0.5 text-[10px] text-amber-700">{otherClubs.length>0?("+"+otherClubs.length+" club(es)"):""} {unresolvedTeams>0?("· "+unresolvedTeams+" competiciones sin club confirmado"):""}</p>}
  </div>;
 }
-export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="rating",sortDirection="desc",onSort=()=>{},globalRanks=new Map()}){
+export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="rating",sortDirection="desc",onSort=()=>{},globalRanks=new Map(),playerRanks=new Map()}){
  const columns=config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen;
  const filtered=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0);
  const pageRows=filtered.slice(page*50,(page+1)*50);
@@ -43,7 +43,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
   <div className="max-w-full overflow-x-auto">
    <table className="w-full min-w-[1040px] text-left text-xs">
     <thead className="bg-[#003399] text-white"><tr>
-     <th className="px-3 py-3 text-center" title="Posición en la lista filtrada (posición en la clasificación general)">RANK</th>
+     <th className="px-3 py-3 text-center" title="Posición entre las temporadas del mismo jugador (posición entre todos los jugadores)">RANK</th>
      <SortHeader column="player" label="JUGADOR" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className="min-w-44"/>
      <SortHeader column="season" label="TEMPORADA" active={sortKey} direction={sortDirection} onSort={onSort} align="left"/>
      <SortHeader column="club" label="CLUB PRINCIPAL" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className="min-w-44"/>
@@ -55,9 +55,9 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
     </tr></thead>
     <tbody>{pageRows.map(({summary,player},i)=>{
      const name=player?.name||summary?.player_name||"Jugador";
-     if(!summary)return <tr key={String(player?.id||i)} className="border-b border-slate-100 text-xs"><td className="whitespace-nowrap px-2 py-3 text-center"><strong className="font-black text-slate-800">{page*50+i+1}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td><td className="px-3 py-2"><div className="flex items-center gap-2"><PlayerPhoto player={player} name={name}/><span className="font-semibold text-slate-700">{name}</span></div></td><td colSpan={6+columns.length} className="px-3 py-3 text-slate-400">Sin estadísticas importadas para esta temporada</td></tr>;
+     if(!summary)return <tr key={String(player?.id||i)} className="border-b border-slate-100 text-xs"><td className="whitespace-nowrap px-2 py-3 text-center"><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td><td className="px-3 py-2"><div className="flex items-center gap-2"><PlayerPhoto player={player} name={name}/><span className="font-semibold text-slate-700">{name}</span></div></td><td colSpan={6+columns.length} className="px-3 py-3 text-slate-400">Sin estadísticas importadas para esta temporada</td></tr>;
      return <tr key={summary.id} className="border-b border-slate-100 align-middle odd:bg-white even:bg-[#f6f8f6] hover:bg-[#edf3fb]">
-      <td className="whitespace-nowrap px-2 py-3 text-center"><strong className="font-black text-slate-800">{page*50+i+1}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td>
+      <td className="whitespace-nowrap px-2 py-3 text-center"><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td>
       <td className="px-3 py-2"><button onClick={()=>onOpen(summary,player)} className="flex items-center gap-2 text-left">
        <PlayerPhoto player={player} name={name}/><span className="font-extrabold text-[#0f3156] hover:underline">{name}</span>
       </button></td>
