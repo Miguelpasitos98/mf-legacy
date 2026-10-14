@@ -1,0 +1,98 @@
+{
+  "name": "ExternalFootballSnapshot",
+  "type": "object",
+  "properties": {
+    "external_key": {
+      "type": "string",
+      "description": "Unique logical key: source + entity kind + source ID. Used for idempotent import."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "player",
+        "team",
+        "league"
+      ],
+      "description": "Originating object type."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "CraftedFC"
+      ],
+      "description": "Source of independently published snapshot."
+    },
+    "fotmob_id": {
+      "type": "string",
+      "description": "External FotMob ID; not a Base44 internal ID."
+    },
+    "base44_entity_id": {
+      "type": "string",
+      "description": "Linked internal Base44 Player/Team/League ID only if verified."
+    },
+    "name": {
+      "type": "string"
+    },
+    "snapshot_date": {
+      "type": "string"
+    },
+    "rating": {
+      "type": "number",
+      "description": "CraftedFC published rating, not FM26 CA/PA or FotMob match rating."
+    },
+    "rank": {
+      "type": "number"
+    },
+    "raw_score": {
+      "type": "number"
+    },
+    "archetype": {
+      "type": "string"
+    },
+    "team_strength": {
+      "type": "number"
+    },
+    "league_strength": {
+      "type": "number"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Original source-specific snapshot metadata. Do not assign it to historic seasons."
+    },
+    "link_status": {
+      "type": "string",
+      "enum": [
+        "confirmed",
+        "unlinked",
+        "review"
+      ],
+      "default": "unlinked"
+    },
+    "import_batch": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "external_key",
+    "kind",
+    "source"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
