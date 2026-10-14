@@ -56,7 +56,7 @@ export const DEFAULT_COLS={
  Físico:["totaldistancecovered","numberofsprints"]
  }
 };
-export const initialConfig=()=>({version:2,columns:structuredClone(DEFAULT_COLS),computed:COMPUTED.map(x=>({...x})),labels:{}});
+export const initialConfig=()=>({version:3,columns:structuredClone(DEFAULT_COLS),dividers:{season:{},competition:{}},computed:COMPUTED.map(x=>({...x})),labels:{}});
 export function sanitizeConfig(data){
  const value=data&&typeof data==="object"?data:{};
  const formulas=Array.isArray(value.computed)?value.computed:COMPUTED;
@@ -80,11 +80,16 @@ export function sanitizeConfig(data){
    if(fromOldDefault&&!columns[mode][category].includes("playpct"))columns[mode][category].push("playpct");
   }
  }
+ const dividers={season:{},competition:{}};
+ for(const mode of MODES)for(const category of CATEGORIES){
+  const allowed=new Set([...columns[mode][category],...(mode==="season"?["rank","player","season","club","appearances","minutes","rating"]:["season_competition","club","appearances","minutes","team_matches","rating"])]);
+  dividers[mode][category]=[...new Set((Array.isArray(value.dividers?.[mode]?.[category])?value.dividers[mode][category]:[]).filter(id=>typeof id==="string"&&allowed.has(id)))];
+ }
  const labels={};
  if(value.labels&&typeof value.labels==="object")for(const [key,display] of Object.entries(value.labels)){
   if(RAW_IDS.has(key)&&typeof display==="string"&&display.trim().length&&display.length<=60)labels[key]=display.trim();
  }
- return {version:2,columns,computed,labels};
+ return {version:3,columns,dividers,computed,labels};
 }
 export function parseFormula(expression){
  const input=String(expression||"").trim();
