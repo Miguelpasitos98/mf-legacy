@@ -15,6 +15,7 @@ import Teams from "@/pages/Teams";
 import Players from "@/pages/Players";
 import Stats from "@/pages/Stats";
 import ImportHistory from "@/pages/ImportHistory";
+import ImportUnified from "@/pages/ImportUnified";
 
 const AuthenticatedApp = () => {
   const {
@@ -54,6 +55,7 @@ const AuthenticatedApp = () => {
         <Route path="/stats" element={<Stats />} />
         <Route path="/countries" element={<Countries />} />
         <Route path="/import-histories" element={<ImportHistory />} />
+        <Route path="/import-unified" element={<ImportUnified />} />
       </Route>
 
       <Route path="*" element={<PageNotFound />} />
