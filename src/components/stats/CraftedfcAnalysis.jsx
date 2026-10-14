@@ -1,4 +1,5 @@
-import React from "react";
+import React, {useState} from "react";
+import {calculateCompositeMF, COMPOSITE_ROLES, normalizeRole} from "@/utils/compositeEngine";
 import { payloadField } from "@/utils/craftedfc";
 
 const show = (v, d = 0) =>
@@ -61,7 +62,7 @@ const MiniCard = ({ label, value, accent }) => (
 // CraftedFC Analysis: muestra los datos reales del snapshot y una tabla
 // Rating Breakdown extensible. El Composite solo se muestra si existe en una
 // fuente verificable; si no, se indica "Desglose no disponible".
-export default function CraftedfcAnalysis({ snapshot, status }) {
+export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], position="" }) {
   if (status === "loading") {
     return (
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
@@ -69,14 +70,6 @@ export default function CraftedfcAnalysis({ snapshot, status }) {
       </div>
     );
   }
-  if (!snapshot) {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
-        No hay snapshot de CraftedFC para este jugador. Solo se muestran datos de FotMob.
-      </div>
-    );
-  }
-
   const stats = payloadField(snapshot, "stats") || {};
   const advancedEntries = Object.entries(stats)
     .filter(([, v]) => v !== null && v !== undefined)
@@ -85,7 +78,14 @@ export default function CraftedfcAnalysis({ snapshot, status }) {
   // Estructura extensible: se poblará con desgloses oficiales por métrica cuando
   // CraftedFC publique percentiles y pesos verificables por competición/temporada.
   // No se crean puntuaciones artificiales.
-  const breakdownRows = [];
+  const [rowIndex,setRowIndex] = useState(0);
+  const [chosenRole,setChosenRole] = useState("");
+  const available=Array.isArray(fotmobRows)?fotmobRows:[];
+  const active=available[Math.min(rowIndex,Math.max(0,available.length-1))]||null;
+  const inferredRole=normalizeRole(snapshot?.archetype||payloadField(snapshot,"primary_archetype")||position);
+  const appliedRole=chosenRole||inferredRole||"";
+  const composite=calculateCompositeMF(active,appliedRole);
+  const breakdownRows=composite.rows;
 
   return (
     <div className="space-y-4">
@@ -103,47 +103,42 @@ export default function CraftedfcAnalysis({ snapshot, status }) {
         </div>
       </div>
 
-      {/* Rating Breakdown — estructura extensible */}
-      <div>
-        <h4 className="mb-2 text-xs font-black uppercase tracking-widest text-slate-600">
-          Rating Breakdown
-        </h4>
-        {breakdownRows.length ? (
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[520px] text-left text-xs">
-              <thead className="bg-[#eaf0f8] text-slate-700">
-                <tr>
-                  <th className="px-3 py-2">Métrica</th>
-                  <th className="px-3 py-2 text-right">Tu valor</th>
-                  <th className="px-3 py-2 text-right">vs Peers</th>
-                  <th className="px-3 py-2 text-right">Peso</th>
-                  <th className="px-3 py-2 text-right">Aportación</th>
-                </tr>
-              </thead>
-              <tbody>
-                {breakdownRows.map((r, i) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-semibold text-slate-700">{r.metric}</td>
-                    <td className="px-3 py-2 text-right">{show(r.value)}</td>
-                    <td className="px-3 py-2 text-right">{show(r.peers)}</td>
-                    <td className="px-3 py-2 text-right">{show(r.weight)}</td>
-                    <td className="px-3 py-2 text-right">{show(r.adds)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <section className="rounded-xl border border-blue-200 bg-[#f7faff] p-4">
+        <h4 className="text-sm font-black uppercase tracking-widest text-[#003399]">Composite MF Legacy · cálculo propio</h4>
+        <p className="mt-1 text-xs text-slate-600">Utiliza los pesos observados de los 8 arquetipos de CraftedFC, pero percentiles FotMob de la temporada seleccionada. Es un índice experimental, NO el Composite oficial de CraftedFC ni una nota de Football Manager.</p>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="text-[11px] font-bold text-slate-600">ARQUETIPO
+            <select className="mt-1 block rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={appliedRole} onChange={e=>setChosenRole(e.target.value)}>
+              {!appliedRole&&<option value="">Seleccionar posición</option>}
+              {COMPOSITE_ROLES.map(role=><option key={role} value={role}>{role}</option>)}
+            </select>
+          </label>
+          <label className="max-w-full text-[11px] font-bold text-slate-600">TEMPORADA · COMPETICIÓN
+            <select className="mt-1 block max-w-[350px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={Math.min(rowIndex,Math.max(0,available.length-1))} onChange={e=>setRowIndex(Number(e.target.value))}>
+              {!available.length&&<option value={0}>Sin estadísticas FotMob</option>}
+              {available.map((r,i)=><option key={(r.external_record_id||i)+":"+i} value={i}>{r.season} · {r.competition} · {r.team_name||"Equipo por confirmar"}</option>)}
+            </select>
+          </label>
+          <div className="ml-auto rounded-lg border border-blue-100 bg-white px-4 py-2 text-right">
+            <div className="text-[10px] font-black uppercase text-slate-500">Composite MF Legacy {composite.status==="partial"?"· Parcial":""}</div>
+            <div className="text-2xl font-black text-[#003399]">{show(composite.score,1)} <span className="text-sm font-normal text-slate-400">/100</span></div>
+            <div className="text-[11px] text-slate-600">Cobertura: {show(composite.coverage,1)} % · {composite.count||0}/{composite.total||0} indicadores</div>
           </div>
-        ) : (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-500">
-            <p className="font-bold text-slate-700">Desglose no disponible</p>
-            <p className="mt-1">
-              No existe un desglose oficial de Composite por métrica para este jugador. Cuando CraftedFC publique
-              percentiles y pesos verificables por competición y temporada, se mostrarán aquí sin crear puntuaciones
-              artificiales.
-            </p>
-          </div>
-        )}
-      </div>
+        </div>
+        {(!active||!appliedRole)&&<p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Hace falta una competición con métricas y elegir un arquetipo. DM/MCD no se equipara automáticamente a CM hasta definir su baremo.</p>}
+        {composite.status==="partial"&&<p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Cálculo parcial: los indicadores que faltan no reciben cero ni se inventan. El índice renormaliza únicamente los pesos disponibles y no se debe comparar directamente con un Composite de cobertura distinta.</p>}
+        {!!breakdownRows.length&&<div className="mt-4 max-h-[430px] overflow-auto rounded-lg border border-slate-200 bg-white">
+          <table className="w-full min-w-[600px] text-left text-xs">
+            <thead className="sticky top-0 bg-[#eaf0f8] text-slate-700">
+              <tr><th className="px-3 py-2">Indicador</th><th className="px-3 py-2 text-right">Percentil FotMob</th><th className="px-3 py-2 text-right">Peso observado</th><th className="px-3 py-2 text-right">Aportación</th></tr>
+            </thead>
+            <tbody>{breakdownRows.map(r=><tr key={r.key} className={"border-t border-slate-100 "+(r.percentile===null?"text-slate-400":"text-slate-800")}>
+              <td className="px-3 py-2 font-semibold">{r.name}</td><td className="px-3 py-2 text-right">{show(r.percentile,1)}</td><td className="px-3 py-2 text-right">{r.weight>0?"+":""}{r.weight} %</td><td className="px-3 py-2 text-right">{show(r.contribution,2)}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>}
+        <p className="mt-3 text-[11px] text-slate-500">Método: suma de aportaciones ponderadas (con penalizaciones negativas), normalizada por los pesos disponibles. El percentil de FotMob no representa necesariamente el mismo grupo de comparación que CraftedFC. Los pesos de Rating no visibles se infieren como diferencia hasta 100 % a partir de las capturas, no como especificación oficial.</p>
+      </section>
 
       {/* Estadísticas avanzadas disponibles en el snapshot */}
       {advancedEntries.length > 0 && (
