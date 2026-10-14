@@ -10,6 +10,9 @@ export default function StatsColumnSettings({config,mode:initialMode="season",ca
  const [rawId,setRawId]=useState("");
  const [newMode,setNewMode]=useState(false);
  const selected=draft.columns[mode][category];
+ const dividers=draft.dividers?.[mode]?.[category]||[];
+ const fixed=mode==="season"?[["rank","Rank"],["player","Jugador"],["season","Temporada"],["club","Club"],["appearances","PJ"],["minutes","Min"],["rating","Nota media"]]:[["season_competition","Temporada / competición"],["club","Club"],["appearances","PJ"],["minutes","Min"],["team_matches","PJ equipo"],["rating","Nota"]];
+ const toggleDivider=id=>setDraft(prev=>{const next=clone(prev);next.dividers??={};next.dividers[mode]??={};const current=next.dividers[mode][category]||[];next.dividers[mode][category]=current.includes(id)?current.filter(x=>x!==id):[...current,id];return next;});
  const catalog=useMemo(()=>[...RAW_METRICS.map(([id])=>getColumn(draft,id)),...draft.computed.map(d=>getColumn(draft,d.id))].filter(Boolean),[draft]);
  const results=catalog.filter(d=>(d.name+" "+d.id).toLowerCase().includes(query.toLowerCase()));
  const setColumns=(fn)=>setDraft(prev=>{const next=clone(prev);next.columns[mode][category]=fn(next.columns[mode][category]);return next;});
@@ -60,12 +63,14 @@ export default function StatsColumnSettings({config,mode:initialMode="season",ca
       <div className="mb-3 flex justify-between"><h3 className="font-black text-[#0b3156]">Columnas visibles</h3><span className="text-xs text-slate-500">{selected.length} columnas</span></div>
       <div className="space-y-2">{selected.map((id,index)=>{const def=getColumn(draft,id);if(!def)return null;return <div key={id} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs">
        <span className="min-w-0 flex-1 truncate font-bold text-slate-700">{def.name}<span className="ml-2 text-[10px] font-normal text-slate-400">{def.kind==="computed"?"Fórmula":"Fuente"}</span></span>
+       <button onClick={()=>toggleDivider(id)} title="Añadir o quitar línea vertical a la derecha" aria-pressed={dividers.includes(id)} className={"rounded border px-2 py-1 font-bold "+(dividers.includes(id)?"border-blue-500 bg-blue-100 text-[#003399]":"border-slate-200 text-slate-500")}>│</button>
        <button aria-label={"Subir "+def.name} disabled={index===0} onClick={()=>move(index,-1)} className="rounded p-1 hover:bg-slate-200 disabled:opacity-30"><ArrowUp size={14}/></button>
        <button aria-label={"Bajar "+def.name} disabled={index===selected.length-1} onClick={()=>move(index,1)} className="rounded p-1 hover:bg-slate-200 disabled:opacity-30"><ArrowDown size={14}/></button>
        <button onClick={()=>openEditor(def)} className="rounded border border-blue-200 px-2 py-1 font-bold text-[#003399]">Editar</button>
        <button aria-label={"Ocultar "+def.name} onClick={()=>setColumns(cols=>cols.filter(x=>x!==id))} className="rounded p-1 text-red-600 hover:bg-red-50"><X size={14}/></button>
       </div>;})}
       {!selected.length&&<p className="rounded-lg bg-slate-50 p-4 text-xs text-slate-500">No hay columnas visibles en esta categoría.</p>}</div>
+      <div className="mt-4 border-t border-slate-200 pt-3"><h4 className="text-xs font-black text-[#0b3156]">Divisores entre bloques</h4><p className="mb-2 text-[11px] text-slate-500">Pulsa │ en cualquier columna de arriba para poner una línea vertical después de ella. También puedes separarlas después de las columnas fijas:</p><div className="flex flex-wrap gap-1.5">{fixed.map(([id,name])=><button key={id} type="button" aria-pressed={dividers.includes(id)} onClick={()=>toggleDivider(id)} className={"rounded-md border px-2 py-1.5 text-[11px] font-bold "+(dividers.includes(id)?"border-blue-500 bg-blue-50 text-[#003399]":"border-slate-200 text-slate-600")}>{name} │</button>)}</div></div>
      </section>
      <section className="space-y-3 rounded-xl border border-slate-200 p-4">
       <div className="flex items-center justify-between"><h3 className="font-black text-[#0b3156]">Biblioteca de indicadores</h3><button onClick={()=>openEditor(null)} className="inline-flex items-center gap-1 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white"><Plus size={14}/> Crear fórmula</button></div>
