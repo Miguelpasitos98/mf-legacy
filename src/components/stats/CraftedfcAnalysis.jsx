@@ -52,6 +52,15 @@ const ADVANCED_LABELS = {
   league_strength: "League Strength",
 };
 
+const percentileColor = percentile => {
+  if (percentile === null || percentile === undefined) return "bg-slate-200";
+  if (percentile >= 85) return "bg-emerald-500";
+  if (percentile >= 65) return "bg-cyan-500";
+  if (percentile >= 40) return "bg-sky-500";
+  if (percentile >= 20) return "bg-amber-400";
+  return "bg-rose-400";
+};
+const contributionColor = value => value == null ? "text-slate-400" : value < 0 ? "text-rose-600" : "text-emerald-700";
 const MiniCard = ({ label, value, accent }) => (
   <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
     <p className="text-[10px] font-bold uppercase text-slate-500">{label}</p>
@@ -129,11 +138,23 @@ export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], pos
         {!!breakdownRows.length&&<div className="mt-4 max-h-[430px] overflow-auto rounded-lg border border-slate-200 bg-white">
           <table className="w-full min-w-[600px] text-left text-xs">
             <thead className="sticky top-0 bg-[#eaf0f8] text-slate-700">
-              <tr><th className="px-3 py-2">Indicador</th><th className="px-3 py-2 text-right">Valor FotMob / derivado</th><th className="px-3 py-2 text-right">Percentil FotMob</th><th className="px-3 py-2 text-right">Peso observado</th><th className="px-3 py-2 text-right">Aportación</th></tr>
+              <tr><th className="px-3 py-2">Indicador</th><th className="px-3 py-2 text-right">Tu valor</th><th className="min-w-[150px] px-3 py-2 text-center">vs jugadores</th><th className="px-3 py-2 text-right">Peso</th><th className="px-3 py-2 text-right">Aporta</th></tr>
             </thead>
             <tbody>{breakdownRows.map(r=><tr key={r.key} className={"border-t border-slate-100 "+(r.percentile===null?"text-slate-400":"text-slate-800")}>
-              <td className="px-3 py-2 font-semibold">{r.name}</td><td className="px-3 py-2 text-right">{show(r.derivedValue, r.key==="play_share"?2:3)}{r.derivedValue!==null&&r.derivedValue!==undefined&&["play_share","aerial_duels_won_pct","ground_duels_won_pct","save_pct"].includes(r.key)?" %":""}</td><td className="px-3 py-2 text-right">{show(r.percentile,1)}</td><td className="px-3 py-2 text-right">{r.weight>0?"+":""}{r.weight} %</td><td className="px-3 py-2 text-right">{show(r.contribution,2)}</td>
+              <td className="px-3 py-3 font-semibold">{r.name}</td>
+              <td className="px-3 py-3 text-right font-semibold">{show(r.derivedValue, r.key==="play_share"?1:2)}{r.derivedValue!==null&&r.derivedValue!==undefined&&["play_share","aerial_duels_won_pct","ground_duels_won_pct","save_pct"].includes(r.key)?" %":""}</td>
+              <td className="px-3 py-3">
+                {r.percentile===null?<span className="block text-center text-slate-400" title="Sin percentil comparable">—</span>:<div className="flex items-center justify-end gap-2" title={"Percentil FotMob: "+show(r.percentile,1)+" de 100"}>
+                  <div className="h-2.5 w-full min-w-[65px] max-w-[110px] overflow-hidden rounded-full bg-slate-200" role="meter" aria-label={"Percentil de "+r.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(r.percentile)}>
+                    <div className={"h-full rounded-full transition-all "+percentileColor(r.percentile)} style={{width:Math.min(100,Math.max(0,r.percentile))+"%"}}/>
+                  </div>
+                  <span className="min-w-[37px] text-right font-bold tabular-nums">{show(r.percentile,0)}<span className="font-normal text-slate-400">º</span></span>
+                </div>}
+              </td>
+              <td className="px-3 py-3 text-right tabular-nums">{r.weight>0?"+":""}{r.weight} %</td>
+              <td className={"px-3 py-3 text-right font-extrabold tabular-nums "+contributionColor(r.contribution)}>{r.contribution!==null?(r.contribution>0?"+":"")+show(r.contribution,2):"—"}</td>
             </tr>)}</tbody>
+            <tfoot><tr className="border-t-2 border-blue-200 bg-blue-50 font-bold"><td colSpan={4} className="px-3 py-3 text-right">Suma de aportaciones conocidas</td><td className="px-3 py-3 text-right text-[#003399]">{show(composite.observedAdds,2)}</td></tr></tfoot>
           </table>
         </div>}
         <p className="mt-3 text-[11px] text-slate-500">Método: suma de aportaciones ponderadas (con penalizaciones negativas), normalizada por los pesos disponibles. Los valores disponibles por 90 y porcentajes proceden del registro FotMob de esta competición; Finishing y Play Share se derivan de él (Play Share usa PJ equipo × 90 como aproximación). Los derivados sin percentil no generan aportaciones hasta disponer de comparaciones válidas. El percentil de FotMob no representa necesariamente el mismo grupo de comparación que CraftedFC. Los pesos de Rating no visibles se infieren como diferencia hasta 100 % a partir de las capturas, no como especificación oficial.</p>
