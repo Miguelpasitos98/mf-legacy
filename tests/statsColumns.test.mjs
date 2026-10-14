@@ -33,9 +33,9 @@ test("se guarda una fórmula propia y se calcula en temporada y competición",()
  assert.equal(columnValue(summary,"season","calc_points",cleaned),25);
  assert.equal(columnValue(r,"competition","calc_points",cleaned),25);
 });
-test("una fórmula por 90 no se calcula si faltan datos en una competición",()=>{
+test("una fórmula por 90 utiliza solo las competiciones con variables y minutos válidos",()=>{
  const summary=buildSeasonSummaries([r,{...r,competition:"Copa del Rey",minutes:200,metrics:[]}],[])[0];
- assert.equal(columnValue(summary,"season","gaper90",initialConfig()),null);
+ assert.equal(columnValue(summary,"season","gaper90",initialConfig()),(10+5)*90/1800);
 });
 test("un preset manipulado no puede introducir columnas, fórmulas u operadores desconocidos",()=>{
  const dirty=initialConfig();
