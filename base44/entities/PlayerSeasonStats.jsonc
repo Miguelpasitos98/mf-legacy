@@ -89,6 +89,26 @@
       "minimum": 1,
       "maximum": 200,
       "description": "Partidos reales disputados por el equipo (NO el jugador) en esa temporada y competici\u00f3n. Opcional y verificado; se usa como denominador de Play %."
+    },
+    "fifa_fc_overall": {
+      "type": "number",
+      "description": "Overall hist\u00f3rico por jugador-temporada. No es rating FotMob ni CA/PA FM26."
+    },
+    "transfermarkt_value_eur": {
+      "type": "number",
+      "description": "Valor hist\u00f3rico Transfermarkt en EUR por jugador-temporada, no precio de traspaso."
+    },
+    "historical_valuation_source": {
+      "type": "string"
+    },
+    "historical_valuation_status": {
+      "type": "string"
+    },
+    "historical_valuation_edition": {
+      "type": "string"
+    },
+    "historical_valuation_date": {
+      "type": "string"
     }
   },
   "required": [
