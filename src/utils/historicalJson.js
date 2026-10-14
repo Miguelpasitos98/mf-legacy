@@ -89,7 +89,7 @@ export function resolveHistoricalTeam(item, stats, teams) {
     team: null,
     error: matches.length > 1 || matches[0]?.ambiguous
       ? "Se han detectado IDs incompatibles para este club. Revisa la vinculación del equipo."
-      : "No se reconoce el club en los equipos ni en las estadísticas históricas del jugador.",
+      : "Club no reconocido en los equipos ni en las estadísticas históricas del jugador.",
   };
   const m = matches[0];
   return { team: {
