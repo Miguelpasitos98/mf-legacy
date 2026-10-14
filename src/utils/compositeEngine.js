@@ -45,6 +45,23 @@ export function metricPercentiles(row) {
   result.rating=get(["Rating","FotMob Rating"]);
   return result;
 }
+// Derived source values; their percentiles require a comparable peer population.
+export function derivedCompositeValues(row){
+  const map=new Map((row?.metrics||[]).filter(m=>m?.name).map(m=>[metricName(m.name),m]));
+  const per90=names=>{
+    for(const n of names){
+      const value=map.get(metricName(n))?.per90;
+      if(value!==null&&value!==undefined&&value!==""&&Number.isFinite(Number(value)))return Number(value);
+    }
+    return null;
+  };
+  const xgot=per90(["xGOT"]),npxg=per90(["xG excl. penalty","Non-penalty xG","npxG"]);
+  const finishing=xgot===null||npxg===null?null:xgot-npxg;
+  const minutes=row?.minutes,teamMatches=row?.team_matches;
+  const playShare=Number.isFinite(Number(minutes))&&minutes!==null&&minutes!==""&&Number(teamMatches)>0
+    ?Number(minutes)/(Number(teamMatches)*90)*100:null;
+  return {finishing_xgot_minus_npxg:finishing,play_share:playShare};
+}
 export function calculateCompositeMF(row,positionOrRole,percentilesOverride=null){
   const role=normalizeRole(positionOrRole)|| (COMPOSITE_ROLES.includes(positionOrRole)?positionOrRole:null);
   if(!role) return {role:null,score:null,coverage:0,status:"unknown_role",rows:[],missing:[]};
@@ -52,16 +69,18 @@ export function calculateCompositeMF(row,positionOrRole,percentilesOverride=null
   const missingRating=100-Object.values(observed).reduce((a,b)=>a+b,0);
   const weights={...observed,rating:missingRating};
   const input=percentilesOverride||metricPercentiles(row);
+  const derived=derivedCompositeValues(row);
   const entries=Object.entries(weights);
   const absTotal=entries.reduce((n,[,w])=>n+Math.abs(w),0);
   let presentAbs=0,availableWeight=0,scoreSum=0;
   const rows=entries.map(([key,weight])=>{
     const percentile=pct(input[key]);
-    if(percentile===null)return {key,name:METRIC_NAMES[key]||key,weight,percentile:null,contribution:null};
+    const derivedValue=derived[key]??null;
+    if(percentile===null)return {key,name:METRIC_NAMES[key]||key,weight,percentile:null,contribution:null,derivedValue};
     presentAbs+=Math.abs(weight);availableWeight+=weight;
     const contribution=percentile*weight/100;
     scoreSum+=contribution;
-    return {key,name:METRIC_NAMES[key]||key,weight,percentile,contribution:round(contribution)};
+    return {key,name:METRIC_NAMES[key]||key,weight,percentile,contribution:round(contribution),derivedValue};
   });
   const coverage=absTotal?presentAbs/absTotal:0;
   // Historical rows have many missing metrics: normalize ONLY observed weights,
