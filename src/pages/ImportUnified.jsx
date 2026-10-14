@@ -68,14 +68,25 @@ export default function ImportUnified() {
   },[prepared]);
 
   const handleFile = async evt => {
-    const file=evt.target.files?.[0]; evt.target.value="";
-    if(!file)return;
-    setFileName(file.name);setBatch(null);setFileErrors([]);setError("");setProgress({done:0,total:0});
-    if(file.size>12*1024*1024){setError("Este JSON supera 12 MB. Utiliza los lotes de importación (máximo 200 registros) para que el navegador no se bloquee.");return;}
-    try {
-      const value=JSON.parse((await file.text()).replace(/^\uFEFF/,""));
-      const result=parseUnifiedBatch(value);
-      setBatch(result);setFileErrors(result.errors);
+    const files=Array.from(evt.target.files||[]); evt.target.value="";
+    if(!files.length)return;
+    setFileName(files.length===1?files[0].name:files.length+" archivos JSON");setBatch(null);
+    setFileErrors([]);setError("");setProgress({done:0,total:0});
+    if(files.length>20||files.reduce((sum,f)=>sum+f.size,0)>30*1024*1024){
+      setError("Selecciona como máximo 20 archivos y 30 MB en total por operación, para evitar bloquear Chrome.");return;
+    }
+    try{
+      const records=[],errors=[],seen=new Set();
+      for(const file of files){
+        const result=parseUnifiedBatch(JSON.parse((await file.text()).replace(/^\uFEFF/,"")));
+        for(const problem of result.errors)errors.push(file.name+": "+problem);
+        for(const row of result.records){
+          const key=row.external_key||row.external_record_id;
+          if(seen.has(key))errors.push(file.name+": registro duplicado entre archivos ("+key+")");
+          else{seen.add(key);records.push(row);}
+        }
+      }
+      setBatch({records});setFileErrors(errors);
     }catch(e){setError(e.message);}
   };
 
@@ -90,8 +101,11 @@ export default function ImportUnified() {
         const keys=selected.map(x=>kind==="season"?x.external_record_id:x.external_key);
         const entity = kind==="season" ? "PlayerSeasonStats" : "ExternalFootballSnapshot";
         const field = kind==="season" ? "external_record_id" : "external_key";
-        const found=await base44.entities[entity].filter({[field]:{$in:keys}},{limit:500});
-        for(const item of rowsFromResponse(found))existing.set(kind+":"+(item[field]||""),item);
+        for(let i=0;i<keys.length;i+=150){
+          const portion=keys.slice(i,i+150);
+          const found=await base44.entities[entity].filter({[field]:{$in:portion}},{limit:200});
+          for(const item of rowsFromResponse(found))existing.set(kind+":"+(item[field]||""),item);
+        }
       }
       const next=prepared.map(x=>{
         const key=x.kind==="season"?x.external_record_id:x.external_key;
@@ -196,11 +210,11 @@ export default function ImportUnified() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-xl bg-white border border-slate-200 p-5">
           <p className="font-semibold flex items-center gap-2"><CloudUpload size={19}/> 1. Seleccionar lote JSON</p>
-          <p className="text-xs text-slate-600 mt-2">Selecciona uno de los archivos <code>mf_legacy_external_batch_v1</code> generados a partir de tu JSON único. Máximo 200 filas por lote y 12 MB por archivo.</p>
+          <p className="text-xs text-slate-600 mt-2">Selecciona uno o varios archivos <code>mf_legacy_external_batch_v1</code> derivados de tu JSON único. Hasta 20 archivos y 30 MB por operación.</p>
           <label className="mt-4 block rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/60 px-4 py-6 text-center cursor-pointer hover:bg-blue-50">
             <FileJson className="mx-auto text-blue-600 mb-2" size={27}/>
             <span className="text-sm font-bold text-blue-700">{fileName || "Elegir archivo JSON de importación"}</span>
-            <input type="file" accept=".json,application/json" className="sr-only" onChange={handleFile} disabled={busy}/>
+            <input type="file" multiple accept=".json,application/json" className="sr-only" onChange={handleFile} disabled={busy}/>
           </label>
           <p className="text-xs text-slate-500 mt-2">Tu JSON original de 86 MB permanece como archivo maestro. El conversor crea lotes pequeños para evitar bloqueos del navegador.</p>
         </div>
