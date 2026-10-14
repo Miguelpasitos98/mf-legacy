@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
 import { normalizeLabel, metricLabel } from "@/utils/statsImport";
 import StatsImport from "@/components/stats/StatsImport";
+import ImportUnified from "@/pages/ImportUnified";
 import SeasonStatsTable from "@/components/stats/SeasonStatsTable";
 import SortHeader from "@/components/stats/SortHeader";
 import {nextSorting,sortStatsItems,defaultSortDirection} from "@/utils/statsSort";
@@ -187,7 +188,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <button onClick={()=>setSection("compare")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="compare"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Compare</button>
           </div>
           {section==="overview"&&<CraftedfcOverview snapshot={cfcSnapshot} status={cfcStatus} fotmobRating={estimatedRating}/>}
-          {section==="craftedfc"&&<CraftedfcAnalysis snapshot={cfcSnapshot} status={cfcStatus}/>}
+          {section==="craftedfc"&&<CraftedfcAnalysis snapshot={cfcSnapshot} status={cfcStatus} fotmobRows={shown} position={player?.position||player?.primary_position||""}/>}
           {section==="compare"&&<CraftedfcCompare snapshot={cfcSnapshot} status={cfcStatus} fotmobRows={shown} fotmobSummary={{...sums,appearances:summaryBasics.appearances,minutes:summaryBasics.minutes}}/>}
           {section==="performance"&&<>
           {inProgress&&<p className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">Temporada en curso: las estadísticas pueden cambiar y no representan el cierre definitivo.</p>}
@@ -261,6 +262,7 @@ export default function Stats(){
   const {rows,hasMore,loadMore,busy,error}=useStatsRows(season,competition,revision);
   const [columnConfig,setColumnConfig]=useState(initialConfig);
   const [settingsOpen,setSettingsOpen]=useState(false),[settingsContext,setSettingsContext]=useState(null),[prefsRecord,setPrefsRecord]=useState(null),[prefsWarning,setPrefsWarning]=useState("");
+  const [unifiedOpen,setUnifiedOpen]=useState(false);
   useEffect(()=>{let mounted=true;(async()=>{
     try{const res=await base44.entities.StatsViewPreference.list({limit:50});
       const mine=unpack(res).find(r=>r.key==="stats_layout_personal_v1");
@@ -366,7 +368,8 @@ export default function Stats(){
       <p className="text-xs font-black uppercase tracking-[.12em] text-[#0d315b]">STATS <span className="ml-2 font-normal normal-case tracking-normal text-slate-400">Rendimiento por temporada</span></p>
       <div className="flex items-center gap-2">
         <button type="button" onClick={()=>{setSettingsContext(null);setSettingsOpen(true);}} title="Configurar columnas, cálculos y categorías" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Settings2 size={16}/> Ajustes</button>
-        <button onClick={()=>setImportOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white hover:bg-[#002777]"><Upload size={15}/> Importar</button>
+        <button onClick={()=>setImportOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] hover:bg-blue-50"><Upload size={15}/> Solo FotMob</button>
+        <button onClick={()=>setUnifiedOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white hover:bg-[#002777]"><Upload size={15}/> Importar FotMob + CraftedFC</button>
       </div>
     </div>
     <div className="space-y-2 px-3 py-3 md:px-5">
@@ -396,6 +399,17 @@ export default function Stats(){
     {prefsWarning&&<p className="px-5 py-2 text-xs text-amber-700">{prefsWarning}</p>}
     {settingsOpen&&<StatsColumnSettings config={columnConfig} mode={settingsContext?.mode||viewMode} category={settingsContext?.category||category} sample={settingsContext?.sample||(viewMode==="season"?seasonSummaries[0]:stats[0])} onClose={()=>setSettingsOpen(false)} onSave={saveColumns}/>}
     {importOpen&&<StatsImport players={players} teams={teams} onClose={()=>setImportOpen(false)} onImported={importComplete}/>}
+    {unifiedOpen&&createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Importar FotMob y CraftedFC">
+        <div className="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="flex shrink-0 items-center justify-between bg-[#0e2844] px-5 py-3 text-white">
+            <p className="text-sm font-black">STATS · Importación FotMob + CraftedFC</p>
+            <button onClick={()=>{setUnifiedOpen(false);importComplete();}} className="rounded-lg p-2 hover:bg-white/10" aria-label="Cerrar importador unificado"><X size={20}/></button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto"><ImportUnified/></div>
+        </div>
+      </div>,document.body
+    )}
     {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onOpenSettings={openDetailSettings} onSetTeamMatches={updateTeamMatches} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
   </div>;
 }
