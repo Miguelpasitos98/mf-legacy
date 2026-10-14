@@ -24,17 +24,48 @@ const retryRead = async (read, progress = () => {}) => {
     }
   }
 };
-const fetchTeamMatchesFor = async (payload) => {
-  const requests = [];
-  if (payload.team_id) requests.push(base44.entities.TeamSeasonMatches.filter(
-    { team_id: payload.team_id, season: payload.season }, { limit: 500 }
-  ));
-  if (payload.fotmob_team_id) requests.push(base44.entities.TeamSeasonMatches.filter(
-    { fotmob_team_id: payload.fotmob_team_id, season: payload.season }, { limit: 500 }
-  ));
-  const all = uniqueRecords((await Promise.all(requests)).flatMap(unpack));
-  return all.filter(r => sameKey(r, payload));
+// Consultar una vez por entidad/club, no una vez por competición.
+const fetchSnapshot = async (items, playerId, progress = () => {}) => {
+  const valuations = [];
+  if (items.some(item => item.type === "valuation")) {
+    const result = await retryRead(() => base44.entities.PlayerHistoricalValuation.filter(
+      { player_id: playerId }, { limit: 500 }
+    ), progress);
+    valuations.push(...unpack(result));
+  }
+  const teams = items.filter(item => item.type === "team");
+  const teamIds = [...new Set(teams.map(item => text(item.payload?.team_id)).filter(Boolean))];
+  const fotmobIds = [...new Set(teams.map(item => text(item.payload?.fotmob_team_id)).filter(Boolean))];
+  const records = [];
+  for (let i = 0; i < teamIds.length; i += 60) {
+    const chunk = teamIds.slice(i, i + 60);
+    const data = await retryRead(() => base44.entities.TeamSeasonMatches.filter(
+      { team_id: { $in: chunk } }, { limit: 500 }
+    ), progress);
+    records.push(...unpack(data));
+  }
+  for (let i = 0; i < fotmobIds.length; i += 60) {
+    const chunk = fotmobIds.slice(i, i + 60);
+    const data = await retryRead(() => base44.entities.TeamSeasonMatches.filter(
+      { fotmob_team_id: { $in: chunk } }, { limit: 500 }
+    ), progress);
+    records.push(...unpack(data));
+  }
+  return { valuations, teamRecords: uniqueRecords(records) };
 };
+const decorateRows = (parsed, snapshot) => parsed.map((r) => {
+  const matches = r.type === "valuation"
+    ? snapshot.valuations.filter(v => v.season === r.season)
+    : snapshot.teamRecords.filter(v => sameKey(v, r.payload));
+  const errors = [...r.errors];
+  if (matches.length > 1) errors.push("Hay registros duplicados en Base44. Revísalos antes de importar.");
+  const previous = matches[0] || null;
+  const comparison = rowChanges(r.payload, previous, r.type);
+  return {
+    ...r, existing: previous, changes: comparison.changes, errors,
+    status: errors.length ? "error" : comparison.status,
+  };
+});
 const formatChange = (field, value) => {
   if (value === null || value === undefined || value === "") return "—";
   if (field === "transfermarkt_value_eur") return formatEur(value);
