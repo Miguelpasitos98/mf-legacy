@@ -9,7 +9,12 @@ export function seasonSummary(rows,teams=[]){
  // No mezclar fichas incompletas (p. ej. una copa sin PJ ni minutos) con los
  // totales de rendimiento de una temporada. Permanecen en el desglose.
  const records=allClubRecords.filter(r=>statNum(r.minutes)>0&&statNum(r.appearances)>0);
- if(!records.length)return null;
+ if(!records.length){
+  const first=allClubRecords[0];
+  if(!first)return null;
+  const season=first.season;
+  return {id:groupId(first)+"|"+season,player_id:first.player_id||"",fotmob_player_id:first.fotmob_player_id||"",player_name:first.player_name||"",season,records:[],excludedRecords:allClubRecords,excludedCompetitions:allClubRecords.length,mainClub:null,otherClubs:[],clubsKnown:0,unresolvedTeams:allClubRecords.length,competitions:0,totals:aggregate([],SUM_KEYS),weightedRating:null,ratingPartial:true,goalsAndAssists:null,xgAndXa:null,per90:{goals:null,assists:null,xg:null,xa:null,ga:null,xga:null},partial:true};
+ }
  const season=records[0].season;
  const totals=aggregate(records,SUM_KEYS);
  // Velocidad máxima: se toma el máximo observado, nunca se suman velocidades.
