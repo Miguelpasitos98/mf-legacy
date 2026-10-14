@@ -109,48 +109,9 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
     setIncluded(new Set());
     try {
       const parsed = prepareHistoricalJson(source, { playerId, fotmobPlayerId: fotmobId, stats, teams });
-      let existingValuations = [];
-      if (parsed.some((r) => r.type === "valuation")) {
-        existingValuations = unpack(await base44.entities.PlayerHistoricalValuation.filter(
-          { player_id: playerId }, { limit: 500 }
-        ));
-      }
-      const teamKeys = new Map();
-      for (const r of parsed.filter((r) => r.type === "team" && r.payload.team_id))
-        teamKeys.set(r.payload.team_id, true);
-      const fotmobKeys = new Map();
-      for (const r of parsed.filter((r) => r.type === "team" && r.payload.fotmob_team_id))
-        fotmobKeys.set(r.payload.fotmob_team_id, true);
-      const existingTeams = [];
-      for (let ids = [...teamKeys.keys()], i = 0; i < ids.length; i += 60) {
-        const chunk = ids.slice(i, i + 60);
-        const data = await base44.entities.TeamSeasonMatches.filter(
-          { team_id: { $in: chunk } }, { limit: 500 }
-        );
-        existingTeams.push(...unpack(data));
-      }
-      for (let ids = [...fotmobKeys.keys()], i = 0; i < ids.length; i += 60) {
-        const chunk = ids.slice(i, i + 60);
-        const data = await base44.entities.TeamSeasonMatches.filter(
-          { fotmob_team_id: { $in: chunk } }, { limit: 500 }
-        );
-        existingTeams.push(...unpack(data));
-      }
-      const decorated = parsed.map((r) => {
-        const matches = r.type === "valuation"
-          ? existingValuations.filter((e) => e.season === r.season)
-          : uniqueRecords(existingTeams.filter((e) => sameKey(e, r.payload)));
-        const errors = [...r.errors];
-        if (matches.length > 1) errors.push("Existen registros duplicados en Base44. Revísalos antes de importar.");
-        const previous = matches[0] || null;
-        const comparison = rowChanges(r.payload, previous, r.type);
-        return {
-          ...r, existing: previous,
-          changes: comparison.changes,
-          errors,
-          status: errors.length ? "error" : comparison.status,
-        };
-      });
+      const snapshot = await fetchSnapshot(parsed, playerId, setProgress);
+      const decorated = decorateRows(parsed, snapshot);
+      setProgress("");
       setRows(decorated);
       setIncluded(new Set(decorated.filter((r) => r.status === "new").map((r) => r.id)));
       if (resetMessages) setNotice("Datos analizados. Los registros nuevos están seleccionados; las actualizaciones requieren tu autorización individual.");
