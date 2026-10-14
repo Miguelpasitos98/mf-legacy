@@ -12,6 +12,7 @@ import HistoricalValuationTool from "@/components/stats/HistoricalValuationTool"
 import HistoricalValuationImporter from "@/components/stats/HistoricalValuationImporter";
 import HistoricalValuationsTable from "@/components/stats/HistoricalValuationsTable";
 import { useHistoricalValuations } from "@/hooks/useHistoricalValuations";
+import { useTeamMatchesLookup } from "@/hooks/useTeamMatchesLookup";
 import ImportUnified from "@/pages/ImportUnified";
 import SeasonStatsTable from "@/components/stats/SeasonStatsTable";
 import SortHeader from "@/components/stats/SortHeader";
@@ -97,6 +98,7 @@ function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);ret
 function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,onOpenSettings,onSetTeamMatches,config}) {
   const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
   const {valuations:historicalValuations,loading:historicalLoading,refresh:historicalRefresh}=useHistoricalValuations(player?.id);
+  const {getTeamMatches,refresh:refreshTeamMatches}=useTeamMatchesLookup(stats);
   const [valuationImporterOpen,setValuationImporterOpen]=useState(false);
   const fotmobPlayerId=stats[0]?.fotmob_player_id||"";
   const [copySeasonsStatus,setCopySeasonsStatus]=useState("");
@@ -142,7 +144,10 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const uniqueRecords=useMemo(()=>groupStatRows(stats),[stats]);
   const seasonRows=uniqueRecords.filter(s=>activeSeason==="Todas"||s.season===activeSeason);
   const competitions=[...new Set(seasonRows.map(s=>s.competition))].sort();
-  const shown=seasonRows.filter(r=>(scope==="all"||!nationalCompetition(r.competition))&&(competition==="Todas"||r.competition===competition));
+  const shown=seasonRows.filter(r=>(scope==="all"||!nationalCompetition(r.competition))&&(competition==="Todas"||r.competition===competition)).map(r=>{
+    const tm=getTeamMatches(r);
+    return tm?{...r,team_matches:tm.team_matches,_teamMatchesSource:"team"}:r;
+  });
   const sums=aggregate(shown);
   const summaryBasics=aggregate(shown,["appearances","minutes"]);
   const ratingRows=shown.filter(r=>num(r.rating)!==null&&num(r.appearances)>0);
@@ -240,7 +245,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
               <tbody>{shown.length?shown.sort((a,b)=>b.season.localeCompare(a.season)||a.competition.localeCompare(b.competition)).map((r,i)=><tr key={r.id||r.external_record_id||i} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className={"px-3 py-3 font-semibold"+line("season_competition")}>{r.season}<div className="font-normal text-slate-500">{r.competition}</div>{r._sourceRows>1&&<span className="text-[10px] text-blue-700">Fuentes consolidadas: {r._sourceRows}</span>}</td>
                 <td className={"px-3 py-3"+line("club")}>{teamCell(r)}</td>
-                <td className={"px-3 py-3"+line("appearances")}>{show(r.appearances)}</td><td className={"px-3 py-3"+line("minutes")}>{show(r.minutes)}</td><td className={"px-2 py-3"+line("team_matches")}><button type="button" onClick={()=>editTeamMatches(r)} disabled={!r.id} aria-label={"Editar partidos del equipo de "+r.competition+" "+r.season} title="Editar partidos disputados por el equipo en esta competición" className="whitespace-nowrap rounded-md border border-transparent px-2 py-1 font-semibold text-[#003399] hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400">{r.team_matches==null?"Añadir +":show(r.team_matches)}</button></td><td className={"px-3 py-3"+line("rating")}>{show(r.rating,2)}</td>
+                <td className={"px-3 py-3"+line("appearances")}>{show(r.appearances)}</td><td className={"px-3 py-3"+line("minutes")}>{show(r.minutes)}</td><td className={"px-2 py-3"+line("team_matches")}><button type="button" onClick={()=>editTeamMatches(r)} disabled={!r.id} aria-label={"Editar partidos del equipo de "+r.competition+" "+r.season} title="Editar partidos disputados por el equipo en esta competición" className="whitespace-nowrap rounded-md border border-transparent px-2 py-1 font-semibold text-[#003399] hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400">{r.team_matches==null?"Añadir +":show(r.team_matches)}{r._teamMatchesSource==="team"&&<span className="ml-1 text-[9px] text-emerald-600" title="PJ equipo importado a nivel de club">club</span>}</button></td><td className={"px-3 py-3"+line("rating")}>{show(r.rating,2)}</td>
                 {selected.map(id=><td key={id} className={"px-3 py-3 font-semibold"+line(id)}>{show(columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??0)}{columnValue(r,"competition",id,config)!==null&&getColumn(config,id)?.unit?" "+getColumn(config,id).unit:""}</td>)}
               </tr>):<tr><td colSpan={6+selected.length} className="p-8 text-center text-slate-500">No hay registros para esta selección. Cambia el ámbito o la temporada.</td></tr>}</tbody>
             </table>
@@ -276,7 +281,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
         </form>
       </div>}
       {teamLinkTarget&&<TeamLinkPicker season={activeSeason} records={stats} teams={teams} initialRecord={teamLinkTarget==="bulk"?null:teamLinkTarget} onClose={()=>setTeamLinkTarget(null)} onApply={onLinkTeams}/>}
-      <HistoricalValuationImporter open={valuationImporterOpen} onClose={()=>setValuationImporterOpen(false)} player={player} fotmobPlayerId={fotmobPlayerId} fm26Uid={player?.fm26_uid||""} onSaved={historicalRefresh}/>
+      <HistoricalValuationImporter open={valuationImporterOpen} onClose={()=>setValuationImporterOpen(false)} player={player} fotmobPlayerId={fotmobPlayerId} fm26Uid={player?.fm26_uid||""} onSaved={()=>{historicalRefresh();refreshTeamMatches();}} stats={stats} teams={teams}/>
     </div>,document.body
   );
 }

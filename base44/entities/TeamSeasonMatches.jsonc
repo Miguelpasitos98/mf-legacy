@@ -1,0 +1,77 @@
+{
+  "name": "TeamSeasonMatches",
+  "type": "object",
+  "properties": {
+    "team_id": {
+      "type": "string",
+      "description": "ID interno Base44 del equipo. Clave de unicidad junto a season y competition."
+    },
+    "fotmob_team_id": {
+      "type": "string",
+      "description": "ID FotMob del equipo. Clave de identificacion alternativa junto a season y competition."
+    },
+    "team_name": {
+      "type": "string",
+      "description": "Nombre del equipo para visualizacion. No es clave de vinculacion."
+    },
+    "season": {
+      "type": "string",
+      "description": "Temporada normalizada. Ano natural o campana partida."
+    },
+    "competition": {
+      "type": "string",
+      "description": "Nombre de la competicion."
+    },
+    "fotmob_tournament_id": {
+      "type": "string",
+      "description": "ID FotMob de la competicion. Opcional."
+    },
+    "team_matches": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "description": "Partidos reales disputados por el equipo en esta competicion y temporada. No es el maximo teorico ni los partidos del jugador."
+    },
+    "source": {
+      "type": "string",
+      "description": "Origen de los datos (ChatGPT, Transfermarkt, etc.)"
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "verified",
+        "review"
+      ],
+      "default": "pending",
+      "description": "Estado de verificacion. Pendiente por defecto al importar."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas o correcciones sobre el registro."
+    }
+  },
+  "required": [
+    "season",
+    "competition",
+    "team_matches"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

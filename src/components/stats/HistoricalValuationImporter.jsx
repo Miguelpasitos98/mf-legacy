@@ -18,6 +18,7 @@ import {
   parsePastedData,
   validateRow,
 } from "@/utils/historicalValuation";
+import TeamMatchesImporter from "./TeamMatchesImporter";
 
 const unpack = (r) => (Array.isArray(r) ? r : r?.items || r?.data || []);
 
@@ -43,6 +44,8 @@ export default function HistoricalValuationImporter({
   fotmobPlayerId,
   fm26Uid,
   onSaved,
+  stats = [],
+  teams = [],
 }) {
   const [rawText, setRawText] = useState("");
   const [parsedRows, setParsedRows] = useState([]);
@@ -53,6 +56,7 @@ export default function HistoricalValuationImporter({
   const [report, setReport] = useState(null);
   const [excluded, setExcluded] = useState(new Set());
   const [edits, setEdits] = useState({});
+  const [activeTab, setActiveTab] = useState("valuations");
 
   const playerId = String(player?.id || "");
 
@@ -298,6 +302,11 @@ export default function HistoricalValuationImporter({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <div className="mb-4 flex gap-1 border-b border-slate-200">
+            <button type="button" onClick={()=>setActiveTab("valuations")} className={"rounded-t-lg px-4 py-2 text-xs font-bold "+(activeTab==="valuations"?"border-b-2 border-[#003399] text-[#003399]":"text-slate-500 hover:text-slate-700")}>FIFA/FC + Transfermarkt</button>
+            <button type="button" onClick={()=>setActiveTab("team-matches")} className={"rounded-t-lg px-4 py-2 text-xs font-bold "+(activeTab==="team-matches"?"border-b-2 border-[#003399] text-[#003399]":"text-slate-500 hover:text-slate-700")}>PJ Equipo</button>
+          </div>
+          {activeTab==="valuations"&&<>
           {/* A. Pegar datos */}
           <section className="mb-5">
             <h3 className="mb-2 text-xs font-black uppercase tracking-widest text-[#003399]">
@@ -608,6 +617,8 @@ export default function HistoricalValuationImporter({
             Los valores vacios no sobrescriben datos existentes. La importacion es idempotente: repetirla
             no crea duplicados. Los datos pegados no se marcan como verificados.
           </p>
+          </>}
+          {activeTab==="team-matches"&&<TeamMatchesImporter player={player} stats={stats} teams={teams} onSaved={onSaved}/>}
         </div>
       </div>
     </div>,

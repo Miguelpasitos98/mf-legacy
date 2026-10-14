@@ -2,7 +2,7 @@
 // Entidad: PlayerHistoricalValuation (player_id + season = clave unica).
 // No toca PlayerSeasonStats, CraftedFC ni FM26.
 
-const normalize = (v) =>
+export const normalize = (v) =>
   String(v ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -367,4 +367,62 @@ export const formatEur = (value) => {
   if (!Number.isFinite(n)) return "—";
   if (n >= 1e6) return `${(n / 1e6).toLocaleString("es-ES", { maximumFractionDigits: 1 })} M€`;
   return `${n.toLocaleString("es-ES")} €`;
+};
+
+// --- PJ Equipo (TeamSeasonMatches) ---
+
+const TEAM_MATCHES_ALIASES = {
+  season: ["season", "temporada", "ano", "year"],
+  competition: ["competition", "competicion", "tournament", "torneo", "league", "liga"],
+  team_name: ["team_name", "team", "equipo", "club", "club_name", "equipo_nombre"],
+  team_matches: ["team_matches", "pj equipo", "partidos equipo", "team matches", "pj_team", "matches", "partidos", "pj"],
+  fotmob_team_id: ["fotmob_team_id", "fotmob team id", "team_id", "fotmob_teamid"],
+  fotmob_tournament_id: ["fotmob_tournament_id", "fotmob tournament id", "tournament_id"],
+  source: ["source", "fuente"],
+};
+
+// Convierte filas parseadas en objetos normalizados para PJ Equipo.
+export const buildTeamMatchesRows = ({ header, rows }) => {
+  const result = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const season = normalizeSeason(findField(row, header, TEAM_MATCHES_ALIASES.season));
+    const competition = findField(row, header, TEAM_MATCHES_ALIASES.competition);
+    const team_name = findField(row, header, TEAM_MATCHES_ALIASES.team_name);
+    const matchesRaw = findField(row, header, TEAM_MATCHES_ALIASES.team_matches);
+    const fotmob_team_id = findField(row, header, TEAM_MATCHES_ALIASES.fotmob_team_id);
+    const fotmob_tournament_id = findField(row, header, TEAM_MATCHES_ALIASES.fotmob_tournament_id);
+    const source = findField(row, header, TEAM_MATCHES_ALIASES.source);
+
+    let team_matches = null;
+    let team_matches_invalid = false;
+    if (matchesRaw.trim()) {
+      const n = parseInt(matchesRaw.replace(/[^\d]/g, ""), 10);
+      if (Number.isFinite(n) && n >= 1 && n <= 200) team_matches = n;
+      else team_matches_invalid = true;
+    }
+
+    result.push({
+      rowIndex: i,
+      season,
+      competition,
+      team_name,
+      team_matches,
+      team_matches_invalid,
+      fotmob_team_id,
+      fotmob_tournament_id,
+      source,
+    });
+  }
+  return result;
+};
+
+export const validateTeamMatchesRow = (row) => {
+  const errors = [];
+  if (!row.season) errors.push("Falta temporada.");
+  if (!row.competition) errors.push("Falta competicion.");
+  if (row.team_matches_invalid) errors.push("PJ equipo fuera de rango (1-200).");
+  if (row.team_matches === null && !row.team_matches_invalid) errors.push("Falta PJ equipo.");
+  if (!row.team_name && !row.fotmob_team_id) errors.push("Falta identificador de equipo.");
+  return errors;
 };
