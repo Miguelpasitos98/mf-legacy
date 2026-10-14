@@ -6,7 +6,29 @@ import {
 } from "./historicalValuation.js";
 
 const text = (v) => String(v ?? "").trim();
-const keyText = (v) => text(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ");
+const keyText = (v) => text(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[._-]/g, " ").replace(/\s+/g, " ").trim();
+
+const CLUB_ALIASES = {
+  "bryne fk": "bryne",
+  "molde fk": "molde",
+  "red bull salzburg": "salzburg",
+  "fc red bull salzburg": "salzburg",
+  "rb salzburg": "salzburg",
+  "borussia dortmund": "borussia dortmund",
+};
+export const canonicalHistoricalClub = (value) => CLUB_ALIASES[keyText(value)] || keyText(value);
+
+// These aliases are naming differences, not additional fixtures.
+const COMPETITION_ALIASES = {
+  "fa community shield": "community shield",
+  "dfl supercup": "super cup",
+  "dfb pokal": "dfb pokal",
+  "norwegian first division": "1 division",
+  "1 divisjon": "1 division",
+  "norwegian cup": "cup",
+  "austrian bundesliga": "bundesliga",
+};
+export const canonicalHistoricalCompetition = (value) => COMPETITION_ALIASES[keyText(value)] || keyText(value);
 const validSeason = (v) => {
   const season = normalizeSeason(v);
   if (/^\d{4}$/.test(season)) return true;
@@ -21,53 +43,59 @@ const urlField = (value) => {
   } catch { return null; }
 };
 
+// Team (Base44) and PlayerSeasonStats (FotMob) can describe the SAME club
+// with different ID fields. Reconcile by verified FotMob ID and by a unique
+// normalized club name, without hiding genuinely contradictory IDs.
 const teamCatalog = (stats = [], teams = []) => {
-  const catalog = new Map();
-  for (const t of teams) {
-    const id = text(t.id);
-    if (id) catalog.set("id:" + id, {
-      team_id: id, fotmob_team_id: text(t.fotmob_id),
-      team_name: text(t.name),
-    });
-  }
-  for (const r of stats) {
-    const id = text(r.team_id);
-    const fotmob = text(r.fotmob_team_id);
-    if (!id && !fotmob) continue;
-    const mapKey = id ? "id:" + id : "fotmob:" + fotmob;
-    const previous = catalog.get(mapKey);
-    if (!previous) {
-      catalog.set(mapKey, {
-        team_id: id, fotmob_team_id: fotmob,
-        team_name: text(r.team_name),
-      });
-    } else if (!previous.fotmob_team_id && fotmob) {
-      previous.fotmob_team_id = fotmob;
-    }
-  }
-  return [...catalog.values()];
+  const groups = new Map();
+  const add = (name, internalId, fotmobId, fromTeam) => {
+    const canonicalName = canonicalHistoricalClub(name);
+    if (!canonicalName) return;
+    const group = groups.get(canonicalName) || {
+      names: new Set(), databaseIds: new Set(), statIds: new Set(), fotmobIds: new Set(),
+      canonicalName, teamName: "",
+    };
+    if (name) group.names.add(text(name));
+    if (fromTeam && internalId) { group.databaseIds.add(text(internalId)); group.teamName = text(name); }
+    if (!fromTeam && internalId) group.statIds.add(text(internalId));
+    if (fotmobId) group.fotmobIds.add(text(fotmobId));
+    groups.set(canonicalName, group);
+  };
+  for (const t of teams) add(t.name, t.id, t.fotmob_id, true);
+  for (const r of stats) add(r.team_name, r.team_id, r.fotmob_team_id, false);
+  return [...groups.values()].map(g => ({
+    ...g,
+    team_id: [...g.databaseIds][0] || [...g.statIds][0] || "",
+    fotmob_team_id: [...g.fotmobIds][0] || "",
+    team_name: g.teamName || [...g.names][0] || "",
+    ambiguous: g.databaseIds.size > 1 || g.fotmobIds.size > 1 ||
+      (g.statIds.size > 1 && ![...g.statIds].every(id => g.databaseIds.has(id))),
+  }));
 };
 export function resolveHistoricalTeam(item, stats, teams) {
   const candidates = teamCatalog(stats, teams);
   const id = text(item.team_id);
   const fotmob = text(item.fotmob_team_id);
-  const name = keyText(item.team_name);
+  const name = canonicalHistoricalClub(item.team_name);
   let matches = id
-    ? candidates.filter((c) => c.team_id === id)
+    ? candidates.filter(c => c.databaseIds.has(id) || c.statIds.has(id))
     : fotmob
-      ? candidates.filter((c) => c.fotmob_team_id === fotmob)
-      : candidates.filter((c) => name && keyText(c.team_name) === name);
-  // Never silently associate a supplied ID with a different club.
-  if (id && fotmob) matches = matches.filter((c) => !c.fotmob_team_id || c.fotmob_team_id === fotmob);
-  if (matches.length !== 1) return {
+      ? candidates.filter(c => c.fotmobIds.has(fotmob))
+      : candidates.filter(c => name && c.canonicalName === name);
+  if (id && fotmob) matches = matches.filter(c => c.fotmobIds.size === 0 || c.fotmobIds.has(fotmob));
+  if (name && matches.length && !matches.every(c => c.canonicalName === name))
+    return { team: null, error: "El nombre del club no coincide con el ID indicado. Comprueba la identidad." };
+  if (matches.length !== 1 || matches[0].ambiguous) return {
     team: null,
-    error: matches.length > 1
-      ? "Hay varios clubes con esta identificación. Indica team_id o fotmob_team_id."
-      : "Club no identificado. Usa el nombre exacto del club o su ID de FotMob/Base44.",
+    error: matches.length > 1 || matches[0]?.ambiguous
+      ? "Se han detectado IDs incompatibles para este club. Revisa la vinculación del equipo."
+      : "No se reconoce el club en los equipos ni en las estadísticas históricas del jugador.",
   };
-  if (name && keyText(matches[0].team_name) !== name && !id && !fotmob)
-    return { team: null, error: "El nombre no coincide con el club identificado." };
-  return { team: matches[0], error: "" };
+  const m = matches[0];
+  return { team: {
+    team_id: m.team_id, fotmob_team_id: m.fotmob_team_id,
+    team_name: m.team_name,
+  }, error: "" };
 }
 
 export function prepareHistoricalJson(rawText, { playerId, fotmobPlayerId, stats = [], teams = [] }) {
