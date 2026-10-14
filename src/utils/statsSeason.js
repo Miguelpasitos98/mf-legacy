@@ -5,7 +5,10 @@ const SUM_KEYS=["appearances","minutes","goals","assists","xg","xa","shots","sho
 const groupId=row=>String(row.player_id||row.fotmob_player_id||"");
 
 export function seasonSummary(rows,teams=[]){
- const records=groupStatRows(rows).filter(r=>!nationalCompetition(r.competition));
+ const allClubRecords=groupStatRows(rows).filter(r=>!nationalCompetition(r.competition));
+ // No mezclar fichas incompletas (p. ej. una copa sin PJ ni minutos) con los
+ // totales de rendimiento de una temporada. Permanecen en el desglose.
+ const records=allClubRecords.filter(r=>statNum(r.minutes)>0&&statNum(r.appearances)>0);
  if(!records.length)return null;
  const season=records[0].season;
  const totals=aggregate(records,SUM_KEYS);
@@ -52,7 +55,7 @@ export function seasonSummary(rows,teams=[]){
   player_id:records[0].player_id||"",
   fotmob_player_id:records[0].fotmob_player_id||"",
   player_name:records.find(r=>r.player_name)?.player_name||"",
-  season, records,
+  season, records, excludedRecords:allClubRecords.filter(r=>!records.includes(r)),
   mainClub, otherClubs:ordered.slice(1).map(c=>c.team), clubsKnown:ordered.length,
   unresolvedTeams:unresolved, competitions:records.length,
   activeVerification:records.some(r=>r.review_status==="pending"||r.verification_status==="pendiente_revision"||String(r.verification_status||"").includes("no_verificada")),
@@ -65,7 +68,7 @@ export function seasonSummary(rows,teams=[]){
    xga:per90combined(xga)
   },
   // Identifica si hay competiciones incompletas, no afirma haber encontrado todas.
-  partial:Object.values(totals).some(v=>v.partial)
+  partial:Object.values(totals).some(v=>v.partial), excludedCompetitions:allClubRecords.length-records.length
  };
 }
 export function buildSeasonSummaries(rows,teams=[]){
