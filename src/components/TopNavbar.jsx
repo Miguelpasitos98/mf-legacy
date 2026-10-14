@@ -15,6 +15,7 @@ export default function TopNavbar() {
     { label: "TEAMS", path: "/teams" },
     { label: "COUNTRIES", path: "/countries" },
     { label: "HISTORIAL", path: "/import-histories" },
+    { label: "FUENTES", path: "/import-unified" },
   ];
 
   const handleNavigation = (path) => {
@@ -24,7 +25,7 @@ export default function TopNavbar() {
   return (
     <header className="relative flex h-16 shrink-0 items-center justify-center border-b border-black/5 bg-white">
       {/* Navegación principal de fútbol */}
-      <nav className="flex items-center gap-10">
+      <nav className="flex items-center gap-7">
         {footballNav.map((item) => {
           const isActive =
             location.pathname === item.path ||
