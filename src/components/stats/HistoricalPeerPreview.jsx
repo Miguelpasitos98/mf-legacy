@@ -27,7 +27,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             <BarChart3 size={17}/> vs jugadores MF LEGACY · vista previa
           </h4>
           <p className="mt-1 text-xs text-slate-600">
-            Nuestra base histórica completa · una observación por jugador/temporada · mismo arquetipo · todas las competiciones de clubes.
+            Nuestra base histórica completa · una observación por jugador/temporada · mismo arquetipo · solo competiciones de clubes. FIFA/Transfermarkt requieren datos de al menos dos jugadores.
           </p>
         </div>
         <button type="button" onClick={()=>refetch()} disabled={isFetching||!playerId}
@@ -87,14 +87,14 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           Este arquetipo todavía no tiene pesos de Composite definidos; los percentiles se muestran independientemente.
         </p>}
         {isThin&&<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-          Algunos percentiles son provisionales porque hay menos de 10 registros válidos de la misma posición para esa métrica.
+          Percentiles provisionales: aún hay menos de 10 jugadores distintos del mismo arquetipo con datos de estas métricas. Las temporadas de un solo jugador no bastan para crear un percentil.
         </p>}
         <div className="max-h-[480px] overflow-auto rounded-lg border border-slate-200 bg-white">
           <table className="w-full min-w-[635px] text-left text-xs">
             <thead className="sticky top-0 bg-[#eaf0f8]">
               <tr>
                 <th className="px-3 py-2">Indicador</th><th className="px-3 py-2 text-right">Tu valor (temporada)</th>
-                <th className="px-3 py-2 text-right">vs {result.role}</th><th className="px-3 py-2 text-right">Muestra</th>
+                <th className="px-3 py-2 text-right">vs {result.role}</th><th className="px-3 py-2 text-right">Muestra (temporadas / jugadores)</th>
                 <th className="px-3 py-2 text-right">Peso</th><th className="px-3 py-2 text-right">Aporta</th>
               </tr>
             </thead>
@@ -106,7 +106,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
               <td className="px-3 py-2 text-right font-bold tabular-nums text-[#003399]">
                 {item.percentile===null?"—":show(item.percentile,1)+"º"}{item.provisional?" *":""}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-slate-600">{item.n}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-slate-600">{item.n} / {item.nPlayers}</td>
               <td className="px-3 py-2 text-right tabular-nums text-slate-600">{item.weight===null?"—":(item.weight>0?"+":"")+item.weight+" %"}</td>
               <td className={"px-3 py-2 text-right font-bold tabular-nums "+(item.contribution<0?"text-rose-700":"text-emerald-700")}>
                 {item.contribution===null?"—":(item.contribution>0?"+":"")+show(item.contribution,2)}
@@ -116,7 +116,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         </div>
         <p className="text-[11px] text-slate-600">
           Método: percentil histórico de rango medio (empates compartidos), dentro del mismo arquetipo; 0 es el mínimo observado y 100 el máximo. Para métricas por 90 se suman sus totales con minutos alineados. Los porcentajes son promedios ponderados por minutos, la nota por partidos. Las métricas faltantes no se convierten en cero. Los indicadores con peso negativo se penalizan más cuanto mayor sea su valor bruto. El arquetipo procede de la posición <strong>actual</strong> de la ficha, no de una posición histórica verificada.
-          {" "}Los resultados cambian al ampliar nuestra base de datos y no están ajustados todavía por época ni fuerza de liga. * Muestra inferior a 10.
+          {" "}Los resultados cambian al ampliar nuestra base de datos y no están ajustados todavía por época ni fuerza de liga. * Menos de 10 jugadores distintos. Los indicadores con datos de un solo jugador no generan percentil.
         </p>
         <p className="flex items-center gap-2 text-[11px] text-slate-500">
           <Database size={14}/> Consulta de solo lectura · FotMob, FC histórico y Transfermarkt previamente almacenados en MF LEGACY · {new Date(data.loadedAt).toLocaleString("es-ES")}
