@@ -233,7 +233,7 @@ export default function ImportUnified() {
     <div className="mx-auto max-w-6xl space-y-5 pb-12">
       <header className="rounded-xl bg-white p-5 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="uppercase tracking-[.18em] text-[10px] font-bold text-blue-700">MF LEGACY · Fuentes externas</p>
+          <p className="uppercase tracking-[.18em] text-[10px] font-bold text-blue-700">MF LEGACY · STATS · Fuentes externas</p>
           <h1 className="text-2xl font-bold mt-1">Importar FotMob + CraftedFC</h1>
           <p className="text-sm text-slate-600 mt-1">Vista previa antes de guardar. No modifica los atributos FM26 ni las fichas originales.</p>
         </div>
