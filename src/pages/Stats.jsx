@@ -17,6 +17,10 @@ import {initialConfig,sanitizeConfig,getColumn,columnValue,RAW_METRICS} from "@/
 import {bestSeasonPerPlayer} from "@/utils/statsBestSeason";
 import {buildSeasonSummaries} from "@/utils/statsSeason";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
+import {useCraftedfcSnapshot} from "@/hooks/useCraftedfcSnapshot";
+import CraftedfcOverview from "@/components/stats/CraftedfcOverview";
+import CraftedfcAnalysis from "@/components/stats/CraftedfcAnalysis";
+import CraftedfcCompare from "@/components/stats/CraftedfcCompare";
 
 const unpack = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || [];
 const options = Array.from({length:12},(_,i)=>{const y=2027-i;return (y-1)+"/"+y;});
@@ -87,6 +91,8 @@ function Avatar({name,photo,size="md"}) {
 function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);return <span className="inline-flex max-w-[170px] items-center gap-2">{logo&&!broken?<img src={logo} alt="" className="h-5 w-5 object-contain" onError={()=>setBroken(true)}/>:<Shield size={16} className="text-slate-300"/>}<span className="truncate">{teamName||"Sin equipo"}</span></span>;}
 function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,onOpenSettings,onSetTeamMatches,config}) {
   const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
+  const [section,setSection]=useState("performance");
+  const {snapshot:cfcSnapshot,status:cfcStatus}=useCraftedfcSnapshot(player?.id);
   const [season,setSeason]=useState("auto");
   const activeSeason=season==="auto"?defaultSeason(stats,initialSeason):season;
   const [competition,setCompetition]=useState("Todas");
@@ -174,6 +180,16 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <button type="button" title="Gestionar clubes de una o varias temporadas" onClick={()=>setTeamLinkTarget("bulk")} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-[#003399]">Gestionar clubes por año…</button>
             <span className="ml-auto rounded-full bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800">{shown.length} competiciones visibles</span>
           </div>
+          <div className="mb-3 flex flex-wrap gap-1">
+            <button onClick={()=>setSection("overview")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="overview"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Overview</button>
+            <button onClick={()=>setSection("performance")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="performance"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Performance</button>
+            <button onClick={()=>setSection("craftedfc")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="craftedfc"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>CraftedFC</button>
+            <button onClick={()=>setSection("compare")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="compare"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Compare</button>
+          </div>
+          {section==="overview"&&<CraftedfcOverview snapshot={cfcSnapshot} status={cfcStatus} fotmobRating={estimatedRating}/>}
+          {section==="craftedfc"&&<CraftedfcAnalysis snapshot={cfcSnapshot} status={cfcStatus}/>}
+          {section==="compare"&&<CraftedfcCompare snapshot={cfcSnapshot} status={cfcStatus} fotmobSummary={{...sums,appearances:summaryBasics.appearances,minutes:summaryBasics.minutes}}/>}
+          {section==="performance"&&<>
           {inProgress&&<p className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">Temporada en curso: las estadísticas pueden cambiar y no representan el cierre definitivo.</p>}
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <h3 className="font-black text-[#123456]">{totalsTitle}</h3>
@@ -208,6 +224,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">{(r.metrics||[]).map((m,j)=><div key={j} className="rounded-lg bg-white px-3 py-2"><p className="text-[11px] text-slate-500">{metricLabel(m.name)}</p><p className="font-extrabold">{show(m.value,Number(m.value)%1?2:0)}</p></div>)}</div>
             </details>)}
           </section>}
+          </>}
         </div>
         <div className="flex justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3">
           <span className="text-xs text-slate-500">Fuente: archivos FotMob Studio · registros sujetos a revisión.</span>
