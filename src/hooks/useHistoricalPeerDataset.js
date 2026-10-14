@@ -4,6 +4,12 @@ import { buildHistoricalObservations } from "@/utils/historicalPeers";
 
 const unpack = response => Array.isArray(response) ? response : response?.items || response?.data || response?.results || [];
 const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
+const FIELDS={
+  Player:["id","name","position","position_raw"],
+  PlayerSeasonStats:["id","player_id","fotmob_player_id","season","competition","team_id","fotmob_team_id","minutes","appearances","rating","team_matches","metrics"],
+  PlayerHistoricalValuation:["id","player_id","season","fifa_fc_overall","transfermarkt_value_eur"],
+  TeamSeasonMatches:["id","team_id","fotmob_team_id","season","competition","team_matches"],
+};
 const limited = err => /rate limit|too many requests|429/i.test(String(err?.message||err)) ||
   err?.status === 429 || err?.response?.status === 429;
 async function readPage(query){
@@ -21,7 +27,7 @@ async function allRecords(entityName, maxRecords=20000){
   let cursor=null;
   const cursors=new Set();
   for(let index=0;index<Math.ceil(maxRecords/500);index++){
-    const options={limit:500,...(cursor?{cursor}:{})};
+    const options=cursor?{limit:500,cursor}:{limit:500,fields:FIELDS[entityName]};
     const response=await readPage(()=>base44.entities[entityName].list(options));
     const page=unpack(response);
     result.push(...page);
