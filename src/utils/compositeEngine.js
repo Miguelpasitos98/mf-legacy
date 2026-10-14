@@ -55,12 +55,36 @@ export function derivedCompositeValues(row){
     }
     return null;
   };
+  const value=names=>{
+    for(const n of names){
+      const v=map.get(metricName(n))?.value;
+      if(v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v)))return Number(v);
+    }
+    return null;
+  };
   const xgot=per90(["xGOT"]),npxg=per90(["xG excl. penalty","Non-penalty xG","npxG"]);
   const finishing=xgot===null||npxg===null?null:xgot-npxg;
   const minutes=row?.minutes,teamMatches=row?.team_matches;
   const playShare=Number.isFinite(Number(minutes))&&minutes!==null&&minutes!==""&&Number(teamMatches)>0
     ?Number(minutes)/(Number(teamMatches)*90)*100:null;
-  return {finishing_xgot_minus_npxg:finishing,play_share:playShare};
+  return {
+    npxg_p90:npxg,
+    xa_p90:per90(["xA","Expected assists"]),
+    xgot_p90:xgot,
+    shots_on_target_p90:per90(["Shots on target"]),
+    big_chances_created_p90:per90(["Big chances created"]),
+    possession_won_final_3rd_p90:per90(["Possession won final 3rd"]),
+    aerial_duels_won_pct:value(["Aerials won %","Aerial duels won %"]),
+    accurate_long_balls_p90:per90(["Accurate long balls"]),
+    successful_dribbles_p90:per90(["Dribbles","Successful dribbles"]),
+    dispossessed_p90:per90(["Dispossessed"]),
+    dribbled_past_p90:per90(["Dribbled past"]),
+    accurate_passes_p90:per90(["Accurate passes"]),
+    save_pct:value(["Save percentage","Save %","Saves %"]),
+    goals_prevented_p90:per90(["Goals prevented"]),
+    finishing_xgot_minus_npxg:finishing,
+    play_share:playShare
+  };
 }
 export function calculateCompositeMF(row,positionOrRole,percentilesOverride=null){
   const role=normalizeRole(positionOrRole)|| (COMPOSITE_ROLES.includes(positionOrRole)?positionOrRole:null);
