@@ -5,6 +5,42 @@ import { compareHistoricalObservation, historicalRole } from "@/utils/historical
 import { formatEur } from "@/utils/historicalValuation";
 const show=(v,d=2)=>v===null||v===undefined||!Number.isFinite(Number(v))?"—":
  Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
+// Reuse the same colour thresholds as the original CraftedFC breakdown.
+const strength = item => item.penalty ? 100-item.percentile : item.percentile;
+const barColor = value => value>=85?"bg-emerald-500":value>=65?"bg-cyan-500":
+  value>=40?"bg-sky-500":value>=20?"bg-amber-400":"bg-rose-400";
+const PercentileBar = ({item}) => {
+  if(item.percentile===null)return <span className="text-slate-400">—</span>;
+  const good=strength(item);
+  return <div className="inline-flex w-full items-center justify-end gap-2"
+    title={`Percentil bruto ${show(item.percentile,2)} de 100 · ${item.n} temporadas de ${item.nPlayers} jugadores${item.penalty?" · Indicador penalizado (menos es mejor)":""}`}>
+    <div className="h-2.5 w-full min-w-[65px] max-w-[116px] overflow-hidden rounded-full bg-slate-200"
+      role="meter" aria-label={`Percentil de ${item.name}`}
+      aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(item.percentile.toFixed(1))}>
+      <div className={`h-full rounded-full transition-all ${barColor(good)}`}
+        style={{width:Math.max(0,Math.min(100,item.percentile))+"%"}}/>
+    </div>
+    <span className="min-w-[46px] text-right font-extrabold tabular-nums text-slate-800">
+      {show(item.percentile,1)}<span className="text-slate-400">º</span>{item.provisional&&<span className="text-amber-600">*</span>}
+    </span>
+  </div>;
+};
+const PositionBar = ({item}) => {
+  if(item.rank===null)return <span className="text-slate-400">—</span>;
+  const good=strength(item);
+  return <div className="inline-flex w-full items-center justify-end gap-2"
+    title={`Puesto ${item.rank} de ${item.n} temporadas ST comparables en esta estadística. No es un ranking de ${item.n} jugadores distintos.`}>
+    <div className="h-2 w-full min-w-[40px] max-w-[65px] overflow-hidden rounded-full bg-slate-200"
+      role="meter" aria-label={`Posición histórica de ${item.name}`}
+      aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(good.toFixed(1))}>
+      <div className={`h-full rounded-full transition-all ${barColor(good)}`}
+        style={{width:Math.max(0,Math.min(100,good))+"%"}}/>
+    </div>
+    <span className="min-w-[59px] text-right font-bold tabular-nums text-slate-700">
+      {item.rank}º <span className="font-normal text-slate-400">/ {item.n}</span>
+    </span>
+  </div>;
+};
 export default function HistoricalPeerPreview({playerId,position="",seasons=[],initialSeason=""}){
   const [picked,setPicked]=useState("");
   const {data,error,isFetching,refetch}=useHistoricalPeerDataset();
@@ -90,11 +126,13 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           Percentiles provisionales: aún hay menos de 10 jugadores distintos del mismo arquetipo con datos de estas métricas. Las temporadas de un solo jugador no bastan para crear un percentil.
         </p>}
         <div className="max-h-[480px] overflow-auto rounded-lg border border-slate-200 bg-white">
-          <table className="w-full min-w-[635px] text-left text-xs">
+          <table className="w-full min-w-[840px] text-left text-xs">
             <thead className="sticky top-0 bg-[#eaf0f8]">
               <tr>
                 <th className="px-3 py-2">Indicador</th><th className="px-3 py-2 text-right">Tu valor (temporada)</th>
-                <th className="px-3 py-2 text-right">vs {result.role}</th><th className="px-3 py-2 text-right">Muestra (temporadas / jugadores)</th>
+                <th className="min-w-[155px] px-3 py-2 text-right">vs {result.role}</th>
+                <th className="min-w-[135px] px-3 py-2 text-right">Posición histórica</th>
+                <th className="px-3 py-2 text-right">Muestra (temp. / jugadores)</th>
                 <th className="px-3 py-2 text-right">Peso</th><th className="px-3 py-2 text-right">Aporta</th>
               </tr>
             </thead>
@@ -103,9 +141,8 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
               <td className="px-3 py-2 text-right tabular-nums text-slate-700">
                 {item.key==="market_value"?formatEur(item.value):show(item.value,item.key==="fc27_ovr"?0:2)}
               </td>
-              <td className="px-3 py-2 text-right font-bold tabular-nums text-[#003399]">
-                {item.percentile===null?"—":show(item.percentile,1)+"º"}{item.provisional?" *":""}
-              </td>
+              <td className="px-3 py-2 text-right"><PercentileBar item={item}/></td>
+              <td className="px-3 py-2 text-right"><PositionBar item={item}/></td>
               <td className="px-3 py-2 text-right tabular-nums text-slate-600">{item.n} / {item.nPlayers}</td>
               <td className="px-3 py-2 text-right tabular-nums text-slate-600">{item.weight===null?"—":(item.weight>0?"+":"")+item.weight+" %"}</td>
               <td className={"px-3 py-2 text-right font-bold tabular-nums "+(item.contribution<0?"text-rose-700":"text-emerald-700")}>
@@ -116,6 +153,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         </div>
         <p className="text-[11px] text-slate-600">
           Método: percentil histórico de rango medio (empates compartidos), dentro del mismo arquetipo; 0 es el mínimo observado y 100 el máximo. Para métricas por 90 se suman sus totales con minutos alineados. Los porcentajes son promedios ponderados por minutos, la nota por partidos. Las métricas faltantes no se convierten en cero. Los indicadores con peso negativo se penalizan más cuanto mayor sea su valor bruto. El arquetipo procede de la posición <strong>actual</strong> de la ficha, no de una posición histórica verificada.
+          {" "}Las barras recuperan los colores originales (verde: percentil favorable alto; amarillo/rojo: bajo); en pérdidas y otras penalizaciones se invierte el color porque menos es mejor, sin alterar el percentil bruto ni el cálculo de Aporta. «Posición histórica» indica el puesto entre temporadas con datos, no entre jugadores distintos; los empates comparten puesto.
           {" "}Los resultados cambian al ampliar nuestra base de datos y no están ajustados todavía por época ni fuerza de liga. * Menos de 10 jugadores distintos. Los indicadores con datos de un solo jugador no generan percentil.
         </p>
         <p className="flex items-center gap-2 text-[11px] text-slate-500">
