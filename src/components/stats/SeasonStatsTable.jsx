@@ -37,41 +37,43 @@ function ClubBadge({summary,onTeam}){
 }
 export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="rating",sortDirection="desc",onSort=()=>{},globalRanks=new Map(),playerRanks=new Map()}){
  const columns=config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen;
+ const divider=new Set(config.dividers?.season?.[category]||[]);
+ const line=id=>divider.has(id)?" border-r-[3px] border-r-blue-300":"";
  const filtered=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0);
  const pageRows=filtered.slice(page*50,(page+1)*50);
  return <div>
   <div className="max-w-full overflow-x-auto">
    <table className="w-full min-w-[1040px] text-left text-xs">
     <thead className="bg-[#003399] text-white"><tr>
-     <th className="px-3 py-3 text-center" title="Posición entre las temporadas del mismo jugador (posición entre todos los jugadores)">RANK</th>
-     <SortHeader column="player" label="JUGADOR" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className="min-w-44"/>
-     <SortHeader column="season" label="TEMPORADA" active={sortKey} direction={sortDirection} onSort={onSort} align="left"/>
-     <SortHeader column="club" label="CLUB PRINCIPAL" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className="min-w-44"/>
-     <SortHeader column="appearances" label="PJ" active={sortKey} direction={sortDirection} onSort={onSort}/>
-     <SortHeader column="minutes" label="MIN" active={sortKey} direction={sortDirection} onSort={onSort}/>
-     <SortHeader column="rating" label="NOTA MEDIA" active={sortKey} direction={sortDirection} onSort={onSort}/>
-     {columns.map(k=><SortHeader key={k} column={k} label={getColumn(config,k)?.name||labels[k]||metricLabel(k)} active={sortKey} direction={sortDirection} onSort={onSort}/>)}
+     <th className={"px-3 py-3 text-center"+line("rank")} title="Posición entre las temporadas del mismo jugador (posición entre todos los jugadores)">RANK</th>
+     <SortHeader column="player" label="JUGADOR" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={"min-w-44"+line("player")}/>
+     <SortHeader column="season" label="TEMPORADA" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={line("season")}/>
+     <SortHeader column="club" label="CLUB PRINCIPAL" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={"min-w-44"+line("club")}/>
+     <SortHeader column="appearances" label="PJ" active={sortKey} direction={sortDirection} onSort={onSort} className={line("appearances")}/>
+     <SortHeader column="minutes" label="MIN" active={sortKey} direction={sortDirection} onSort={onSort} className={line("minutes")}/>
+     <SortHeader column="rating" label="NOTA MEDIA" active={sortKey} direction={sortDirection} onSort={onSort} className={line("rating")}/>
+     {columns.map(k=><SortHeader key={k} column={k} label={getColumn(config,k)?.name||labels[k]||metricLabel(k)} active={sortKey} direction={sortDirection} onSort={onSort} className={line(k)}/>)}
      <th className="px-3 py-3">DETALLE</th>
     </tr></thead>
     <tbody>{pageRows.map(({summary,player},i)=>{
      const name=player?.name||summary?.player_name||"Jugador";
-     if(!summary)return <tr key={String(player?.id||i)} className="border-b border-slate-100 text-xs"><td className="whitespace-nowrap px-2 py-3 text-center"><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td><td className="px-3 py-2"><div className="flex items-center gap-2"><PlayerPhoto player={player} name={name}/><span className="font-semibold text-slate-700">{name}</span></div></td><td colSpan={6+columns.length} className="px-3 py-3 text-slate-400">Sin estadísticas importadas para esta temporada</td></tr>;
+     if(!summary)return <tr key={String(player?.id||i)} className="border-b border-slate-100 text-xs"><td className={"whitespace-nowrap px-2 py-3 text-center"+line("rank")}><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td><td className="px-3 py-2"><div className="flex items-center gap-2"><PlayerPhoto player={player} name={name}/><span className="font-semibold text-slate-700">{name}</span></div></td><td colSpan={6+columns.length} className="px-3 py-3 text-slate-400">Sin estadísticas importadas para esta temporada</td></tr>;
      return <tr key={summary.id} className="border-b border-slate-100 align-middle odd:bg-white even:bg-[#f6f8f6] hover:bg-[#edf3fb]">
-      <td className="whitespace-nowrap px-2 py-3 text-center"><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td>
-      <td className="px-3 py-2"><button onClick={()=>onOpen(summary,player)} className="flex items-center gap-2 text-left">
+      <td className={"whitespace-nowrap px-2 py-3 text-center"+line("rank")}><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td>
+      <td className={"px-3 py-2"+line("player")}><button onClick={()=>onOpen(summary,player)} className="flex items-center gap-2 text-left">
        <PlayerPhoto player={player} name={name}/><span className="font-extrabold text-[#0f3156] hover:underline">{name}</span>
       </button></td>
-      <td className="whitespace-nowrap px-3 py-3 font-semibold">{summary.season}{seasonActive(summary.season)&&<span className="ml-1 text-[10px] font-normal text-blue-700">(en curso)</span>}</td>
-      <td className="px-3 py-3"><ClubBadge summary={summary} onTeam={onTeam}/></td>
-      <td className="px-3 py-3 text-right">{fmt(statDisplay(summary,"appearances"))}</td>
-      <td className="px-3 py-3 text-right">{fmt(statDisplay(summary,"minutes"))}</td>
-      <td className="px-3 py-3 text-right font-bold"><span title="Estimación ponderada por partidos; no es el índice Crafted.">{fmt(statDisplay(summary,"rating"),2)}{summary.ratingPartial?"*":""}</span></td>
+      <td className={"whitespace-nowrap px-3 py-3 font-semibold"+line("season")}>{summary.season}{seasonActive(summary.season)&&<span className="ml-1 text-[10px] font-normal text-blue-700">(en curso)</span>}</td>
+      <td className={"px-3 py-3"+line("club")}><ClubBadge summary={summary} onTeam={onTeam}/></td>
+      <td className={"px-3 py-3 text-right"+line("appearances")}>{fmt(statDisplay(summary,"appearances"))}</td>
+      <td className={"px-3 py-3 text-right"+line("minutes")}>{fmt(statDisplay(summary,"minutes"))}</td>
+      <td className={"px-3 py-3 text-right font-bold"+line("rating")}><span title="Estimación ponderada por partidos; no es el índice Crafted.">{fmt(statDisplay(summary,"rating"),2)}{summary.ratingPartial?"*":""}</span></td>
       {columns.map(k=>{
        const value=columnValue(summary,"season",k,config);
        const coverage=formulaCoverage(summary,"season",k,config);
        const partial=coverage?coverage.available<coverage.total:summary.totals[k]?.partial;
        const hint=coverage?coverage.available+" de "+coverage.total+" competiciones · "+coverage.minutes.toLocaleString("es-ES")+" minutos disponibles para esta fórmula":partial?"Subtotal parcial: faltan estadísticas":undefined;
-       return <td key={k} className="px-3 py-3 text-right" title={hint}>{fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
+       return <td key={k} className={"px-3 py-3 text-right"+line(k)} title={hint}>{fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
       })}
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
