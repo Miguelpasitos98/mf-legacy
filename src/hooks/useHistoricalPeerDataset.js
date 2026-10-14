@@ -30,7 +30,7 @@ async function allRecords(entityName, maxRecords=20000){
       if(next===cursor||cursors.has(next))throw Error("Paginación inconsistente en "+entityName);
       cursors.add(next);cursor=next;
     }else{
-      if(page.length===500 && response?.has_more!==false)throw Error("No se puede confirmar que se hayan leído todos los registros de "+entityName+". No se calcularán percentiles incompletos.");
+      if(response?.has_more===true || (page.length===500 && response?.has_more!==false))throw Error("No se puede confirmar que se hayan leído todos los registros de "+entityName+". No se calcularán percentiles incompletos.");
       return result;
     }
     if(page.length===0)throw Error("Página vacía con más registros pendientes en "+entityName);
