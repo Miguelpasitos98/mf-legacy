@@ -22,6 +22,7 @@ export default function ImportUnified() {
   const [fileName,setFileName] = useState("");
   const [batch,setBatch] = useState(null);
   const [fileErrors,setFileErrors] = useState([]);
+  const [importWarnings,setImportWarnings] = useState([]);
   const [error,setError] = useState("");
   const [allowUnlinked,setAllowUnlinked] = useState(false);
   const [updateExisting,setUpdateExisting] = useState(false);
@@ -73,14 +74,19 @@ export default function ImportUnified() {
     const files=Array.from(evt.target.files||[]); evt.target.value="";
     if(!files.length)return;
     setFileName(files.length===1?files[0].name:files.length+" archivos JSON");setBatch(null);
-    setFileErrors([]);setError("");setProgress({done:0,total:0});
+    setFileErrors([]);setImportWarnings([]);setError("");setProgress({done:0,total:0});
     if(files.length>20||files.reduce((sum,f)=>sum+f.size,0)>30*1024*1024){
       setError("Selecciona como máximo 20 archivos y 30 MB en total por operación, para evitar bloquear Chrome.");return;
     }
     try{
-      const records=[],errors=[],seen=new Set();
+      const records=[],errors=[],warnings=[],seen=new Set();
       for(const file of files){
-        const result=parseUnifiedBatch(JSON.parse((await file.text()).replace(/^\uFEFF/,"")));
+        const input=JSON.parse((await file.text()).replace(/^\uFEFF/,""));
+        const result=parseUnifiedBatch(input);
+        const pending=Array.isArray(input.pending_team_review)?input.pending_team_review.length:0;
+        if(pending)warnings.push(`${file.name}: ${pending} historiales con equipo sin confirmar permanecen fuera de la importación. Revísalos en el JSON original.`);
+        if(input.validated_for_direct_bulk_import===false)warnings.push(`${file.name}: el exportador ha marcado este lote como pendiente de validación. Revisa especialmente las parejas club-temporada antes de aplicar cambios.`);
+        if(Array.isArray(input.summary?.conflicts_kept)&&input.summary.conflicts_kept.length)warnings.push(`${file.name}: ${input.summary.conflicts_kept.length} diferencias de fuente conservadas para revisión, sin sobrescribir automáticamente.`);
         for(const problem of result.errors)errors.push(file.name+": "+problem);
         for(const row of result.records){
           const key=row.external_key||row.external_record_id;
@@ -88,7 +94,7 @@ export default function ImportUnified() {
           else{seen.add(key);records.push(row);}
         }
       }
-      setBatch({records});setFileErrors(errors);
+      setBatch({records});setFileErrors(errors);setImportWarnings(warnings);
     }catch(e){setError(e.message);}
   };
 
@@ -256,6 +262,7 @@ export default function ImportUnified() {
 
       {error&&<div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 flex gap-2"><AlertTriangle size={18}/><span className="text-sm">{error}</span></div>}
       {fileErrors.length>0&&<div className="p-4 rounded-lg bg-amber-50 border border-amber-200"><p className="font-semibold text-amber-900">Errores del archivo ({fileErrors.length}); no se puede importar hasta corregirlos</p>{fileErrors.slice(0,8).map((s,i)=><p className="text-xs mt-1" key={i}>{s}</p>)}</div>}
+      {importWarnings.length>0&&<div className="p-4 rounded-lg bg-amber-50 border border-amber-200"><p className="font-semibold text-amber-900 flex gap-2 items-center"><AlertTriangle size={17}/> Avisos del archivo: revisión necesaria antes de importar</p>{importWarnings.map((s,i)=><p className="text-xs text-amber-900 mt-1" key={i}>{s}</p>)}</div>}
 
       {!!prepared.length && <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
         <h2 className="font-bold">2. Revisar el contenido</h2>
