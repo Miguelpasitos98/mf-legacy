@@ -129,21 +129,21 @@ export default function CraftedfcAnalysis({ snapshot, status, fotmobRows=[], pos
         {!!breakdownRows.length&&<div className="mt-4 max-h-[430px] overflow-auto rounded-lg border border-slate-200 bg-white">
           <table className="w-full min-w-[600px] text-left text-xs">
             <thead className="sticky top-0 bg-[#eaf0f8] text-slate-700">
-              <tr><th className="px-3 py-2">Indicador</th><th className="px-3 py-2 text-right">Valor calculado</th><th className="px-3 py-2 text-right">Percentil FotMob</th><th className="px-3 py-2 text-right">Peso observado</th><th className="px-3 py-2 text-right">Aportación</th></tr>
+              <tr><th className="px-3 py-2">Indicador</th><th className="px-3 py-2 text-right">Valor FotMob / derivado</th><th className="px-3 py-2 text-right">Percentil FotMob</th><th className="px-3 py-2 text-right">Peso observado</th><th className="px-3 py-2 text-right">Aportación</th></tr>
             </thead>
             <tbody>{breakdownRows.map(r=><tr key={r.key} className={"border-t border-slate-100 "+(r.percentile===null?"text-slate-400":"text-slate-800")}>
-              <td className="px-3 py-2 font-semibold">{r.name}</td><td className="px-3 py-2 text-right">{show(r.derivedValue, r.key==="play_share"?2:3)}{r.derivedValue!==null&&r.derivedValue!==undefined&&r.key==="play_share"?" %":""}</td><td className="px-3 py-2 text-right">{show(r.percentile,1)}</td><td className="px-3 py-2 text-right">{r.weight>0?"+":""}{r.weight} %</td><td className="px-3 py-2 text-right">{show(r.contribution,2)}</td>
+              <td className="px-3 py-2 font-semibold">{r.name}</td><td className="px-3 py-2 text-right">{show(r.derivedValue, r.key==="play_share"?2:3)}{r.derivedValue!==null&&r.derivedValue!==undefined&&["play_share","aerial_duels_won_pct","ground_duels_won_pct","save_pct"].includes(r.key)?" %":""}</td><td className="px-3 py-2 text-right">{show(r.percentile,1)}</td><td className="px-3 py-2 text-right">{r.weight>0?"+":""}{r.weight} %</td><td className="px-3 py-2 text-right">{show(r.contribution,2)}</td>
             </tr>)}</tbody>
           </table>
         </div>}
-        <p className="mt-3 text-[11px] text-slate-500">Método: suma de aportaciones ponderadas (con penalizaciones negativas), normalizada por los pesos disponibles. Los valores derivados de Finalización y Play Share se calculan desde FotMob (Play Share usa PJ equipo × 90 como aproximación), pero no generan percentiles ni aportaciones hasta disponer de comparaciones válidas. El percentil de FotMob no representa necesariamente el mismo grupo de comparación que CraftedFC. Los pesos de Rating no visibles se infieren como diferencia hasta 100 % a partir de las capturas, no como especificación oficial.</p>
+        <p className="mt-3 text-[11px] text-slate-500">Método: suma de aportaciones ponderadas (con penalizaciones negativas), normalizada por los pesos disponibles. Los valores disponibles por 90 y porcentajes proceden del registro FotMob de esta competición; Finishing y Play Share se derivan de él (Play Share usa PJ equipo × 90 como aproximación). Los derivados sin percentil no generan aportaciones hasta disponer de comparaciones válidas. El percentil de FotMob no representa necesariamente el mismo grupo de comparación que CraftedFC. Los pesos de Rating no visibles se infieren como diferencia hasta 100 % a partir de las capturas, no como especificación oficial.</p>
       </section>
 
       {/* Estadísticas avanzadas disponibles en el snapshot */}
       {advancedEntries.length > 0 && (
         <div>
           <h4 className="mb-2 text-xs font-black uppercase tracking-widest text-slate-600">
-            Estadísticas avanzadas (por 90, porcentajes y otros indicadores)
+            CraftedFC — snapshot global (no necesariamente esta temporada)
           </h4>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {advancedEntries.map(([key, value]) => (
