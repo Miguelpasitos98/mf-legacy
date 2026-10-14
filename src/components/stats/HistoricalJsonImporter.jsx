@@ -141,56 +141,86 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
     setError(""); setNotice("");
     let created = 0; let updated = 0; let unchanged = 0;
     const failures = [];
-    for (let i = 0; i < selected.length; i++) {
-      const item = selected[i];
-      setProgress("Guardando " + (i + 1) + "/" + selected.length + ": " + item.label);
-      try {
-        if (item.type === "valuation") {
-          const found = unpack(await base44.entities.PlayerHistoricalValuation.filter(
-            { player_id: playerId, season: item.season }, { limit: 5 }
-          ));
-          if (found.length > 1) throw Error("Registros duplicados en Base44.");
-          const old = found[0] || null;
-          if (Boolean(old) !== Boolean(item.existing)) throw Error("Este dato cambió desde la vista previa. Vuelve a analizar.");
-          if (old && item.existing && Object.keys(item.payload).some(
-            (field) => text(old[field]) !== text(item.existing[field])
-          )) throw Error("El registro cambió desde la vista previa. Vuelve a analizar.");
-          if (old) {
-            const changes = rowChanges(item.payload, old, "valuation");
-            if (!changes.changes.length) { unchanged++; continue; }
-            await base44.entities.PlayerHistoricalValuation.update(old.id, {
-              ...item.payload, verification_status: "pending",
-            });
-            updated++;
-          } else {
-            await base44.entities.PlayerHistoricalValuation.create({
-              player_id: playerId, fotmob_player_id: fotmobId,
-              season: item.season, ...item.payload, verification_status: "pending",
-            });
-            created++;
-          }
-        } else {
-          const p = item.payload;
-          const found = await fetchTeamMatchesFor(p);
-          if (found.length > 1) throw Error("Registros duplicados en Base44.");
-          const old = found[0] || null;
-          if (Boolean(old) !== Boolean(item.existing)) throw Error("Este dato cambió desde la vista previa. Vuelve a analizar.");
-          if (old && item.existing && Number(old.team_matches) !== Number(item.existing.team_matches))
-            throw Error("PJ Equipo cambió desde la vista previa. Vuelve a analizar.");
-          if (old) {
-            if (Number(old.team_matches) === p.team_matches) { unchanged++; continue; }
-            await base44.entities.TeamSeasonMatches.update(old.id, {
-              team_matches: p.team_matches, source: p.source, verification_status: "pending",
-            });
-            updated++;
-          } else {
-            await base44.entities.TeamSeasonMatches.create({ ...p, verification_status: "pending" });
-            created++;
-          }
+    let haltMessage = "";
+    try {
+      setProgress("Comprobando qué registros ya existen…");
+      const freshSnapshot = await fetchSnapshot(selected, playerId, setProgress);
+      const liveRows = decorateRows(selected, freshSnapshot);
+      const queue = [];
+      for (let i = 0; i < selected.length; i++) {
+        const old = selected[i];
+        const live = liveRows[i];
+        if (live.errors.length) {
+          failures.push(old.label + ": " + live.errors.join(" "));
+          continue;
         }
-      } catch (err) {
-        failures.push(item.label + ": " + (err?.message || "Error de permisos o conexión"));
+        if (old.existing) {
+          if (old.existing.id !== live.existing?.id) {
+            failures.push(old.label + ": el registro original ya no coincide. Vuelve a analizar.");
+            continue;
+          }
+          if (Object.keys(old.payload).some(field => text(old.existing[field]) !== text(live.existing[field]))
+              && live.status !== "same") {
+            failures.push(old.label + ": modificado desde la vista previa. Vuelve a analizar.");
+            continue;
+          }
+        } else if (live.existing && live.status !== "same") {
+          failures.push(old.label + ": apareció otro valor. Vuelve a analizar.");
+          continue;
+        }
+        if (live.status === "same") { unchanged++; continue; }
+        queue.push({ ...live, status: old.existing ? "update" : "new" });
       }
+
+      const actions = [];
+      for (const type of ["valuation", "team"]) {
+        const newItems = queue.filter(item => item.type === type && item.status === "new");
+        for (let i = 0; i < newItems.length; i += 10)
+          actions.push({ type, action: "create", items: newItems.slice(i, i + 10) });
+      }
+      for (const item of queue.filter(item => item.status === "update"))
+        actions.push({ type: item.type, action: "update", items: [item] });
+
+      for (let i = 0; i < actions.length; i++) {
+        const task = actions[i];
+        const entity = base44.entities[task.type === "valuation"
+          ? "PlayerHistoricalValuation" : "TeamSeasonMatches"];
+        setProgress("Guardando grupo " + (i + 1) + "/" + actions.length +
+          " · " + (created + updated + unchanged) + "/" + selected.length + " registros.");
+        try {
+          if (task.action === "create") {
+            const payload = task.items.map(item => item.type === "valuation"
+              ? { player_id: playerId, fotmob_player_id: fotmobId,
+                  season: item.season, ...item.payload, verification_status: "pending" }
+              : { ...item.payload, verification_status: "pending" });
+            // API nativa de Base44: una petición por 10 registros.
+            const result = await entity.bulkCreate(payload);
+            if (!Array.isArray(result) || result.length !== payload.length)
+              throw Error("El servidor no confirmó todos los registros del grupo.");
+            created += payload.length;
+          } else {
+            const item = task.items[0];
+            const patch = task.type === "valuation"
+              ? { ...item.payload, verification_status: "pending" }
+              : { team_matches: item.payload.team_matches,
+                  source: item.payload.source, verification_status: "pending" };
+            await entity.update(item.existing.id, patch);
+            updated++;
+          }
+        } catch (err) {
+          haltMessage = isRateLimited(err)
+            ? "Base44 ha impuesto un límite temporal. El guardado se ha detenido para no duplicar datos. Espera un minuto y pulsa Analizar JSON para reanudar solo lo pendiente."
+            : "No se pudo confirmar un grupo. Pulsa Analizar JSON para comprobar lo guardado antes de reintentar.";
+          failures.push("Grupo " + (i + 1) + ": " + (err?.message || "Error de conexión"));
+          break;
+        }
+        if (i < actions.length - 1) await sleep(1600);
+      }
+    } catch (err) {
+      haltMessage = isRateLimited(err)
+        ? "Base44 está limitando las consultas. Espera un minuto y vuelve a analizar el mismo JSON."
+        : "No se ha podido verificar el estado actual de los registros; no se han iniciado nuevas escrituras.";
+      failures.push(err?.message || "Error de conexión");
     }
     setProgress(""); setSaving(false);
     if (created + updated > 0) onSaved?.();
