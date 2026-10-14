@@ -1,5 +1,6 @@
 // Resúmenes de temporada derivados. No se guardan ni alteran registros FotMob.
 import {aggregate, groupStatRows, metricsValue, nationalCompetition, norm, resolveTeam, statNum} from "./statsViews.js";
+import {alignedFormulaInputs} from "./statsAligned.js";
 
 const SUM_KEYS=["appearances","minutes","goals","assists","xg","xa","shots","shotsontarget","xgot","tackles","recoveries","interceptions","clearances","cleansheets","chancescreated","bigchancescreated","accuratepasses","successfulcrosses","saves","goalsconcededwhileonpitch","totaldistancecovered","numberofsprints","xgexclpenalty","headedshots","walking","jogging","running","sprinting","accuratelongballs","linebreakingpasses","dribbles","duelswon","aerialswon","touches","touchesinoppositionbox","dispossessed","foulswon","foulscommitted","defensiveactions","blockedscoringattempt","possessionwonfinal3rd","dribbledpast","xgagainstwhileonpitch","yellowcards","redcards","penaltygoals","penaltiesawarded","started","team_matches"];
 const groupId=row=>String(row.player_id||row.fotmob_player_id||"");
@@ -8,7 +9,7 @@ export function seasonSummary(rows,teams=[]){
  const allClubRecords=groupStatRows(rows).filter(r=>!nationalCompetition(r.competition));
  // No mezclar fichas incompletas (p. ej. una copa sin PJ ni minutos) con los
  // totales de rendimiento de una temporada. Permanecen en el desglose.
- const records=allClubRecords.filter(r=>statNum(r.minutes)>0&&statNum(r.appearances)>0);
+ const records=allClubRecords;
  if(!records.length){
   const first=allClubRecords[0];
   if(!first)return null;
@@ -38,12 +39,11 @@ export function seasonSummary(rows,teams=[]){
  }
  const ordered=[...clubs.values()].sort((a,b)=>b.minutes-a.minutes||b.matches-a.matches||a.team.name.localeCompare(b.team.name,"es"));
  const mainClub=ordered[0]?.team||null;
- // Los ratios solo se presentan cuando TODOS los registros contienen los datos necesarios.
+ // Cada ratio utiliza únicamente competiciones con esa métrica Y minutos válidos.
  const minutes=totals.minutes;
  const safePer90=key=>{
-  const metric=totals[key];
-  if(!metric||metric.value===null||metric.partial||!minutes||minutes.partial||!Number.isFinite(minutes.value)||minutes.value<=0)return null;
-  return metric.value*90/minutes.value;
+  const aligned=alignedFormulaInputs(records,[key,"minutes"]);
+  return aligned.available&&aligned.totals.minutes>0?aligned.totals[key]*90/aligned.totals.minutes:null;
  };
  const goals=totals.goals,assists=totals.assists,xg=totals.xg,xa=totals.xa;
  const combined=(one,two)=>{
@@ -51,9 +51,9 @@ export function seasonSummary(rows,teams=[]){
   return {value:one.value+two.value,partial:one.partial||two.partial};
  };
  const ga=combined(goals,assists),xga=combined(xg,xa);
- const per90combined=combinedTotal=>{
-  if(!combinedTotal||combinedTotal.partial||minutes.value===null||minutes.partial||minutes.value<=0)return null;
-  return combinedTotal.value*90/minutes.value;
+ const per90combined=(keys)=>{
+  const aligned=alignedFormulaInputs(records,[...keys,"minutes"]);
+  return aligned.available&&aligned.totals.minutes>0?keys.reduce((n,key)=>n+aligned.totals[key],0)*90/aligned.totals.minutes:null;
  };
  return {
   id:groupId(records[0])+"|"+season,
@@ -69,8 +69,8 @@ export function seasonSummary(rows,teams=[]){
   goalsAndAssists:ga, xgAndXa:xga,
   per90:{
    goals:safePer90("goals"),assists:safePer90("assists"),xg:safePer90("xg"),xa:safePer90("xa"),
-   ga:per90combined(ga),
-   xga:per90combined(xga)
+   ga:per90combined(["goals","assists"]),
+   xga:per90combined(["xg","xa"])
   },
   // Identifica si hay competiciones incompletas, no afirma haber encontrado todas.
   partial:Object.values(totals).some(v=>v.partial), excludedCompetitions:allClubRecords.length-records.length
