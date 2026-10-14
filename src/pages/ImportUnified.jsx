@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo, useState} from "react";
 import {base44} from "@/api/base44Client";
 import {AlertTriangle, CheckCircle2, CloudUpload, Database, FileJson, ShieldCheck, Loader2, Download, RefreshCw} from "lucide-react";
-import {parseUnifiedBatch, rowsFromResponse, UNIFIED_BATCH_SCHEMA} from "@/utils/unifiedImport";
+import {parseUnifiedBatch, rowsFromResponse} from "@/utils/unifiedImport";
 import {assessHistoricalEnrichment} from "@/utils/statsEnrichment";
 
 const localDate = () => new Date().toISOString().slice(0, 10);
