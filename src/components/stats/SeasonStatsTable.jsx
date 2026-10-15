@@ -18,7 +18,7 @@ export const seasonColumns={
  Físico:["totaldistancecovered","numberofsprints"]
 };
 const labels={ga:"G + A",gaper90:"G + A /90",xgaper90:"xG + xA /90",xga:"xG + xA",goalsper90:"Goles /90",assistsper90:"Asist. /90",xgper90:"xG /90",xaper90:"xA /90",totaldistancecovered:"Distancia (m)",numberofsprints:"Sprints",goalsconcededwhileonpitch:"Goles encajados (en campo)"};
-const shortSeason=s=>String(s||"").replace(/^(\d{4})[/-](\d{2})\d{2}$/,(_,a,b)=>a+"/"+b).replace(/^(\d{4})[/-]\d{2}(\d{2})$/,(_,a,b)=>a+"/"+b);
+const shortSeason=s=>String(s||"").replace(/^(\d{4})[/-](\d{4})$/,(_,start,end)=>start+"/"+end.slice(-2));
 const fmt=(v,d=0)=>v===null||v===undefined||v===""||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
 const dec=k=>["xg","xa","xga","gaper90","xgaper90","goalsper90","assistsper90","xgper90","xaper90"].includes(k);
 function PlayerPhoto({player,name}){
