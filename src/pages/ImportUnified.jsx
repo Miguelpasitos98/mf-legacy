@@ -3,6 +3,7 @@ import {base44} from "@/api/base44Client";
 import {AlertTriangle, CheckCircle2, CloudUpload, Database, FileJson, ShieldCheck, Loader2, Download, RefreshCw} from "lucide-react";
 import {parseUnifiedBatch, rowsFromResponse} from "@/utils/unifiedImport";
 import {assessHistoricalEnrichment} from "@/utils/statsEnrichment";
+import {importFullStudioFile} from "@/utils/studioFullImportUploader";
 
 const localDate = () => new Date().toISOString().slice(0, 10);
 const number = v => (v == null ? "—" : Number(v).toLocaleString("es-ES"));
@@ -37,6 +38,7 @@ export default function ImportUnified({onImported}) {
   const [plan,setPlan] = useState(null);
   const [progress,setProgress] = useState({done:0,total:0});
   const [report,setReport] = useState(null);
+  const [fullSource,setFullSource] = useState(null);
 
   useEffect(()=>{
     let live=true;
@@ -119,7 +121,7 @@ export default function ImportUnified({onImported}) {
       setIdentityNotice("Jugador vinculado. Continuando la importación…");
       setSuggestedPlayerId("");
       if(batch?.records?.length&&!fileErrors.length){
-        await autoImport(batch,fileName);
+        await autoImport(batch,fileName,fullSource);
       }
     }catch(e){setError("No se completó la vinculación: "+e.message);}
     finally{setCreatingPlayer(false);}
@@ -144,7 +146,7 @@ export default function ImportUnified({onImported}) {
   const handleFile = async evt => {
     const files=Array.from(evt.target.files||[]); evt.target.value="";
     if(!files.length)return;
-    setFileName(files.length===1?files[0].name:files.length+" archivos JSON");setBatch(null);
+    setFileName(files.length===1?files[0].name:files.length+" archivos JSON");setBatch(null);setFullSource(null);
     setFileErrors([]);setImportWarnings([]);setError("");setProgress({done:0,total:0});
     if(files.length>20||files.reduce((sum,f)=>sum+f.size,0)>30*1024*1024){
       setError("Selecciona como máximo 20 archivos y 30 MB en total por operación, para evitar bloquear Chrome.");return;
@@ -152,7 +154,9 @@ export default function ImportUnified({onImported}) {
     try{
       const records=[],errors=[],warnings=[],seen=new Set();
       for(const file of files){
-        const input=JSON.parse((await file.text()).replace(/^\uFEFF/,""));
+        const sourceText=(await file.text()).replace(/^\uFEFF/,"");
+        const input=JSON.parse(sourceText);
+        if(files.length===1)setFullSource({input,sourceText,fileName:file.name});
         const result=parseUnifiedBatch(input);
         const pending=Array.isArray(input.pending_team_review)?input.pending_team_review.length:0;
         if(pending)warnings.push(`${file.name}: ${pending} historiales con equipo no identificado se omiten automáticamente; los demás se importan.`);
@@ -170,7 +174,7 @@ export default function ImportUnified({onImported}) {
         setBusy(true);
         setError("");
         try{
-          await autoImport({records},files[0].name);
+          await autoImport({records},files[0].name,files.length===1?{input:JSON.parse((await files[0].text()).replace(/^\uFEFF/,"")),sourceText:(await files[0].text()).replace(/^\uFEFF/,"")}:null);
         }catch(autoError){
           setError("Importación automática pendiente: "+(autoError?.message||autoError)+". Puedes revisar los datos manualmente.");
         }finally{setBusy(false);}
@@ -315,7 +319,7 @@ export default function ImportUnified({onImported}) {
     setAuthorized(false);setPlan(null);setBusy(false);
   };
 
-  const autoImport = async (parsed, filenameForRun) => {
+  const autoImport = async (parsed, filenameForRun, fullJson=null) => {
     if(isAdmin!==true)throw Error("Necesitas permisos de administrador.");
     const safeRows=parsed.records;
     const playerIds=[...new Set(safeRows.filter(r=>r.kind==="player"||r.kind==="season")
@@ -396,7 +400,7 @@ export default function ImportUnified({onImported}) {
   const runAgain=async()=>{
     if(!batch?.records?.length||fileErrors.length||busy||isAdmin!==true)return;
     setBusy(true);setError("");setReport(null);
-    try{await autoImport(batch,fileName);}catch(e){setError("No se pudo completar automáticamente: "+(e?.message||e));}
+    try{await autoImport(batch,fileName,fullSource);}catch(e){setError("No se pudo completar automáticamente: "+(e?.message||e));}
     finally{setBusy(false);}
   };
   const failures=(report?.items||[]).filter(x=>x.status==="error");
