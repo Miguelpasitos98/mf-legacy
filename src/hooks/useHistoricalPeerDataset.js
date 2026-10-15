@@ -6,14 +6,16 @@ const unpack = response => Array.isArray(response) ? response : response?.items 
 const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
 const FIELDS={
   Player:["id","name","position","position_raw"],
-  PlayerSeasonStats:["id","player_id","fotmob_player_id","season","competition","team_id","fotmob_team_id","minutes","appearances","rating","team_matches","metrics"],
+  PlayerSeasonStats:["id","player_id","fotmob_player_id","season","competition","team_id","fotmob_team_id","team_name","minutes","appearances","rating","team_matches","metrics"],
   PlayerHistoricalValuation:["id","player_id","season","fifa_fc_overall","transfermarkt_value_eur","fifa_fc_position","historical_position_override","competition_positions"],
   TeamSeasonMatches:["id","team_id","fotmob_team_id","season","competition","team_matches"],
+  Team:["id","name","fotmob_id"],
+  TeamSeasonPossession:["id","team_id","fotmob_team_id","season","competition","team_possession_pct"],
 };
 const limited = err => /rate limit|too many requests|429/i.test(String(err?.message||err)) ||
   err?.status === 429 || err?.response?.status === 429;
 const timeout = err => /query timed out|timeout|timed out|504|gateway timeout/i.test(String(err?.message||err)) || err?.status===504;
-const PAGE_SIZE={Player:300,PlayerSeasonStats:120,PlayerHistoricalValuation:250,TeamSeasonMatches:250};
+const PAGE_SIZE={Player:300,PlayerSeasonStats:120,PlayerHistoricalValuation:250,TeamSeasonMatches:250,Team:200,TeamSeasonPossession:250};
 async function readPage(query){
   // Retry ONLY the unsuccessful page. Never restart the entire population
   // or silently return a truncated dataset after a temporary timeout.
