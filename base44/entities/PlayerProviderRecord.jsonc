@@ -70,6 +70,24 @@
     },
     "source_verified": {
       "type": "boolean"
+    },
+    "fifa_fc_overall": {
+      "type": "number"
+    },
+    "fifa_fc_position": {
+      "type": "string"
+    },
+    "transfermarkt_value_eur": {
+      "type": "number"
+    },
+    "transfermarkt_date": {
+      "type": "string"
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
     }
   },
   "required": [
