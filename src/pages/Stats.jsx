@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { aggregate, defaultSeason, groupStatRows, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, ClipboardPaste, Copy, Database, Search, Shield, Settings2, Upload, X } from "lucide-react";
+import { ArrowRight, ClipboardPaste, Copy, Database, RefreshCw, Search, Shield, Settings2, Upload, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
 import { normalizeLabel, metricLabel } from "@/utils/statsImport";
@@ -30,6 +30,8 @@ import {metricName} from "@/utils/compositeEngine";
 import {buildSeasonSummaries} from "@/utils/statsSeason";
 import {patchHistoricalPeerCache,HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
+import {useStatsRows} from "@/hooks/useStatsRows";
+import {patchStatsCaches,STATS_DETAIL_KEY,STATS_ROWS_STALE_MS,STATS_CACHE_GC_MS,STATS_LAYOUT_KEY,statsDetailKey} from "@/utils/statsRowsCache";
 import {useCraftedfcSnapshot} from "@/hooks/useCraftedfcSnapshot";
 import MfLegacyOverview from "@/components/stats/MfLegacyOverview";
 import CraftedfcAnalysis from "@/components/stats/CraftedfcAnalysis";
@@ -53,51 +55,6 @@ const getMetric = (row,name) => {
   return m?num(m.value):null;
 };
 const CAT_TABS=["Resumen","Ataque","Creación","Defensa","Portería","Físico"];
-const useStatsRows=(season,competition,revision)=>{
-  const [fetched,setFetched]=useState([]);
-  const [next,setNext]=useState(null);
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState("");
-  const load=async(cursor=null)=>{
-    if(busy)return;
-    setBusy(true);setError("");
-    try{
-      const filter={};
-      if(season!=="Todas")filter.season=season;
-      if(competition!=="Todas")filter.competition=competition;
-      const args={limit:500,...(cursor?{cursor}:{})};
-      const r=Object.keys(filter).length?await base44.entities.PlayerSeasonStats.filter(filter,args):await base44.entities.PlayerSeasonStats.list(args);
-      const data=unpack(r).map(parseData);
-      setFetched(prev=>cursor?[...prev,...data]:data);
-      setNext(r?.next_cursor||r?.nextCursor||r?.cursor||null);
-    }catch(e){setError(e.message||String(e));}
-    finally{setBusy(false);}
-  };
-  useEffect(()=>{let ignore=false;setFetched([]);setNext(null);
-    const fetch=async()=>{setBusy(true);setError("");
-      try{
-        const filter={};if(season!=="Todas")filter.season=season;if(competition!=="Todas")filter.competition=competition;
-        let cursor=null,continuation=null,all=[];
-        // Todas las temporadas se cargan con paginación real de Base44.
-        // 40 páginas (20.000 registros) para evitar solicitudes interminables; el resto queda cargable manualmente.
-        for(let index=0;index<40&&!ignore;index++){
-          const options={limit:500,...(cursor?{cursor}:{})};
-          const response=Object.keys(filter).length?await base44.entities.PlayerSeasonStats.filter(filter,options):await base44.entities.PlayerSeasonStats.list(options);
-          const page=unpack(response).map(parseData);
-          all=all.concat(page);
-          const nextCursor=response?.next_cursor||response?.nextCursor||null;
-          continuation=nextCursor&&nextCursor!==cursor?nextCursor:null;
-          if(!ignore){setFetched([...all]);setNext(continuation);}
-          if(!continuation||page.length===0)break;
-          cursor=continuation;
-        }
-      }catch(e){if(!ignore)setError(e.message||String(e));}
-      finally{if(!ignore)setBusy(false);}
-    };fetch();return()=>{ignore=true;};
-  },[season,competition,revision]);
-  const applyLocalRecord=(id,patch)=>setFetched(old=>old.map(r=>String(r.id)===String(id)?{...r,...patch}:r));
-  return {rows:fetched,hasMore:Boolean(next),loadMore:()=>load(next),applyLocalRecord,busy,error};
-};
 function Avatar({name,photo,size="md"}) {
   const [broken,setBroken]=useState(false);
   const classes=size==="lg"?"h-16 w-16":"h-9 w-9";
@@ -353,8 +310,8 @@ export default function Stats(){
   const [season,setSeason]=useState("Todas"),[competition,setCompetition]=useState("Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||"");
   const [viewMode,setViewMode]=useState("season"),[minMinutes,setMinMinutes]=useState(0);
   const [seasonDisplay,setSeasonDisplay]=useState("all"),[bestMetric,setBestMetric]=useState("composite");
-  const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("composite"),[sortDirection,setSortDirection]=useState("desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[revision,setRevision]=useState(0),[page,setPage]=useState(0);
-  const {rows,hasMore,loadMore,applyLocalRecord,busy,error}=useStatsRows(season,competition,revision);
+  const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("composite"),[sortDirection,setSortDirection]=useState("desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[page,setPage]=useState(0);
+  const {rows,hasMore,loadMore,applyLocalRecord,refresh:refreshStats,busy,error,cached,refreshedAt}=useStatsRows(season,competition);
   const {data:peerDataset,isFetching:peerLoading,error:peerError}=useHistoricalPeerDataset(viewMode==="season");
   const compositeIndex=useMemo(()=>buildCompositeSeasonIndex(peerDataset?.observations||[]),[peerDataset]);
   const [columnConfig,setColumnConfig]=useState(initialConfig);
@@ -500,7 +457,6 @@ export default function Stats(){
     setColumnConfig(clean);setPrefsWarning("");
   };
   const importComplete=()=>{
-    setRevision(x=>x+1);
     queryClient.invalidateQueries({queryKey:["mf-legacy","stats"]});
     // After a multi-player import, a full population refresh IS necessary.
     queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
