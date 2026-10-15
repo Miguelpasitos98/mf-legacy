@@ -112,7 +112,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
     // Prompt completo: temporadas + formato exacto de respuesta (Overall,
     // posición FIFA de cada edición y valor de Transfermarkt).
     const text=buildValuationPrompt({playerName:name,seasons:seasons.slice().reverse(),fm26Uid:player?.fm26_uid||"",fotmobPlayerId});
-    const done="Prompt copiado ("+seasons.length+" temporadas). Pégalo en el chat externo y trae la tabla rellena al importador.";
+    const done="Prompt copiado ("+seasons.length+" temporadas). Pégalo en el chat externo y trae el JSON al importador histórico.";
     try{
       await navigator.clipboard.writeText(text);
       setCopySeasonsStatus(done);
@@ -213,7 +213,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <h2 className="truncate text-2xl font-black">{player?.name||stats[0]?.player_name||"Jugador FotMob"}</h2>
             <p className="text-xs text-blue-200">Estadísticas importadas · pendientes de validación de fuente · independientes de FM26</p>
           </div>
-          <button type="button" onClick={copySeasonsForValuation} className="inline-flex items-center gap-2 rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold text-[#0e2844] hover:bg-cyan-100" title="Copia un prompt con todas las temporadas del jugador para pedir en un chat externo el Overall, la posición FIFA de cada edición y el valor de Transfermarkt"><Copy size={15}/> Copiar temporadas para valorar</button>
+          <button type="button" onClick={copySeasonsForValuation} className="inline-flex items-center gap-2 rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold text-[#0e2844] hover:bg-cyan-100" title="Copia un prompt con todas las temporadas del jugador para pedir en un chat externo el Overall, la posición FIFA de cada edición y el valor de Transfermarkt"><Copy size={15}/> Investigar todas las temporadas (JSON)</button>
           <button type="button" onClick={()=>setValuationImporterOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-[#0e2844] hover:bg-amber-100" title="Introducir individualmente FIFA/FC, Transfermarkt o PJ Equipo"><ClipboardPaste size={15}/> <span className="hidden lg:inline">Introducir datos históricos</span></button>
           <button type="button" onClick={()=>onOpenSettings(category,shown[0]||stats[0]||null)} className="inline-flex items-center gap-2 rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold hover:bg-white/10" title="Configurar las columnas, los nombres y las fórmulas del desglose" aria-label="Ajustes del informe estadístico"><Settings2 size={16}/> <span className="hidden sm:inline">Ajustes</span></button>
           {player&&<button onClick={()=>onPlayer(player.id)} className="hidden rounded-lg border border-blue-300 px-4 py-2 text-xs font-bold hover:bg-white/10 sm:block">Ver ficha en PLAYERS <ArrowRight size={13} className="ml-1 inline"/></button>}
