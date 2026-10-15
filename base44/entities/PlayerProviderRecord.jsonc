@@ -86,7 +86,27 @@
     "metrics": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "per90": {
+            "type": "number"
+          },
+          "percentile": {
+            "type": "number"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "verification_status": {
+            "type": "string"
+          }
+        }
       }
     }
   },
