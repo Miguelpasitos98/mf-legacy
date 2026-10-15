@@ -1,4 +1,4 @@
-import React,{useState} from "react";
+import React,{useState,useMemo} from "react";
 import {ArrowRight,Shield} from "lucide-react";
 import SortHeader from "@/components/stats/SortHeader";
 import {rankIdentity} from "@/utils/statsRank";
@@ -6,6 +6,8 @@ import {statDisplay} from "@/utils/statsSeason";
 import {getColumn,columnValue,formulaCoverage,initialConfig} from "@/utils/statsColumns";
 import {metricLabel} from "@/utils/statsImport";
 import {seasonActive} from "@/utils/statsViews";
+import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
+import {compareHistoricalObservation} from "@/utils/historicalPeers";
 
 export const seasonColumns={
  Resumen:["goals","assists","xg","xa","gaper90","xgaper90"],
@@ -16,6 +18,7 @@ export const seasonColumns={
  Físico:["totaldistancecovered","numberofsprints"]
 };
 const labels={ga:"G + A",gaper90:"G + A /90",xgaper90:"xG + xA /90",xga:"xG + xA",goalsper90:"Goles /90",assistsper90:"Asist. /90",xgper90:"xG /90",xaper90:"xA /90",totaldistancecovered:"Distancia (m)",numberofsprints:"Sprints",goalsconcededwhileonpitch:"Goles encajados (en campo)"};
+const shortSeason=s=>String(s||"").replace(/^(\d{4})[/-](\d{2})\d{2}$/,(_,a,b)=>a+"/"+b).replace(/^(\d{4})[/-]\d{2}(\d{2})$/,(_,a,b)=>a+"/"+b);
 const fmt=(v,d=0)=>v===null||v===undefined||v===""||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
 const dec=k=>["xg","xa","xga","gaper90","xgaper90","goalsper90","assistsper90","xgper90","xaper90"].includes(k);
 function PlayerPhoto({player,name}){
@@ -39,35 +42,58 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
  const columns=config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen;
  const divider=new Set(config.dividers?.season?.[category]||[]);
  const line=id=>divider.has(id)?" border-r-[3px] border-r-blue-300":"";
+ const {data:peerData,isFetching:peersLoading,error:peersError}=useHistoricalPeerDataset(true);
+ const compositeBySeason=useMemo(()=>{
+   const map=new Map();
+   if(!peerData?.observations?.length)return map;
+   for(const obs of peerData.observations){
+     const comparison=compareHistoricalObservation(obs,peerData.observations,10);
+     map.set(String(obs.playerId)+"|"+obs.season,{score:comparison?.composite?.score??null,coverage:comparison?.composite?.coverage??null,position:obs.position||"",source:obs.positionSource||"",role:comparison?.role||obs.role||""});
+   }
+   return map;
+ },[peerData]);
  const filtered=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0);
- const pageRows=filtered.slice(page*50,(page+1)*50);
+ const ordered=sortKey==="composite"?[...filtered].sort((a,b)=>{
+   const v=x=>x.summary?compositeBySeason.get(String(x.summary.player_id)+"|"+x.summary.season)?.score:null;
+   const va=v(a),vb=v(b);if(va==null)return vb==null?0:1;if(vb==null)return -1;
+   return sortDirection==="asc"?va-vb:vb-va;
+ }):filtered;
+ const pageRows=ordered.slice(page*50,(page+1)*50);
  return <div>
+  <div className="flex flex-wrap justify-between gap-2 border-b border-slate-100 px-3 py-2 text-[11px] text-slate-600">
+   <span>Composite MF LEGACY: mismo cálculo por arquetipo que en el desglose. Posiciones con * = respaldo provisional.</span>
+   <span>{peersLoading?"Calculando Composite…":peersError?"Composite no disponible: revisión de carga necesaria":peerData?"Composite actualizado":"Pendiente"}</span>
+  </div>
   <div className="max-w-full overflow-x-auto">
    <table className="w-full min-w-[1040px] text-left text-xs">
     <thead className="bg-[#003399] text-white"><tr>
      <th className={"px-3 py-3 text-center"+line("rank")} title="Posición entre las temporadas del mismo jugador (posición entre todos los jugadores)">RANK</th>
-     <SortHeader column="player" label="JUGADOR" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={"min-w-44"+line("player")}/>
-     <SortHeader column="season" label="TEMPORADA" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={line("season")}/>
-     <SortHeader column="club" label="CLUB PRINCIPAL" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={"min-w-44"+line("club")}/>
+     <SortHeader column="player" label="JUGADOR" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={"min-w-36"+line("player")}/>
+     <SortHeader column="season" label="TEMP." active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={line("season")}/>
+     <SortHeader column="club" label="CLUB PRINCIPAL" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={"min-w-36"+line("club")}/>
      <SortHeader column="appearances" label="PJ" active={sortKey} direction={sortDirection} onSort={onSort} className={line("appearances")}/>
      <SortHeader column="minutes" label="MIN" active={sortKey} direction={sortDirection} onSort={onSort} className={line("minutes")}/>
-     <SortHeader column="rating" label="NOTA MEDIA" active={sortKey} direction={sortDirection} onSort={onSort} className={line("rating")}/>
+     <th className="px-2 py-2 text-center whitespace-nowrap" title="Posición histórica efectiva: manual por competición, manual por temporada, FIFA/FC o respaldo provisional">POS.</th>
+     <SortHeader column="composite" label="COMPOSITE" active={sortKey} direction={sortDirection} onSort={onSort} className={line("composite")}/>
      {columns.map(k=><SortHeader key={k} column={k} label={getColumn(config,k)?.name||labels[k]||metricLabel(k)} active={sortKey} direction={sortDirection} onSort={onSort} className={line(k)}/>)}
      <th className="px-3 py-3">DETALLE</th>
     </tr></thead>
     <tbody>{pageRows.map(({summary,player},i)=>{
      const name=player?.name||summary?.player_name||"Jugador";
-     if(!summary)return <tr key={String(player?.id||i)} className="border-b border-slate-100 text-xs"><td className={"whitespace-nowrap px-2 py-3 text-center"+line("rank")}><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td><td className="px-3 py-2"><div className="flex items-center gap-2"><PlayerPhoto player={player} name={name}/><span className="font-semibold text-slate-700">{name}</span></div></td><td colSpan={6+columns.length} className="px-3 py-3 text-slate-400">Sin estadísticas importadas para esta temporada</td></tr>;
+     if(!summary)return <tr key={String(player?.id||i)} className="border-b border-slate-100 text-xs"><td className={"whitespace-nowrap px-2 py-3 text-center"+line("rank")}><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td><td className="px-3 py-2"><div className="flex items-center gap-2"><PlayerPhoto player={player} name={name}/><span className="font-semibold text-slate-700">{name}</span></div></td><td colSpan={7+columns.length} className="px-3 py-3 text-slate-400">Sin estadísticas importadas para esta temporada</td></tr>;
      return <tr key={summary.id} className="border-b border-slate-100 align-middle odd:bg-white even:bg-[#f6f8f6] hover:bg-[#edf3fb]">
       <td className={"whitespace-nowrap px-2 py-3 text-center"+line("rank")}><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td>
       <td className={"px-3 py-2"+line("player")}><button onClick={()=>onOpen(summary,player)} className="flex items-center gap-2 text-left">
        <PlayerPhoto player={player} name={name}/><span className="font-extrabold text-[#0f3156] hover:underline">{name}</span>
       </button></td>
-      <td className={"whitespace-nowrap px-3 py-3 font-semibold"+line("season")}>{summary.season}{seasonActive(summary.season)&&<span className="ml-1 text-[10px] font-normal text-blue-700">(en curso)</span>}</td>
+      <td className={"whitespace-nowrap px-3 py-3 font-semibold"+line("season")}>{shortSeason(summary.season)}{seasonActive(summary.season)&&<span className="ml-1 text-[10px] font-normal text-blue-700">(en curso)</span>}</td>
       <td className={"px-3 py-3"+line("club")}><ClubBadge summary={summary} onTeam={onTeam}/></td>
       <td className={"px-3 py-3 text-right"+line("appearances")}>{fmt(statDisplay(summary,"appearances"))}</td>
       <td className={"px-3 py-3 text-right"+line("minutes")}>{fmt(statDisplay(summary,"minutes"))}</td>
-      <td className={"px-3 py-3 text-right font-bold"+line("rating")}><span title="Estimación ponderada por partidos; no es el índice Crafted.">{fmt(statDisplay(summary,"rating"),2)}{summary.ratingPartial?"*":""}</span></td>
+      {(()=>{const x=compositeBySeason.get(String(summary.player_id)+"|"+summary.season);return <>
+        <td className="px-2 py-2 text-center font-bold text-slate-700" title={x?.source==="fallback"?"Posición actual, solo respaldo provisional":x?.source==="fifa"?"Posición de la carta FIFA/FC":x?.source==="season"?"Posición histórica manual":x?.source==="competition"?"Posición manual por competición":"Posición histórica no disponible"}>{x?.position||"—"}{x?.source==="fallback"&&<span className="text-amber-600">*</span>}</td>
+        <td className={"px-2 py-2 text-right font-extrabold tabular-nums "+(x?.score!=null?"text-[#003399]":"text-slate-400")} title={x?.score!=null?"Composite "+x.role+" · cobertura "+fmt(x.coverage,1)+"% · no es el Legacy Rating definitivo":peersError?"No se pudo cargar la base completa para calcular percentiles":peersLoading?"Calculando con la base completa":"Sin Composite calculable"}>{x?.score==null?"—":fmt(x.score,1)}</td>
+      </>})()}
       {columns.map(k=>{
        const value=columnValue(summary,"season",k,config);
        const coverage=formulaCoverage(summary,"season",k,config);
@@ -78,7 +104,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
     })}
-    {!pageRows.length&&<tr><td colSpan={8+columns.length} className="px-6 py-12 text-center text-slate-500">No hay temporadas con estadísticas para esta selección.</td></tr>}
+    {!pageRows.length&&<tr><td colSpan={9+columns.length} className="px-6 py-12 text-center text-slate-500">No hay temporadas con estadísticas para esta selección.</td></tr>}
     </tbody>
    </table>
   </div>
