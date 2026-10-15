@@ -55,6 +55,35 @@ test("valores faltantes no se convierten en cero y no se utilizan los percentile
   assert.equal(result.rows.find(r=>r.key==="xa_p90").provisional,true);
   assert.equal(result.population,2);
 });
+test("xG Chain y xG Buildup usan minutos Understat y no los de FotMob",()=>{
+ const stats=[
+  {player_id:"h",season:"2022/2023",competition:"Premier League",minutes:2000,
+   metrics:[{name:"xG Chain",value:20},{name:"xG Buildup",value:6},{name:"Understat minutes",value:1000}]},
+  {player_id:"h",season:"2022/2023",competition:"Champions League",minutes:900,
+   metrics:[{name:"xA",value:1}]},
+ ];
+ const o=buildHistoricalObservations({stats,players})[0];
+ assert.equal(o.values.xg_chain_p90,1.8);
+ assert.equal(o.values.xg_buildup_p90,0.54);
+});
+test("Ground duels % agrega ganados/disputados, no promedio porcentual",()=>{
+ const stats=[
+  {player_id:"h",season:"2022/2023",competition:"Premier League",minutes:1800,
+   metrics:[{name:"Ground duels won",value:11},{name:"Ground duels contested",value:28},{name:"Ground duels won %",value:39.2857}]},
+  {player_id:"h",season:"2022/2023",competition:"Champions League",minutes:450,
+   metrics:[{name:"Ground duels won",value:9},{name:"Ground duels contested",value:12},{name:"Ground duels won %",value:75}]},
+ ];
+ const o=buildHistoricalObservations({stats,players})[0];
+ assert.equal(o.values.ground_duels_won_pct,50);
+});
+test("Porcentaje de duelos sin recuentos no se inventa",()=>{
+ const stats=[
+  {player_id:"h",season:"2022/2023",competition:"Premier League",minutes:900,
+   metrics:[{name:"Ground duels won %",value:88}]}
+ ];
+ assert.equal(buildHistoricalObservations({stats,players})[0].values.ground_duels_won_pct,null);
+});
+
 test("una sola observación no genera falso percentil 100",()=>{
   assert.equal(historicalPercentile(.7,[.7]),null);
 });
