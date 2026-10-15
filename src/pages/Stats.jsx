@@ -22,6 +22,7 @@ import {initialConfig,sanitizeConfig,getColumn,columnValue,RAW_METRICS} from "@/
 import {bestSeasonPerPlayer} from "@/utils/statsBestSeason";
 import ManualMetricEditor from "@/components/stats/ManualMetricEditor";
 import {applyManualStatChange} from "@/utils/manualStats";
+import {advancedTotals} from "@/utils/statsAdvanced";
 import {metricName} from "@/utils/compositeEngine";
 import {buildSeasonSummaries} from "@/utils/statsSeason";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
@@ -152,6 +153,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
     return tm?{...r,team_matches:tm.team_matches,_teamMatchesSource:"team"}:r;
   });
   const sums=aggregate(shown);
+  const advanced=advancedTotals(shown);
   const summaryBasics=aggregate(shown,["appearances","minutes"]);
   const ratingRows=shown.filter(r=>num(r.rating)!==null&&num(r.appearances)>0);
   const ratedGames=ratingRows.reduce((v,r)=>v+Number(r.appearances),0);
@@ -260,6 +262,21 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
               <div className="mt-1 text-2xl font-black text-[#0d315b]">{d.value===null?"—":show(d.value,["xG","xA"].includes(label)?2:0)}</div>
               <p className="text-[10px] text-slate-500">{d.value===null?"Sin datos":d.available+"/"+d.total+" competiciones con cifra"}</p>
             </div>)}
+          </div>
+          <div className="mb-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+            <h4 className="mb-2 text-xs font-black uppercase tracking-wider text-[#003399]">Estadísticas avanzadas · temporada / competición</h4>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {[
+                ["xG Chain /90",advanced.xg_chain_p90,"Understat",advanced.understatRows],
+                ["xG Buildup /90",advanced.xg_buildup_p90,"Understat",advanced.understatRows],
+                ["Duelos terrestres ganados (%)",advanced.ground_duels_won_pct,"FotMob · derivado",advanced.duelRows]
+              ].map(([label,value,source,count])=><div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[10px] font-bold text-slate-500">{label}</p>
+                <p className="text-xl font-black text-[#003399]">{value==null?"—":show(value,2)+(label.includes("(%)")?" %":"")}</p>
+                <p className="text-[10px] text-slate-500">{source} · {count}/{advanced.totalRows} competiciones</p>
+              </div>)}
+            </div>
+            {advanced.duelRows>0&&<p className="mt-2 text-[10px] text-slate-600">Duelos terrestres: {advanced.duelsWon} ganados de {advanced.duelsTotal} disputados. Los porcentajes se calculan desde recuentos y los xG por 90 usan exclusivamente minutos Understat.</p>}
           </div>
           <p className="mb-4 text-xs text-slate-500">Cada estadística aprovecha todos sus valores conocidos. Los cálculos /90 y Play % utilizan solo competiciones que tienen todas las variables de su fórmula y los minutos correspondientes. Los datos ausentes no se convierten en cero. Las selecciones están excluidas por defecto.</p>
           <div className="mb-3 flex flex-wrap gap-2">{CAT_TABS.map(x=><button key={x} onClick={()=>setCategory(x)} className={"rounded-lg px-3 py-2 text-xs font-bold "+(category===x?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{x}</button>)}</div>
