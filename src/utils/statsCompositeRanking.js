@@ -1,0 +1,58 @@
+import {compareHistoricalObservation} from "./historicalPeers.js";
+import {normalizeHistoricalPosition} from "./historicalPositions.js";
+
+// The SAME completed per-position comparison is used to render a score,
+// select a player's best season, globally order the table and assign ranks.
+// Missing scores are never silently replaced with FotMob ratings or zero.
+export const compositeSeasonKey=(playerId,season)=>String(playerId??"")+"|"+String(season??"");
+
+export function buildCompositeSeasonIndex(observations=[]){
+ const map=new Map();
+ for(const obs of observations){
+   const comparison=compareHistoricalObservation(obs,observations,10);
+   map.set(compositeSeasonKey(obs.playerId,obs.season),{
+     score:comparison?.composite?.score??null,
+     coverage:comparison?.composite?.coverage??null,
+     position:obs.position||"",
+     source:obs.positionSource||"",
+     role:comparison?.role||obs.role||"",
+     players:comparison?.players??0,
+   });
+ }
+ return map;
+}
+export function compositeForSeason(entry,index){
+ const s=entry?.summary;
+ return s?index?.get(compositeSeasonKey(s.player_id,s.season))?.score??null:null;
+}
+export function sortByComposite(items,index,direction="desc"){
+ const dir=direction==="asc"?1:-1;
+ return (items||[]).map((item,i)=>({item,i,value:compositeForSeason(item,index)}))
+  .sort((a,b)=>{
+    const av=a.value,bv=b.value;
+    if(av===null||bv===null)return av===null&&bv===null?a.i-b.i:av===null?1:-1;
+    return (av-bv)*dir || a.i-b.i;
+  }).map(x=>x.item);
+}
+export function bestSeasonByComposite(items,index){
+ const best=new Map();
+ for(const entry of items||[]){
+   const id=String(entry.summary?.player_id||entry.summary?.fotmob_player_id||entry.player?.id||"");
+   const value=compositeForSeason(entry,index);
+   if(!id||value===null||!Number.isFinite(value))continue;
+   const old=best.get(id);
+   if(!old){best.set(id,entry);continue;}
+   const prev=compositeForSeason(old,index);
+   const minutes=Number(entry.summary?.totals?.minutes?.value)||0;
+   const oldMinutes=Number(old.summary?.totals?.minutes?.value)||0;
+   if(value>prev || value===prev&&(minutes>oldMinutes||minutes===oldMinutes&&
+      String(entry.summary.season)>String(old.summary.season)))best.set(id,entry);
+ }
+ return [...best.values()];
+}
+// Pure presentation alias: internal FM26 "DC" and FIFA "ST" both mean the
+// striker archetype. Keep the original historical position for attribution.
+export const displaySeasonPosition=position=>{
+ const normalized=normalizeHistoricalPosition(position);
+ return normalized==="DC"?"ST":normalized||"—";
+};
