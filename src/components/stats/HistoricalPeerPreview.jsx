@@ -49,8 +49,6 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const season=seasons.includes(picked)?picked:seasons.includes(initialSeason)?initialSeason:seasons[0]||"";
   const role=historicalRole(position);
   const rowsToEdit=useMemo(()=>editableRows.filter(r=>r.season===season&&!historicalNationalCompetition(r.competition)),[editableRows,season]);
-  const missingUnderstat=previewNotUsedPlaceholder;
-
   const result=useMemo(()=>{
     if(!data?.observations?.length||!playerId||!season)return null;
     const observation=data.observations.find(o=>o.playerId===String(playerId)&&o.season===season);
