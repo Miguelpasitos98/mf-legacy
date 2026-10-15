@@ -15,7 +15,7 @@ const download = (payload, name) => {
   URL.revokeObjectURL(url);
 };
 
-export default function ImportUnified() {
+export default function ImportUnified({onImported}) {
   const [isAdmin,setIsAdmin] = useState(null);
   const [links,setLinks] = useState(new Map());
   const [teamLinks,setTeamLinks] = useState(new Map());
@@ -301,6 +301,7 @@ export default function ImportUnified() {
       setProgress({done:pos,total:queue.length});
       await new Promise(resolve=>setTimeout(resolve,1100));
     }
+    if(reportItems.some(item=>["creado","actualizado","enriquecido"].includes(item.status)))onImported?.();
     setReport({file:fileName,importedAt:new Date().toISOString(),total:queue.length,
       created:reportItems.filter(r=>r.status==="creado").length,
       updated:reportItems.filter(r=>r.status==="actualizado").length,
