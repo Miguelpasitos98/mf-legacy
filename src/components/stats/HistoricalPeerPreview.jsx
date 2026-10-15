@@ -68,10 +68,10 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const validCount=previewRows.filter(r=>r.percentile!==null).length;
   const missingData=previewRows.filter(r=>r.value===null).map(r=>r.name);
   const copyMissingPrompt=async()=>{
-    const allSeasons=seasons.map(year=>{const obs=data?.observations?.find(o=>o.playerId===String(playerId)&&o.season===year);if(!obs)return null;let cmp;try{cmp=compareHistoricalObservation(obs,data.observations,10);}catch(e){console.error("Comparación no disponible",year,e);return null;}return {season:year,role:cmp?.role||historicalRole(obs.position),missing:(cmp?.rows||[]).filter(x=>x.value===null).map(x=>x.name)};}).filter(x=>x&&x.missing.length);
+    const allSeasons=seasons.map(year=>{const obs=data?.observations?.find(o=>o.playerId===String(playerId)&&o.season===year);if(!obs)return null;let cmp;try{cmp=compareHistoricalObservation(obs,data.observations,10);}catch(e){console.error("Comparación no disponible",year,e);return null;}return {season:year,role:cmp?.role||historicalRole(obs.position),competitions:[...new Set(editableRows.filter(r=>r.season===year&&!historicalNationalCompetition(r.competition)).map(r=>r.competition).filter(Boolean))],missing:(cmp?.rows||[]).filter(x=>x.value===null).map(x=>x.name)};}).filter(x=>x&&x.missing.length);
     if(!allSeasons.length){setCopyStatus("No se han detectado estadísticas faltantes en las temporadas cargadas.");return;}
     const text=buildMissingDataPrompt({playerName,seasons:allSeasons});
-    const done="Consulta copiada ("+allSeasons.length+" temporadas). Pégala en un chat y trae los valores de vuelta para añadirlos a mano.";
+    const done="Investigación copiada ("+allSeasons.length+" temporadas). Pégala en un chat y trae los valores de vuelta para añadirlos a mano.";
     try{
       await navigator.clipboard.writeText(text);
       setCopyStatus(done);
