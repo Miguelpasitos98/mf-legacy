@@ -138,7 +138,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
       {error&&<p role="alert" className={"flex items-start gap-2 rounded-lg border p-3 text-xs "+(data?"border-amber-200 bg-amber-50 text-amber-900":"border-red-200 bg-red-50 text-red-800")}>
         <AlertTriangle size={17} className="shrink-0"/>
         {data?"La sincronización remota no se completó ("+error.message+"). Se muestran los datos de la comparación ya cargada; puedes reintentarlo cuando quieras.":"No se ha podido cargar por completo la población histórica ("+error.message+"). Pulsa «Reintentar carga»; nunca se calcularán percentiles con registros incompletos."}
-      </p>
+      </p>}
       {data&&result?.calculationError&&<p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">No se pudo calcular el Composite de esta temporada: {result.calculationError}. El resto del informe permanece disponible.</p>}
       {data&&result?.missing&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
         Esta ficha no tiene una temporada comparable con Player ID confirmado y posición identificada. No se calcula percentil.
