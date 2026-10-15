@@ -1,20 +1,21 @@
 import React,{useMemo,useState} from "react";
-import {Activity,ArrowRight,BarChart3,CalendarDays,ChevronRight,Database,RefreshCw,TrendingUp} from "lucide-react";
+import {Activity,ArrowRight,BarChart3,CalendarDays,ChevronRight,Database,Pencil,Plus,RefreshCw,TrendingUp} from "lucide-react";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
 import {overviewHistoricalModel} from "@/utils/statsOverviewModel";
 import {historicalRole} from "@/utils/historicalPeers";
 import {advancedTotals} from "@/utils/statsAdvanced";
-import {aggregate,seasonActive,metricsValue} from "@/utils/statsViews";
+import {aggregate,seasonActive,metricsValue,nationalCompetition} from "@/utils/statsViews";
+import OverviewManualEditor from "./OverviewManualEditor";
 import {formatEur} from "@/utils/historicalValuation";
 import CraftedfcOverview from "./CraftedfcOverview";
 import HistoricalValuationsTable from "./HistoricalValuationsTable";
 
 const show=(v,d=0)=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
 const tone=p=>p>=85?"bg-emerald-500":p>=65?"bg-cyan-500":p>=40?"bg-blue-500":p>=20?"bg-amber-400":"bg-rose-400";
-function Kpi({title,value,meta,emphasis=false}){
+function Kpi({title,value,meta,emphasis=false,onEdit}){
  return <div className={"min-w-0 rounded-xl border p-3 "+(emphasis?"border-blue-200 bg-blue-50":"border-slate-200 bg-white")}>
    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{title}</p>
-   <div className="mt-1 truncate text-2xl font-black tabular-nums text-[#12365a]">{value}</div>
+   {onEdit?<button type="button" onClick={onEdit} title={"Añadir o modificar "+title} className="group mt-1 flex w-full items-center gap-2 rounded-md text-left text-2xl font-black tabular-nums text-[#12365a] hover:text-[#003399] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"><span className="truncate">{value==="—"?"Añadir +":value}</span><Pencil size={13} className="shrink-0 text-blue-500 opacity-60 group-hover:opacity-100"/></button>:<div className="mt-1 truncate text-2xl font-black tabular-nums text-[#12365a]">{value}</div>}
    {meta&&<p className="mt-1 truncate text-[10px] text-slate-500" title={meta}>{meta}</p>}
  </div>;
 }
@@ -23,8 +24,9 @@ const Heading=({icon:Icon,children,action})=><div className="mb-3 flex flex-wrap
   {action}
 </div>;
 export default function MfLegacyOverview({playerId,position,season,competition,scope,shown=[],historicalValuations=[],estimatedRating=null,
- snapshot=null,cfcStatus="idle",onSeasonChange,onPerformance,onAnalysis,historicalLoading=false,historicalRefresh}){
+ snapshot=null,cfcStatus="idle",onSeasonChange,onPerformance,onAnalysis,historicalLoading=false,historicalRefresh,editableRows=[],onSetMetric}){
  const [showValuationHistory,setShowValuationHistory]=useState(false);
+ const [manualMode,setManualMode]=useState(null);
  const {data,isFetching,error,refetch}=useHistoricalPeerDataset(true);
  const model=useMemo(()=>overviewHistoricalModel(data,playerId,season,8),[data,playerId,season]);
  const {result,indicators,trend}=model;
@@ -40,6 +42,8 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
  const gaMinutes=gaAligned.reduce((acc,r)=>acc+Number(r.minutes),0);
  const gaPer90=gaMinutes>0?gaAligned.reduce((acc,r)=>acc+metricsValue(r,"goals")+metricsValue(r,"assists"),0)*90/gaMinutes:null;
  const noStat=shown.length===0;
+ const manualRows=useMemo(()=>editableRows.filter(r=>(season==="Todas"||r.season===season)&&(competition==="Todas"||r.competition===competition)&&(scope==="all"||!nationalCompetition(r.competition))),[editableRows,season,competition,scope]);
+ const edit=mode=>setManualMode(mode);
  const score=composite?.score??null;
  const ring=score===null?"rgba(255,255,255,.15)":"conic-gradient(#34d399 "+Math.max(0,Math.min(100,score))+"%,rgba(255,255,255,.18) 0)";
  return <div className="space-y-4">
@@ -71,11 +75,11 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
          <button type="button" onClick={onAnalysis} className="flex items-center justify-center gap-1 rounded-lg bg-white px-3 py-2 text-xs font-black text-blue-900 hover:bg-blue-50">Ver análisis completo <ArrowRight size={14}/></button>
        </div>
        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-         <Kpi title="Partidos" value={show(summary("appearances"))} meta={(totals.appearances?.available||0)+"/"+shown.length+" competiciones"}/>
-         <Kpi title="Minutos" value={show(summary("minutes"))} meta="Minutos registrados"/>
-         <Kpi title="Nota FotMob" value={show(estimatedRating,2)} meta="Media ponderada por PJ" emphasis/>
-         <Kpi title="Goles" value={show(summary("goals"))} meta={(totals.goals?.available||0)+"/"+shown.length+" competiciones"}/>
-         <Kpi title="Asistencias" value={show(summary("assists"))} meta={(totals.assists?.available||0)+"/"+shown.length+" competiciones"}/>
+         <Kpi title="Partidos" value={show(summary("appearances"))} meta={(totals.appearances?.available||0)+"/"+shown.length+" competiciones"} onEdit={()=>edit("appearances")}/>
+         <Kpi title="Minutos" value={show(summary("minutes"))} meta="Minutos registrados" onEdit={()=>edit("minutes")}/>
+         <Kpi title="Nota FotMob" value={show(estimatedRating,2)} meta="Media ponderada por PJ" emphasis onEdit={()=>edit("rating")}/>
+         <Kpi title="Goles" value={show(summary("goals"))} meta={(totals.goals?.available||0)+"/"+shown.length+" competiciones"} onEdit={()=>edit("goals")}/>
+         <Kpi title="Asistencias" value={show(summary("assists"))} meta={(totals.assists?.available||0)+"/"+shown.length+" competiciones"} onEdit={()=>edit("assists")}/>
          <Kpi title="G+A /90" value={show(gaPer90,2)} meta="G, A y minutos alineados"/>
        </div>
      </div>
@@ -110,13 +114,13 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
      <section className="rounded-xl border border-slate-200 bg-white p-4">
        <Heading icon={Activity} action={<button type="button" onClick={onPerformance} className="flex items-center gap-1 text-[11px] font-bold text-[#003399] hover:underline">Ver Performance <ChevronRight size={13}/></button>}>Producción y creación</Heading>
        <div className="grid grid-cols-2 gap-2">
-         <Kpi title="xG" value={show(summary("xg"),2)} meta={(totals.xg?.available||0)+"/"+shown.length+" competiciones"}/>
-         <Kpi title="xA" value={show(summary("xa"),2)} meta={(totals.xa?.available||0)+"/"+shown.length+" competiciones"}/>
-         <Kpi title="xG Chain /90" value={show(advanced.xg_chain_p90,2)} meta={"Understat · "+advanced.understatRows+"/"+shown.length+" competiciones"}/>
-         <Kpi title="xG Buildup /90" value={show(advanced.xg_buildup_p90,2)} meta={"Understat · "+advanced.understatRows+"/"+shown.length+" competiciones"}/>
+         <Kpi title="xG" value={show(summary("xg"),2)} meta={(totals.xg?.available||0)+"/"+shown.length+" competiciones"} onEdit={()=>edit("xg")}/>
+         <Kpi title="xA" value={show(summary("xa"),2)} meta={(totals.xa?.available||0)+"/"+shown.length+" competiciones"} onEdit={()=>edit("xa")}/>
+         <Kpi title="xG Chain /90" value={show(advanced.xg_chain_p90,2)} meta={"Understat · "+advanced.understatRows+"/"+shown.length+" competiciones"} onEdit={()=>edit("chain")}/>
+         <Kpi title="xG Buildup /90" value={show(advanced.xg_buildup_p90,2)} meta={"Understat · "+advanced.buildupRows+"/"+shown.length+" competiciones"} onEdit={()=>edit("buildup")}/>
        </div>
        <div className="mt-2 rounded-lg bg-slate-50 p-3">
-         <div className="flex items-end justify-between gap-2"><div><p className="text-[10px] font-bold uppercase text-slate-500">Duelos terrestres ganados</p><p className="mt-1 text-2xl font-black text-[#003399]">{show(advanced.ground_duels_won_pct,1)}{advanced.ground_duels_won_pct!=null?" %":""}</p></div><p className="text-[10px] text-slate-500">{advanced.duelRows+"/"+shown.length+" competiciones"}</p></div>
+         <div className="flex items-end justify-between gap-2"><div><p className="text-[10px] font-bold uppercase text-slate-500">Duelos terrestres ganados</p><button type="button" onClick={()=>edit("ground")} title="Añadir o modificar duelos terrestres de una competición" className="mt-1 flex items-center gap-2 rounded text-left text-2xl font-black text-[#003399] hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">{advanced.ground_duels_won_pct==null?"Añadir +":show(advanced.ground_duels_won_pct,1)+" %"}<Pencil size={13}/></button></div><p className="text-[10px] text-slate-500">{advanced.duelRows+"/"+shown.length+" competiciones"}</p></div>
          {advanced.ground_duels_won_pct!=null&&<div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-sky-500" style={{width:Math.max(0,Math.min(100,advanced.ground_duels_won_pct))+"%"}}/></div>}
          <p className="mt-1 text-[10px] text-slate-500">FotMob derivado · {advanced.duelsWon}/{advanced.duelsTotal} duelos</p>
        </div>
@@ -148,6 +152,7 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
        {showValuationHistory&&<div className="mt-2 max-h-[360px] overflow-auto"><HistoricalValuationsTable valuations={historicalValuations} loading={historicalLoading} onRefresh={historicalRefresh}/></div>}
      </section>
    </div>
+   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-blue-200 bg-blue-50/50 px-4 py-3"><span className="text-xs text-slate-600">¿Falta otra estadística histórica? Puedes incorporarla sin salir del Overview.</span><button type="button" onClick={()=>edit("other")} className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-2 text-xs font-bold text-[#003399] ring-1 ring-blue-200"><Plus size={14}/> Añadir otra estadística</button></div>
    <details className="rounded-xl border border-slate-200 bg-slate-50 p-4">
      <summary className="cursor-pointer text-xs font-bold text-slate-600">Referencia externa CraftedFC (opcional)</summary>
      <div className="mt-3"><CraftedfcOverview snapshot={snapshot} status={cfcStatus} fotmobRating={estimatedRating}/></div>
