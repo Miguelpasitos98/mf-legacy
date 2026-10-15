@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, ClipboardPaste, Loader2, ShieldCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { formatEur } from "@/utils/historicalValuation";
-import { canonicalHistoricalCompetition, prepareHistoricalJson, rowChanges } from "@/utils/historicalJson";
+import { canonicalHistoricalCompetition, prepareHistoricalJson, rowChanges, withHistoricalTeamChoice } from "@/utils/historicalJson";
 import { planHistoricalActions } from "@/utils/historicalBatch";
 
 const unpack = (v) => Array.isArray(v) ? v : v?.items || v?.data || [];
@@ -130,6 +130,18 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
     } finally { setBusy(false); setProgress(""); }
   };
 
+  const manuallyResolveClub=async(row,selectedId)=>{
+    const team=teams.find(t=>String(t.id)===String(selectedId));
+    if(!team)return;
+    try{
+      // Row IDs preserve the original JSON index, even when null rows are skipped.
+      const input=JSON.parse(raw);
+      const originalName=input.team_matches?.[Number(row.id.slice(1))]?.team_name;
+      const result=withHistoricalTeamChoice(raw,originalName,team);
+      setRaw(result.source);
+      await analyze(result.source);
+    }catch(err){setError("No se pudo vincular el club: "+(err?.message||err));}
+  };
   const toggle = (id) => {
     setIncluded((current) => {
       const next = new Set(current);
@@ -289,6 +301,19 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
                   : "").filter(Boolean).join(" · ") || (r.status === "new" ? "Registro nuevo" : "Cambios de metadatos")}
               </p>}
               {r.errors?.map((issue, i) => <p key={i} className="text-[11px] font-semibold text-red-700">{issue}</p>)}
+              {r.type==="team"&&r.errors?.some(e=>e.includes("Club no reconocido"))&&teams.some(t=>t.id&&t.name)&&
+                <div className="mt-2 rounded-lg border border-amber-200 bg-white p-2">
+                  <p className="mb-1 text-[11px] font-semibold text-amber-900">¿Es el mismo club con otro nombre? Vincúlalo una sola vez para corregir todas las filas de este equipo.</p>
+                  <select value="" disabled={busy||saving} onClick={e=>e.stopPropagation()}
+                    onChange={e=>{e.stopPropagation();manuallyResolveClub(r,e.target.value);}}
+                    aria-label="Seleccionar el club real de Base44"
+                    className="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                    <option value="">Elegir club existente de Base44…</option>
+                    {[...teams].filter(t=>t.id&&t.name).sort((a,b)=>a.name.localeCompare(b.name,"es"))
+                      .map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <p className="mt-1 text-[10px] text-slate-500">Esto actualiza el JSON pegado y vuelve a analizarlo; todavía no guarda datos.</p>
+                </div>
             </div>
           </label>)}
         </div>
