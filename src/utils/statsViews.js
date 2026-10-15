@@ -1,4 +1,6 @@
 export const norm = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+// Metric keys retain the distinction between totals and percentages.
+export const metricNorm = name => norm(String(name??"").replace(/%/g,"percent"));
 export const statNum = v => v===null||v===undefined||v===""?null:Number.isFinite(Number(v))?Number(v):null;
 export const nationalCompetition = name => {
  const x=norm(name);
@@ -35,7 +37,7 @@ export const metricsValue=(r,name)=>{
  if(!r)return null;
  if(["minutes","appearances","rating","team_matches"].includes(name))return statNum(r[name]);
  const aliases={goals:["goals","goles"],assists:["assists","asistencias"],xg:["xg","expectedgoals"],xa:["xa","expectedassists"],shots:["shots","tiros"],tackles:["tackles","entradas"],recoveries:["recoveries","recuperaciones"],shotsontarget:["shotsontarget","tirosapuerta"]};
- const candidate=(r.metrics||[]).find(m=>(aliases[name]||[norm(name)]).includes(norm(m.name)));
+ const candidate=(r.metrics||[]).find(m=>(aliases[name]||[metricNorm(name)]).includes(metricNorm(m.name)));
  return candidate?statNum(candidate.value):null;
 };
 export const aggregate=(records,keys=["goals","assists","xg","xa","shots"])=>{
@@ -76,7 +78,7 @@ export const groupStatRows=(rows)=>{
    }
   }
   const merged=new Map();
-  for(const r of ordered)for(const m of r.metrics||[]){const key=norm(m.name);if(!merged.has(key))merged.set(key,m);}
+  for(const r of ordered)for(const m of r.metrics||[]){const key=metricNorm(m.name);if(!merged.has(key))merged.set(key,m);}
   first.metrics=[...merged.values()];first._sourceRows=pack.length;
   result.push(first);
  }
