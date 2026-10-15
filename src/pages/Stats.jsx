@@ -163,6 +163,27 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const partial=Object.values(sums).some(x=>x.partial)||ratingRows.length!==shown.length;
   const inProgress=!allSeasons&&seasonActive(activeSeason);
   const totalsTitle=allSeasons?"Subtotal histórico (no total de carrera)":competition==="Todas"?"Subtotal de temporada":"Estadísticas de la competición";
+  const beginMetricEdit=(r,name,field=null)=>{
+    if(!r?.id||r._sourceRows>1)return;
+    const current=field?r[field]:(r.metrics||[]).find(m=>metricName(m.name)===metricName(name))?.value;
+    setMetricTarget({record:r,metric:name,field,current});
+  };
+  const valueButton=(r,name,value,decimals=2,field=null)=>{
+    const audited=(r.manual_metric_history||[]).some(h=>h.metric_name===(field?"$field:"+field:name));
+    return <button type="button" disabled={!r.id||r._sourceRows>1}
+      onClick={()=>beginMetricEdit(r,name,field)} title="Pulsa para editar o añadir esta cifra"
+      className="rounded px-1.5 py-1 font-semibold text-[#003399] hover:bg-blue-50 disabled:opacity-50">
+      {value==null?"Añadir +":show(value,decimals)}{audited&&<span className="ml-1 text-[9px] text-indigo-500">✎</span>}
+    </button>;
+  };
+  const columnMetricName=(r,id)=>{
+    const names={goals:"Goals",assists:"Assists",xg:"xG",xa:"xA",xgot:"xGOT",shots:"Shots",
+      shotsontarget:"Shots on target",bigchancescreated:"Big chances created",
+      xgexclpenalty:"xG excl. penalty",duelswon:"Duels won",
+      duelswonvariante2:"Duels won %",aerialswon:"Aerials won",aerialswonvariante2:"Aerials won %"};
+    const candidate=names[id]||id;
+    return (r.metrics||[]).find(m=>metricName(m.name)===metricName(candidate))?.name||candidate;
+  };
   const teamCell=r=>{
     const info=resolveTeam(r,teams,uniqueRecords);
     if(info.status==="national")return <span className="text-slate-500">Selección nacional</span>;
