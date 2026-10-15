@@ -69,14 +69,27 @@ const metricTotal=(row,names)=>{
   }
   return num(m.value);
 };
-const alignedPer90=(records,names)=>{
+const alignedPer90=(records,names,minutesSource=null)=>{
   let amount=0, minutes=0, count=0;
   for(const row of records){
-    const mins=num(row.minutes), value=metricTotal(row,names);
+    // Understat totals MUST use Understat minutes, never FotMob minutes.
+    const mins=minutesSource?num(pickMetric(row,[minutesSource])?.value):num(row.minutes);
+    const value=metricTotal(row,names);
     if(mins===null || mins<=0 || value===null)continue;
     amount+=value;minutes+=mins;count++;
   }
   return minutes>0 && count>0 ? amount*90/minutes : null;
+};
+const groundDuelPercentage=records=>{
+  let won=0,contested=0;
+  for(const row of records){
+    const w=num(pickMetric(row,["Ground duels won"])?.value);
+    const c=num(pickMetric(row,["Ground duels contested"])?.value);
+    if(w===null||c===null||!Number.isInteger(w)||!Number.isInteger(c)||c<=0||w<0||w>c)continue;
+    won+=w;contested+=c;
+  }
+  // Do not calculate a simple mean of percentages or weight them by minutes.
+  return contested>0 ? won/contested*100 : null;
 };
 const pairedFinishing=(records)=>{
   let diff=0,minutes=0;
@@ -177,9 +190,11 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     const values={rating:weightedRating(records),finishing_xgot_minus_npxg:pairedFinishing(records),
       play_share:playShare(records,tmLookup)};
     for(const [metric,names] of Object.entries(PER90))
-      values[metric]=alignedPer90(records,names);
+      values[metric]=alignedPer90(records,names,
+        metric==="xg_chain_p90"||metric==="xg_buildup_p90"?"Understat minutes":null);
     for(const [metric,names] of Object.entries(PERCENTAGE))
-      values[metric]=weightedPct(records,names);
+      values[metric]=metric==="ground_duels_won_pct"
+        ? groundDuelPercentage(records) : weightedPct(records,names);
     // Never fall back to seasonless FC/Transfermarkt or snapshot CraftedFC fields.
     const v=valueMaps.get(key);
     values.fc27_ovr=v?.length===1?num(v[0].fifa_fc_overall):null;
