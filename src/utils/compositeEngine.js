@@ -18,7 +18,7 @@ export const normalizeRole=position=>{
   const v=String(position??"").trim().toUpperCase();
   return POSITION_TO_ROLE[v]||null; // Do not silently map DM or unknown positions to CM.
 };
-export const metricName=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+export const metricName=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/%/g,"percent").replace(/[^a-z0-9]/g,"");
 const METRIC_LABELS={
  npxg_p90:["xG excl. penalty","Non-penalty xG","np xG","npxG"],
  xa_p90:["xA","Expected assists"],xgot_p90:["xGOT"],shots_on_target_p90:["Shots on target"],
