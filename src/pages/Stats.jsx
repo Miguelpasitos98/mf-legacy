@@ -318,8 +318,15 @@ export default function Stats(){
   const [settingsOpen,setSettingsOpen]=useState(false),[settingsContext,setSettingsContext]=useState(null),[prefsRecord,setPrefsRecord]=useState(null),[prefsWarning,setPrefsWarning]=useState("");
   const [unifiedOpen,setUnifiedOpen]=useState(false);
   useEffect(()=>{let mounted=true;(async()=>{
-    try{const res=await base44.entities.StatsViewPreference.list({limit:50});
-      const mine=unpack(res).find(r=>r.key==="stats_layout_personal_v1");
+    try{const mine=await queryClient.fetchQuery({
+      queryKey:STATS_LAYOUT_KEY,
+      queryFn:async()=>{
+        const res=await base44.entities.StatsViewPreference.list({limit:50});
+        return unpack(res).find(r=>r.key==="stats_layout_personal_v1")||null;
+      },
+      staleTime:STATS_ROWS_STALE_MS,
+      gcTime:STATS_CACHE_GC_MS,
+    });
       if(mounted&&mine){setColumnConfig(sanitizeConfig(JSON.parse(mine.config_json)));setPrefsRecord(mine);}
     }catch(e){if(mounted)setPrefsWarning("No se pudieron recuperar los ajustes personales: "+(e?.message||e));}
   })();return()=>{mounted=false;};},[]);
@@ -472,6 +479,7 @@ export default function Stats(){
     const payload={key:"stats_layout_personal_v1",version:clean.version,config_json:JSON.stringify(clean)};
     if(prefsRecord?.id){await base44.entities.StatsViewPreference.update(prefsRecord.id,payload);}
     else{const created=await base44.entities.StatsViewPreference.create(payload);setPrefsRecord({...payload,id:created?.id||created?.data?.id});}
+    queryClient.setQueryData(STATS_LAYOUT_KEY,{...payload,id:prefsRecord?.id||null});
     setColumnConfig(clean);setPrefsWarning("");
   };
   const importComplete=()=>{
