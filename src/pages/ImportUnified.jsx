@@ -411,7 +411,7 @@ export default function ImportUnified({onImported}) {
       <label className={"block cursor-pointer rounded-2xl border-2 border-dashed p-7 text-center shadow-sm transition "+(busy?"cursor-wait border-blue-200 bg-blue-50":"border-blue-200 bg-white hover:border-blue-400 hover:bg-blue-50")}>
         {busy?<Loader2 size={29} className="mx-auto mb-2 animate-spin text-blue-700"/>:<CloudUpload size={29} className="mx-auto mb-2 text-blue-700"/>}
         <span className="block text-sm font-bold text-[#003399]">{busy?"Importando y verificando…":fileName||"Seleccionar archivo JSON"}</span>
-        <span className="mt-1 block text-xs text-slate-500">{busy?"No cierres esta ventana hasta que termine.":"La importación comienza automáticamente · hasta 20 archivos / 30 MB"}</span>
+        <span className="mt-1 block text-xs text-slate-500">{busy?"No cierres esta ventana hasta que termine.":"Un JSON se importa automáticamente · máximo 30 MB por lote"}</span>
         <input type="file" multiple accept=".json,application/json" className="sr-only" onChange={handleFile} disabled={busy||isAdmin!==true}/>
       </label>
       {busy&&<section role="status" className="rounded-xl border border-blue-100 bg-white p-4">
