@@ -1,4 +1,4 @@
-import React,{useMemo} from "react";
+import React,{useMemo,useState} from "react";
 import {Activity,ArrowRight,BarChart3,CalendarDays,ChevronRight,Database,RefreshCw,TrendingUp} from "lucide-react";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
 import {overviewHistoricalModel} from "@/utils/statsOverviewModel";
@@ -7,6 +7,7 @@ import {advancedTotals} from "@/utils/statsAdvanced";
 import {aggregate,seasonActive,metricsValue} from "@/utils/statsViews";
 import {formatEur} from "@/utils/historicalValuation";
 import CraftedfcOverview from "./CraftedfcOverview";
+import HistoricalValuationsTable from "./HistoricalValuationsTable";
 
 const show=(v,d=0)=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
 const tone=p=>p>=85?"bg-emerald-500":p>=65?"bg-cyan-500":p>=40?"bg-blue-500":p>=20?"bg-amber-400":"bg-rose-400";
@@ -22,7 +23,8 @@ const Heading=({icon:Icon,children,action})=><div className="mb-3 flex flex-wrap
   {action}
 </div>;
 export default function MfLegacyOverview({playerId,position,season,competition,scope,shown=[],historicalValuations=[],estimatedRating=null,
- snapshot=null,cfcStatus="idle",onSeasonChange,onPerformance,onAnalysis,onValuations}){
+ snapshot=null,cfcStatus="idle",onSeasonChange,onPerformance,onAnalysis,historicalLoading=false,historicalRefresh}){
+ const [showValuationHistory,setShowValuationHistory]=useState(false);
  const {data,isFetching,error,refetch}=useHistoricalPeerDataset(true);
  const model=useMemo(()=>overviewHistoricalModel(data,playerId,season,8),[data,playerId,season]);
  const {result,indicators,trend}=model;
@@ -142,7 +144,8 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
          <Kpi title="Transfermarkt" value={normalizedValue} meta={selectedValuation?.market_value_as_of||"Sin fecha"}/>
        </div>
        {selectedValuation?.verification_status!=="verified"&&<p className="mt-2 rounded-lg bg-amber-50 p-2 text-[11px] text-amber-800">{selectedValuation?"Datos pendientes de verificación.":"No hay valoraciones para esta temporada."}</p>}
-       <button type="button" onClick={onValuations} className="mt-3 flex items-center gap-1 text-xs font-bold text-[#003399] hover:underline">Ver todas las valoraciones <ArrowRight size={13}/></button>
+       <button type="button" onClick={()=>setShowValuationHistory(v=>!v)} aria-expanded={showValuationHistory} className="mt-3 flex items-center gap-1 text-xs font-bold text-[#003399] hover:underline">{showValuationHistory?"Ocultar valoraciones":"Ver todas las valoraciones"} <ArrowRight size={13}/></button>
+       {showValuationHistory&&<div className="mt-2 max-h-[360px] overflow-auto"><HistoricalValuationsTable valuations={historicalValuations} loading={historicalLoading} onRefresh={historicalRefresh}/></div>}
      </section>
    </div>
    <details className="rounded-xl border border-slate-200 bg-slate-50 p-4">
