@@ -41,9 +41,9 @@ const PositionBar = ({item}) => {
     </span>
   </div>;
 };
-export default function HistoricalPeerPreview({playerId,position="",seasons=[],initialSeason=""}){
+export default function HistoricalPeerPreview({playerId,position="",seasons=[],initialSeason="",main=false}){
   const [picked,setPicked]=useState("");
-  const {data,error,isFetching,refetch}=useHistoricalPeerDataset();
+  const {data,error,isFetching,refetch}=useHistoricalPeerDataset(main);
   const season=seasons.includes(picked)?picked:seasons.includes(initialSeason)?initialSeason:seasons[0]||"";
   const role=historicalRole(position);
   const result=useMemo(()=>{
@@ -56,20 +56,20 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const isThin=previewRows.some(r=>r.provisional);
   const validCount=previewRows.filter(r=>r.percentile!==null).length;
   return (
-    <section className="mt-4 space-y-3 rounded-xl border border-indigo-200 bg-[#f8faff] p-4">
+    <section className={(main?"mt-3 ":"mt-4 ")+"space-y-3 rounded-xl border border-indigo-200 bg-[#f8faff] p-4"}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h4 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-[#003399]">
-            <BarChart3 size={17}/> vs jugadores MF LEGACY · vista previa
+            <BarChart3 size={17}/> {main?"Composite MF LEGACY · vs nuestra base de datos":"vs jugadores MF LEGACY · vista previa"}
           </h4>
           <p className="mt-1 text-xs text-slate-600">
-            Nuestra base histórica completa · una observación por jugador/temporada · mismo arquetipo · solo competiciones de clubes. FIFA/Transfermarkt requieren datos de al menos dos jugadores.
+            Percentiles propios por posición, calculados con todas las temporadas de clubes de nuestra base. La temporada se consolida entre competiciones antes de comparar. Nunca se utilizan los percentiles originales de FotMob.
           </p>
         </div>
         <button type="button" onClick={()=>refetch()} disabled={isFetching||!playerId}
           className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-50">
           <RefreshCw size={15} className={isFetching?"animate-spin":""}/>
-          {isFetching?"Cargando base completa…":data?"Actualizar comparación":"Calcular con nuestra BD"}
+          {isFetching?"Cargando base completa…":data?"Actualizar comparación":main?"Reintentar carga":"Calcular con nuestra BD"}
         </button>
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -114,11 +114,17 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             <div className="mt-1 text-lg font-black text-[#003399]">{value}</div>
           </div>)}
         </div>
-        {result.composite&&<div className="rounded-lg border border-indigo-100 bg-white p-3 text-xs">
-          <strong>Composite experimental de la BD: {show(result.composite.score,1)}/100</strong>
-          {" · "}Cobertura {show(result.composite.coverage,1)} %.
-          <span className="text-slate-600"> No sustituye el Composite actual. Un score con cobertura o muestra diferente no es directamente comparable.</span>
-        </div>}
+        {result.composite&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-indigo-100 bg-white p-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Composite MF LEGACY · {result.composite.status==="partial"?"Parcial":"Calculado"}</p>
+            <p className="mt-1 text-xs text-slate-600">vs {result.role} · {result.population} temporadas de {result.players} jugadores distintos</p>
+            <p className="mt-1 text-[11px] text-amber-700">{result.players<10?"Muestra reducida: índice experimental, no nota definitiva.":"Ponderaciones experimentales; no equivale al rating oficial CraftedFC."}</p>
+          </div>
+          <div className="min-w-[165px] rounded-lg border border-indigo-100 bg-blue-50 px-4 py-2 text-right">
+            <p className="text-2xl font-black tabular-nums text-[#003399]">{show(result.composite.score,1)}<span className="text-sm font-normal text-slate-400"> /100</span></p>
+            <p className="text-[11px] text-slate-600">Cobertura {show(result.composite.coverage,1)} % · {result.composite.count}/{result.composite.total} indicadores</p>
+          </div>
+        </div>
         {!result.composite&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           Este arquetipo todavía no tiene pesos de Composite definidos; los percentiles se muestran independientemente.
         </p>}
