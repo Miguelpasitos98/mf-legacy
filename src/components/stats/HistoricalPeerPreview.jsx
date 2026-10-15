@@ -1,7 +1,8 @@
 import React,{useMemo,useState} from "react";
 import { AlertTriangle, BarChart3, Database, RefreshCw } from "lucide-react";
 import { useHistoricalPeerDataset } from "@/hooks/useHistoricalPeerDataset";
-import { compareHistoricalObservation, historicalRole } from "@/utils/historicalPeers";
+import { compareHistoricalObservation, historicalRole, historicalNationalCompetition } from "@/utils/historicalPeers";
+import OverviewManualEditor from "@/components/stats/OverviewManualEditor";
 import { formatEur } from "@/utils/historicalValuation";
 const show=(v,d=2)=>v===null||v===undefined||!Number.isFinite(Number(v))?"—":
  Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -41,11 +42,15 @@ const PositionBar = ({item}) => {
     </span>
   </div>;
 };
-export default function HistoricalPeerPreview({playerId,position="",seasons=[],initialSeason="",main=false}){
+export default function HistoricalPeerPreview({playerId,position="",seasons=[],initialSeason="",main=false,editableRows=[],onSetMetric}){
   const [picked,setPicked]=useState("");
+  const [manualMode,setManualMode]=useState(null);
   const {data,error,isFetching,refetch}=useHistoricalPeerDataset(main);
   const season=seasons.includes(picked)?picked:seasons.includes(initialSeason)?initialSeason:seasons[0]||"";
   const role=historicalRole(position);
+  const rowsToEdit=useMemo(()=>editableRows.filter(r=>r.season===season&&!historicalNationalCompetition(r.competition)),[editableRows,season]);
+  const missingUnderstat=previewNotUsedPlaceholder;
+
   const result=useMemo(()=>{
     if(!data?.observations?.length||!playerId||!season)return null;
     const observation=data.observations.find(o=>o.playerId===String(playerId)&&o.season===season);
@@ -53,6 +58,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
     return compareHistoricalObservation(observation,data.observations,10);
   },[data,playerId,season]);
   const previewRows=result?.rows||[];
+  const missingUnderstat=previewRows.some(r=>(r.key==="xg_chain_p90"||r.key==="xg_buildup_p90")&&r.value===null);
   const isThin=previewRows.some(r=>r.provisional);
   const validCount=previewRows.filter(r=>r.percentile!==null).length;
   return (
@@ -128,6 +134,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         {isThin&&<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
           Percentiles provisionales: aún hay menos de 10 jugadores distintos del mismo arquetipo con datos de estas métricas. Las temporadas de un solo jugador no bastan para crear un percentil.
         </p>}
+        {missingUnderstat&&onSetMetric&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-900">Los xG Chain /90 y xG Buildup /90 que aparecen como «—» no están disponibles para esta temporada en las competiciones guardadas. <strong>No se rellenan con el snapshot global de CraftedFC.</strong> Puedes pulsar «Añadir +» e introducir cifras verificadas de Understat para la competición correspondiente.</p>}
         <div className="max-h-[640px] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[980px] text-left text-xs">
             <thead className="sticky top-0 z-10 bg-[#e2eaf6] shadow-[0_1px_0_0_rgba(15,49,86,0.15)]">
@@ -144,7 +151,10 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             <tbody>{previewRows.map(item=><tr className="border-t border-slate-100 hover:bg-slate-50" key={item.key}>
               <td className="px-3 py-2.5 font-semibold text-slate-800">{item.name}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right font-semibold tabular-nums text-slate-800">
-                {item.key==="market_value"?formatEur(item.value):show(item.value,item.key==="fc27_ovr"?0:2)}
+                {item.value===null&&onSetMetric&&["xg_chain_p90","xg_buildup_p90"].includes(item.key)?
+                  <button type="button" onClick={()=>setManualMode(item.key==="xg_chain_p90"?"chain":"buildup")}
+                    className="rounded px-2 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600" title={"Añadir dato Understat por competición en "+season}>Añadir +</button>:
+                  item.key==="market_value"?formatEur(item.value):show(item.value,item.key==="fc27_ovr"?0:2)}
               </td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PercentileBar item={item}/></td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PositionBar item={item}/></td>
@@ -165,6 +175,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           <Database size={14}/> Consulta de solo lectura · FotMob, FC histórico y Transfermarkt previamente almacenados en MF LEGACY · {new Date(data.loadedAt).toLocaleString("es-ES")}
         </p>
       </>}
+      <OverviewManualEditor mode={manualMode} records={rowsToEdit} onClose={()=>setManualMode(null)} onSave={onSetMetric}/>
     </section>
   );
 }
