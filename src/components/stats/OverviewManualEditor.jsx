@@ -1,0 +1,105 @@
+import React,{useEffect,useMemo,useState} from "react";
+import {createPortal} from "react-dom";
+import {X} from "lucide-react";
+import {createOverviewManualChanges,MANUAL_CARD_TITLES} from "@/utils/overviewManualChanges";
+import {metricName} from "@/utils/compositeEngine";
+
+const number=(record,name,field=null)=>{
+ const value=field?record?.[field]:(record?.metrics||[]).find(m=>metricName(m.name)===metricName(name))?.value;
+ return value===null||value===undefined?"":String(value).replace(".",",");
+};
+const simpleNames={goals:"Goals",assists:"Assists",xg:"xG",xa:"xA",shots:"Shots",
+ appearances:"appearances",minutes:"minutes",rating:"rating"};
+export default function OverviewManualEditor({mode,records=[],onClose,onSave}){
+ const [recordId,setRecordId]=useState("");
+ const [form,setForm]=useState({value:"",sourceMinutes:"",won:"",contested:"",name:"",unit:"total"});
+ const [source,setSource]=useState("");
+ const [busy,setBusy]=useState(false);
+ const [error,setError]=useState("");
+ const sorted=useMemo(()=>[...records].filter(r=>r.id).sort((a,b)=>String(b.season).localeCompare(String(a.season))||
+  String(a.competition).localeCompare(String(b.competition))),[records]);
+ const selected=sorted.find(r=>String(r.id)===recordId)||sorted[0]||null;
+ useEffect(()=>{setRecordId("");setSource("");setError("");},[mode]);
+ useEffect(()=>{
+  if(!selected)return;
+  setForm({
+   value:mode==="chain"||mode==="buildup"?number(selected,mode==="chain"?"xG Chain":"xG Buildup"):
+    mode==="other"?"":number(selected,simpleNames[mode]||"",["appearances","minutes","rating"].includes(mode)?mode:null),
+   sourceMinutes:number(selected,"Understat minutes"),
+   won:number(selected,"Ground duels won"),
+   contested:number(selected,"Ground duels contested"),
+   unit:"total",name:""
+  });
+  setError("");
+ },[selected?.id,mode]);
+ if(!mode)return null;
+ const label=MANUAL_CARD_TITLES[mode]||"Estadística histórica";
+ const set=(key,value)=>setForm(prev=>({...prev,[key]:value}));
+ const submit=async(e)=>{
+  e.preventDefault();
+  if(!selected)return;
+  setBusy(true);setError("");
+  try{
+   const changes=createOverviewManualChanges(selected,mode,form,source);
+   await onSave(selected,changes);
+   onClose();
+  }catch(err){setError(err?.message||"No se pudo guardar el dato.");}
+  finally{setBusy(false);}
+ };
+ const valueInput=(title,key,placeholder="0,00",integer=false)=><label className="block text-xs font-semibold text-slate-700">{title}
+   <input required inputMode={integer?"numeric":"decimal"} value={form[key]} onChange={e=>set(key,e.target.value)}
+    placeholder={placeholder} className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm focus:border-blue-500 focus:outline-none"/>
+ </label>;
+ return createPortal(<div className="fixed inset-0 z-[10050] flex items-center justify-center bg-slate-950/75 p-4" role="dialog" aria-modal="true" aria-label={"Añadir o corregir "+label}>
+  <form onSubmit={submit} className="w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl">
+   <div className="flex items-start justify-between gap-2">
+    <div><h3 className="text-base font-black text-[#123456]">Añadir o editar · {label}</h3>
+     <p className="mt-1 text-xs text-slate-500">MF LEGACY · Solo se modifica la competición que selecciones</p>
+    </div><button disabled={busy} onClick={onClose} type="button" aria-label="Cerrar" className="rounded p-2 hover:bg-slate-100"><X size={18}/></button>
+   </div>
+   {selected?<label className="block text-xs font-semibold text-slate-700">Temporada y competición
+    <select value={selected.id} disabled={busy} onChange={e=>setRecordId(e.target.value)}
+     className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm">
+     {sorted.map((r,i)=><option key={r.id} value={r.id}>{r.season} · {r.competition} · {r.team_name||"Club no indicado"}{sorted.some((x,j)=>j!==i&&x.season===r.season&&x.competition===r.competition)?" · "+String(r.external_record_id||r.id).slice(-9):""}</option>)}
+    </select>
+   </label>:<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">No hay competiciones con registros guardados en estos filtros. Cambia la temporada o el ámbito para introducir datos.</p>}
+   {selected&&<div className="space-y-3">
+     {(mode==="chain"||mode==="buildup")&&<>
+       <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">Introduce el total de la competición y sus minutos de Understat. Si solamente conoces el valor /90, elige esa opción: se reconstruirá un total derivado y quedará indicado en la fuente.</p>
+       <label className="block text-xs font-semibold text-slate-700">Dato que tienes
+        <select value={form.unit} onChange={e=>{set("unit",e.target.value);set("value","");}} className="mt-1 w-full rounded-lg border border-slate-200 p-2.5 text-sm">
+         <option value="total">Total de xG de la competición</option><option value="per90">Valor por 90 minutos</option>
+        </select>
+       </label>
+       {valueInput(form.unit==="per90"?"Valor /90":"Valor total","value","1,25")}
+       {valueInput("Minutos Understat (misma fuente)","sourceMinutes","2.700",true)}
+     </>}
+     {mode==="ground"&&<>
+       <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">Para calcular un porcentaje fiable necesitamos los duelos terrestres ganados y disputados. No se puede completar a partir de un porcentaje aislado.</p>
+       <div className="grid grid-cols-2 gap-3">
+        {valueInput("Duelos terrestres ganados","won","35",true)}
+        {valueInput("Duelos terrestres disputados","contested","70",true)}
+       </div>
+       {Number(form.contested.replace(",","."))>0&&<p className="text-xs font-bold text-blue-900">Porcentaje calculado: {(100*Number(form.won.replace(",","."))/Number(form.contested.replace(",","."))).toLocaleString("es-ES",{maximumFractionDigits:2})} %</p>}
+     </>}
+     {mode==="other"&&<>
+       <label className="block text-xs font-semibold text-slate-700">Nombre de la métrica
+        <input value={form.name} required maxLength={100} onChange={e=>set("name",e.target.value)} placeholder="Ej.: Big chances created" className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm"/>
+       </label>
+       {valueInput("Valor","value")}
+     </>}
+     {["goals","assists","xg","xa","shots","appearances","minutes","rating"].includes(mode)&&valueInput("Nuevo valor para esta competición","value")}
+     <label className="block text-xs font-semibold text-slate-700">Fuente o referencia verificable
+      <input required value={source} maxLength={500} onChange={e=>setSource(e.target.value)}
+       placeholder="URL o referencia de FotMob / Understat / otra fuente" className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm"/>
+     </label>
+     <p className="text-[11px] text-slate-500">Se guardarán únicamente las cifras modificadas, con registro del valor anterior, fecha y fuente. No se alteran los demás datos del jugador.</p>
+   </div>}
+   {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-800">{error}</p>}
+   <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+    <button type="button" disabled={busy} onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Cancelar</button>
+    <button type="submit" disabled={busy||!selected||!source.trim()} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{busy?"Guardando…":"Guardar estadística"}</button>
+   </div>
+  </form>
+ </div>,document.body);
+}
