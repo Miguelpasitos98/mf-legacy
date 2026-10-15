@@ -2,7 +2,8 @@
 // Never overwrite match totals, football manager attributes, custom values,
 // or an existing metric that differs from another data source.
 const text = v => String(v ?? "").trim();
-export const metricKey = v => text(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+// A count and its percentage must never share a key (e.g. Ground duels won vs Ground duels won %).
+export const metricKey = v => text(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/%/g, "percent").replace(/[^a-z0-9]/g, "");
 const numeric = v => (v == null || v === "" ? null : (Number.isFinite(Number(v)) ? Number(v) : null));
 const eq = (a,b) => text(a) === text(b);
 const same = (a,b) => numeric(a) === numeric(b);
