@@ -26,7 +26,7 @@ import {applyManualStatChange,applyManualStatChanges} from "@/utils/manualStats"
 import {advancedTotals} from "@/utils/statsAdvanced";
 import {metricName} from "@/utils/compositeEngine";
 import {buildSeasonSummaries} from "@/utils/statsSeason";
-import {patchHistoricalPeerCache} from "@/utils/historicalPeerCache";
+import {patchHistoricalPeerCache,HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
 import {useCraftedfcSnapshot} from "@/hooks/useCraftedfcSnapshot";
 import MfLegacyOverview from "@/components/stats/MfLegacyOverview";
@@ -330,7 +330,16 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
         </form>
       </div>}
       {teamLinkTarget&&<TeamLinkPicker season={activeSeason} records={stats} teams={teams} initialRecord={teamLinkTarget==="bulk"?null:teamLinkTarget} onClose={()=>setTeamLinkTarget(null)} onApply={onLinkTeams}/>}
-      <HistoricalSingleEntryImporter open={valuationImporterOpen} onClose={()=>setValuationImporterOpen(false)} player={player} fotmobPlayerId={fotmobPlayerId} fm26Uid={player?.fm26_uid||""} onSaved={()=>{historicalRefresh();refreshTeamMatches();}} stats={stats} teams={teams} initialSeason={activeSeason}/>
+      <HistoricalSingleEntryImporter open={valuationImporterOpen} onClose={()=>setValuationImporterOpen(false)} player={player} fotmobPlayerId={fotmobPlayerId} fm26Uid={player?.fm26_uid||""} onSaved={change=>{
+        historicalRefresh();refreshTeamMatches();
+        if(change?.entity&&change?.id){
+          if(!patchHistoricalPeerCache(queryClient,change.entity,change.id,change.patch))
+            queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
+        }else if(change===undefined||change?.refresh){
+          // JSON batch imports and genuinely new records alter the comparison population.
+          queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
+        }
+      }} stats={stats} teams={teams} initialSeason={activeSeason}/>
     </div>,document.body
   );
 }
@@ -481,7 +490,12 @@ export default function Stats(){
     else{const created=await base44.entities.StatsViewPreference.create(payload);setPrefsRecord({...payload,id:created?.id||created?.data?.id});}
     setColumnConfig(clean);setPrefsWarning("");
   };
-  const importComplete=()=>{setRevision(x=>x+1);queryClient.invalidateQueries({queryKey:["mf-legacy","stats"]});};
+  const importComplete=()=>{
+    setRevision(x=>x+1);
+    queryClient.invalidateQueries({queryKey:["mf-legacy","stats"]});
+    // After a multi-player import, a full population refresh IS necessary.
+    queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
+  };
   return <div className="h-full w-full overflow-y-auto bg-[#f3f5f8]">
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 md:px-5">
       <p className="text-xs font-black uppercase tracking-[.12em] text-[#0d315b]">STATS <span className="ml-2 font-normal normal-case tracking-normal text-slate-400">Rendimiento por temporada</span></p>
