@@ -1,9 +1,10 @@
 import React,{useMemo,useState} from "react";
-import { AlertTriangle, BarChart3, Database, RefreshCw } from "lucide-react";
+import { AlertTriangle, BarChart3, ClipboardList, Database, RefreshCw } from "lucide-react";
 import { useHistoricalPeerDataset } from "@/hooks/useHistoricalPeerDataset";
 import { compareHistoricalObservation, historicalRole, historicalNationalCompetition } from "@/utils/historicalPeers";
 import OverviewManualEditor from "@/components/stats/OverviewManualEditor";
 import { formatEur } from "@/utils/historicalValuation";
+import { buildMissingDataPrompt } from "@/utils/missingDataPrompt";
 const show=(v,d=2)=>v===null||v===undefined||!Number.isFinite(Number(v))?"—":
  Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
 // Reuse the same colour thresholds as the original CraftedFC breakdown.
@@ -42,9 +43,10 @@ const PositionBar = ({item}) => {
     </span>
   </div>;
 };
-export default function HistoricalPeerPreview({playerId,position="",seasons=[],initialSeason="",main=false,editableRows=[],onSetMetric}){
+export default function HistoricalPeerPreview({playerId,position="",seasons=[],initialSeason="",main=false,playerName="",editableRows=[],onSetMetric}){
   const [picked,setPicked]=useState("");
   const [manualMode,setManualMode]=useState(null);
+  const [copyStatus,setCopyStatus]=useState("");
   const {data,error,isFetching,refetch}=useHistoricalPeerDataset(main);
   const season=seasons.includes(picked)?picked:seasons.includes(initialSeason)?initialSeason:seasons[0]||"";
   const role=historicalRole(position);
@@ -59,6 +61,23 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const missingUnderstat=previewRows.some(r=>(r.key==="xg_chain_p90"||r.key==="xg_buildup_p90")&&r.value===null);
   const isThin=previewRows.some(r=>r.provisional);
   const validCount=previewRows.filter(r=>r.percentile!==null).length;
+  const missingData=previewRows.filter(r=>r.value===null).map(r=>r.name);
+  const copyMissingPrompt=async()=>{
+    const text=buildMissingDataPrompt({playerName,season,role,missing:missingData});
+    const done="Consulta copiada ("+missingData.length+" datos en blanco). Pégala en un chat y trae los valores de vuelta para añadirlos a mano.";
+    try{
+      await navigator.clipboard.writeText(text);
+      setCopyStatus(done);
+    }catch{
+      try{
+        const area=document.createElement("textarea");area.value=text;area.style.position="fixed";area.style.opacity="0";
+        document.body.appendChild(area);area.select();
+        const ok=document.execCommand("copy");document.body.removeChild(area);
+        if(!ok)throw Error("No disponible");
+        setCopyStatus(done);
+      }catch{setCopyStatus("El navegador ha bloqueado la copia. Revisa sus permisos de portapapeles.");}
+    }
+  };
   return (
     <section className={(main?"mt-0 ":"mt-4 ")+"space-y-3 rounded-xl border-2 border-indigo-300 bg-[#f8faff] p-4 shadow-sm"}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -70,12 +89,20 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             Percentiles propios por posición, calculados con todas las temporadas de clubes de nuestra base. La temporada se consolida entre competiciones antes de comparar. Nunca se utilizan los percentiles originales de FotMob.
           </p>
         </div>
-        <button type="button" onClick={()=>refetch()} disabled={isFetching||!playerId}
-          className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-50">
-          <RefreshCw size={15} className={isFetching?"animate-spin":""}/>
-          {isFetching?"Cargando base completa…":data?"Actualizar comparación":main?"Reintentar carga":"Calcular con nuestra BD"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {main&&<button type="button" onClick={copyMissingPrompt} disabled={!playerId||!season}
+            title="Copia una consulta con el jugador, la temporada y los datos en blanco para pegarla en un chat externo"
+            className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-50">
+            <ClipboardList size={15}/> Copiar consulta de datos faltantes
+          </button>}
+          <button type="button" onClick={()=>refetch()} disabled={isFetching||!playerId}
+            className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-50">
+            <RefreshCw size={15} className={isFetching?"animate-spin":""}/>
+            {isFetching?"Cargando base completa…":data?"Actualizar comparación":main?"Reintentar carga":"Calcular con nuestra BD"}
+          </button>
+        </div>
       </div>
+      {copyStatus&&<p role="status" className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-900">{copyStatus}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-xs font-bold text-slate-600">
           Temporada
@@ -149,9 +176,10 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             <tbody>{previewRows.map(item=><tr className="border-t border-slate-100 hover:bg-slate-50" key={item.key}>
               <td className="px-3 py-2.5 font-semibold text-slate-800">{item.name}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right font-semibold tabular-nums text-slate-800">
-                {item.value===null&&onSetMetric&&["xg_chain_p90","xg_buildup_p90"].includes(item.key)?
-                  <button type="button" onClick={()=>setManualMode(item.key==="xg_chain_p90"?"chain":"buildup")}
-                    className="rounded px-2 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600" title={"Añadir dato Understat por competición en "+season}>Añadir +</button>:
+                {item.value===null&&onSetMetric?
+                  <button type="button"
+                    onClick={()=>setManualMode(["xg_chain_p90","xg_buildup_p90"].includes(item.key)?(item.key==="xg_chain_p90"?"chain":"buildup"):{mode:"other",name:item.name})}
+                    className="rounded px-2 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600" title={"Añadir a mano «"+item.name+"» en "+season}>Añadir +</button>:
                   item.key==="market_value"?formatEur(item.value):show(item.value,item.key==="fc27_ovr"?0:2)}
               </td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PercentileBar item={item}/></td>
@@ -173,7 +201,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           <Database size={14}/> Consulta de solo lectura · FotMob, FC histórico y Transfermarkt previamente almacenados en MF LEGACY · {new Date(data.loadedAt).toLocaleString("es-ES")}
         </p>
       </>}
-      <OverviewManualEditor mode={manualMode} records={rowsToEdit} onClose={()=>setManualMode(null)} onSave={onSetMetric}/>
+      <OverviewManualEditor mode={typeof manualMode==="object"?manualMode.mode:manualMode} defaultName={typeof manualMode==="object"?manualMode.name:""} records={rowsToEdit} onClose={()=>setManualMode(null)} onSave={onSetMetric}/>
     </section>
   );
 }

@@ -23,9 +23,8 @@ function valid(value,label){
 }
 export function createOverviewManualChanges(record,mode,form,note){
  if(!record?.id)throw Error("Selecciona un registro guardado y con ID.");
- if(!note?.trim())throw Error("La fuente del dato es obligatoria.");
- if(note.trim().length>500)throw Error("La referencia de la fuente es demasiado larga.");
- const sourceNote=note.trim();
+ const sourceNote=String(note||"").trim()||"Registro manual";
+ if(sourceNote.length>500)throw Error("La referencia de la fuente es demasiado larga.");
  let entries=[];
  if(SIMPLE[mode]){
   const {name,field=null}=SIMPLE[mode];

@@ -27,10 +27,15 @@ test("edita campos PJ, minutos y nota sin mutar el original",()=>{
  assert.equal(row.rating,7.4);
  assert.equal(update.manual_metric_history[0].metric_name,"$field:rating");
 });
-test("rechaza cambios sin fuente, porcentaje fuera de rango, minutos negativos y valores vacíos",()=>{
- for(const c of [{...change("xG",6),sourceNote:""},change("Ground duels won %",120),{...change("Minutes",-1),field:"minutes"},change("xG","")]){
-   assert.throws(()=>applyManualStatChange(row,c));
+test("rechaza porcentaje fuera de rango, minutos negativos y valores vacíos",()=>{
+ for(const c of [change("Ground duels won %",120),{...change("Minutes",-1),field:"minutes"},change("xG","")]){
+  assert.throws(()=>applyManualStatChange(row,c));
  }
+});
+test("acepta el dato sin exigir fuente",()=>{
+ const {update,audit}=applyManualStatChange(row,{name:"xG",value:6,changedAt:"2026-10-15T12:00:00Z"});
+ assert.equal(update.metrics[0].value,6);
+ assert.equal(audit.source_note,"Registro manual");
 });
 test("importaciones siguientes no sobrescriben una corrección manual",()=>{
  const {update}=applyManualStatChange(row,change("xG",5.25));

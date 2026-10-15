@@ -47,13 +47,16 @@ test("Solo se alteran estadísticas editadas y el valor anterior queda registrad
  assert.equal(update.manual_metric_history[0].old_value,30);
  assert.equal(update.manual_metric_history[0].new_value,30.25);
 });
-test("Rechaza duelos imposibles, minutos inválidos, buildup superior a chain y fuentes ausentes",()=>{
+test("Rechaza duelos imposibles, minutos inválidos y buildup superior a chain",()=>{
  assert.throws(()=>changes("ground",{won:"29",contested:"28"}),/duelos/i);
  assert.throws(()=>changes("ground",{won:"3,5",contested:"28"}),/entero/i);
  assert.throws(()=>changes("chain",{value:"2",sourceMinutes:"0",unit:"total"}),/mayores/i);
  assert.throws(()=>changes("buildup",{value:"15",sourceMinutes:"1000",unit:"total"}),/no puede superar/i);
- assert.throws(()=>createOverviewManualChanges(record,"xg",{value:"34"},""),/fuente/i);
  assert.throws(()=>changes("xg",{value:"30"}),/coinciden/i);
+});
+test("El dato manual se guarda sin exigir fuente",()=>{
+ const updates=createOverviewManualChanges(record,"xg",{value:"34"},"");
+ assert.equal(updates[0].sourceNote,"Registro manual");
 });
 test("El Overview tiene accesos de edición por tarjeta y una modal por competición",()=>{
  const read=f=>readFileSync(new URL(f,import.meta.url),"utf8");

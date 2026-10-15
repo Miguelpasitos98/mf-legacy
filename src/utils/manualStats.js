@@ -19,9 +19,9 @@ export function applyManualStatChanges(record,changes){
 }
 export function applyManualStatChange(row,{name,value,sourceNote,field=null,changedAt}){
   if(!row?.id)throw Error("Selecciona una competición guardada y con ID.");
-  const metric=safeName(name),note=safeName(sourceNote);
+  const metric=safeName(name),note=safeName(sourceNote)||"Registro manual";
   if(!metric||metric.length>100)throw Error("El nombre de la estadística no es válido.");
-  if(!note||note.length>500)throw Error("Indica la fuente o referencia del dato manual.");
+  if(note.length>500)throw Error("La referencia de la fuente es demasiado larga.");
   const number=numeric(value);
   if(number===null||Math.abs(number)>1e9)throw Error("Introduce un número válido y finito.");
   if(field!==null&&!allowedFields.has(field))throw Error("Este campo no admite edición manual.");

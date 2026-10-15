@@ -10,10 +10,9 @@ const number=(record,name,field=null)=>{
 };
 const simpleNames={goals:"Goals",assists:"Assists",xg:"xG",xa:"xA",shots:"Shots",
  appearances:"appearances",minutes:"minutes",rating:"rating"};
-export default function OverviewManualEditor({mode,records=[],onClose,onSave}){
+export default function OverviewManualEditor({mode,records=[],onClose,onSave,defaultName=""}){
  const [recordId,setRecordId]=useState("");
  const [form,setForm]=useState({value:"",sourceMinutes:"",won:"",contested:"",name:"",unit:"total"});
- const [source,setSource]=useState("");
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const sorted=useMemo(()=>[...records].filter(r=>r.id).sort((a,b)=>String(b.season).localeCompare(String(a.season))||
@@ -24,7 +23,7 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave}){
  mode==="buildup"?(hasValue(r,"xG Buildup")&&hasValue(r,"Understat minutes")?"Con datos":"Incompleto"):
  mode==="ground"?(hasValue(r,"Ground duels won")&&hasValue(r,"Ground duels contested")?"Con datos":"Incompleto"):
  mode==="other"?"":hasValue(r,simpleNames[mode]||"",["appearances","minutes","rating"].includes(mode)?mode:null)?"Con datos":"Sin datos";
- useEffect(()=>{setRecordId("");setSource("");setError("");},[mode]);
+ useEffect(()=>{setRecordId("");setError("");},[mode]);
  useEffect(()=>{
   if(!selected)return;
   setForm({
@@ -33,10 +32,10 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave}){
    sourceMinutes:number(selected,"Understat minutes"),
    won:number(selected,"Ground duels won"),
    contested:number(selected,"Ground duels contested"),
-   unit:"total",name:""
+   unit:"total",name:mode==="other"?defaultName:""
   });
   setError("");
- },[selected?.id,mode]);
+ },[selected?.id,mode,defaultName]);
  if(!mode)return null;
  const label=MANUAL_CARD_TITLES[mode]||"Estadística histórica";
  const set=(key,value)=>setForm(prev=>({...prev,[key]:value}));
@@ -45,7 +44,7 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave}){
   if(!selected)return;
   setBusy(true);setError("");
   try{
-   const changes=createOverviewManualChanges(selected,mode,form,source);
+   const changes=createOverviewManualChanges(selected,mode,form,"");
    await onSave(selected,changes);
    onClose();
   }catch(err){setError(err?.message||"No se pudo guardar el dato.");}
@@ -71,7 +70,7 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave}){
    {selected&&<div className="space-y-3">
      <p className="text-[11px] font-medium text-blue-800">Estado de esta competición: {status(selected)}. Los cambios no afectarán a las demás competiciones.</p>
      {(mode==="chain"||mode==="buildup")&&<>
-       <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">Introduce el total de la competición y sus minutos de Understat. Si solamente conoces el valor /90, elige esa opción: se reconstruirá un total derivado y quedará indicado en la fuente.</p>
+       <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">Introduce el total de la competición y sus minutos de Understat. Si solamente conoces el valor /90, elige esa opción: se reconstruirá un total derivado y quedará registrado en el historial.</p>
        <label className="block text-xs font-semibold text-slate-700">Dato que tienes
         <select value={form.unit} onChange={e=>{set("unit",e.target.value);set("value","");}} className="mt-1 w-full rounded-lg border border-slate-200 p-2.5 text-sm">
          <option value="total">Total de xG de la competición</option><option value="per90">Valor por 90 minutos</option>
@@ -95,16 +94,12 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave}){
        {valueInput("Valor","value")}
      </>}
      {["goals","assists","xg","xa","shots","appearances","minutes","rating"].includes(mode)&&valueInput("Nuevo valor para esta competición","value")}
-     <label className="block text-xs font-semibold text-slate-700">Fuente o referencia verificable
-      <input required value={source} maxLength={500} onChange={e=>setSource(e.target.value)}
-       placeholder="URL o referencia de FotMob / Understat / otra fuente" className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm"/>
-     </label>
-     <p className="text-[11px] text-slate-500">Se guardarán únicamente las cifras modificadas, con registro del valor anterior, fecha y fuente. No se alteran los demás datos del jugador.</p>
+     <p className="text-[11px] text-slate-500">Se guardarán únicamente las cifras modificadas, con registro del valor anterior y la fecha. No se alteran los demás datos del jugador.</p>
    </div>}
    {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-800">{error}</p>}
    <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
     <button type="button" disabled={busy} onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Cancelar</button>
-    <button type="submit" disabled={busy||!selected||!source.trim()} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{busy?"Guardando…":"Guardar estadística"}</button>
+    <button type="submit" disabled={busy||!selected} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{busy?"Guardando…":"Guardar estadística"}</button>
    </div>
   </form>
  </div>,document.body);
