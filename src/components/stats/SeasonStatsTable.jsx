@@ -1,4 +1,4 @@
-import React,{useState,useMemo} from "react";
+import React,{useState} from "react";
 import {ArrowRight,Shield} from "lucide-react";
 import SortHeader from "@/components/stats/SortHeader";
 import {rankIdentity} from "@/utils/statsRank";
@@ -6,8 +6,7 @@ import {statDisplay} from "@/utils/statsSeason";
 import {getColumn,columnValue,formulaCoverage,initialConfig} from "@/utils/statsColumns";
 import {metricLabel} from "@/utils/statsImport";
 import {seasonActive} from "@/utils/statsViews";
-import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
-import {compareHistoricalObservation} from "@/utils/historicalPeers";
+import {compositeSeasonKey,displaySeasonPosition} from "@/utils/statsCompositeRanking";
 
 export const seasonColumns={
  Resumen:["goals","assists","xg","xa","gaper90","xgaper90"],
@@ -38,31 +37,17 @@ function ClubBadge({summary,onTeam}){
   {(otherClubs.length>0||unresolvedTeams>0)&&<p className="mt-0.5 text-[10px] text-amber-700">{otherClubs.length>0?("+"+otherClubs.length+" club(es)"):""} {unresolvedTeams>0?("· "+unresolvedTeams+" competiciones sin club confirmado"):""}</p>}
  </div>;
 }
-export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="rating",sortDirection="desc",onSort=()=>{},globalRanks=new Map(),playerRanks=new Map()}){
+export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="composite",sortDirection="desc",onSort=()=>{},globalRanks=new Map(),playerRanks=new Map(),compositeBySeason=new Map(),peerLoading=false,peerError=null}){
  const columns=(config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen).filter(k=>k!=="playpct"&&k!=="rating");
  const divider=new Set(config.dividers?.season?.[category]||[]);
  const line=id=>divider.has(id)?" border-r-[3px] border-r-blue-300":"";
- const {data:peerData,isFetching:peersLoading,error:peersError}=useHistoricalPeerDataset(true);
- const compositeBySeason=useMemo(()=>{
-   const map=new Map();
-   if(!peerData?.observations?.length)return map;
-   for(const obs of peerData.observations){
-     const comparison=compareHistoricalObservation(obs,peerData.observations,10);
-     map.set(String(obs.playerId)+"|"+obs.season,{score:comparison?.composite?.score??null,coverage:comparison?.composite?.coverage??null,position:obs.position||"",source:obs.positionSource||"",role:comparison?.role||obs.role||""});
-   }
-   return map;
- },[peerData]);
- const filtered=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0);
- const ordered=sortKey==="composite"?[...filtered].sort((a,b)=>{
-   const v=x=>x.summary?compositeBySeason.get(String(x.summary.player_id)+"|"+x.summary.season)?.score:null;
-   const va=v(a),vb=v(b);if(va==null)return vb==null?0:1;if(vb==null)return -1;
-   return sortDirection==="asc"?va-vb:vb-va;
- }):filtered;
- const pageRows=ordered.slice(page*50,(page+1)*50);
+ // The parent supplies rows ALREADY sorted by the same Composite used by
+ // the global rank. Never independently sort here: that would misalign RANK.
+ const pageRows=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0).slice(page*50,(page+1)*50);
  return <div>
   <div className="flex flex-wrap justify-between gap-2 border-b border-slate-100 px-3 py-2 text-[11px] text-slate-600">
    <span>Composite MF LEGACY: mismo cálculo por arquetipo que en el desglose. Posiciones con * = respaldo provisional.</span>
-   <span>{peersLoading?"Calculando Composite…":peersError?"Composite no disponible: revisión de carga necesaria":peerData?"Composite actualizado":"Pendiente"}</span>
+   <span>{peerLoading?"Calculando Composite…":peerError?"Comparación previa en caché · revisar sincronización":compositeBySeason.size?"Composite actualizado":"Pendiente"}</span>
   </div>
   <div className="max-w-full overflow-x-auto">
    <table className="w-full min-w-[900px] text-left text-[11px]">
@@ -90,9 +75,9 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
       <td className={"px-2 py-2"+line("club")}><ClubBadge summary={summary} onTeam={onTeam}/></td>
       <td className={"px-2 py-2 text-right"+line("appearances")}>{fmt(statDisplay(summary,"appearances"))}</td>
       <td className={"px-2 py-2 text-right"+line("minutes")}>{fmt(statDisplay(summary,"minutes"))}</td>
-      {(()=>{const x=compositeBySeason.get(String(summary.player_id)+"|"+summary.season);return <>
-        <td className="px-2 py-2 text-center font-bold text-slate-700" title={x?.source==="fallback"?"Posición actual, solo respaldo provisional":x?.source==="fifa"?"Posición de la carta FIFA/FC":x?.source==="season"?"Posición histórica manual":x?.source==="competition"?"Posición manual por competición":"Posición histórica no disponible"}>{x?.position||"—"}{x?.source==="fallback"&&<span className="text-amber-600">*</span>}</td>
-        <td className={"px-2 py-2 text-right font-extrabold tabular-nums "+(x?.score!=null?"text-[#003399]":"text-slate-400")} title={x?.score!=null?"Composite "+x.role+" · cobertura "+fmt(x.coverage,1)+"% · no es el Legacy Rating definitivo":peersError?"No se pudo cargar la base completa para calcular percentiles":peersLoading?"Calculando con la base completa":"Sin Composite calculable"}>{x?.score==null?"—":fmt(x.score,1)}</td>
+      {(()=>{const x=compositeBySeason.get(compositeSeasonKey(summary.player_id,summary.season));return <>
+        <td className="px-2 py-2 text-center font-bold text-slate-700" title={x?.source==="fallback"?"Posición actual, solo respaldo provisional":x?.source==="fifa"?"Posición de la carta FIFA/FC":x?.source==="season"?"Posición histórica manual":x?.source==="competition"?"Posición manual por competición":"Posición histórica no disponible"}>{displaySeasonPosition(x?.position)}{x?.source==="fallback"&&<span className="text-amber-600">*</span>}</td>
+        <td className={"px-2 py-2 text-right font-extrabold tabular-nums "+(x?.score!=null?"text-[#003399]":"text-slate-400")} title={x?.score!=null?"Composite "+x.role+" · cobertura "+fmt(x.coverage,1)+"% · no es el Legacy Rating definitivo":peerError?"No se pudo sincronizar toda la base; se conserva la comparación cargada":peerLoading?"Calculando con la base completa":"Sin Composite calculable"}>{x?.score==null?"—":fmt(x.score,1)}</td>
       </>})()}
       {columns.map(k=>{
        const value=columnValue(summary,"season",k,config);
