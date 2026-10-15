@@ -378,6 +378,7 @@ export default function Stats(){
   const filtered=visible.slice(page*50,(page+1)*50);
   const activeCount=viewMode==="season"?seasonVisible.length:visible.length;
   const [detailRows,setDetailRows]=useState([]),[detailLoading,setDetailLoading]=useState(false);
+  const detailRequest=useRef(0);
   const updateMetric=async(record,change)=>{
     if(!record?.id)throw Error("El registro no tiene identificador válido.");
     const filters=record.external_record_id?{external_record_id:record.external_record_id}:
@@ -439,12 +440,29 @@ export default function Stats(){
   };
   const openSeasonDetail=(summary,player)=>openDetail({record:summary?.records?.[0]||null,player,season:summary?.season});
   const openDetail=async(row)=>{
-    setSelected(row);setDetailRows([]);setDetailLoading(true);
-    try{const filter=row.player?{player_id:String(row.player.id)}:{fotmob_player_id:row.record.fotmob_player_id};
-      const r=await base44.entities.PlayerSeasonStats.filter(filter,{limit:500});
-      setDetailRows(unpack(r).map(parseData));
-    }catch{setDetailRows(row.record?[row.record]:[]);}
-    finally{setDetailLoading(false);}
+    const seq=++detailRequest.current;
+    const filter=row.player?{player_id:String(row.player.id)}:{fotmob_player_id:String(row.record?.fotmob_player_id||"")};
+    const kind=row.player?"player":"fotmob", value=row.player?.id||row.record?.fotmob_player_id;
+    if(!value)return;
+    const key=statsDetailKey(kind,value);
+    const cachedRows=queryClient.getQueryData(key);
+    setSelected(row);
+    setDetailRows(cachedRows||[]);
+    setDetailLoading(!cachedRows);
+    try{
+      const detail=await queryClient.fetchQuery({
+        queryKey:key,
+        queryFn:async()=>unpack(await base44.entities.PlayerSeasonStats.filter(filter,{limit:500})).map(parseData),
+        staleTime:STATS_ROWS_STALE_MS,
+        gcTime:STATS_CACHE_GC_MS,
+        retry:1,
+      });
+      if(seq===detailRequest.current)setDetailRows(detail);
+    }catch{
+      if(seq===detailRequest.current&&!cachedRows)setDetailRows(row.record?[row.record]:[]);
+    }finally{
+      if(seq===detailRequest.current)setDetailLoading(false);
+    }
   };
   const columns=columnConfig.columns.competition[category]||[];
   const listDividers=new Set(columnConfig.dividers?.competition?.[category]||[]);
@@ -509,6 +527,6 @@ export default function Stats(){
         </div>
       </div>,document.body
     )}
-    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onOpenSettings={openDetailSettings} onSetTeamMatches={updateTeamMatches} onSetMetric={updateMetric} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
+    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onOpenSettings={openDetailSettings} onSetTeamMatches={updateTeamMatches} onSetMetric={updateMetric} onClose={()=>{detailRequest.current++;setSelected(null);}} onPlayer={id=>{detailRequest.current++;setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
   </div>;
 }
