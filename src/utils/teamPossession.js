@@ -60,6 +60,25 @@ export function parsePossessionBatch(raw,teams){
  });
  return {rows,errors};
 }
+export function matchingPossessionRecord(existingRows=[],row){
+ const name=canonicalHistoricalClub(row.team_name);
+ const matching=existingRows.filter(item=>
+  canonicalHistoricalCompetition(item.competition)===canonicalHistoricalCompetition(row.competition) &&
+  normalizeSeason(item.season)===normalizeSeason(row.season) &&
+  ((row.team_id&&item.team_id&&str(row.team_id)===str(item.team_id)) ||
+   (name&&canonicalHistoricalClub(item.team_name)===name)));
+ if(matching.length>1)throw Error("Ya existen varios registros de esa combinación. Revisa duplicados antes de guardar.");
+ return matching[0]||null;
+}
+export function possessionImportDecision(existing,row){
+ if(!existing)return "create";
+ if(existing.team_id&&!row.team_id)throw Error("El registro ya está vinculado: no se puede desvincular mediante una importación sin identidad.");
+ if(Number(existing.team_possession_pct)===row.team_possession_pct&&
+    str(existing.source_url)===str(row.source_url)&&
+    str(existing.team_id)===str(row.team_id)&&
+    str(existing.source)===str(row.source))return "unchanged";
+ return "update";
+}
 export function createPossessionLookup(possessions=[],teams=[]){
  const canonicalIds=new Map();
  for(const t of teams){
