@@ -59,7 +59,7 @@ export default function ImportUnified() {
     return ()=>{live=false;};
   },[]);
 
-  useEffect(()=>{setPlan(null);setAuthorized(false);setReport(null);},[batch,allowUnlinked,updateExisting,enrichExisting]);
+  useEffect(()=>{setPlan(null);setAuthorized(false);setReport(null);},[batch,allowUnlinked,updateExisting,enrichExisting,links,teamLinks]);
 
   const identity=useMemo(()=>{
     const row=batch?.records?.find(r=>r.kind==="player");
@@ -116,6 +116,7 @@ export default function ImportUnified() {
         player_name:identity.name,verification:"manual_confirmada",
         note:"Alta/verificación del importador externo; FM26 sin modificaciones"});
       setLinks(old=>new Map(old).set(pid,playerId));
+      setPlan(null);setAuthorized(false);setReport(null);
       setIdentityNotice("Jugador vinculado correctamente. Pulsa «Verificar duplicados» para importar los historiales.");
       setSuggestedPlayerId("");
     }catch(e){setError("No se completó la vinculación: "+e.message);}
@@ -204,6 +205,11 @@ export default function ImportUnified() {
 
   const importBatch=async()=>{
     if(!plan||!authorized||isAdmin!==true||busy)return;
+    // Never run a stale plan after a player link has changed.
+    if(plan.some(r=>(r.kind==="season"||r.kind==="player") && r.linkedId!==(links.get(r.kind==="season"?r.player_fotmob_id:r.fotmob_id)||""))){
+      setError("Las vinculaciones cambiaron desde la verificación. Pulsa «Verificar duplicados y preparar importación» para recalcular antes de guardar.");
+      setPlan(null);setAuthorized(false);return;
+    }
     const queue=plan.filter(r=>["crear","actualizar","enriquecer"].includes(r.action));
     setBusy(true);setError("");setProgress({done:0,total:queue.length});
     const reportItems=[];
