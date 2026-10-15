@@ -94,13 +94,17 @@ export default function ImportUnified() {
         return;
       }
       let playerId=suggestedPlayerId;
-      if(playerId && !allPlayers.some(p=>String(p.id)===playerId))throw Error("El jugador seleccionado ya no existe.");
+      const latestPlayers=rowsFromResponse(await base44.entities.Player.list({limit:500}));
+      if(latestPlayers.length)setAllPlayers(latestPlayers);
+      if(playerId && !latestPlayers.some(p=>String(p.id)===playerId))throw Error("El jugador seleccionado ya no existe.");
+      const matches=latestPlayers.filter(p=>String(p.name||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").trim().toLowerCase()===String(identity.name||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").trim().toLowerCase());
       if(!playerId){
-        if(identity.existing.length>0)throw Error("Existe un jugador con el mismo nombre: confirma primero su ficha para evitar duplicados.");
+        if(matches.length>0)throw Error("Existe un jugador con el mismo nombre: vuelve a seleccionar su ficha antes de crear otra. Si el intento anterior guardó al jugador, vincúlalo ahora.");
         if(!identity.name?.trim())throw Error("El JSON no trae el nombre del jugador.");
         if(!window.confirm("Crear ficha mínima de "+identity.name+" desde FotMob "+pid+" sin UID ni atributos FM26, y vincularla?"))return;
         const positions={ST:"DC",W:"EI",CAM:"CAM",CM:"CM",DM:"CDM",WB:"LD",FB:"LD",CB:"DFC",GK:"GK"};
-        const payload={name:identity.name,position:positions[identity.role]||"DC",
+        if(!positions[identity.role])throw Error("Arquetipo no identificado. Confirma la posición antes de crear una ficha.");
+        const payload={name:identity.name,position:positions[identity.role],
           description:"Ficha mínima procedente de FotMob. Pendiente de fusionar/validar con FM26; no contiene atributos del juego."};
         const created=await base44.entities.Player.create(payload);
         playerId=String(created?.id||created?.data?.id||"");
