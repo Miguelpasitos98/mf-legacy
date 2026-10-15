@@ -78,6 +78,7 @@ const formatChange = (field, value) => {
 export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats = [], teams = [], onSaved, onBusyChange }) {
   const [raw, setRaw] = useState("");
   const [rows, setRows] = useState([]);
+  const [skippedMissingMatches, setSkippedMissingMatches] = useState(0);
   const [included, setIncluded] = useState(new Set());
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -107,15 +108,22 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
     setBusy(true);
     if (resetMessages) { setError(""); setNotice(""); }
     setRows([]);
+    setSkippedMissingMatches(0);
     setIncluded(new Set());
     try {
       const parsed = prepareHistoricalJson(source, { playerId, fotmobPlayerId: fotmobId, stats, teams });
+      setSkippedMissingMatches(parsed.skippedMissingTeamMatches || 0);
       const snapshot = await fetchSnapshot(parsed, playerId, setProgress);
       const decorated = decorateRows(parsed, snapshot);
       setProgress("");
       setRows(decorated);
       setIncluded(new Set(decorated.filter((r) => r.status === "new").map((r) => r.id)));
-      if (resetMessages) setNotice("Datos analizados. Los registros nuevos están seleccionados; las actualizaciones requieren tu autorización individual.");
+      if (resetMessages) setNotice(
+        "Datos analizados. Los nuevos están seleccionados y las actualizaciones requieren autorización individual." +
+        (parsed.skippedMissingTeamMatches ? " Se han omitido " + parsed.skippedMissingTeamMatches +
+          " PJ Equipo sin dato (null): no se guardan como cero ni se consideran errores." : "") +
+        (decorated.every(r => r.status === "same") ? " Los demás registros ya existen sin cambios." : "")
+      );
     } catch (err) {
       setError(err?.message || "No se pudo analizar el JSON.");
     } finally { setBusy(false); setProgress(""); }
@@ -234,19 +242,19 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
       <label className="block text-xs font-bold text-slate-700">
         Pega aquí el JSON completo que te entregue ChatGPT
         <textarea value={raw} onChange={(event) => {
-          setRaw(event.target.value); setRows([]); setIncluded(new Set()); setError(""); setNotice("");
+          setRaw(event.target.value); setRows([]); setSkippedMissingMatches(0); setIncluded(new Set()); setError(""); setNotice("");
         }} placeholder={sample} disabled={busy || saving}
           spellCheck={false}
           className="mt-2 h-56 w-full resize-y rounded-xl border border-slate-300 bg-slate-50 p-3 font-mono text-xs text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"/>
       </label>
-      <p className="text-[11px] text-slate-500">Formato: schema mf_legacy_historical_import_v1, player.fotmob_id, listas valuations y team_matches. Puedes dejar una lista vacía. Los valores ausentes se escriben como null, nunca como cero.</p>
+      <p className="text-[11px] text-slate-500">Formato: schema mf_legacy_historical_import_v1, player.fotmob_id, listas valuations y team_matches. Los PJ Equipo con null se omiten sin error y no se convierten en cero; pueden completarse después.</p>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => analyze()} disabled={busy || saving || !raw.trim()}
           className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-40">
           {busy ? <Loader2 size={15} className="animate-spin"/> : <ClipboardPaste size={15}/>}
           {busy ? "Analizando…" : "Analizar JSON"}
         </button>
-        <button type="button" onClick={() => { setRaw(""); setRows([]); setIncluded(new Set()); setNotice(""); setError(""); }}
+        <button type="button" onClick={() => { setRaw(""); setRows([]); setSkippedMissingMatches(0); setIncluded(new Set()); setNotice(""); setError(""); }}
           disabled={busy || saving} className="rounded-lg border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-700">Limpiar</button>
       </div>
       {notice && <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">{notice}</p>}
@@ -262,6 +270,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
             <p className="text-[10px] font-bold text-slate-500">{label}</p><p className="text-lg font-black text-[#0e2844]">{n}</p>
           </div>)}
         </div>
+        {skippedMissingMatches > 0 && <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800"><strong>{skippedMissingMatches} PJ Equipo desconocidos omitidos.</strong> Los registros válidos siguen disponibles para importar. Puedes volver a pegar el mismo JSON cuando conozcas esos partidos, sin sobrescribir los existentes.</p>}
         <p className="text-xs text-slate-600"><strong>Vista previa:</strong> marca los registros que quieras guardar. Los nuevos vienen seleccionados; ningún valor existente se sobrescribe sin que lo marques.</p>
         <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200">
           {rows.map((r) => <label key={r.id} className={"flex cursor-pointer items-start gap-3 border-b border-slate-100 p-3 last:border-0 " + (r.status === "error" ? "bg-rose-50" : "hover:bg-slate-50")}>
