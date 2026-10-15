@@ -199,7 +199,7 @@ export default function ImportUnified() {
         if(!x.linkedId && (x.kind==="season"||!allowUnlinked)) {
           return {...x,action:"sin_vinculo",existingId:old?.id||null};
         }
-        if(old && x.kind==="season" && enrichExisting){
+        if(old && x.kind==="season" && (enrichExisting || automatic)){
           const analysis=assessHistoricalEnrichment(old,x,x.linkedId);
           return {...x,action:!analysis.ok?"revisar":analysis.added?"enriquecer":"existente",
             existingId:old?.id||null,newMetricsCount:analysis.added,
@@ -222,7 +222,7 @@ export default function ImportUnified() {
     }
     // Reimporting one player may add only NEW metrics to existing seasons;
     // assessHistoricalEnrichment protects minutes, games, club and old values.
-    const queue=sourcePlan.filter(r=>automatic?["crear","enriquecer"].includes(r.action):["crear","enriquecer"].includes(r.action));
+    const queue=sourcePlan.filter(r=>["crear","enriquecer"].includes(r.action));
     setBusy(true);setError("");setProgress({done:0,total:queue.length});
     const reportItems=[];
     const entityFor = r => r.kind==="season"?"PlayerSeasonStats":"ExternalFootballSnapshot";
