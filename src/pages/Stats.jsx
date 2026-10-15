@@ -171,7 +171,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const valueButton=(r,name,value,decimals=2,field=null)=>{
     const audit=(r.manual_metric_history||[]).filter(h=>h.metric_name===(field?"$field:"+field:name)).at(-1);
     return <button type="button" disabled={!r.id||r._sourceRows>1}
-      onClick={()=>beginMetricEdit(r,name,field)} title={audit?"Edición manual · antes: "+(audit.old_value??"sin dato")+" · fuente: "+audit.source_note:"Pulsa para editar o añadir esta cifra" 
+      onClick={()=>beginMetricEdit(r,name,field)} title={audit?"Edición manual · antes: "+(audit.old_value??"sin dato")+" · fuente: "+audit.source_note:"Pulsa para editar o añadir esta cifra"}
       className="rounded px-1.5 py-1 font-semibold text-[#003399] hover:bg-blue-50 disabled:opacity-50">
       {value==null?"Añadir +":show(value,decimals)}{audit&&<span className="ml-1 text-[9px] text-indigo-500">✎</span>}
     </button>;
