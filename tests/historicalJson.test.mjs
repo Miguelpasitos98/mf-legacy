@@ -42,6 +42,36 @@ test("ausencias nulas no se convierten en 0", () => {
   assert.equal(v.errors.length, 0);
   assert.equal(v.payload.transfermarkt_value_eur, undefined);
 });
+test("PJ Equipo desconocido (null) se omite sin errores y no bloquea valoraciones válidas", () => {
+  const source = structuredClone(base);
+  source.team_matches.push(
+    { season: "2025/2026", competition: "FA Cup", team_name: "Manchester City", team_matches: null },
+    { season: "2025/2026", competition: "EFL Cup", team_name: "Manchester City", team_matches: undefined },
+    { season: "2026/2027", competition: "Champions League", team_name: "Manchester City", team_matches: "" },
+  );
+  const rows = prepareHistoricalJson(JSON.stringify(source), context);
+  assert.equal(rows.skippedMissingTeamMatches, 3);
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every(r => r.errors.length === 0));
+  assert.equal(rows.find(r => r.type === "team").payload.team_matches, 38);
+  assert.equal(rows.find(r => r.type === "valuation").payload.transfermarkt_value_eur, 180000000);
+  assert.ok(rows.every(r => r.payload.team_matches !== 0));
+});
+test("PJ Equipo cero explícito sigue siendo inválido (no se convierte en ausente)", () => {
+  const source = structuredClone(base);
+  source.team_matches[0].team_matches = 0;
+  const rows = prepareHistoricalJson(JSON.stringify(source), context);
+  assert.equal(rows.skippedMissingTeamMatches, 0);
+  assert.ok(rows.find(r => r.type === "team").errors.some(e => e.includes("PJ Equipo")));
+});
+test("Los nulos no generan conflicto con una entrada válida posterior de la misma competición", () => {
+  const source = structuredClone(base);
+  source.team_matches.unshift({...source.team_matches[0],team_matches:null});
+  const rows = prepareHistoricalJson(JSON.stringify(source), context);
+  assert.equal(rows.skippedMissingTeamMatches, 1);
+  assert.equal(rows.filter(r => r.type === "team").length, 1);
+  assert.equal(rows.find(r => r.type === "team").errors.length, 0);
+});
 test("duplicados bloquean ambas temporadas", () => {
   const input = structuredClone(base);
   input.valuations.push({ season: "2022/2023", fifa_fc_overall: 89 });
