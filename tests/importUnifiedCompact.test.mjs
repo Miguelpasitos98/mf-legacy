@@ -24,7 +24,7 @@ test("La importación automática no salta validación de IDs ni actualiza métr
 });
 test("Vincular jugador desbloquea la importación en el mismo paso",()=>{
  assert.match(source,/setIdentityNotice\("Jugador vinculado\. Continuando la importación…"/);
- assert.match(source,/await autoImport\(batch,fileName\)/);
+ assert.match(source,/await autoImport\(batch,fileName,fullSource\)/);
 });
 test("Los avisos están plegados sin exigir corroboración ni perder visibilidad",()=>{
  assert.match(ui,/<details className="rounded-xl border border-amber-200/);
