@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {studioImportManifest,splitStudioArchive,recoverStudioArchive,selectStudioWrites,studioPlayerId} from "../src/utils/studioFullImport.js";
+import {importFullStudioFile} from "../src/utils/studioFullImportUploader.js";
 const hash="f".repeat(64);
 const original={
  schema:"mf_legacy_external_batch_v1",batch:"jugador_654096",snapshot_date:"2026-10-14",
@@ -49,6 +50,60 @@ test("Archivo JSON íntegro reconstruido literalmente, incluidos campos desconoc
  assert.deepEqual(recoverStudioArchive([...chunks].reverse()),original);
  assert.throws(()=>recoverStudioArchive(chunks.slice(1)),/incompleto/);
  assert.equal(chunks[0].file_hash,hash);
+});
+test("Observación Understat de 57 KB permanece en archivo privado, nunca en un campo de texto",()=>{
+ const large={...original,source_observations:[{observation_id:"understat-large",season:"2024/2025",source_details:{raw:"x".repeat(57000)}}],
+  understat_season_summaries:[{season:"2024/2025",competition:{understat_league:"EPL"},totals:{xG:1.5},
+   original:{details:"z".repeat(11000)}}]};
+ const {records}=studioImportManifest(large,{playerId:"rice",fileHash:hash,sourceFileUri:"private://import/rice.json"});
+ assert.ok(records.every(r=>r.payload_json.length<2000));
+ const obs=records.find(r=>r.record_kind==="understat_observation");
+ assert.equal(JSON.parse(obs.payload_json).archived,true);
+ assert.equal(obs.source_index,0);
+ assert.equal(obs.source_section,"source_observations");
+ assert.equal(obs.source_file_uri,"private://import/rice.json");
+});
+test("Subida de archivo entero, almacenamiento privado e índice idempotente en una sola operación",async()=>{
+ const tables={PlayerSourceArchive:new Map(),PlayerProviderRecord:new Map()};
+ const e=(key)=>{
+  const store=tables[key];
+  const put=x=>{
+   if((x.payload_json||"").length>4096)throw Error("Field 'payload_json' exceeds the maximum allowed size");
+   const v={...x,id:store.get(x.record_key)?.id||"db"+(store.size+1)};
+   store.set(x.record_key,v);
+   return v;
+  };
+  return {
+   filter:async({record_key})=>[...store.values()].filter(r=>record_key.$in.includes(r.record_key)),
+   bulkCreate:async(rows)=>rows.map(put),
+   create:async(row)=>put(row),
+   update:async(id,row)=>{
+    const old=[...store.values()].find(v=>v.id===id);
+    if(!old)throw Error("missing record");
+    return put({...old,...row});
+   }
+  };
+ };
+ let uploads=0;
+ const client={entities:{PlayerSourceArchive:e("PlayerSourceArchive"),PlayerProviderRecord:e("PlayerProviderRecord")},
+  integrations:{Core:{UploadPrivateFile:async({file})=>{
+   uploads++;assert.equal(file.name,"Declan Rice.json");
+   assert.ok(file.size>57000);
+   return {file_uri:"private://rice/file"};
+  }}}};
+ const large={...original,source_observations:[{observation_id:"large",extra:"z".repeat(57000)}]};
+ const text=JSON.stringify(large);
+ const first=await importFullStudioFile(client,large,text,{playerId:"rice",fileName:"Declan Rice.json"});
+ assert.equal(uploads,1);
+ assert.equal(first.archiveFileUri,"private://rice/file");
+ assert.equal(tables.PlayerSourceArchive.size,1);
+ assert.equal(tables.PlayerProviderRecord.size,7);
+ assert.ok([...tables.PlayerProviderRecord.values()].every(row=>row.payload_json.length<4096));
+ assert.equal([...tables.PlayerSourceArchive.values()][0].payload_json.length<4096,true);
+ const next=await importFullStudioFile(client,large,text,{playerId:"rice",fileName:"Declan Rice.json"});
+ assert.equal(uploads,1);
+ assert.equal(next.indexed.unchanged,7);
+ assert.equal(tables.PlayerSourceArchive.size,1);
 });
 test("La reimportación conserva idempotencia y actualiza solo la fuente",()=>{
  const manifest=studioImportManifest(original,{playerId:"rice",fileHash:hash}).records;
