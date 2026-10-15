@@ -214,7 +214,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           <Database size={14}/> Consulta de solo lectura · FotMob, FC histórico y Transfermarkt previamente almacenados en MF LEGACY · {new Date(data.loadedAt).toLocaleString("es-ES")}
         </p>
       </>}
-      <OverviewManualEditor mode={typeof manualMode==="object"?manualMode.mode:manualMode} defaultName={typeof manualMode==="object"?manualMode.name:""} records={rowsToEdit} onClose={()=>setManualMode(null)} onSave={onSetMetric}/>
+      <OverviewManualEditor mode={manualMode!==null&&typeof manualMode==="object"?manualMode.mode:manualMode} defaultName={manualMode!==null&&typeof manualMode==="object"?manualMode.name:""} records={rowsToEdit} onClose={()=>setManualMode(null)} onSave={onSetMetric}/>
     </section>
   );
 }
