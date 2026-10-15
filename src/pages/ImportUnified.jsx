@@ -153,13 +153,14 @@ export default function ImportUnified({onImported}) {
     }
     try{
       const records=[],errors=[],warnings=[],seen=new Set();
+      let singleSource=null;
       for(const file of files){
         const sourceText=(await file.text()).replace(/^\uFEFF/,"");
         const input=JSON.parse(sourceText);
-        if(files.length===1)setFullSource({input,sourceText,fileName:file.name});
+        if(files.length===1){singleSource={input,sourceText,fileName:file.name};setFullSource(singleSource);}
         const result=parseUnifiedBatch(input);
         const pending=Array.isArray(input.pending_team_review)?input.pending_team_review.length:0;
-        if(pending)warnings.push(`${file.name}: ${pending} historiales con equipo no identificado se omiten automáticamente; los demás se importan.`);
+        if(pending)warnings.push(`${file.name}: ${pending} historiales con equipo no identificado quedan conservados como pendientes, sin asignarlos arbitrariamente.`);
         if(input.validated_for_direct_bulk_import===false)warnings.push(`${file.name}: el exportador indica validación pendiente. Solo se aplican filas con identidad confirmada y sin conflictos.`);
         if(Array.isArray(input.summary?.conflicts_kept)&&input.summary.conflicts_kept.length)warnings.push(`${file.name}: ${input.summary.conflicts_kept.length} diferencias de fuente conservadas para revisión, sin sobrescribir automáticamente.`);
         for(const problem of result.errors)errors.push(file.name+": "+problem);
@@ -174,7 +175,7 @@ export default function ImportUnified({onImported}) {
         setBusy(true);
         setError("");
         try{
-          await autoImport({records},files[0].name,files.length===1?{input:JSON.parse((await files[0].text()).replace(/^\uFEFF/,"")),sourceText:(await files[0].text()).replace(/^\uFEFF/,"")}:null);
+          await autoImport({records},files[0].name,singleSource);
         }catch(autoError){
           setError("Importación automática pendiente: "+(autoError?.message||autoError)+". Puedes revisar los datos manualmente.");
         }finally{setBusy(false);}
