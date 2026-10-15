@@ -20,6 +20,7 @@ import SortHeader from "@/components/stats/SortHeader";
 import {nextSorting,sortStatsItems,defaultSortDirection} from "@/utils/statsSort";
 import StatsColumnSettings from "@/components/stats/StatsColumnSettings";
 import TeamLinkPicker from "@/components/stats/TeamLinkPicker";
+import {saveTeamLinkSafely} from "@/utils/teamLinkSave";
 import {initialConfig,sanitizeConfig,getColumn,columnValue,RAW_METRICS} from "@/utils/statsColumns";
 import {bestSeasonPerPlayer} from "@/utils/statsBestSeason";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
@@ -460,8 +461,12 @@ export default function Stats(){
     const updatedIds=[];
     const failed=ids.filter(id=>!matching.some(r=>String(r.id)===String(id))).map(id=>({id,label:"Registro no encontrado en la ficha actual"}));
     for(const record of matching){
-      try{await base44.entities.PlayerSeasonStats.update(record.id,{team_id:String(team.id)});updatedIds.push(String(record.id));}
-      catch(e){failed.push({id:record.id,label:record.competition+" ("+record.season+"): "+(e?.message||"error")});}
+      try{
+        await saveTeamLinkSafely({id:record.id,teamId:team.id,
+          read:async id=>base44.entities.PlayerSeasonStats.get(id),
+          update:(id,patch)=>base44.entities.PlayerSeasonStats.update(id,patch)});
+        updatedIds.push(String(record.id));
+      }catch(e){failed.push({id:record.id,label:record.competition+" ("+record.season+"): "+(e?.message||"error")});}
     }
     if(updatedIds.length){
       setDetailRows(current=>current.map(r=>updatedIds.includes(String(r.id))?{...r,team_id:String(team.id)}:r));
