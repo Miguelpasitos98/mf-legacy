@@ -129,6 +129,7 @@ export function prepareHistoricalJson(rawText, { playerId, fotmobPlayerId, stats
   if (valuations.length && !playerId) throw Error("La ficha del jugador no tiene player_id para guardar valoraciones.");
 
   const result = [];
+  let skippedMissingTeamMatches = 0;
   const duplicateKeys = new Set();
   const seen = new Set();
 
@@ -197,13 +198,18 @@ export function prepareHistoricalJson(rawText, { playerId, fotmobPlayerId, stats
       result.push({ id: "t" + i, type: "team", season: "", errors: ["Registro no válido."], payload: {} });
       continue;
     }
+    // An unknown team match count is NOT zero and is NOT a bad record.
+    // Do not resolve/link/write anything for it; keep any existing value intact.
+    if (r.team_matches === null || r.team_matches === undefined || text(r.team_matches) === "") {
+      skippedMissingTeamMatches++;
+      continue;
+    }
     const season = normalizeSeason(r.season);
     const competition = text(r.competition);
     if (!validSeason(season)) errors.push("Temporada inválida.");
     if (!competition) errors.push("Falta la competición.");
     const n = Number(r.team_matches);
-    if (r.team_matches === null || r.team_matches === undefined ||
-      text(r.team_matches) === "" || !Number.isInteger(n) || n < 1 || n > 200)
+    if (!Number.isInteger(n) || n < 1 || n > 200)
       errors.push("PJ Equipo debe ser entero entre 1 y 200.");
     const resolved = resolveHistoricalTeam(r, stats, teams);
     if (resolved.error) errors.push(resolved.error);
@@ -240,6 +246,7 @@ export function prepareHistoricalJson(rawText, { playerId, fotmobPlayerId, stats
   // Block ALL rows involved in a duplicate, not only the second row.
   for (const row of result) if (duplicateKeys.has(row.dbKey) && !row.errors.some(e => e.includes("duplicad")))
     row.errors.push("Hay otro registro con esta misma clave en el JSON.");
+  result.skippedMissingTeamMatches = skippedMissingTeamMatches;
   return result;
 }
 
