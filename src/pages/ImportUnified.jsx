@@ -389,102 +389,72 @@ export default function ImportUnified({onImported}) {
   const skipped=plan?.filter(r=>r.action==="existente").length||0;
   const unmatched=plan?.filter(r=>r.action==="sin_vinculo").length||0;
 
-  return <div className="h-full w-full overflow-y-auto bg-[#f3f5f9] p-6 text-[#152544]">
-    <div className="mx-auto max-w-6xl space-y-5 pb-12">
-      <header className="rounded-xl bg-white p-5 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="uppercase tracking-[.18em] text-[10px] font-bold text-blue-700">MF LEGACY · STATS · Fuentes externas</p>
-          <h1 className="text-2xl font-bold mt-1">Importar FotMob + CraftedFC</h1>
-          <p className="text-sm text-slate-600 mt-1">Importación automática segura. Si el historial ya existe, únicamente añade métricas nuevas verificadas. No modifica atributos FM26 ni estadísticas anteriores.</p>
-        </div>
-        <div className="flex items-center gap-2 rounded-full bg-blue-50 text-blue-800 px-4 py-2 text-xs font-semibold"><ShieldCheck size={16}/> {isAdmin===true?"Importación solo administrador":isAdmin===null?"Comprobando permisos":"Solo lectura"}</div>
+  const runAgain=async()=>{
+    if(!batch?.records?.length||fileErrors.length||busy||isAdmin!==true)return;
+    setBusy(true);setError("");setReport(null);
+    try{await autoImport(batch,fileName);}catch(e){setError("No se pudo completar automáticamente: "+(e?.message||e));}
+    finally{setBusy(false);}
+  };
+  const failures=(report?.items||[]).filter(x=>x.status==="error");
+  const issueCount=fileErrors.length+importWarnings.length+failures.length+(error?1:0);
+  return <div className="h-full w-full overflow-y-auto bg-[#f3f5f9] p-4 sm:p-6 text-[#152544]">
+    <div className="mx-auto max-w-3xl space-y-4 pb-10">
+      <header className="flex items-center justify-between gap-3">
+        <div><h1 className="text-xl font-black text-[#0e2844]">Importar FotMob + CraftedFC</h1>
+          <p className="mt-1 text-xs text-slate-500">Selecciona el JSON. MF LEGACY identifica, comprueba y guarda automáticamente.</p></div>
+        <span className={"shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold "+(isAdmin===true?"bg-emerald-50 text-emerald-800":"bg-amber-50 text-amber-800")}>{isAdmin===null?"Conectando…":isAdmin?"Importación segura":"Solo lectura"}</span>
       </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-xl bg-white border border-slate-200 p-5">
-          <p className="font-semibold flex items-center gap-2"><CloudUpload size={19}/> 1. Seleccionar lote JSON</p>
-          <p className="text-xs text-slate-600 mt-2"><strong>Importación automática:</strong> selecciona un JSON de un solo jugador y se comprobará e importará sin más botones. Si hay dudas de identidad o conflictos, se detendrá para revisión. Hasta 20 archivos y 30 MB por operación en modo manual.</p>
-          <label className="mt-4 block rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/60 px-4 py-6 text-center cursor-pointer hover:bg-blue-50">
-            <FileJson className="mx-auto text-blue-600 mb-2" size={27}/>
-            <span className="text-sm font-bold text-blue-700">{fileName || "Elegir archivo JSON de importación"}</span>
-            <input type="file" multiple accept=".json,application/json" className="sr-only" onChange={handleFile} disabled={busy}/>
-          </label>
-          <p className="text-xs text-slate-500 mt-2">Tu JSON original de 86 MB permanece como archivo maestro. El conversor crea lotes pequeños para evitar bloqueos del navegador.</p>
-        </div>
-        <div className="rounded-xl bg-white border border-slate-200 p-5 space-y-2">
-          <p className="font-semibold flex items-center gap-2"><Database size={19}/> Coincidencias verificadas</p>
-          <div className="text-3xl font-bold text-blue-900">{links.size}</div>
-          <p className="text-xs text-slate-600">Vínculos FotMob–Player confirmados actualmente en Base44.</p>
-          <div className="border-t pt-2 text-sm">{teamLinks.size} clubes con ID FotMob vinculado</div>
-          <p className="text-xs text-amber-700">Los jugadores externos se crean solo tras confirmación. Los equipos se enlazan por ID FotMob o por nombre único sin conflicto.</p>
-        </div>
-      </div>
-
-      {error&&<div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 flex gap-2"><AlertTriangle size={18}/><span className="text-sm">{error}</span></div>}
-      {fileErrors.length>0&&<div className="p-4 rounded-lg bg-amber-50 border border-amber-200"><p className="font-semibold text-amber-900">Errores del archivo ({fileErrors.length}); no se puede importar hasta corregirlos</p>{fileErrors.slice(0,8).map((s,i)=><p className="text-xs mt-1" key={i}>{s}</p>)}</div>}
-      {importWarnings.length>0&&<div className="p-4 rounded-lg bg-amber-50 border border-amber-200"><p className="font-semibold text-amber-900 flex gap-2 items-center"><AlertTriangle size={17}/> Avisos del archivo: revisión necesaria antes de importar</p>{importWarnings.map((s,i)=><p className="text-xs text-amber-900 mt-1" key={i}>{s}</p>)}</div>}
-
-      {identity&&<section className="rounded-xl border border-blue-200 bg-blue-50 p-5 space-y-3">
-        <h2 className="font-bold text-blue-950">Vincular jugador · {identity.name} (FotMob {identity.pid})</h2>
-        <p className="text-xs text-blue-900">No existe un vínculo confirmado. Puedes utilizar una ficha existente o crear una ficha mínima sin UID, CA/PA ni otros atributos FM26.</p>
-        {identity.existing.length>0&&<p className="text-xs font-bold text-amber-800">Hay una coincidencia exacta de nombre: revisa y selecciona el jugador existente. No se creará un duplicado automáticamente.</p>}
-        <select className="max-w-full rounded-lg border border-blue-200 bg-white p-2 text-sm" value={suggestedPlayerId} onChange={e=>setSuggestedPlayerId(e.target.value)}>
-          <option value="">Crear ficha mínima nueva (solo si no existe)</option>
-          {allPlayers.filter(p=>identity.existing.some(x=>x.id===p.id)).map(p=><option key={p.id} value={p.id}>{p.name} · {p.fm26_uid||"Sin FM26 UID"}</option>)}
-        </select>
-        <button disabled={creatingPlayer||isAdmin!==true} onClick={addIdentity} className="block rounded-lg bg-[#003399] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{creatingPlayer?"Vinculando…":suggestedPlayerId?"Vincular ficha existente":"Crear ficha mínima y vincular"}</button>
+      <label className={"block cursor-pointer rounded-2xl border-2 border-dashed p-7 text-center shadow-sm transition "+(busy?"cursor-wait border-blue-200 bg-blue-50":"border-blue-200 bg-white hover:border-blue-400 hover:bg-blue-50")}>
+        {busy?<Loader2 size={29} className="mx-auto mb-2 animate-spin text-blue-700"/>:<CloudUpload size={29} className="mx-auto mb-2 text-blue-700"/>}
+        <span className="block text-sm font-bold text-[#003399]">{busy?"Importando y verificando…":fileName||"Seleccionar archivo JSON"}</span>
+        <span className="mt-1 block text-xs text-slate-500">{busy?"No cierres esta ventana hasta que termine.":"La importación comienza automáticamente · hasta 20 archivos / 30 MB"}</span>
+        <input type="file" multiple accept=".json,application/json" className="sr-only" onChange={handleFile} disabled={busy||isAdmin!==true}/>
+      </label>
+      {busy&&<section role="status" className="rounded-xl border border-blue-100 bg-white p-4">
+        <p className="text-xs font-semibold text-blue-900">{progress.total?("Guardados "+progress.done+" de "+progress.total):"Verificando jugador, duplicados y temporadas…"}</p>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100"><div className="h-full bg-blue-700 transition-all" style={{width:progress.total?(Math.round(progress.done/progress.total*100)+"%"):"15%"}}/></div>
       </section>}
-      {identityNotice&&<p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{identityNotice}</p>}
-      {!!prepared.length && <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
-        <h2 className="font-bold">2. Resultado y revisión opcional</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {Object.keys(kindLabel).map(k=><div className="bg-slate-50 border rounded-lg p-3" key={k}><div className="text-2xl font-bold">{stats[k]}</div><div className="text-xs text-slate-600">{kindLabel[k]}</div></div>)}
+      {report&&!busy&&<section role="status" className={"rounded-xl border p-4 "+(report.errors?"border-amber-200 bg-amber-50":"border-emerald-200 bg-emerald-50")}>
+        <div className="flex items-center gap-2 font-bold text-[#0e2844]"><CheckCircle2 size={18}/> {report.errors?"Importación parcial":"Importación completada"}</div>
+        <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+          {[[report.created,"Nuevos"],[report.enriched||0,"Mejorados"],[report.skipped,"Existían"],[report.errors,"Errores"]].map(([n,label])=>
+            <div key={label} className="rounded-lg bg-white/80 p-2"><div className="text-xl font-black tabular-nums">{number(n)}</div><div className="text-[10px] text-slate-600">{label}</div></div>)}
         </div>
-        <p className="text-xs text-slate-600">Identificados mediante vínculos confirmados: <b>{stats.linked}</b> · Pendientes de vinculación: <b>{stats.unlinked}</b>.</p>
-        <label className="flex gap-2 items-start text-sm"><input type="checkbox" className="mt-1" checked={allowUnlinked} onChange={e=>setAllowUnlinked(e.target.checked)}/>
-          <span>Guardar también snapshots <b>sin vincular</b>, exclusivamente como referencias externas, nunca dentro de fichas de jugadores. Los historiales sin Player confirmado siempre quedan excluidos.</span></label>
-        <label className="flex gap-2 items-start text-sm"><input type="checkbox" className="mt-1" checked={updateExisting} onChange={e=>setUpdateExisting(e.target.checked)}/>
-          <span>Actualizar snapshots externos existentes con la nueva captura (no afecta a datos históricos).</span></label>
-        <label className="flex gap-2 items-start text-sm rounded-lg border border-blue-200 bg-blue-50 p-3"><input type="checkbox" className="mt-1" checked={enrichExisting} onChange={e=>setEnrichExisting(e.target.checked)}/>
-          <span><strong>Enriquecer historiales existentes con estadísticas detalladas.</strong><span className="block text-xs text-slate-600">Añade solo métricas que faltan. Conserva partidos, minutos, nota, equipo, tus ediciones y los valores de métricas que ya existan. Las coberturas distintas quedan bloqueadas para revisión.</span></span></label>
-        <div className="overflow-auto max-h-[340px] border rounded-lg">
-          <table className="w-full text-xs"><thead className="bg-slate-100 sticky top-0"><tr>{["Tipo","ID externo","Nombre / competición","Vínculo","Acción"].map(x=><th key={x} className="p-3 text-left whitespace-nowrap">{x}</th>)}</tr></thead>
-          <tbody>{prepared.slice(0,45).map((r,i)=><tr key={i} className="border-t">
-            <td className="p-3">{kindLabel[r.kind]}</td>
-            <td className="p-3 font-mono">{r.fotmob_id||r.player_fotmob_id||r.external_key?.split(":").pop()}</td>
-            <td className="p-3">{r.name||r.player_name||r.competition}</td>
-            <td className="p-3">{r.linkedId?<span className="text-emerald-700">Confirmado</span>:<span className="text-amber-700">Sin confirmar</span>}</td>
-            <td className="p-3">{r.kind==="season" && resolveTeam(r) && <span className="mr-2 text-[10px] text-emerald-700">Equipo vinculado</span>}{plan?.[i]?.action||"Pendiente"}{plan?.[i]?.action==="enriquecer"&&<span className="ml-1 text-emerald-700">(+{plan[i].newMetricsCount} métricas)</span>}{plan?.[i]?.action==="revisar"&&<span className="block text-rose-700">{plan[i].reviewNotes?.join("; ")}</span>}</td>
-          </tr>)}</tbody></table>
+      </section>}
+      {!busy&&batch&&!report&&<section className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-bold">Archivo preparado · {stats.season} temporadas / competiciones</p><p className="mt-1 text-xs text-slate-500">{identity?"Falta vincular al jugador.":"La carga no ha finalizado; puedes volver a intentarlo."}</p></div>
+          {!identity&&<button type="button" onClick={runAgain} disabled={!!fileErrors.length||isAdmin!==true} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Reintentar importación</button>}
         </div>
-        {prepared.length>45&&<p className="text-xs text-slate-500">Mostrando las primeras 45 filas de {prepared.length}.</p>}
-        <button type="button" className="px-5 py-2.5 bg-[#003399] text-white rounded-lg font-bold text-sm disabled:opacity-40 flex gap-2 items-center" disabled={busy||isAdmin!==true||fileErrors.length>0} onClick={()=>makePlan()}>
-          {busy?<Loader2 size={16} className="animate-spin"/>:<RefreshCw size={16}/>} Revisar manualmente / verificar duplicados
-        </button>
       </section>}
-
-      {plan&&<section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
-        <h2 className="font-bold">3. Confirmar cambios</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-          {[[toCreate,"Nuevos"],[toEnrich,"Historiales a enriquecer"],[toUpdate,"Snapshots a actualizar"],[skipped,"Ya existentes"],[unmatched,"Sin vincular"],[needReview,"Revisión obligatoria"]].map(([num,title])=><div key={title} className="p-3 bg-slate-50 rounded-lg"><div className="text-xl font-bold">{number(num)}</div><p className="text-xs">{title}</p></div>)}
+      {identity&&!busy&&!report&&<section className="rounded-xl border border-blue-200 bg-white p-4">
+        <p className="text-sm font-bold">Identificar a {identity.name}</p>
+        <p className="mt-1 text-xs text-slate-500">No hay vínculo FotMob confirmado. Elige la ficha existente, o crea una mínima si el jugador no existe.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <select className="min-w-[220px] flex-1 rounded-lg border border-slate-200 bg-white p-2 text-sm" value={suggestedPlayerId} onChange={e=>setSuggestedPlayerId(e.target.value)}>
+            <option value="">{identity.existing.length?"Selecciona ficha existente":"Crear ficha mínima"}</option>
+            {identity.existing.map(p=><option key={p.id} value={p.id}>{p.name} · {p.fm26_uid||"Sin UID"}</option>)}
+          </select>
+          <button type="button" disabled={creatingPlayer||isAdmin!==true||(identity.existing.length>0&&!suggestedPlayerId)} onClick={async()=>{await addIdentity();}} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{creatingPlayer?"Vinculando…":"Vincular jugador"}</button>
         </div>
-        <p className="text-sm text-slate-700">Durante la importación de historiales no se sobrescribirá ningún campo de <b>Player, Team, League, FM26 ni CA/PA</b>. Las fichas mínimas solo se crean al confirmarlas expresamente en el paso anterior. Los historiales existentes solo reciben métricas nuevas si autorizas «Enriquecer». Se añadirán <b>{metricsToAdd} métricas</b> a {toEnrich} historiales, sin alterar PJ, minutos ni notas.</p>
-        <label className="flex gap-2 items-center text-sm font-semibold"><input type="checkbox" checked={authorized} onChange={e=>setAuthorized(e.target.checked)}/> He revisado la vista previa y autorizo los cambios indicados.</label>
-        <button onClick={()=>importBatch()} disabled={!authorized||busy||!(toCreate+toUpdate+toEnrich)} className="px-5 py-2.5 rounded-lg bg-emerald-700 text-white font-bold text-sm disabled:opacity-40">
-          {busy?"Importando…":`Aplicar ${toCreate+toUpdate+toEnrich} cambios`}
-        </button>
+        {identityNotice&&<p className="mt-2 text-xs text-emerald-700">{identityNotice}</p>}
       </section>}
-
-      {busy&&progress.total>0&&<section className="rounded-xl bg-white border border-slate-200 p-4 space-y-2">
-        <p className="text-sm font-semibold">Procesando {progress.done} / {progress.total}</p>
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-700" style={{width:`${Math.round(progress.done/progress.total*100)}%`}}/></div>
-      </section>}
-      {report&&<section className="rounded-xl bg-white border border-emerald-300 p-5 space-y-2">
-        <p className="font-bold flex items-center gap-2"><CheckCircle2 className="text-emerald-700" size={18}/> Importación terminada</p>
-        <p className="text-sm">Creados: {report.created} · Enriquecidos: {report.enriched||0} · Actualizados: {report.updated} · Omitidos: {report.skipped} · Errores: {report.errors}</p>
-        <button onClick={()=>download(report,`MF_Legacy_informe_${localDate()}.json`)} className="text-blue-700 text-sm font-bold flex gap-2"><Download size={16}/> Descargar informe de auditoría</button>
-      </section>}
-      <p className="text-xs text-slate-500">Fuente CraftedFC: snapshot externo independiente. No se convierte su rating global en nota de partido ni se asigna retroactivamente a temporadas FotMob.</p>
+      {!busy&&issueCount>0&&<details className="rounded-xl border border-amber-200 bg-white p-4">
+        <summary className="cursor-pointer text-sm font-bold text-amber-900">Incidencias · {issueCount} <span className="font-normal text-xs text-slate-500">(ver detalles)</span></summary>
+        <div className="mt-3 space-y-2 text-xs text-slate-700">
+          {error&&<p role="alert" className="rounded bg-rose-50 p-2 text-rose-800">{error}</p>}
+          {fileErrors.map((x,i)=><p key={"e"+i} className="rounded bg-rose-50 p-2">{x}</p>)}
+          {importWarnings.map((x,i)=><p key={"w"+i} className="rounded bg-amber-50 p-2">{x}</p>)}
+          {failures.map((x,i)=><p key={"f"+i} className="rounded bg-rose-50 p-2">{x.key}: {x.reason}</p>)}
+        </div>
+      </details>}
+      {(batch||report)&&<details className="rounded-xl border border-slate-200 bg-white p-4">
+        <summary className="cursor-pointer text-xs font-semibold text-slate-600">Detalles técnicos y auditoría</summary>
+        <p className="mt-2 text-xs text-slate-500">Se conserva lo ya guardado, se añaden solo métricas nuevas y se omiten las coincidencias con conflictos de identidad. Los snapshots externos son independientes de FM26.</p>
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {Object.keys(kindLabel).map(k=><div key={k} className="rounded-lg bg-slate-50 p-2 text-center"><p className="font-bold">{stats[k]}</p><p className="text-[10px] text-slate-500">{kindLabel[k]}</p></div>)}
+        </div>
+        {report&&<button type="button" onClick={()=>download(report,`MF_Legacy_informe_${localDate()}.json`)} className="mt-3 flex items-center gap-1 text-xs font-bold text-blue-700"><Download size={15}/> Descargar informe</button>}
+      </details>}
     </div>
   </div>;
 }
