@@ -37,8 +37,8 @@ export function studioImportManifest(input,{playerId="",fileHash=""}={}){
   throw Error("No es un JSON de MF LEGACY Studio.");
  const records=[],kinds={};
  for(const [name,kind] of studioSections(input)){
-  if(!Array.isArray(input[name]))throw Error("La sección "+name+" no es una lista.");
-  const rows=input[name];kinds[name]=rows.length;
+  if(input[name]!==undefined&&!Array.isArray(input[name]))throw Error("La sección "+name+" no es una lista.");
+  const rows=input[name]||[];kinds[name]=rows.length;
   for(let i=0;i<rows.length;i++){
    const x=rows[i]||{};
    const date=str(x.date||x.market_value_as_of||x.fotmob_scisports_as_of);
