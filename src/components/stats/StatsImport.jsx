@@ -137,7 +137,6 @@ export default function StatsImport({ players=[], teams=[], onClose, onImported,
   };
   const run=async()=>{
     if(!ready.length||working)return;
-    if(!window.confirm("Importar "+ready.length+" registros vinculados en PlayerSeasonStats? Se omitirán los que ya existan. Los pendientes no se importan."))return;
     setWorking(true);stopRef.current=false;setFailedNames([]);
     let created=0,updated=0,existing=0,failed=0,done=0;
     const failures=[];
