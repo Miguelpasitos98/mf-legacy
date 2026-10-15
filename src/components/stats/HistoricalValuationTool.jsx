@@ -112,7 +112,6 @@ export default function HistoricalValuationTool({onClose,onImported}){
  };
  const apply=async()=>{
   if(!authorized||!isAdmin||busy||!complete||summary.blocked.length)return;
-  if(!window.confirm("Se actualizarán "+summary.ready.reduce((n,x)=>n+x.matches.records.length,0)+" registros de competición; solo Overall, Transfermarkt y metadatos históricos. ¿Continuar?"))return;
   setBusy(true);setProgress({done:0,total:summary.ready.reduce((n,x)=>n+x.matches.records.length,0),success:0,errors:[]});
   let done=0,success=0;const errors=[];
   for(const item of summary.ready){
