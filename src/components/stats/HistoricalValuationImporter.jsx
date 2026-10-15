@@ -189,12 +189,6 @@ export default function HistoricalValuationImporter({
     );
     if (!toSave.length || busy) return;
 
-    const confirmed = window.confirm(
-      `Se guardaran ${toSave.length} valoracion(es) historica(s) para ${player?.name || "este jugador"}. ` +
-        `Los valores vacios no sobrescribiran datos existentes. ¿Continuar?`
-    );
-    if (!confirmed) return;
-
     setBusy(true);
     setReport(null);
     setProgress({ done: 0, total: toSave.length, created: 0, updated: 0, errors: [] });
