@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {validatePossessionRow,parsePossessionBatch,possessionKey,possessionPct,createPossessionLookup,possessionAdjustedDefActions} from "../src/utils/teamPossession.js";
+import {validatePossessionRow,parsePossessionBatch,possessionKey,possessionPct,createPossessionLookup,possessionAdjustedDefActions,matchingPossessionRecord,possessionImportDecision} from "../src/utils/teamPossession.js";
 import {buildHistoricalObservations} from "../src/utils/historicalPeers.js";
 const teams=[
  {id:"city",name:"Manchester City"},
@@ -67,6 +67,21 @@ test("La identidad explícita inválida no se convierte en registro pendiente",(
  assert.equal(pending.rows[0].team_id,"");
  const duplicate=parsePossessionBatch({records:[{...entry,team_id:"",team_name:"VfB Stuttgart"},{...entry,team_id:"",team_name:"VfB Stuttgart"}]},teams);
  assert.equal(duplicate.errors.length,1);
+});
+test("No confunde clubes pendientes con la misma temporada, liga y team_id vacío",()=>{
+ const imported=[
+  {team_id:"",team_name:"VfB Stuttgart",season:"2025/2026",competition:"Bundesliga",team_possession_pct:57.8,source:"FotMob",source_url:""},
+  {team_id:"",team_name:"Hoffenheim",season:"2025/2026",competition:"Bundesliga",team_possession_pct:55.2,source:"FotMob",source_url:""}
+ ];
+ const stuttgart=matchingPossessionRecord(imported,{...imported[0],team_id:"stuttgart"});
+ const hoffenheim=matchingPossessionRecord(imported,{...imported[1],team_id:""});
+ assert.strictEqual(stuttgart,imported[0]);
+ assert.strictEqual(hoffenheim,imported[1]);
+ assert.equal(possessionImportDecision(stuttgart,{...imported[0],team_id:"stuttgart"}),"update");
+ assert.equal(possessionImportDecision(stuttgart,imported[0]),"unchanged");
+ assert.throws(()=>possessionImportDecision({...imported[0],team_id:"stuttgart"},imported[0]),/no se puede desvincular/);
+ assert.equal(matchingPossessionRecord(imported,{...imported[0],team_name:"Eintracht Frankfurt"}),null);
+ assert.equal(possessionImportDecision(null,imported[1]),"create");
 });
 test("El motor no utiliza posesión de un club pendiente como si fuera vinculado",()=>{
  const pending=[{...entry,team_id:"",team_name:"VfB Stuttgart",team_possession_pct:57.8}];
