@@ -60,7 +60,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
     if(!data?.observations?.length||!playerId||!season)return null;
     const observation=data.observations.find(o=>o.playerId===String(playerId)&&o.season===season);
     if(!observation)return {missing:true};
-    return compareHistoricalObservation(observation,data.observations,10);
+    try{return compareHistoricalObservation(observation,data.observations,10);}catch(e){console.error("Error Composite de temporada",season,e);return {calculationError:e.message||"Error calculando Composite"};}
   },[data,playerId,season]);
   const previewRows=result?.rows||[];
   const missingUnderstat=previewRows.some(r=>(r.key==="xg_chain_p90"||r.key==="xg_buildup_p90")&&r.value===null);
@@ -68,7 +68,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const validCount=previewRows.filter(r=>r.percentile!==null).length;
   const missingData=previewRows.filter(r=>r.value===null).map(r=>r.name);
   const copyMissingPrompt=async()=>{
-    const allSeasons=seasons.map(year=>{const obs=data?.observations?.find(o=>o.playerId===String(playerId)&&o.season===year);if(!obs)return null;const cmp=compareHistoricalObservation(obs,data.observations,10);return {season:year,role:cmp?.role||historicalRole(obs.position),missing:(cmp?.rows||[]).filter(x=>x.value===null).map(x=>x.name)};}).filter(x=>x&&x.missing.length);
+    const allSeasons=seasons.map(year=>{const obs=data?.observations?.find(o=>o.playerId===String(playerId)&&o.season===year);if(!obs)return null;let cmp;try{cmp=compareHistoricalObservation(obs,data.observations,10);}catch(e){console.error("Comparación no disponible",year,e);return null;}return {season:year,role:cmp?.role||historicalRole(obs.position),missing:(cmp?.rows||[]).filter(x=>x.value===null).map(x=>x.name)};}).filter(x=>x&&x.missing.length);
     if(!allSeasons.length){setCopyStatus("No se han detectado estadísticas faltantes en las temporadas cargadas.");return;}
     const text=buildMissingDataPrompt({playerName,seasons:allSeasons});
     const done="Consulta copiada ("+allSeasons.length+" temporadas). Pégala en un chat y trae los valores de vuelta para añadirlos a mano.";
@@ -136,13 +136,14 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
       {error&&<p role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
         <AlertTriangle size={17} className="shrink-0"/> {error.message}. Se conserva el Composite anterior.
       </p>}
+      {data&&result?.calculationError&&<p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">No se pudo calcular el Composite de esta temporada: {result.calculationError}. El resto del informe permanece disponible.</p>}
       {data&&result?.missing&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
         Esta ficha no tiene una temporada comparable con Player ID confirmado y posición identificada. No se calcula percentil.
       </p>}
       {data&&!role&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
         Ni la posición histórica de esta temporada ni la posición actual del jugador se corresponden con ningún arquetipo. No se utilizará otra posición por aproximación.
       </p>}
-      {data&&result&&!result.missing&&<>
+      {data&&result&&!result.missing&&!result.calculationError&&<>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {[
             ["Arquetipo",result.role],
