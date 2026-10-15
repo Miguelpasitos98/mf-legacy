@@ -245,12 +245,6 @@ export default function TeamMatchesImporter({ player, stats = [], teams = [], on
     );
     if (!toSave.length || busy) return;
 
-    const confirmed = window.confirm(
-      `Se guardaran ${toSave.length} registro(s) de PJ Equipo. ` +
-        `Los datos se almacenan a nivel de club y se reutilizan para todos los jugadores del equipo. ¿Continuar?`
-    );
-    if (!confirmed) return;
-
     setBusy(true);
     setReport(null);
     setProgress({ done: 0, total: toSave.length, created: 0, updated: 0, errors: [] });
