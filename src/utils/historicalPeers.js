@@ -3,6 +3,7 @@
 // Population: one season per player, all club competitions, same current-position archetype.
 import { groupStatRows, nationalCompetition } from "./statsViews.js";
 import { metricName, WEIGHTS_BY_ROLE, calculateCompositeMF } from "./compositeEngine.js";
+import {ballSecurityFromRecords} from "./ballSecurity.js";
 import {calculateExperimentalFallback} from "./experimentalFallback.js";
 import { canonicalHistoricalCompetition } from "./historicalJson.js";
 import { seasonReferencePosition, normalizeHistoricalPosition } from "./historicalPositions.js";
@@ -210,6 +211,10 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     for(const [metric,names] of Object.entries(PERCENTAGE))
       values[metric]=metric==="ground_duels_won_pct"
         ? groundDuelPercentage(records) : weightedPct(records,names);
+    // Ball Security is a derived percentage; do not use partial competitor
+    // coverage as if it represented a complete player-season.
+    const security=ballSecurityFromRecords(records,metricTotal);
+    values.ball_security=["W","CAM","FB","WB"].includes(role)&&!security.partial?security.value:null;
     // Never fall back to seasonless FC/Transfermarkt or snapshot CraftedFC fields.
     values.fc27_ovr=valuation?num(valuation.fifa_fc_overall):null;
     values.market_value=valuation?num(valuation.transfermarkt_value_eur):null;
