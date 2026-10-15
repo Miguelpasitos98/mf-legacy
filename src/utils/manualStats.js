@@ -1,7 +1,7 @@
 // Manual changes are explicit, audited and never rewrite unrelated fields.
 import {metricName} from "./compositeEngine.js";
 const numeric=x=>x===null||x===undefined||x===""?null:
-  Number.isFinite(Number(x))?Number(x):null;
+  Number.isFinite(Number(String(x).trim().replace(",",".")))?Number(String(x).trim().replace(",",".")):null;
 const allowedFields=new Set(["rating","minutes","appearances"]);
 const safeName=s=>String(s??"").trim();
 export function applyManualStatChange(row,{name,value,sourceNote,field=null,changedAt}){
