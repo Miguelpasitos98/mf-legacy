@@ -8,15 +8,34 @@ import {
 const text = (v) => String(v ?? "").trim();
 const keyText = (v) => text(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[._-]/g, " ").replace(/\s+/g, " ").trim();
 
+// Safe normalization across sources: never strip City, United, SC, II, etc.
 const CLUB_ALIASES = {
-  "bryne fk": "bryne",
-  "molde fk": "molde",
-  "red bull salzburg": "salzburg",
-  "fc red bull salzburg": "salzburg",
-  "rb salzburg": "salzburg",
-  "borussia dortmund": "borussia dortmund",
+  "rb salzburg": "salzburg", "red bull salzburg": "salzburg",
+  "fc red bull salzburg": "salzburg", "fc salzburg": "salzburg",
+  "bryne fk": "bryne", "molde fk": "molde",
+  "bayer 04 leverkusen": "bayer leverkusen",
+  "inter milan": "internazionale milan",
+  "internazionale": "internazionale milan",
+  "fc internazionale milano": "internazionale milan",
+  "fc internazionale milan": "internazionale milan",
+  "psg": "paris saint germain", "paris sg": "paris saint germain",
+  "paris saint germain": "paris saint germain",
+  "atletico de madrid": "atletico madrid",
+  "club atletico de madrid": "atletico madrid",
+  "rb leipzig": "rb leipzig",
+  "rasenballsport leipzig": "rb leipzig",
+  "tottenham": "tottenham hotspur",
 };
-export const canonicalHistoricalClub = (value) => CLUB_ALIASES[keyText(value)] || keyText(value);
+// Strip ONLY genuine club designators. Barcelona SC remains different from
+// Barcelona, as do Manchester City/United and every B team.
+export function canonicalHistoricalClub(value) {
+  let key=keyText(value).replace(/[^a-z0-9]+/g," ").trim();
+  key=key.replace(/\b(?:muenchen|munchen)\b/g,"munich")
+    .replace(/\bmilano\b/g,"milan");
+  if(CLUB_ALIASES[key])return CLUB_ALIASES[key];
+  key=key.replace(/^(?:fc|cf|fk)\s+/,"").replace(/\s+(?:fc|cf|fk)$/,"").trim();
+  return CLUB_ALIASES[key]||key;
+}
 
 // These aliases are naming differences, not additional fixtures.
 const COMPETITION_ALIASES = {
@@ -46,7 +65,7 @@ const urlField = (value) => {
 // Team (Base44) and PlayerSeasonStats (FotMob) can describe the SAME club
 // with different ID fields. Reconcile by verified FotMob ID and by a unique
 // normalized club name, without hiding genuinely contradictory IDs.
-const teamCatalog = (stats = [], teams = []) => {
+export const historicalTeamCatalog = (stats = [], teams = []) => {
   const groups = new Map();
   const add = (name, internalId, fotmobId, fromTeam) => {
     const canonicalName = canonicalHistoricalClub(name);
@@ -72,8 +91,8 @@ const teamCatalog = (stats = [], teams = []) => {
       (g.statIds.size > 1 && ![...g.statIds].every(id => g.databaseIds.has(id))),
   }));
 };
-export function resolveHistoricalTeam(item, stats, teams) {
-  const candidates = teamCatalog(stats, teams);
+export function resolveHistoricalTeam(item, stats=[], teams=[], catalog=null) {
+  const candidates = catalog || historicalTeamCatalog(stats, teams);
   const id = text(item.team_id);
   const fotmob = text(item.fotmob_team_id);
   const name = canonicalHistoricalClub(item.team_name);
