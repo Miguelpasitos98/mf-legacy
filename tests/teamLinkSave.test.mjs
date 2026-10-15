@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {saveTeamLinkSafely,transientTeamLinkError} from "../src/utils/teamLinkSave.js";
-import {eligibleClubRecords} from "../src/components/stats/TeamLinkPicker.jsx";
 import {nationalCompetition} from "../src/utils/statsViews.js";
 
 const timeout=new Error("MongoDB: timed out (timeoutMS 20000)");
