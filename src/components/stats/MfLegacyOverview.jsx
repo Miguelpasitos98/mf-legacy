@@ -112,8 +112,8 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
        <div className="grid grid-cols-2 gap-2">
          <Kpi title="xG" value={show(summary("xg"),2)} meta={(totals.xg?.available||0)+"/"+shown.length+" competiciones"}/>
          <Kpi title="xA" value={show(summary("xa"),2)} meta={(totals.xa?.available||0)+"/"+shown.length+" competiciones"}/>
-         <Kpi title="xG Chain /90" value={show(advanced.xg_chain_p90,2)} meta="Understat · "+advanced.understatRows+"/"+shown.length}/>
-         <Kpi title="xG Buildup /90" value={show(advanced.xg_buildup_p90,2)} meta="Understat · "+advanced.understatRows+"/"+shown.length}/>
+         <Kpi title="xG Chain /90" value={show(advanced.xg_chain_p90,2)} meta={"Understat · "+advanced.understatRows+"/"+shown.length+" competiciones"}/>
+         <Kpi title="xG Buildup /90" value={show(advanced.xg_buildup_p90,2)} meta={"Understat · "+advanced.understatRows+"/"+shown.length+" competiciones"}/>
        </div>
        <div className="mt-2 rounded-lg bg-slate-50 p-3">
          <div className="flex items-end justify-between gap-2"><div><p className="text-[10px] font-bold uppercase text-slate-500">Duelos terrestres ganados</p><p className="mt-1 text-2xl font-black text-[#003399]">{show(advanced.ground_duels_won_pct,1)}{advanced.ground_duels_won_pct!=null?" %":""}</p></div><p className="text-[10px] text-slate-500">{advanced.duelRows+"/"+shown.length+" competiciones"}</p></div>
