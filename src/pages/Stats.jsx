@@ -26,6 +26,7 @@ import {applyManualStatChange,applyManualStatChanges} from "@/utils/manualStats"
 import {advancedTotals} from "@/utils/statsAdvanced";
 import {metricName} from "@/utils/compositeEngine";
 import {buildSeasonSummaries} from "@/utils/statsSeason";
+import {patchHistoricalPeerCache} from "@/utils/historicalPeerCache";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
 import {useCraftedfcSnapshot} from "@/hooks/useCraftedfcSnapshot";
 import MfLegacyOverview from "@/components/stats/MfLegacyOverview";
@@ -92,7 +93,8 @@ const useStatsRows=(season,competition,revision)=>{
       finally{if(!ignore)setBusy(false);}
     };fetch();return()=>{ignore=true;};
   },[season,competition,revision]);
-  return {rows:fetched,hasMore:Boolean(next),loadMore:()=>load(next),busy,error};
+  const applyLocalRecord=(id,patch)=>setFetched(old=>old.map(r=>String(r.id)===String(id)?{...r,...patch}:r));
+  return {rows:fetched,hasMore:Boolean(next),loadMore:()=>load(next),applyLocalRecord,busy,error};
 };
 function Avatar({name,photo,size="md"}) {
   const [broken,setBroken]=useState(false);
@@ -340,7 +342,7 @@ export default function Stats(){
   const [viewMode,setViewMode]=useState("season"),[minMinutes,setMinMinutes]=useState(0);
   const [seasonDisplay,setSeasonDisplay]=useState("all"),[bestMetric,setBestMetric]=useState("rating");
   const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("rating"),[sortDirection,setSortDirection]=useState("desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[revision,setRevision]=useState(0),[page,setPage]=useState(0);
-  const {rows,hasMore,loadMore,busy,error}=useStatsRows(season,competition,revision);
+  const {rows,hasMore,loadMore,applyLocalRecord,busy,error}=useStatsRows(season,competition,revision);
   const [columnConfig,setColumnConfig]=useState(initialConfig);
   const [settingsOpen,setSettingsOpen]=useState(false),[settingsContext,setSettingsContext]=useState(null),[prefsRecord,setPrefsRecord]=useState(null),[prefsWarning,setPrefsWarning]=useState("");
   const [unifiedOpen,setUnifiedOpen]=useState(false);
@@ -426,15 +428,18 @@ export default function Stats(){
     const {update}=Array.isArray(change)?applyManualStatChanges(current,changes):applyManualStatChange(current,change);
     await base44.entities.PlayerSeasonStats.update(record.id,update);
     setDetailRows(rows=>rows.map(r=>String(r.id)===String(record.id)?{...r,...update}:r));
-    setRevision(x=>x+1);
-    queryClient.invalidateQueries({queryKey:["mf-legacy","historical-peer-dataset"]});
+    applyLocalRecord(record.id,update);
+    // Rebuild percentiles immediately from our complete in-memory population.
+    // No global refetch, no redundant full STATS download after a single edit.
+    patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",record.id,update);
   };
   const updateTeamMatches=async(record,matches)=>{
     if(!record?.id)throw Error("Este registro no tiene identificador y no puede modificarse.");
     if(!Number.isInteger(matches)||matches<1||matches>200)throw Error("Los PJ del equipo deben ser un entero entre 1 y 200.");
     await base44.entities.PlayerSeasonStats.update(record.id,{team_matches:matches});
     setDetailRows(current=>current.map(r=>String(r.id)===String(record.id)?{...r,team_matches:matches}:r));
-    setRevision(v=>v+1);
+    applyLocalRecord(record.id,{team_matches:matches});
+    patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",record.id,{team_matches:matches});
   };
   const openDetailSettings=(detailCategory,sample)=>{setSettingsContext({mode:"competition",category:detailCategory,sample});setSettingsOpen(true);};
   const linkHistoricalTeams=async(ids,teamId)=>{
@@ -448,7 +453,13 @@ export default function Stats(){
       try{await base44.entities.PlayerSeasonStats.update(record.id,{team_id:String(team.id)});updatedIds.push(String(record.id));}
       catch(e){failed.push({id:record.id,label:record.competition+" ("+record.season+"): "+(e?.message||"error")});}
     }
-    if(updatedIds.length){setDetailRows(current=>current.map(r=>updatedIds.includes(String(r.id))?{...r,team_id:String(team.id)}:r));setRevision(v=>v+1);}
+    if(updatedIds.length){
+      setDetailRows(current=>current.map(r=>updatedIds.includes(String(r.id))?{...r,team_id:String(team.id)}:r));
+      for(const id of updatedIds){
+        applyLocalRecord(id,{team_id:String(team.id)});
+        patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",id,{team_id:String(team.id)});
+      }
+    }
     return {updated:updatedIds.length,failed};
   };
   const openSeasonDetail=(summary,player)=>openDetail({record:summary?.records?.[0]||null,player,season:summary?.season});
