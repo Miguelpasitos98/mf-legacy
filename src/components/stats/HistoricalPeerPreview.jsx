@@ -124,7 +124,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             <p className="text-2xl font-black tabular-nums text-[#003399]">{show(result.composite.score,1)}<span className="text-sm font-normal text-slate-400"> /100</span></p>
             <p className="text-[11px] text-slate-600">Cobertura {show(result.composite.coverage,1)} % · {result.composite.count}/{result.composite.total} indicadores</p>
           </div>
-        </div>
+        </div>}
         {!result.composite&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           Este arquetipo todavía no tiene pesos de Composite definidos; los percentiles se muestran independientemente.
         </p>}
