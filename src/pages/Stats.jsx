@@ -525,7 +525,7 @@ export default function Stats(){
         </div>
         {seasonDisplay==="best"&&<label className="flex items-center gap-2 text-[11px] font-bold text-slate-600">MEJOR POR
           <select value={bestMetric} onChange={e=>{setBestMetric(e.target.value);setSort(e.target.value);setSortDirection("desc");setPage(0);}} className="max-w-56 rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-semibold text-[#003399]">
-            <option value="composite">Composite MF LEGACY</option>{bestCriteria.map(c=><option key={c.id} value={c.id}>{c.name}</option>}
+            <option value="composite">Composite MF LEGACY</option>{bestCriteria.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>}
         <span className="text-[11px] text-slate-500">{seasonDisplay==="current"?"Solo temporadas en curso: ranking separado, sin alterar el historial.":seasonDisplay==="best"?"Una fila por jugador, con su máximo entre temporadas finalizadas.":"Se muestran todas las temporadas finalizadas de cada jugador."}</span>
