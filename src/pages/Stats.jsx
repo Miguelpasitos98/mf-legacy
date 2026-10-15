@@ -30,6 +30,7 @@ import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank"
 import {useCraftedfcSnapshot} from "@/hooks/useCraftedfcSnapshot";
 import MfLegacyOverview from "@/components/stats/MfLegacyOverview";
 import CraftedfcAnalysis from "@/components/stats/CraftedfcAnalysis";
+import AnalysisErrorBoundary from "@/components/stats/AnalysisErrorBoundary";
 import CraftedfcCompare from "@/components/stats/CraftedfcCompare";
 
 const unpack = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || [];
@@ -250,7 +251,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <button onClick={()=>setSection("compare")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="compare"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Compare</button>
           </div>
           {section==="overview"&&<MfLegacyOverview playerId={player?.id||stats[0]?.player_id} position={player?.position||player?.position_raw||""} season={activeSeason} competition={competition} scope={scope} shown={shown} estimatedRating={estimatedRating} snapshot={cfcSnapshot} cfcStatus={cfcStatus} historicalValuations={historicalValuations} historicalLoading={historicalLoading} historicalRefresh={historicalRefresh} editableRows={stats} onSetMetric={onSetMetric} onSeasonChange={newSeason=>{setSeason(newSeason);setCompetition("Todas");}} onPerformance={()=>setSection("performance")} onAnalysis={()=>setSection("craftedfc")}/>}
-          {section==="craftedfc"&&<CraftedfcAnalysis snapshot={cfcSnapshot} status={cfcStatus} playerId={player?.id||stats[0]?.player_id} playerName={player?.name||stats[0]?.player_name||""} position={player?.position||player?.position_raw||""} seasons={seasons} initialSeason={activeSeason} editableRows={stats} onSetMetric={onSetMetric}/>}
+          {section==="craftedfc"&&<AnalysisErrorBoundary resetKey={String(player?.id||stats[0]?.player_id)+"|"+activeSeason}><CraftedfcAnalysis snapshot={cfcSnapshot} status={cfcStatus} playerId={player?.id||stats[0]?.player_id} playerName={player?.name||stats[0]?.player_name||""} position={player?.position||player?.position_raw||""} seasons={seasons} initialSeason={activeSeason} editableRows={stats} onSetMetric={onSetMetric}/></AnalysisErrorBoundary>}
           {section==="compare"&&<CraftedfcCompare snapshot={cfcSnapshot} status={cfcStatus} fotmobRows={shown} fotmobSummary={{...sums,appearances:summaryBasics.appearances,minutes:summaryBasics.minutes}}/>}
           {section==="performance"&&<>
           {inProgress&&<p className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">Temporada en curso: las estadísticas pueden cambiar y no representan el cierre definitivo.</p>}
