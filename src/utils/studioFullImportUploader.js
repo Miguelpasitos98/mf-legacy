@@ -63,7 +63,7 @@ export async function importFullStudioFile(base44,input,originalText,{playerId="
  const raw=originalText||JSON.stringify(input);
  const fileHash=await studioJsonSha256(raw);
  const manifest=studioImportManifest(input,{playerId,fileHash});
- const archive=splitStudioArchive(input,{playerId,fileHash,sourceFile:fileName});
+ const archive=splitStudioArchive(input,{playerId,fileHash,sourceFile:fileName,sourceText:raw});
  // Preserve complete source before any normalized writer runs.
  const archived=await saveEntity(base44.entities.PlayerSourceArchive,archive,
   (done,total)=>onProgress?.("Archivo completo",done,total));
