@@ -3,7 +3,7 @@ import { normalizeImageUrl, formatMarketValue } from "./teamUtils";
 import { AddTeamModal } from "./TeamFormComponents";
 import KitImage from "./KitImage";
 
-export default function TeamDetail({ team, onClose, onEdit, form, setForm, countries, leagues, onCloseEdit, onSubmit }) {
+export default function TeamDetail({ team, onClose, onEdit, form, setForm, countries, leagues, onCloseEdit, onSubmit, formError = "" }) {
   const [editPanelOpen, setEditPanelOpen] = useState(false);
   const [isPageTransitioning, setIsPageTransitioning] = useState(false);
   const detailScrollRef = useRef(null);
@@ -201,7 +201,7 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
           </div>
 
           {editPanelOpen && (
-            <AddTeamModal form={form} setForm={setForm} countries={countries} leagues={leagues} isEditing onClose={() => { setEditPanelOpen(false); onCloseEdit(); }} onSubmit={async (event) => { const saved = await onSubmit(event); if (saved) setEditPanelOpen(false); }} />
+            <AddTeamModal form={form} setForm={setForm} countries={countries} leagues={leagues} isEditing formError={formError} onClose={() => { setEditPanelOpen(false); onCloseEdit(); }} onSubmit={async (event) => { const saved = await onSubmit(event); if (saved) setEditPanelOpen(false); }} />
           )}
         </div>
 
