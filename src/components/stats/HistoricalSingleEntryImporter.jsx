@@ -219,6 +219,7 @@ export default function HistoricalSingleEntryImporter({
 
     setSaving(true);
     try {
+      let cacheChange=null;
       if (mode === "team") {
         const filter = selectedTeam.team_id
           ? { team_id: selectedTeam.team_id, season: selectedTeam.season, competition: selectedTeam.competition }
@@ -234,9 +235,11 @@ export default function HistoricalSingleEntryImporter({
             team_matches: payload.team_matches, source: payload.source,
             verification_status: "pending",
           });
+          cacheChange={entity:"TeamSeasonMatches",id:previous.id,patch:{team_matches:payload.team_matches,source:payload.source,verification_status:"pending"}};
           setNotice("PJ Equipo actualizado correctamente para todo el club.");
         } else {
           await base44.entities.TeamSeasonMatches.create(payload);
+          cacheChange={refresh:true};
           setNotice("PJ Equipo guardado para el club, temporada y competición.");
         }
         setTeamCurrent({ ...previous, ...payload });
@@ -251,6 +254,7 @@ export default function HistoricalSingleEntryImporter({
           setNotice(key + " ya estaba guardado; no se ha creado ningún duplicado.");
         } else if (previous) {
           await base44.entities.PlayerHistoricalValuation.update(previous.id, { ...payload, verification_status: "pending" });
+          cacheChange={entity:"PlayerHistoricalValuation",id:previous.id,patch:{...payload,verification_status:"pending"}};
           setNotice(key + " actualizado para " + normalizedSeason + ".");
         } else {
           await base44.entities.PlayerHistoricalValuation.create({
@@ -258,11 +262,12 @@ export default function HistoricalSingleEntryImporter({
             fm26_uid: text(fm26Uid), season: normalizedSeason,
             ...payload, verification_status: "pending",
           });
+          cacheChange={refresh:true};
           setNotice(key + " guardado para " + normalizedSeason + ".");
         }
         await loadExisting();
       }
-      onSaved?.();
+      onSaved?.(cacheChange);
     } catch (err) {
       setError("No se ha podido guardar: " + (err?.message || "error de permisos o conexión"));
     } finally { setSaving(false); }
