@@ -105,7 +105,10 @@ export default function TeamPossession(){
    try{
     const existing=await findExisting(row);
     if(existing){
-     if(Number(existing.team_possession_pct)===row.team_possession_pct&&String(existing.source_url||"")===row.source_url){
+     if(existing.team_id&&!row.team_id)throw Error("El registro ya está vinculado: no se puede desvincular mediante una importación sin identidad.");
+     if(Number(existing.team_possession_pct)===row.team_possession_pct&&
+        String(existing.source_url||"")===row.source_url&&
+        String(existing.team_id||"")===String(row.team_id||"")){
       result.unchanged++;continue;
      }
      await base44.entities.TeamSeasonPossession.update(existing.id,row);result.updated++;
