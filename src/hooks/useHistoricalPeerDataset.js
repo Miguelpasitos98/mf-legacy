@@ -45,9 +45,9 @@ async function allRecords(entityName, maxRecords=20000){
   throw Error("La base de "+entityName+" supera el límite de lectura segura. Es necesario paginar desde el servidor antes de calcular percentiles globales.");
 }
 const DATASETS=["Player","PlayerSeasonStats","PlayerHistoricalValuation","TeamSeasonMatches"];
-export function useHistoricalPeerDataset() {
+export function useHistoricalPeerDataset(enabled = false) {
   const query=useQuery({
-    queryKey:["mf-legacy","historical-peer-dataset","v1"],
+    queryKey:["mf-legacy","historical-peer-dataset","v2"],
     queryFn:async()=>{
       const loaded={};
       // Sequential loading avoids saturating Base44 and keeps each source complete.
@@ -59,7 +59,7 @@ export function useHistoricalPeerDataset() {
       return {observations,loadedCounts:Object.fromEntries(DATASETS.map(name=>[name,loaded[name].length])),
         loadedAt:new Date().toISOString()};
     },
-    enabled:false,staleTime:10*60*1000,refetchOnWindowFocus:false,retry:false,
+    enabled,staleTime:10*60*1000,refetchOnWindowFocus:false,retry:false,
   });
   return query;
 }
