@@ -441,7 +441,8 @@ export default function Stats(){
     applyLocalRecord(record.id,update);
     // Rebuild percentiles immediately from our complete in-memory population.
     // No global refetch, no redundant full STATS download after a single edit.
-    patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",record.id,update);
+    if(!patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",record.id,update))
+      queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
   };
   const updateTeamMatches=async(record,matches)=>{
     if(!record?.id)throw Error("Este registro no tiene identificador y no puede modificarse.");
@@ -449,7 +450,8 @@ export default function Stats(){
     await base44.entities.PlayerSeasonStats.update(record.id,{team_matches:matches});
     setDetailRows(current=>current.map(r=>String(r.id)===String(record.id)?{...r,team_matches:matches}:r));
     applyLocalRecord(record.id,{team_matches:matches});
-    patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",record.id,{team_matches:matches});
+    if(!patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",record.id,{team_matches:matches}))
+      queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
   };
   const openDetailSettings=(detailCategory,sample)=>{setSettingsContext({mode:"competition",category:detailCategory,sample});setSettingsOpen(true);};
   const linkHistoricalTeams=async(ids,teamId)=>{
@@ -467,7 +469,8 @@ export default function Stats(){
       setDetailRows(current=>current.map(r=>updatedIds.includes(String(r.id))?{...r,team_id:String(team.id)}:r));
       for(const id of updatedIds){
         applyLocalRecord(id,{team_id:String(team.id)});
-        patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",id,{team_id:String(team.id)});
+        if(!patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",id,{team_id:String(team.id)}))
+          queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
       }
     }
     return {updated:updatedIds.length,failed};
