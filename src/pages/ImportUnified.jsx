@@ -164,16 +164,25 @@ export default function ImportUnified() {
         }
       }
       setBatch({records});setFileErrors(errors);setImportWarnings(warnings);
+      if(!errors.length&&files.length===1&&isAdmin===true){
+        setBusy(true);
+        setError("");
+        try{
+          await autoImport({records},files[0].name);
+        }catch(autoError){
+          setError("Importación automática pendiente: "+(autoError?.message||autoError)+". Puedes revisar los datos manualmente.");
+        }finally{setBusy(false);}
+      }
     }catch(e){setError(e.message);}
   };
 
-  const makePlan = async () => {
-    if(!prepared.length||fileErrors.length||isAdmin!==true)return;
+  const makePlan = async (sourceRows=prepared, automatic=false) => {
+    if(!sourceRows.length||(!automatic&&fileErrors.length)||isAdmin!==true)return;
     setBusy(true);setError("");setReport(null);
     try{
       const existing=new Map();
       for(const kind of ["player","team","league","season"]){
-        const selected=prepared.filter(x=>x.kind===kind);
+        const selected=sourceRows.filter(x=>x.kind===kind);
         if(!selected.length)continue;
         const keys=selected.map(x=>kind==="season"?x.external_record_id:x.external_key);
         const entity = kind==="season" ? "PlayerSeasonStats" : "ExternalFootballSnapshot";
@@ -184,7 +193,7 @@ export default function ImportUnified() {
           for(const item of rowsFromResponse(found))existing.set(kind+":"+(item[field]||""),item);
         }
       }
-      const next=prepared.map(x=>{
+      const next=sourceRows.map(x=>{
         const key=x.kind==="season"?x.external_record_id:x.external_key;
         const old=existing.get(x.kind+":"+key);
         if(!x.linkedId && (x.kind==="season"||!allowUnlinked)) {
@@ -198,19 +207,20 @@ export default function ImportUnified() {
         }
         return {...x,action:old?(updateExisting&&x.kind!=="season"?"actualizar":"existente"):"crear",existingId:old?.id||null};
       });
+      if(automatic)return next;
       setPlan(next);
     }catch(e){setError("No se pudo verificar la existencia previa; no se guardará nada. "+e.message);}
     finally{setBusy(false);}
   };
 
-  const importBatch=async()=>{
-    if(!plan||!authorized||isAdmin!==true||busy)return;
+  const importBatch=async(sourcePlan=plan, automatic=false)=>{
+    if(!sourcePlan||(!automatic&&!authorized)||isAdmin!==true||(!automatic&&busy))return;
     // Never run a stale plan after a player link has changed.
-    if(plan.some(r=>(r.kind==="season"||r.kind==="player") && r.linkedId!==(links.get(r.kind==="season"?r.player_fotmob_id:r.fotmob_id)||""))){
+    if(!automatic&&sourcePlan.some(r=>(r.kind==="season"||r.kind==="player") && r.linkedId!==(links.get(r.kind==="season"?r.player_fotmob_id:r.fotmob_id)||""))){
       setError("Las vinculaciones cambiaron desde la verificación. Pulsa «Verificar duplicados y preparar importación» para recalcular antes de guardar.");
       setPlan(null);setAuthorized(false);return;
     }
-    const queue=plan.filter(r=>["crear","actualizar","enriquecer"].includes(r.action));
+    const queue=sourcePlan.filter(r=>automatic?r.action==="crear":["crear","enriquecer"].includes(r.action));
     setBusy(true);setError("");setProgress({done:0,total:queue.length});
     const reportItems=[];
     const entityFor = r => r.kind==="season"?"PlayerSeasonStats":"ExternalFootballSnapshot";
@@ -222,7 +232,7 @@ export default function ImportUnified() {
           external_record_id:row.external_record_id,player_id:row.linkedId,
           fotmob_player_id:row.player_fotmob_id,player_name:row.player_name,
           fotmob_team_id:row.fotmob_team_id,team_name:row.team_name,
-          team_id:resolveTeam(row),
+          team_id:row.resolvedTeamId||resolveTeam(row),
           season:row.season,competition:row.competition,
           appearances:row.appearances,minutes:row.minutes,rating:row.rating,
           market_value:row.market_value,market_date:row.market_date,metrics:row.metrics,
@@ -291,8 +301,78 @@ export default function ImportUnified() {
       updated:reportItems.filter(r=>r.status==="actualizado").length,
       enriched:reportItems.filter(r=>r.status==="enriquecido").length,
       errors:reportItems.filter(r=>r.status==="error").length,
-      skipped:plan.length-queue.length,items:reportItems});
+      skipped:sourcePlan.length-queue.length,items:reportItems});
     setAuthorized(false);setPlan(null);setBusy(false);
+  };
+
+  const autoImport = async (parsed, filenameForRun) => {
+    if(isAdmin!==true)throw Error("Necesitas permisos de administrador.");
+    const safeRows=parsed.records;
+    const playerIds=[...new Set(safeRows.filter(r=>r.kind==="player"||r.kind==="season")
+      .map(r=>String(r.kind==="season"?r.player_fotmob_id:r.fotmob_id)).filter(Boolean))];
+    if(playerIds.length!==1)throw Error("Este archivo contiene varios jugadores o no identifica uno solo. Usa revisión manual.");
+    const pid=playerIds[0];
+    const [linkResponse,playersResponse,teamsResponse]=await Promise.all([
+      base44.entities.PlayerFotmobLink.filter({fotmob_player_id:pid},{limit:10}),
+      base44.entities.Player.list({limit:500}),
+      base44.entities.Team.list({limit:500}),
+    ]);
+    const existingLinks=rowsFromResponse(linkResponse);
+    if(existingLinks.length>1)throw Error("Hay varios vínculos de jugador: revisión manual obligatoria.");
+    const localPlayers=rowsFromResponse(playersResponse);
+    const localTeams=rowsFromResponse(teamsResponse);
+    const normalized=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase();
+    let linkedId=existingLinks[0]?.player_id||"";
+    if(linkedId&&!localPlayers.some(p=>String(p.id)===String(linkedId)))
+      throw Error("El vínculo FotMob apunta a una ficha inexistente; requiere revisión.");
+    if(!linkedId){
+      const identityRow=safeRows.find(r=>r.kind==="player"&&String(r.fotmob_id)===pid);
+      if(!identityRow?.name)throw Error("Falta la identidad del jugador en el JSON.");
+      const candidates=localPlayers.filter(p=>normalized(p.name)===normalized(identityRow.name));
+      if(candidates.length)throw Error("El jugador ya podría existir ("+identityRow.name+"). Revisa el vínculo antes de crear duplicados.");
+      const positions={ST:"DC",W:"EI",CAM:"CAM",CM:"CM",DM:"CDM",CB:"DFC",GK:"GK"};
+      const position=positions[identityRow.archetype];
+      if(!position)throw Error("La posición no está verificada para crear la ficha automáticamente.");
+      // A created Player is durable. Before retrying after a network error,
+      // the next attempt checks names and refuses to duplicate.
+      const created=await base44.entities.Player.create({
+        name:identityRow.name,position,
+        description:"Ficha mínima FotMob, sin atributos ni UID de FM26. Identidad externa pendiente de revisión.",
+      });
+      linkedId=String(created?.id||created?.data?.id||"");
+      if(!linkedId)throw Error("Se creó una ficha pero no se confirmó su ID. Revisa PLAYERS antes de reintentar.");
+      await base44.entities.PlayerFotmobLink.create({
+        fotmob_player_id:pid,player_id:linkedId,player_name:identityRow.name,
+        verification:"manual_confirmada",note:"Importación automática con identidad FotMob y comprobación de nombre único",
+      });
+    }
+    const mapped=new Map([[pid,String(linkedId)]]);
+    const teamMap=new Map(localTeams.filter(t=>t.fotmob_id&&t.id).map(t=>[String(t.fotmob_id),String(t.id)]));
+    const resolved=safeRows.map(row=>{
+      const rid=row.kind==="season"?row.player_fotmob_id:row.fotmob_id;
+      const id=row.kind==="season"||row.kind==="player"?mapped.get(String(rid)):row.kind==="team"?teamMap.get(String(rid)):"";
+      return {...row,linkedId:id||"",linkStatus:id?"confirmed":"unlinked"};
+    });
+    setLinks(old=>new Map(old).set(pid,String(linkedId)));
+    setAllPlayers(localPlayers);
+    setAllTeams(localTeams);
+    setTeamLinks(teamMap);
+    const preparedPlan=await makePlan(resolved,true);
+    if(!preparedPlan)return;
+    const safePlan=preparedPlan.map(row=>{
+      // Never add an unconfirmed player, overwrite manual stats, or
+      // silently assume ambiguous club identity.
+      if(row.kind!=="season")return row;
+      const tid=String(row.fotmob_team_id||"");
+      let teamId=tid&&tid!=="0"?teamMap.get(tid):"";
+      if(!teamId&&row.team_name){
+        const candidates=localTeams.filter(t=>normalized(t.name)===normalized(row.team_name));
+        if(candidates.length===1&&(!candidates[0].fotmob_id||String(candidates[0].fotmob_id)===tid))
+          teamId=String(candidates[0].id);
+      }
+      return {...row,resolvedTeamId:teamId||""};
+    });
+    await importBatch(safePlan,true);
   };
 
   const toCreate=plan?.filter(r=>r.action==="crear").length||0;
@@ -372,7 +452,7 @@ export default function ImportUnified() {
           </tr>)}</tbody></table>
         </div>
         {prepared.length>45&&<p className="text-xs text-slate-500">Mostrando las primeras 45 filas de {prepared.length}.</p>}
-        <button type="button" className="px-5 py-2.5 bg-[#003399] text-white rounded-lg font-bold text-sm disabled:opacity-40 flex gap-2 items-center" disabled={busy||isAdmin!==true||fileErrors.length>0} onClick={makePlan}>
+        <button type="button" className="px-5 py-2.5 bg-[#003399] text-white rounded-lg font-bold text-sm disabled:opacity-40 flex gap-2 items-center" disabled={busy||isAdmin!==true||fileErrors.length>0} onClick={()=>makePlan()}>
           {busy?<Loader2 size={16} className="animate-spin"/>:<RefreshCw size={16}/>} Verificar duplicados y preparar importación
         </button>
       </section>}
@@ -384,7 +464,7 @@ export default function ImportUnified() {
         </div>
         <p className="text-sm text-slate-700">Durante la importación de historiales no se sobrescribirá ningún campo de <b>Player, Team, League, FM26 ni CA/PA</b>. Las fichas mínimas solo se crean al confirmarlas expresamente en el paso anterior. Los historiales existentes solo reciben métricas nuevas si autorizas «Enriquecer». Se añadirán <b>{metricsToAdd} métricas</b> a {toEnrich} historiales, sin alterar PJ, minutos ni notas.</p>
         <label className="flex gap-2 items-center text-sm font-semibold"><input type="checkbox" checked={authorized} onChange={e=>setAuthorized(e.target.checked)}/> He revisado la vista previa y autorizo los cambios indicados.</label>
-        <button onClick={importBatch} disabled={!authorized||busy||!(toCreate+toUpdate+toEnrich)} className="px-5 py-2.5 rounded-lg bg-emerald-700 text-white font-bold text-sm disabled:opacity-40">
+        <button onClick={()=>importBatch()} disabled={!authorized||busy||!(toCreate+toUpdate+toEnrich)} className="px-5 py-2.5 rounded-lg bg-emerald-700 text-white font-bold text-sm disabled:opacity-40">
           {busy?"Importando…":`Aplicar ${toCreate+toUpdate+toEnrich} cambios`}
         </button>
       </section>}
