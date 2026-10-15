@@ -344,21 +344,29 @@ export default function ImportUnified({onImported}) {
       const identityRow=safeRows.find(r=>r.kind==="player"&&String(r.fotmob_id)===pid);
       if(!identityRow?.name)throw Error("Falta la identidad del jugador en el JSON.");
       const candidates=localPlayers.filter(p=>normalized(p.name)===normalized(identityRow.name));
-      if(candidates.length)throw Error("El jugador ya podría existir ("+identityRow.name+"). Revisa el vínculo antes de crear duplicados.");
-      const positions={ST:"DC",W:"EI",CAM:"CAM",CM:"CM",DM:"CDM",CB:"DFC",GK:"GK"};
-      const position=positions[identityRow.archetype];
-      if(!position)throw Error("La posición no está verificada para crear la ficha automáticamente.");
-      // A created Player is durable. Before retrying after a network error,
-      // the next attempt checks names and refuses to duplicate.
-      const created=await base44.entities.Player.create({
-        name:identityRow.name,position,
-        description:"Ficha mínima FotMob, sin atributos ni UID de FM26. Identidad externa pendiente de revisión.",
-      });
-      linkedId=String(created?.id||created?.data?.id||"");
-      if(!linkedId)throw Error("Se creó una ficha pero no se confirmó su ID. Revisa PLAYERS antes de reintentar.");
+      if(candidates.length>1)throw Error("Varios jugadores tienen el mismo nombre; el archivo queda sin asociación automática para evitar duplicados.");
+      if(candidates.length===1){
+        // Unique exact full-name match only. Refuse conflicting external identities.
+        const candidate=String(candidates[0].id);
+        const otherLinks=rowsFromResponse(await base44.entities.PlayerFotmobLink.filter({player_id:candidate},{limit:10}));
+        if(otherLinks.some(l=>String(l.fotmob_player_id)!==pid))
+          throw Error("La ficha existente ya está asociada a otro ID FotMob; se mantiene intacta.");
+        linkedId=candidate;
+      }else{
+        const positions={ST:"DC",W:"EI",CAM:"CAM",CM:"CM",DM:"CDM",CB:"DFC",GK:"GK",WB:"LD",FB:"LD"};
+        const position=positions[identityRow.archetype];
+        if(!position)throw Error("La posición no está verificada para crear la ficha automáticamente.");
+        const created=await base44.entities.Player.create({
+          name:identityRow.name,position,
+          description:"Ficha mínima FotMob, sin atributos ni UID de FM26. Identidad externa pendiente de revisión.",
+        });
+        linkedId=String(created?.id||created?.data?.id||"");
+        if(!linkedId)throw Error("Se creó una ficha pero no se confirmó su ID. Revisa PLAYERS antes de reintentar.");
+      }
       await base44.entities.PlayerFotmobLink.create({
         fotmob_player_id:pid,player_id:linkedId,player_name:identityRow.name,
-        verification:"manual_confirmada",note:"Importación automática con identidad FotMob y comprobación de nombre único",
+        verification:"automatic_exact_name_unique",
+        note:"Asociación automática por nombre completo único; ID externo procedente del JSON, sin validación independiente. FM26 sin cambios.",
       });
     }
     const mapped=new Map([[pid,String(linkedId)]]);
