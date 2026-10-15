@@ -5,6 +5,7 @@ import {
   ArrowDownAZ, ArrowUpAZ, Cake, Goal,
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
+import {updatePlayerCacheRows} from "@/utils/playerEditPatch";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 
 import { parseFootballManagerCsv } from "@/utils/playerCsvImporter";
@@ -3072,9 +3073,12 @@ export default function Players() {
           setSelectedPlayer(null);
           if (statsPlayerId) navigateFromStats("/players", { replace: true });
         }}
-        onPlayerUpdated={(updatedPlayer) => {
+        onPlayerUpdated={(updatedPlayer, patch) => {
           setSelectedPlayer(updatedPlayer);
-          queryClient.invalidateQueries({ queryKey: ["mf-legacy", "players"] });
+          // The update is already confirmed. Patch shared player cache in-place
+          // rather than refetching every player just for a new photo URL.
+          queryClient.setQueryData(["mf-legacy","players"],rows=>
+            updatePlayerCacheRows(rows,updatedPlayer.id,patch||updatedPlayer));
         }}
       />
       </PlayerDetailErrorBoundary>
