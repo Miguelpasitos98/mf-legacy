@@ -220,7 +220,9 @@ export default function ImportUnified() {
       setError("Las vinculaciones cambiaron desde la verificación. Pulsa «Verificar duplicados y preparar importación» para recalcular antes de guardar.");
       setPlan(null);setAuthorized(false);return;
     }
-    const queue=sourcePlan.filter(r=>automatic?r.action==="crear":["crear","enriquecer"].includes(r.action));
+    // Reimporting one player may add only NEW metrics to existing seasons;
+    // assessHistoricalEnrichment protects minutes, games, club and old values.
+    const queue=sourcePlan.filter(r=>automatic?["crear","enriquecer"].includes(r.action):["crear","enriquecer"].includes(r.action));
     setBusy(true);setError("");setProgress({done:0,total:queue.length});
     const reportItems=[];
     const entityFor = r => r.kind==="season"?"PlayerSeasonStats":"ExternalFootballSnapshot";
@@ -393,7 +395,7 @@ export default function ImportUnified() {
         <div>
           <p className="uppercase tracking-[.18em] text-[10px] font-bold text-blue-700">MF LEGACY · STATS · Fuentes externas</p>
           <h1 className="text-2xl font-bold mt-1">Importar FotMob + CraftedFC</h1>
-          <p className="text-sm text-slate-600 mt-1">Vista previa antes de guardar. No modifica los atributos FM26 ni las fichas originales.</p>
+          <p className="text-sm text-slate-600 mt-1">Importación automática segura. Si el historial ya existe, únicamente añade métricas nuevas verificadas. No modifica atributos FM26 ni estadísticas anteriores.</p>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-blue-50 text-blue-800 px-4 py-2 text-xs font-semibold"><ShieldCheck size={16}/> {isAdmin===true?"Importación solo administrador":isAdmin===null?"Comprobando permisos":"Solo lectura"}</div>
       </header>
