@@ -62,13 +62,31 @@ async function saveEntity(entity,records,progress){
 export async function importFullStudioFile(base44,input,originalText,{playerId="",fileName="",onProgress}={}){
  const raw=originalText||JSON.stringify(input);
  const fileHash=await studioJsonSha256(raw);
- const manifest=studioImportManifest(input,{playerId,fileHash});
- const archive=splitStudioArchive(input,{playerId,fileHash,sourceFile:fileName,sourceText:raw});
- // Preserve complete source before any normalized writer runs.
+ const playerFotmobId=studioImportManifest(input,{playerId,fileHash}).pid;
+ const recordKey="studio:file:"+playerFotmobId+":"+fileHash;
+ const prior=await findExisting(base44.entities.PlayerSourceArchive,[recordKey]);
+ let fileUri=prior[0]?.file_uri||"";
+ // Use private Base44 storage; no large JSON is written to entity string
+ // fields and the user's Studio export isn't exposed as a public URL.
+ if(!fileUri){
+  onProgress?.("Subiendo archivo original",0,1);
+  const file=new File([raw],fileName||("MF_Legacy_"+playerFotmobId+".json"),{type:"application/json"});
+  const uploaded=await base44.integrations.Core.UploadPrivateFile({file});
+  fileUri=uploaded?.file_uri||"";
+  if(!fileUri)throw Error("Base44 no devolvió la ubicación privada del archivo. No se guardaron estadísticas fuente parciales.");
+ }
+ const manifest=studioImportManifest(input,{playerId,fileHash,sourceFileUri:fileUri});
+ const archive=[{record_key:recordKey,player_id:playerId,fotmob_player_id:playerFotmobId,
+  file_hash:fileHash,source_file:fileName||"",file_uri:fileUri,
+  archive_storage:"base44_private_file",original_file_bytes:new TextEncoder().encode(raw).length,
+  record_count:manifest.records.length,source_sections:manifest.kinds,
+  payload_json:JSON.stringify({file_uri:fileUri,sha256:fileHash,format:"mf_legacy_external_batch_v1"}),
+  archive_status:"original_full_json",chunk_index:0,chunk_total:1,payload_length:raw.length,
+  snapshot_date:input.snapshot_date||"",schema_version:input.schema}];
  const archived=await saveEntity(base44.entities.PlayerSourceArchive,archive,
   (done,total)=>onProgress?.("Archivo completo",done,total));
  const indexed=await saveEntity(base44.entities.PlayerProviderRecord,manifest.records,
   (done,total)=>onProgress?.("Fuentes normalizadas",done,total));
- return {fileHash,archiveChunks:archive.length,sourceRows:manifest.records.length,
+ return {fileHash,archiveFileUri:fileUri,sourceRows:manifest.records.length,
   kinds:manifest.kinds,archived,indexed};
 }
