@@ -259,7 +259,7 @@ export default function ImportUnified() {
       let group=[first];
       // Base44 supports bulkCreate. Small groups reduce requests without risking huge transactions.
       if(first.action==="crear"){
-        while(group.length<25 && pos+group.length<queue.length &&
+        while(group.length<10 && pos+group.length<queue.length &&
           queue[pos+group.length].action==="crear" &&
           entityFor(queue[pos+group.length])===entityFor(first)){
           group.push(queue[pos+group.length]);
@@ -289,12 +289,16 @@ export default function ImportUnified() {
         }
         group.forEach(row=>reportItems.push({key:keyFor(row),status:row.action==="enriquecer"?"enriquecido":row.action==="actualizar"?"actualizado":"creado",added_metrics:row.action==="enriquecer"?row.newMetricsCount:undefined,conflicts_kept:row.conflicts?.length||0}));
       }catch(e){
-        // Never retry an uncertain bulk failure automatically: it could already be partially committed.
+        // Do not continue writing when rate-limited or the transaction result is uncertain.
         group.forEach(row=>reportItems.push({key:keyFor(row),status:"error",reason:String(e?.message||e)+(group.length>1?" · Verificar existencia antes de reintentar este lote.":"")}));
+        setError("La importación se ha detenido al encontrar un error. Los datos ya guardados se conservan; vuelve a seleccionar el mismo JSON para comprobar los pendientes sin duplicarlos. "+String(e?.message||e));
+        pos+=group.length;
+        setProgress({done:pos,total:queue.length});
+        break;
       }
       pos+=group.length;
       setProgress({done:pos,total:queue.length});
-      await sleep();
+      await new Promise(resolve=>setTimeout(resolve,1100));
     }
     setReport({file:fileName,importedAt:new Date().toISOString(),total:queue.length,
       created:reportItems.filter(r=>r.status==="creado").length,
@@ -397,7 +401,7 @@ export default function ImportUnified() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-xl bg-white border border-slate-200 p-5">
           <p className="font-semibold flex items-center gap-2"><CloudUpload size={19}/> 1. Seleccionar lote JSON</p>
-          <p className="text-xs text-slate-600 mt-2">Selecciona uno o varios archivos <code>mf_legacy_external_batch_v1</code> derivados de tu JSON único. Hasta 20 archivos y 30 MB por operación.</p>
+          <p className="text-xs text-slate-600 mt-2"><strong>Importación automática:</strong> selecciona un JSON de un solo jugador y se comprobará e importará sin más botones. Si hay dudas de identidad o conflictos, se detendrá para revisión. Hasta 20 archivos y 30 MB por operación en modo manual.</p>
           <label className="mt-4 block rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/60 px-4 py-6 text-center cursor-pointer hover:bg-blue-50">
             <FileJson className="mx-auto text-blue-600 mb-2" size={27}/>
             <span className="text-sm font-bold text-blue-700">{fileName || "Elegir archivo JSON de importación"}</span>
@@ -430,7 +434,7 @@ export default function ImportUnified() {
       </section>}
       {identityNotice&&<p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{identityNotice}</p>}
       {!!prepared.length && <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
-        <h2 className="font-bold">2. Revisar el contenido</h2>
+        <h2 className="font-bold">2. Resultado y revisión opcional</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Object.keys(kindLabel).map(k=><div className="bg-slate-50 border rounded-lg p-3" key={k}><div className="text-2xl font-bold">{stats[k]}</div><div className="text-xs text-slate-600">{kindLabel[k]}</div></div>)}
         </div>
@@ -453,7 +457,7 @@ export default function ImportUnified() {
         </div>
         {prepared.length>45&&<p className="text-xs text-slate-500">Mostrando las primeras 45 filas de {prepared.length}.</p>}
         <button type="button" className="px-5 py-2.5 bg-[#003399] text-white rounded-lg font-bold text-sm disabled:opacity-40 flex gap-2 items-center" disabled={busy||isAdmin!==true||fileErrors.length>0} onClick={()=>makePlan()}>
-          {busy?<Loader2 size={16} className="animate-spin"/>:<RefreshCw size={16}/>} Verificar duplicados y preparar importación
+          {busy?<Loader2 size={16} className="animate-spin"/>:<RefreshCw size={16}/>} Revisar manualmente / verificar duplicados
         </button>
       </section>}
 
