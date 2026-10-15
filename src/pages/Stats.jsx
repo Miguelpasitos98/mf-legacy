@@ -195,7 +195,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-blue-300/20 pt-3" aria-label="Herramientas de datos históricos">
             <button type="button" onClick={copyMissingMarket} disabled={historicalLoading||!missingMarket.length}
               className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-50"
-              title="Investigar solo las temporadas sin valor Transfermarkt"><Copy size={14} className="shrink-0"/> Completar mercados <span className="rounded bg-emerald-200/70 px-1.5 py-0.5 tabular-nums">{historicalLoading?"…":missingMarket.length}</span></button>
+              title="Investigar solo las temporadas sin valor Transfermarkt"><Copy size={14} className="shrink-0"/> Completar valores ausentes <span className="rounded bg-emerald-200/70 px-1.5 py-0.5 tabular-nums">{historicalLoading?"…":missingMarket.length}</span></button>
             <button type="button" onClick={copySeasonsForValuation}
               className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-bold text-[#0e2844] transition hover:bg-cyan-100"
               title="Copiar investigación de Overall, posición FIFA y Transfermarkt por año"><Copy size={14} className="shrink-0"/> Investigar temporadas (JSON)</button>
