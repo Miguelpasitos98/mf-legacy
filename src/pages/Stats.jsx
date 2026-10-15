@@ -178,19 +178,38 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Ficha estadística">
       <div className="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center gap-4 bg-[#0e2844] p-4 text-white sm:p-5">
-          <Avatar size="lg" name={player?.name||stats[0]?.player_name} photo={playerPhoto(player)}/>
-          <div className="min-w-0 flex-1"><p className="text-[10px] uppercase tracking-[.2em] text-blue-200">MY LEGACY · INFORME DE RENDIMIENTO</p>
-            <h2 className="truncate text-2xl font-black">{player?.name||stats[0]?.player_name||"Jugador FotMob"}</h2>
-            <p className="text-xs text-blue-200">Estadísticas importadas · pendientes de validación de fuente · independientes de FM26</p>
+        <header className="shrink-0 border-b border-white/10 bg-[#0e2844] px-4 py-4 text-white sm:px-6 sm:py-5">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <Avatar size="lg" name={player?.name||stats[0]?.player_name} photo={playerPhoto(player)}/>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-[.15em] text-blue-200">MY LEGACY · INFORME DE RENDIMIENTO</p>
+              <h2 className="mt-0.5 truncate text-xl font-black leading-tight sm:text-2xl" title={player?.name||stats[0]?.player_name||"Jugador FotMob"}>{player?.name||stats[0]?.player_name||"Jugador FotMob"}</h2>
+              <p className="mt-1 hidden truncate text-[11px] text-blue-200/85 sm:block">Estadísticas por temporada · fuentes externas · independientes de FM26</p>
+            </div>
+            <nav aria-label="Acciones del informe" className="hidden shrink-0 items-center gap-2 lg:flex">
+              <button type="button" onClick={()=>onOpenSettings(category,shown[0]||stats[0]||null)} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-400/50 px-3 text-xs font-bold hover:bg-white/10"><Settings2 size={15}/> Ajustes</button>
+              {player&&<button type="button" onClick={()=>onPlayer(player.id)} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-400/50 px-3 text-xs font-bold hover:bg-white/10">Ver en PLAYERS <ArrowRight size={14}/></button>}
+            </nav>
+            <button type="button" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-blue-100 hover:bg-white/10" onClick={onClose} aria-label="Cerrar informe"><X size={20}/></button>
           </div>
-          <button type="button" onClick={copyMissingMarket} disabled={historicalLoading||!missingMarket.length} className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-950 hover:bg-emerald-100 disabled:opacity-50" title="Generar investigación verificable para los valores de Transfermarkt sin dato, sin modificar FIFA/FC"><Copy size={15}/> Completar valores ausentes ({historicalLoading?"…":missingMarket.length})</button>
-          <button type="button" onClick={copySeasonsForValuation} className="inline-flex items-center gap-2 rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold text-[#0e2844] hover:bg-cyan-100" title="Copia un prompt con todas las temporadas del jugador para pedir en un chat externo el Overall, la posición FIFA de cada edición y el valor de Transfermarkt"><Copy size={15}/> Investigar todas las temporadas (JSON)</button>
-          <button type="button" onClick={()=>setValuationImporterOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-[#0e2844] hover:bg-amber-100" title="Introducir individualmente FIFA/FC, Transfermarkt o PJ Equipo"><ClipboardPaste size={15}/> <span className="hidden lg:inline">Introducir datos históricos</span></button>
-          <button type="button" onClick={()=>onOpenSettings(category,shown[0]||stats[0]||null)} className="inline-flex items-center gap-2 rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold hover:bg-white/10" title="Configurar las columnas, los nombres y las fórmulas del desglose" aria-label="Ajustes del informe estadístico"><Settings2 size={16}/> <span className="hidden sm:inline">Ajustes</span></button>
-          {player&&<button onClick={()=>onPlayer(player.id)} className="hidden rounded-lg border border-blue-300 px-4 py-2 text-xs font-bold hover:bg-white/10 sm:block">Ver ficha en PLAYERS <ArrowRight size={13} className="ml-1 inline"/></button>}
-          <button className="rounded-lg p-2 hover:bg-white/10" onClick={onClose} aria-label="Cerrar"><X size={21}/></button>
-        </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-blue-300/20 pt-3" aria-label="Herramientas de datos históricos">
+            <button type="button" onClick={copyMissingMarket} disabled={historicalLoading||!missingMarket.length}
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-50"
+              title="Investigar solo las temporadas sin valor Transfermarkt"><Copy size={14} className="shrink-0"/> Completar mercados <span className="rounded bg-emerald-200/70 px-1.5 py-0.5 tabular-nums">{historicalLoading?"…":missingMarket.length}</span></button>
+            <button type="button" onClick={copySeasonsForValuation}
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-bold text-[#0e2844] transition hover:bg-cyan-100"
+              title="Copiar investigación de Overall, posición FIFA y Transfermarkt por año"><Copy size={14} className="shrink-0"/> Investigar temporadas (JSON)</button>
+            <button type="button" onClick={()=>setValuationImporterOpen(true)}
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-[#0e2844] transition hover:bg-amber-100"
+              title="Importar o añadir datos históricos"><ClipboardPaste size={14} className="shrink-0"/> Introducir datos históricos</button>
+            <div className="flex items-center gap-2 lg:hidden">
+              <button type="button" onClick={()=>onOpenSettings(category,shown[0]||stats[0]||null)}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-blue-400/50 px-3 py-2 text-xs font-bold hover:bg-white/10"><Settings2 size={14}/> Ajustes</button>
+              {player&&<button type="button" onClick={()=>onPlayer(player.id)}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-blue-400/50 px-3 py-2 text-xs font-bold hover:bg-white/10">PLAYERS <ArrowRight size={14}/></button>}
+            </div>
+          </div>
+        </header>
         <div className="flex-1 overflow-y-auto p-4 sm:p-5">
           {copySeasonsStatus&&<p role="status" className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-900">{copySeasonsStatus}</p>}
           <div className="mb-4 flex flex-wrap items-end gap-3">
