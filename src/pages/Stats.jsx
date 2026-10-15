@@ -277,8 +277,8 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           {shown.some(r=>r.metrics?.length>0)&&<section className="mt-5 rounded-xl border border-slate-200 p-4">
             <h3 className="mb-3 font-black text-slate-800">Todas las métricas importadas</h3>
             {shown.map((r,i)=><details key={r.id||i} className="mb-2 rounded-lg border border-slate-100 bg-slate-50 p-3">
-              <summary className="cursor-pointer text-xs font-bold text-blue-900">{r.season} · {r.competition} · {r.metrics?.length||0} métricas</summary>
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">{(r.metrics||[]).map((m,j)=><div key={j} className="rounded-lg bg-white px-3 py-2"><p className="text-[11px] text-slate-500">{metricLabel(m.name)}</p><p className="font-extrabold">{show(m.value,Number(m.value)%1?2:0)}</p></div>)}</div>
+              <summary className="cursor-pointer text-xs font-bold text-blue-900">{r.season} · {r.competition} · {r.metrics?.length||0} métricas</summary><button type="button" disabled={!r.id||r._sourceRows>1} onClick={()=>setMetricTarget({record:r,metric:"",field:null,current:null,newMetric:true})} className="mt-2 rounded border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-900 disabled:opacity-40">+ Añadir estadística manual</button>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">{(r.metrics||[]).map((m,j)=><div key={j} className="rounded-lg bg-white px-3 py-2"><p className="text-[11px] text-slate-500">{metricLabel(m.name)}</p><div className="font-extrabold">{valueButton(r,m.name,m.value,Number(m.value)%1?2:0)}</div></div>)}</div>
             </details>)}
           </section>}
           </>}
