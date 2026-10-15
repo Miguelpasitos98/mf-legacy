@@ -13,7 +13,7 @@ const original={
  pending_team_review:[{external_record_id:"pending:1",season:"2024/2025",competition:"EURO",team_candidates:[{team_name:"England"}]}],
  source_observations:[{observation_id:"understat:manual:654096:1",season:"2024/2025",statistics:{original:{xG:1.2}},
   quality:{authenticity:"manual_not_independently_verified"}}],
- understat_season_summaries:[{season:"2024/2025",competition:{understat_league:"EPL"},totals:{xG:1.2},
+ understat_season_summaries:[{season:"2024/2025",competition:{understat_league:"EPL"},totals:{xG:1.2,time:900,games:12},
   published_per90:{xG:{value:.2,provider_field:"xG90",source:"Understat"}}}],
  understat_coverage_report:{manual_observations:1,note:"keep complete source"},
  fotmob_market_value_receipt:{profile_sha256:"a".repeat(64)},
@@ -32,7 +32,12 @@ test("Importa todas las secciones como registros fuente sin contaminar FIFA y Tr
  const mv=result.records.find(r=>r.record_kind==="market_point");
  assert.equal(mv.market_value_eur,90000000);
  assert.equal(mv.status,"model_estimate");
- assert.equal(result.records.find(r=>r.record_kind==="understat_summary").status,"manual_identity_unverified");
+ const understat=result.records.find(r=>r.record_kind==="understat_summary");
+ assert.equal(understat.status,"manual_identity_unverified");
+ assert.equal(understat.minutes,900);
+ assert.equal(understat.appearances,12);
+ assert.equal(understat.metrics.find(m=>m.name==="xG").per90,.2);
+ assert.equal(understat.source_verified,false);
  const valuation=result.records.find(r=>r.record_kind==="historical_valuation");
  assert.equal(JSON.parse(valuation.payload_json).transfermarkt_value_eur,null);
  assert.equal(JSON.parse(valuation.payload_json).fotmob_scisports_value_eur,80000000);
