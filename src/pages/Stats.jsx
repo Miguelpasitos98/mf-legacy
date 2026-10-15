@@ -26,7 +26,6 @@ import {useCraftedfcSnapshot} from "@/hooks/useCraftedfcSnapshot";
 import CraftedfcOverview from "@/components/stats/CraftedfcOverview";
 import CraftedfcAnalysis from "@/components/stats/CraftedfcAnalysis";
 import CraftedfcCompare from "@/components/stats/CraftedfcCompare";
-import HistoricalPeerPreview from "@/components/stats/HistoricalPeerPreview";
 
 const unpack = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || [];
 const options = Array.from({length:12},(_,i)=>{const y=2027-i;return (y-1)+"/"+y;});
@@ -220,7 +219,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <button onClick={()=>setSection("compare")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="compare"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Compare</button>
           </div>
           {section==="overview"&&<CraftedfcOverview snapshot={cfcSnapshot} status={cfcStatus} fotmobRating={estimatedRating}/>}
-          {section==="craftedfc"&&<><CraftedfcAnalysis snapshot={cfcSnapshot} status={cfcStatus} fotmobRows={shown} position={player?.position||player?.primary_position||""} historicalValuations={historicalValuations}/><HistoricalPeerPreview playerId={player?.id||stats[0]?.player_id} position={player?.position||player?.position_raw||""} seasons={seasons} initialSeason={activeSeason}/></>}
+          {section==="craftedfc"&&<CraftedfcAnalysis snapshot={cfcSnapshot} status={cfcStatus} playerId={player?.id||stats[0]?.player_id} position={player?.position||player?.position_raw||""} seasons={seasons} initialSeason={activeSeason}/>}
           {section==="compare"&&<CraftedfcCompare snapshot={cfcSnapshot} status={cfcStatus} fotmobRows={shown} fotmobSummary={{...sums,appearances:summaryBasics.appearances,minutes:summaryBasics.minutes}}/>}
           {section==="performance"&&<>
           {inProgress&&<p className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">Temporada en curso: las estadísticas pueden cambiar y no representan el cierre definitivo.</p>}
