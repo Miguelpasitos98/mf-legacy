@@ -27,7 +27,7 @@ import {metricName} from "@/utils/compositeEngine";
 import {buildSeasonSummaries} from "@/utils/statsSeason";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
 import {useCraftedfcSnapshot} from "@/hooks/useCraftedfcSnapshot";
-import CraftedfcOverview from "@/components/stats/CraftedfcOverview";
+import MfLegacyOverview from "@/components/stats/MfLegacyOverview";
 import CraftedfcAnalysis from "@/components/stats/CraftedfcAnalysis";
 import CraftedfcCompare from "@/components/stats/CraftedfcCompare";
 
@@ -121,7 +121,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
       }catch{setCopySeasonsStatus("El navegador ha bloqueado la copia. Revisa sus permisos de portapapeles.");}
     }
   };
-  const [section,setSection]=useState("performance");
+  const [section,setSection]=useState("overview");
   const {snapshot:cfcSnapshot,status:cfcStatus}=useCraftedfcSnapshot(player?.id);
   const [season,setSeason]=useState("auto");
   const activeSeason=season==="auto"?defaultSeason(stats,initialSeason):season;
@@ -245,7 +245,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <button onClick={()=>setSection("craftedfc")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="craftedfc"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Análisis MF Legacy</button>
             <button onClick={()=>setSection("compare")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="compare"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Compare</button>
           </div>
-          {section==="overview"&&<CraftedfcOverview snapshot={cfcSnapshot} status={cfcStatus} fotmobRating={estimatedRating}/>}
+          {section==="overview"&&<MfLegacyOverview playerId={player?.id||stats[0]?.player_id} position={player?.position||player?.position_raw||""} season={activeSeason} competition={competition} scope={scope} shown={shown} estimatedRating={estimatedRating} snapshot={cfcSnapshot} cfcStatus={cfcStatus} historicalValuations={historicalValuations} historicalLoading={historicalLoading} historicalRefresh={historicalRefresh} onSeasonChange={newSeason=>{setSeason(newSeason);setCompetition("Todas");}} onPerformance={()=>setSection("performance")} onAnalysis={()=>setSection("craftedfc")}/>}
           {section==="craftedfc"&&<CraftedfcAnalysis snapshot={cfcSnapshot} status={cfcStatus} playerId={player?.id||stats[0]?.player_id} position={player?.position||player?.position_raw||""} seasons={seasons} initialSeason={activeSeason}/>}
           {section==="compare"&&<CraftedfcCompare snapshot={cfcSnapshot} status={cfcStatus} fotmobRows={shown} fotmobSummary={{...sums,appearances:summaryBasics.appearances,minutes:summaryBasics.minutes}}/>}
           {section==="performance"&&<>
@@ -299,7 +299,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             </details>)}
           </section>}
           </>}
-          <HistoricalValuationsTable valuations={historicalValuations} loading={historicalLoading} onRefresh={historicalRefresh}/>
+          {section==="performance"&&<HistoricalValuationsTable valuations={historicalValuations} loading={historicalLoading} onRefresh={historicalRefresh}/>}
         </div>
         <div className="flex justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3">
           <span className="text-xs text-slate-500">Fuente: archivos FotMob Studio · registros sujetos a revisión.</span>
