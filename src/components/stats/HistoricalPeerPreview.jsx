@@ -5,6 +5,8 @@ import { compareHistoricalObservation, historicalRole, historicalNationalCompeti
 import { POSITION_SOURCES } from "@/utils/historicalPositions";
 import OverviewManualEditor from "@/components/stats/OverviewManualEditor";
 import { formatEur } from "@/utils/historicalValuation";
+const EDIT_METRIC_NAMES={npxg_p90:"xG excl. penalty",xa_p90:"xA",xgot_p90:"xGOT",shots_on_target_p90:"Shots on target",big_chances_created_p90:"Big chances created",possession_won_final_3rd_p90:"Possession won final 3rd",accurate_long_balls_p90:"Accurate long balls",successful_dribbles_p90:"Dribbles",dispossessed_p90:"Dispossessed",dribbled_past_p90:"Dribbled past",goals_prevented_p90:"Goals prevented",accurate_passes_p90:"Accurate passes",def_actions_poss_adj_p90:"PAdj defensive actions",aerial_duels_won_pct:"Aerials won %",ground_duels_won_pct:"Ground duels won %",save_pct:"Save percentage"};
+const NON_EDITABLE_COMPOSITE=new Set(["fc27_ovr","market_value","play_share","finishing_xgot_minus_npxg","rating"]);
 import { buildMissingDataPrompt } from "@/utils/missingDataPrompt";
 const show=(v,d=2)=>v===null||v===undefined||!Number.isFinite(Number(v))?"—":
  Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -189,10 +191,13 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             <tbody>{previewRows.map(item=><tr className="border-t border-slate-100 hover:bg-slate-50" key={item.key}>
               <td className="px-3 py-2.5 font-semibold text-slate-800">{item.name}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right font-semibold tabular-nums text-slate-800">
-                {item.value===null&&onSetMetric?
+                {onSetMetric&&!NON_EDITABLE_COMPOSITE.has(item.key)?
                   <button type="button"
-                    onClick={()=>setManualMode(["xg_chain_p90","xg_buildup_p90"].includes(item.key)?(item.key==="xg_chain_p90"?"chain":"buildup"):{mode:"other",name:item.name})}
-                    className="rounded px-2 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600" title={"Añadir a mano «"+item.name+"» en "+season}>Añadir +</button>:
+                    onClick={()=>setManualMode(item.key==="xg_chain_p90"?"chain":item.key==="xg_buildup_p90"?"buildup":item.key==="ground_duels_won_pct"?"ground":{mode:"other",name:EDIT_METRIC_NAMES[item.key]||item.name})}
+                    className="inline-flex items-center justify-end gap-1 rounded px-2 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+                    title={(item.value===null?"Añadir":"Corregir")+" estadística de origen por competición (el Composite se recalcula después)"}>
+                    {item.value===null?"Añadir +":show(item.value,2)}{item.value!==null&&<span className="text-[10px] text-blue-500">✎</span>}
+                  </button>:
                   item.key==="market_value"?formatEur(item.value):show(item.value,item.key==="fc27_ovr"?0:2)}
               </td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PercentileBar item={item}/></td>
