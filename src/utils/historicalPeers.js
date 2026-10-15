@@ -231,6 +231,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       key,playerId:str(player.id),playerName:player.name||records[0].player_name||"",
       season:str(records[0].season),role,values,
       position:position.position,positionSource:position.source,positionMixed:Boolean(position.mixed),
+      pAdjMethod:hasDirectPAdj?"provider_imported":values.def_actions_poss_adj_p90!==null?"mf_possession_50_experimental":"missing",
       minutes:records.reduce((n,r)=>n+Math.max(0,num(r.minutes)||0),0),
       competitions:records.length,
     });
