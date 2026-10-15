@@ -4,6 +4,19 @@ const numeric=x=>x===null||x===undefined||x===""?null:
   Number.isFinite(Number(String(x).trim().replace(",",".")))?Number(String(x).trim().replace(",",".")):null;
 const allowedFields=new Set(["rating","minutes","appearances"]);
 const safeName=s=>String(s??"").trim();
+export function applyManualStatChanges(record,changes){
+ if(!Array.isArray(changes)||!changes.length)throw Error("No hay datos que guardar.");
+ let current=record;
+ for(const change of changes){
+  const result=applyManualStatChange(current,change);
+  current={...current,...result.update};
+ }
+ const update={};
+ if(changes.some(c=>!c.field))update.metrics=current.metrics;
+ for(const c of changes.filter(c=>c.field))update[c.field]=current[c.field];
+ update.manual_metric_history=current.manual_metric_history;
+ return {update};
+}
 export function applyManualStatChange(row,{name,value,sourceNote,field=null,changedAt}){
   if(!row?.id)throw Error("Selecciona una competición guardada y con ID.");
   const metric=safeName(name),note=safeName(sourceNote);
