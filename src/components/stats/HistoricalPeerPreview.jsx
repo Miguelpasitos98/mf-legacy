@@ -97,6 +97,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           <p className="mt-1 text-xs text-slate-600">
             Percentiles propios por posición, calculados con todas las temporadas de clubes de nuestra base. La temporada se consolida entre competiciones antes de comparar. Nunca se utilizan los percentiles originales de FotMob.
           </p>
+          {observation?.pAdjMethod==="mf_possession_50_experimental"&&<p className="mt-1 text-xs font-semibold text-amber-700">PAdj /90: cálculo experimental MF LEGACY normalizado al 50 % de posesión; no reproduce necesariamente la fórmula interna de CraftedFC.</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {main&&<button type="button" onClick={copyMissingPrompt} disabled={!playerId||!season}
