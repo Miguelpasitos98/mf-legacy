@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
 import { normalizeLabel, metricLabel } from "@/utils/statsImport";
 import { buildValuationPrompt } from "@/utils/valuationPrompt";
+import {buildMissingMarketPrompt,missingMarketSeasons} from "@/utils/missingMarketPrompt";
 import StatsImport from "@/components/stats/StatsImport";
 import HistoricalSingleEntryImporter from "@/components/stats/HistoricalSingleEntryImporter";
 import HistoricalValuationsTable from "@/components/stats/HistoricalValuationsTable";
@@ -69,6 +70,13 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const [valuationImporterOpen,setValuationImporterOpen]=useState(false);
   const fotmobPlayerId=stats[0]?.fotmob_player_id||"";
   const [copySeasonsStatus,setCopySeasonsStatus]=useState("");
+  const missingMarket=useMemo(()=>missingMarketSeasons(seasons,historicalValuations),[seasons,historicalValuations]);
+  const copyMissingMarket=async()=>{
+    if(!missingMarket.length){setCopySeasonsStatus("Todas las temporadas registradas tienen un valor de mercado.");return;}
+    const text=buildMissingMarketPrompt({playerName:player?.name||stats[0]?.player_name||"",fotmobId:fotmobPlayerId,fm26Uid:player?.fm26_uid||"",seasons,valuations:historicalValuations});
+    try{await navigator.clipboard.writeText(text);setCopySeasonsStatus("Investigación de Transfermarkt copiada para "+missingMarket.length+" temporadas. Trae el JSON y pégalo en «Introducir datos históricos → Pegar JSON completo».");}
+    catch{setCopySeasonsStatus("El navegador bloqueó la copia; comprueba el permiso del portapapeles.");}
+  };
   const copySeasonsForValuation=async()=>{
     const name=String(player?.name||stats[0]?.player_name||"").trim();
     if(!name||!seasons.length){setCopySeasonsStatus("No hay temporadas disponibles para copiar.");return;}
@@ -176,6 +184,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <h2 className="truncate text-2xl font-black">{player?.name||stats[0]?.player_name||"Jugador FotMob"}</h2>
             <p className="text-xs text-blue-200">Estadísticas importadas · pendientes de validación de fuente · independientes de FM26</p>
           </div>
+          <button type="button" onClick={copyMissingMarket} disabled={historicalLoading||!missingMarket.length} className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-950 hover:bg-emerald-100 disabled:opacity-50" title="Generar investigación verificable para los valores de Transfermarkt sin dato, sin modificar FIFA/FC"><Copy size={15}/> Completar valores ausentes ({historicalLoading?"…":missingMarket.length})</button>
           <button type="button" onClick={copySeasonsForValuation} className="inline-flex items-center gap-2 rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold text-[#0e2844] hover:bg-cyan-100" title="Copia un prompt con todas las temporadas del jugador para pedir en un chat externo el Overall, la posición FIFA de cada edición y el valor de Transfermarkt"><Copy size={15}/> Investigar todas las temporadas (JSON)</button>
           <button type="button" onClick={()=>setValuationImporterOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-[#0e2844] hover:bg-amber-100" title="Introducir individualmente FIFA/FC, Transfermarkt o PJ Equipo"><ClipboardPaste size={15}/> <span className="hidden lg:inline">Introducir datos históricos</span></button>
           <button type="button" onClick={()=>onOpenSettings(category,shown[0]||stats[0]||null)} className="inline-flex items-center gap-2 rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold hover:bg-white/10" title="Configurar las columnas, los nombres y las fórmulas del desglose" aria-label="Ajustes del informe estadístico"><Settings2 size={16}/> <span className="hidden sm:inline">Ajustes</span></button>
@@ -290,7 +299,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
         </form>
       </div>}
       {teamLinkTarget&&<TeamLinkPicker season={activeSeason} records={stats} teams={teams} initialRecord={teamLinkTarget==="bulk"?null:teamLinkTarget} onClose={()=>setTeamLinkTarget(null)} onApply={onLinkTeams}/>}
-      <HistoricalSingleEntryImporter open={valuationImporterOpen} onClose={()=>setValuationImporterOpen(false)} player={player} fotmobPlayerId={fotmobPlayerId} fm26Uid={player?.fm26_uid||""} onSaved={change=>{
+      <HistoricalSingleEntryImporter open={valuationImporterOpen} onClose={()=>setValuationImporterOpen(false)} player={player} fotmobPlayerId={fotmobPlayerId} fm26Uid={player?.fm26_uid||""} stats={stats} teams={teams} onSaved={change=>{
         historicalRefresh();refreshTeamMatches();
         if(change?.entity&&change?.id){
           if(!patchHistoricalPeerCache(queryClient,change.entity,change.id,change.patch))
