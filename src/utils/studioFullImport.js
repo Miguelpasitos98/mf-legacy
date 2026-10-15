@@ -30,6 +30,16 @@ export function studioSections(input){
  return [...STUDIO_LIST_SECTIONS,...Object.entries(input).filter(([k,v])=>
   Array.isArray(v)&&k!=="records"&&!STUDIO_LIST_SECTIONS.some(([s])=>s===k)).map(([name])=>[name,"extra_source"])];
 }
+export function studioUnderstatMetrics(summary){
+ const totals=summary?.totals||{};
+ return Object.entries(totals).filter(([name,v])=>name!=="games"&&name!=="time"&&num(v)!==null)
+  .map(([name,v])=>{
+   const p=summary?.per90?.[name],published=summary?.published_per90?.[name];
+   const rate=num(p?.value)??num(published?.value);
+   return {name,value:num(v),...(rate!==null?{per90:rate}:{}),
+    provider:"Understat",verification_status:"manual_identity_unverified"};
+  });
+}
 export function studioImportManifest(input,{playerId="",fileHash=""}={}){
  const pid=studioPlayerId(input);
  if(!pid||!/^[0-9]+$/.test(pid))throw Error("Studio JSON sin ID FotMob único.");
@@ -62,6 +72,19 @@ export function studioImportManifest(input,{playerId="",fileHash=""}={}){
     ...(kind==="market_point"&&num(x.lower_bound)!==null?{market_lower_eur:num(x.lower_bound)}:{}),
     ...(kind==="market_point"&&num(x.upper_bound)!==null?{market_upper_eur:num(x.upper_bound)}:{}),
     ...(kind==="market_point"?{currency:str(x.currency||"EUR")}:{}),
+    ...(kind==="historical_valuation"&&num(x.fifa_fc_overall)!==null?{fifa_fc_overall:num(x.fifa_fc_overall)}:{}),
+    ...(kind==="historical_valuation"&&str(x.fifa_fc_position)?{fifa_fc_position:str(x.fifa_fc_position)}:{}),
+    ...(kind==="historical_valuation"&&num(x.transfermarkt_value_eur)!==null?{transfermarkt_value_eur:num(x.transfermarkt_value_eur)}:{}),
+    ...(kind==="historical_valuation"&&x.market_value_as_of?{transfermarkt_date:str(x.market_value_as_of)}:{}),
+    ...(kind==="historical_valuation"&&num(x.fotmob_scisports_value_eur)!==null?{scisports_model_value_eur:num(x.fotmob_scisports_value_eur)}:{}),
+    ...(["fotmob_season","understat_summary"].includes(kind)&&num(x.minutes??x.totals?.time)!==null?
+     {minutes:num(x.minutes??x.totals?.time)}:{}),
+    ...(["fotmob_season","understat_summary"].includes(kind)&&num(x.matches??x.totals?.games)!==null?
+     {appearances:num(x.matches??x.totals?.games)}:{}),
+    ...(kind==="fotmob_season"&&Array.isArray(x.metrics)?{metrics:x.metrics}:{}),
+    ...(kind==="understat_summary"?{metrics:studioUnderstatMetrics(x)}:{}),
+    source_verified:!["market_point","understat_observation","understat_summary","pending_team","historical_valuation"].includes(kind)
+      &&/^(verified|confirmada)$/i.test(str(x.verification_status)),
     status,payload_json:JSON.stringify(x),source_file_hash:fileHash,snapshot_date:str(input.snapshot_date)});
   }
  }
