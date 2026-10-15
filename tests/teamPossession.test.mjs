@@ -31,6 +31,48 @@ test("JSON array o records: identifica club por nombre exacto y rechaza duplicad
  assert.equal(duplicate.rows.length,1);
  assert.match(duplicate.errors[0],/duplicados/);
 });
+test("Bundesliga 2025/2026: importa los 18 equipos, aunque solo cuatro existan en Team",()=>{
+ const catalog=[
+  ...teams,
+  {id:"leverkusen",name:"Bayer 04 Leverkusen"},
+  {id:"leipzig",name:"RB Leipzig"},
+  {id:"dortmund",name:"Borussia Dortmund"}
+ ];
+ const names=["Bayern München","Bayer Leverkusen","VfB Stuttgart","Hoffenheim","Eintracht Frankfurt",
+  "RB Leipzig","Borussia Dortmund","Werder Bremen","Freiburg","1. FC Köln","Borussia Mönchengladbach",
+  "Hamburger SV","Wolfsburg","St. Pauli","Augsburg","Mainz 05","FC Heidenheim","Union Berlin"];
+ const pct=[67.4,59.2,57.8,55.2,55,53.9,53.2,51.2,48.1,47,46.7,45.4,45.2,44.3,44,44,42.2,40.3];
+ const rows=names.map((name,i)=>({team_name:name,season:"2025/2026",competition:"Bundesliga",team_possession_pct:pct[i],source:"FotMob",source_url:""}));
+ const result=parsePossessionBatch({records:rows},catalog);
+ assert.deepEqual(result.errors,[]);
+ assert.equal(result.rows.length,18);
+ assert.equal(result.rows.filter(row=>row.team_id).length,4);
+ assert.equal(result.rows.filter(row=>!row.team_id).length,14);
+ assert.equal(result.rows[2].team_name,"VfB Stuttgart");
+ assert.equal(result.rows[2].team_id,"");
+ assert.equal(result.rows[0].team_id,"bayern");
+ assert.equal(result.rows[1].team_id,"leverkusen");
+ assert.equal(result.rows[5].team_id,"leipzig");
+ assert.equal(result.rows[6].team_id,"dortmund");
+ // When the club is later added, importing the same snapshot links it.
+ const improved=parsePossessionBatch({records:rows},[...catalog,{id:"stuttgart",name:"VfB Stuttgart"}]);
+ assert.equal(improved.rows.filter(row=>row.team_id).length,5);
+ assert.equal(improved.rows[2].team_id,"stuttgart");
+});
+test("La identidad explícita inválida no se convierte en registro pendiente",()=>{
+ assert.throws(()=>validatePossessionRow({...entry,team_id:"inventado"},teams,{allowUnlinked:true}),/ID del club/);
+ assert.throws(()=>validatePossessionRow({...entry,team_id:"city",team_name:"Manchester United"},teams,{allowUnlinked:true}),/no coincide/);
+ const pending=parsePossessionBatch({records:[{...entry,team_id:"",team_name:"VfB Stuttgart"}]},teams);
+ assert.equal(pending.errors.length,0);
+ assert.equal(pending.rows[0].team_id,"");
+ const duplicate=parsePossessionBatch({records:[{...entry,team_id:"",team_name:"VfB Stuttgart"},{...entry,team_id:"",team_name:"VfB Stuttgart"}]},teams);
+ assert.equal(duplicate.errors.length,1);
+});
+test("El motor no utiliza posesión de un club pendiente como si fuera vinculado",()=>{
+ const pending=[{...entry,team_id:"",team_name:"VfB Stuttgart",team_possession_pct:57.8}];
+ const lookup=createPossessionLookup(pending,teams);
+ assert.equal(lookup({team_name:"VfB Stuttgart",season:"2018/2019",competition:"Premier League"}),null);
+});
 test("Vincula posesión de club por su identificador único y competición",()=>{
  const possessions=[
   {...entry,team_id:"city",team_possession_pct:67.9},
