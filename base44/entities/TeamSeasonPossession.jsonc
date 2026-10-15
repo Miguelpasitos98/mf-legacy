@@ -4,7 +4,7 @@
   "properties": {
     "team_id": {
       "type": "string",
-      "description": "ID interno Base44 Team; clave principal junto a season y competition"
+      "description": "ID interno de Base44 Team si est\u00e1 vinculado; vac\u00edo si a\u00fan no existe en el cat\u00e1logo."
     },
     "fotmob_team_id": {
       "type": "string",
@@ -12,7 +12,7 @@
     },
     "team_name": {
       "type": "string",
-      "description": "Nombre de club Base44 para auditor\u00eda, no clave primaria"
+      "description": "Nombre observado del equipo; obligatorio incluso si todav\u00eda no existe en Team."
     },
     "season": {
       "type": "string",
@@ -57,7 +57,7 @@
     }
   },
   "required": [
-    "team_id",
+    "team_name",
     "season",
     "competition",
     "team_possession_pct"
