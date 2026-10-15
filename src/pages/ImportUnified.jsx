@@ -177,7 +177,7 @@ export default function ImportUnified({onImported}) {
         try{
           await autoImport({records},files[0].name,singleSource);
         }catch(autoError){
-          setError("Importación automática pendiente: "+(autoError?.message||autoError)+". Puedes revisar los datos manualmente.");
+          setError("Importación automática pendiente: "+(autoError?.message||autoError)+". Vuelve a subir el mismo JSON para reanudar sin duplicados.");
         }finally{setBusy(false);}
       }
     }catch(e){setError(e.message);}
