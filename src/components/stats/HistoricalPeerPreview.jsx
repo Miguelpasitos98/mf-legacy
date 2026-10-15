@@ -68,7 +68,9 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const validCount=previewRows.filter(r=>r.percentile!==null).length;
   const missingData=previewRows.filter(r=>r.value===null).map(r=>r.name);
   const copyMissingPrompt=async()=>{
-    const text=buildMissingDataPrompt({playerName,season,role,missing:missingData});
+    const allSeasons=seasons.map(year=>{const obs=data?.observations?.find(o=>o.playerId===String(playerId)&&o.season===year);if(!obs)return null;const cmp=compareHistoricalObservation(obs,data.observations,10);return {season:year,role:cmp?.role||historicalRole(obs.position),missing:(cmp?.rows||[]).filter(x=>x.value===null).map(x=>x.name)};}).filter(x=>x&&x.missing.length);
+    if(!allSeasons.length){setCopyStatus("No se han detectado estadísticas faltantes en las temporadas cargadas.");return;}
+    const text=buildMissingDataPrompt({playerName,seasons:allSeasons});
     const done="Consulta copiada ("+missingData.length+" datos en blanco). Pégala en un chat y trae los valores de vuelta para añadirlos a mano.";
     try{
       await navigator.clipboard.writeText(text);
@@ -98,7 +100,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           {main&&<button type="button" onClick={copyMissingPrompt} disabled={!playerId||!season}
             title="Copia una consulta con el jugador, la temporada y los datos en blanco para pegarla en un chat externo"
             className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-50">
-            <ClipboardList size={15}/> Copiar consulta de datos faltantes
+            <ClipboardList size={15}/> Investigar estadísticas vacías · todas las temporadas
           </button>}
           <button type="button" onClick={()=>refetch()} disabled={isFetching||!playerId}
             className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-50">
