@@ -157,5 +157,6 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
      <summary className="cursor-pointer text-xs font-bold text-slate-600">Referencia externa CraftedFC (opcional)</summary>
      <div className="mt-3"><CraftedfcOverview snapshot={snapshot} status={cfcStatus} fotmobRating={estimatedRating}/></div>
    </details>
+   <OverviewManualEditor mode={manualMode} records={manualRows} onClose={()=>setManualMode(null)} onSave={onSetMetric}/>
  </div>;
 }
