@@ -60,7 +60,7 @@ export function createOverviewManualChanges(record,mode,form,note){
  }else if(mode==="other"){
   const name=String(form.name||"").trim();
   if(!name||name.length>100)throw Error("Introduce el nombre de la estadística.");
-  if(["xgchain/90","xgbuildup/90","groundduelswonpercent"].includes(metricName(name)))
+  if(["xgchain","xgbuildup","xgchain90","xgbuildup90","groundduelswonpercent"].includes(metricName(name)))
    throw Error("Para estas métricas utiliza su tarjeta específica, que valida también los denominadores.");
   const value=valid(form.value,name);
   if(name.includes("%")&&value>100)throw Error("Un porcentaje debe estar entre 0 y 100.");
