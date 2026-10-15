@@ -5,7 +5,7 @@ import {STATS_ROWS_STALE_MS,STATS_CACHE_GC_MS,statsRowsKey,flattenStatsPages,pat
 
 const unpack=result=>Array.isArray(result)?result:result?.items||result?.data||result?.results||[];
 const parseData=row=>({...row,metrics:Array.isArray(row.metrics)?row.metrics:[]});
-const PAGE_SIZE=300;
+const PAGE_SIZE=500; // Hasta 500 registros en una consulta (la mayoría de bases actuales caben aquí).
 const MAX_AUTO_PAGES=40;
 
 async function fetchStatsPage({season,competition,pageParam}){
@@ -18,8 +18,8 @@ async function fetchStatsPage({season,competition,pageParam}){
     :await base44.entities.PlayerSeasonStats.list(args);
   const rows=unpack(response).map(parseData);
   const cursor=response?.next_cursor||response?.nextCursor||null;
-  if(response?.has_more===true&&!cursor)
-    throw Error("Base44 indica más datos, pero no devolvió cursor; no se considerará completa esta consulta.");
+  if((response?.has_more===true || rows.length===PAGE_SIZE && response?.has_more!==false)&&!cursor)
+    throw Error("Base44 podría tener más estadísticas, pero no devolvió un cursor; no se dará por completo un ranking incompleto.");
   if(pageParam&&cursor===pageParam)throw Error("Paginación de STATS inconsistente.");
   return {rows,nextCursor:cursor,done:!cursor};
 }
