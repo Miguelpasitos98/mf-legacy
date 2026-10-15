@@ -1,40 +1,31 @@
-// Genera el prompt que se copia al portapapeles para valorar un jugador en un
-// chat externo: enumera sus temporadas y exige el formato exacto de respuesta,
-// incluida la posición impresa en la carta FIFA/FC de cada edición.
-// No calcula ni modifica nada: solo construye el texto.
-
-export const VALUATION_CSV_HEADER =
-  "Jugador;Temporada;FIFA/FC Overall;Posicion FIFA;Transfermarkt (EUR);Edicion FIFA/FC;Fecha;Fuente";
-
+// Prompt histórico completo para TODAS las temporadas registradas de un jugador.
+// Salida exclusiva JSON aceptada por el importador mf_legacy_historical_import_v1.
 export function buildValuationPrompt({ playerName, seasons = [], fm26Uid = "", fotmobPlayerId = "" } = {}) {
-  const name = String(playerName || "").trim() || "el jugador";
-  const list = seasons.map((s) => String(s || "").trim()).filter(Boolean);
-  const rows = list.map((s) => name + ";" + s + ";;;;;;");
-
+  const name = String(playerName || "").trim() || "Jugador";
+  const unique = [...new Set(seasons.map(s => String(s || "").trim()).filter(Boolean))];
+  const sample = {
+    schema: "mf_legacy_historical_import_v1",
+    player: { name, fotmob_id: String(fotmobPlayerId || "") },
+    valuations: unique.map(season => ({
+      season, fifa_edition: null, fifa_fc_overall: null,
+      fifa_fc_position: null, transfermarkt_value_eur: null
+    })),
+    team_matches: []
+  };
   return [
-    "Actúa como documentalista de fútbol. Necesito la valoración histórica de un jugador, temporada a temporada.",
-    "",
+    "MF LEGACY — INVESTIGACIÓN HISTÓRICA DE TODAS LAS TEMPORADAS",
+    "Investiga TODAS las temporadas indicadas del mismo jugador en una sola respuesta.",
     "Jugador: " + name,
-    fm26Uid ? "ID FM26: " + fm26Uid : "",
     fotmobPlayerId ? "ID FotMob: " + fotmobPlayerId : "",
+    fm26Uid ? "ID FM26 (referencia): " + fm26Uid : "",
+    "Temporadas registradas (" + unique.length + "): " + unique.join(", "),
     "",
-    "Temporadas que necesito:",
-    list.length ? list.map((s) => "- " + s).join("\n") : "- (no hay temporadas registradas)",
-    "",
-    "Para CADA temporada devuélveme estos cuatro datos:",
-    "1. FIFA/FC Overall: la media (1-99) de la carta de esa edición.",
-    "2. Posicion FIFA: la posición EXACTA impresa en esa carta, tal cual (GK, CB, RB, LB, RWB, LWB, DM, CM, RM, LM, AM, RW, LW, CF, ST). Es la posición del jugador EN ESA TEMPORADA, no la actual. Si no puedes verificarla, deja el campo vacío: no la deduzcas ni la inventes.",
-    "3. Transfermarkt (EUR): el valor de mercado en euros, con su fecha. No es el precio de un traspaso.",
-    "4. Edicion FIFA/FC y Fuente: la edición del juego (FIFA 23, FC 24…) y el enlace de donde lo has comprobado.",
-    "",
-    "Reglas:",
-    "- Si un dato no existe o no lo puedes confirmar, déjalo vacío. No inventes cifras ni posiciones.",
-    "- Cada fila es una temporada concreta: no mezcles ni agrupes temporadas.",
-    "- Responde SOLO con la tabla, separada por punto y coma, con esta cabecera exacta y una fila por temporada:",
-    "",
-    VALUATION_CSV_HEADER,
-    ...rows,
-  ]
-    .filter((line) => line !== "")
-    .join("\n");
+    "Para CADA temporada investiga: edición FIFA/EA SPORTS FC; Overall de la carta base (entero 1–99); posición principal EXACTA de la carta base de esa edición (ST, CF, CAM, CM, etc.); valor de mercado histórico de Transfermarkt en euros enteros, nunca precio de traspaso.",
+    "Investiga también los partidos OFICIALES del equipo, por club, competición y temporada, solo cuando puedas identificarlos de manera fiable. Son los PJ del equipo, NO las apariciones del futbolista. En team_matches utiliza season, competition, team_name y team_matches; si conoces IDs exactos puedes incluirlos. No inventes partidos ni competiciones.",
+    "Usa la temporada indicada: no sustituyas una posición FIFA histórica por la posición actual ni por la de otra carta o edición. Para campañas finalizadas, prioriza el último valor de mercado disponible al cierre; si conoces la fecha exacta puedes incluir market_value_as_of (AAAA-MM-DD).",
+    "No inventes datos. No conviertas ausencias en cero. Escribe null si falta un Overall, una posición FIFA o un valor de mercado; omite de valuations las temporadas sin Overall NI valor de mercado, porque el importador actual no admite filas compuestas solo por la posición.",
+    "No incluyas fuentes, enlaces, explicaciones, tablas ni CSV. Devuelve SOLO UN bloque de código JSON válido con schema exacto mf_legacy_historical_import_v1. Conserva el fotmob_id proporcionado; no lo inventes.",
+    "Para todas las temporadas con valores disponibles, usa EXACTAMENTE las claves de este ejemplo. Sustituye los null con resultados investigados y conserva las temporadas correctas:",
+    JSON.stringify(sample,null,2)
+  ].filter(Boolean).join("\n");
 }
