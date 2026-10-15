@@ -19,6 +19,11 @@ export default function ImportUnified() {
   const [isAdmin,setIsAdmin] = useState(null);
   const [links,setLinks] = useState(new Map());
   const [teamLinks,setTeamLinks] = useState(new Map());
+  const [allTeams,setAllTeams] = useState([]);
+  const [allPlayers,setAllPlayers] = useState([]);
+  const [creatingPlayer,setCreatingPlayer] = useState(false);
+  const [suggestedPlayerId,setSuggestedPlayerId] = useState("");
+  const [identityNotice,setIdentityNotice] = useState("");
   const [fileName,setFileName] = useState("");
   const [batch,setBatch] = useState(null);
   const [fileErrors,setFileErrors] = useState([]);
@@ -40,12 +45,14 @@ export default function ImportUnified() {
         const user=await base44.auth.me();
         if(!live)return;
         setIsAdmin(user?.role==="admin");
-        const [rawLinks,rawTeams]=await Promise.all([
-          base44.entities.PlayerFotmobLink.list(),
-          base44.entities.Team.list()
+        const [rawLinks,rawTeams,rawPlayers]=await Promise.all([
+          base44.entities.PlayerFotmobLink.list({limit:500}),
+          base44.entities.Team.list({limit:500}),
+          base44.entities.Player.list({limit:500})
         ]);
         if(!live)return;
         setLinks(new Map(rowsFromResponse(rawLinks).filter(x=>x.fotmob_player_id&&x.player_id&&(/manual_confirmada|confirmada|verified|manual|confirmed/i.test(x.verification||""))).map(x=>[String(x.fotmob_player_id),String(x.player_id)])));
+        setAllTeams(rowsFromResponse(rawTeams));setAllPlayers(rowsFromResponse(rawPlayers));
         setTeamLinks(new Map(rowsFromResponse(rawTeams).filter(x=>Number(x.fotmob_id)>0&&x.id).map(x=>[String(x.fotmob_id),String(x.id)])));
       } catch(e){if(live){setError("No se pudieron consultar las vinculaciones de Base44: "+e.message);setIsAdmin(false);}}
     })();
@@ -53,6 +60,63 @@ export default function ImportUnified() {
   },[]);
 
   useEffect(()=>{setPlan(null);setAuthorized(false);setReport(null);},[batch,allowUnlinked,updateExisting,enrichExisting]);
+
+  const identity=useMemo(()=>{
+    const row=batch?.records?.find(r=>r.kind==="player");
+    if(!row)return null;
+    const pid=String(row.fotmob_id||"");
+    if(!pid || links.has(pid))return null;
+    const sameName=allPlayers.filter(p=>String(p.name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase()===String(row.name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase());
+    return {pid,name:row.name,role:row.archetype,existing:sameName};
+  },[batch,links,allPlayers]);
+  const normalizeTeamName = value => String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/gi,"").toLowerCase();
+  const resolveTeam = row => {
+    if(row.kind!=="season")return "";
+    const tid=String(row.fotmob_team_id||"");
+    // Exact FotMob team ID has highest precedence. Do NOT link by ID zero.
+    if(tid && tid!=="0" && teamLinks.has(tid))return teamLinks.get(tid);
+    if(!row.team_name)return "";
+    const candidates=allTeams.filter(t=>normalizeTeamName(t.name)===normalizeTeamName(row.team_name));
+    // Name-only fallback is safe only with one local team and no conflicting FotMob ID.
+    const safe=candidates.filter(t=>!t.fotmob_id || !tid || tid==="0" || String(t.fotmob_id)===tid);
+    return safe.length===1 && candidates.length===1?String(safe[0].id):"";
+  };
+  const addIdentity=async()=>{
+    if(!identity||isAdmin!==true||creatingPlayer)return;
+    setCreatingPlayer(true);setError("");setIdentityNotice("");
+    try{
+      const pid=identity.pid;
+      const latest=rowsFromResponse(await base44.entities.PlayerFotmobLink.filter({fotmob_player_id:pid},{limit:5}));
+      if(latest.length){
+        if(latest.length>1)throw Error("Hay varios vínculos para este ID; requiere revisión manual.");
+        setLinks(old=>new Map(old).set(pid,String(latest[0].player_id)));
+        setIdentityNotice("Vínculo existente recuperado. Vuelve a verificar la importación.");
+        return;
+      }
+      let playerId=suggestedPlayerId;
+      if(playerId && !allPlayers.some(p=>String(p.id)===playerId))throw Error("El jugador seleccionado ya no existe.");
+      if(!playerId){
+        if(identity.existing.length>0)throw Error("Existe un jugador con el mismo nombre: confirma primero su ficha para evitar duplicados.");
+        if(!identity.name?.trim())throw Error("El JSON no trae el nombre del jugador.");
+        if(!window.confirm("Crear ficha mínima de "+identity.name+" desde FotMob "+pid+" sin UID ni atributos FM26, y vincularla?"))return;
+        const positions={ST:"DC",W:"EI",CAM:"CAM",CM:"CM",DM:"CDM",WB:"LD",FB:"LD",CB:"DFC",GK:"GK"};
+        const payload={name:identity.name,position:positions[identity.role]||"DC",
+          description:"Ficha mínima procedente de FotMob. Pendiente de fusionar/validar con FM26; no contiene atributos del juego."};
+        const created=await base44.entities.Player.create(payload);
+        playerId=String(created?.id||created?.data?.id||"");
+        if(!playerId)throw Error("Player creado sin respuesta de ID. Busca la ficha antes de volver a intentarlo.");
+        setAllPlayers(old=>[...old,{...payload,id:playerId}]);
+      }else if(!window.confirm("Vincular FotMob "+pid+" con el jugador existente seleccionado, sin alterar su ficha FM26?"))return;
+      // If creation of the link fails, keep player for retry; never create a second one.
+      await base44.entities.PlayerFotmobLink.create({fotmob_player_id:pid,player_id:playerId,
+        player_name:identity.name,verification:"manual_confirmada",
+        note:"Alta/verificación del importador externo; FM26 sin modificaciones"});
+      setLinks(old=>new Map(old).set(pid,playerId));
+      setIdentityNotice("Jugador vinculado correctamente. Pulsa «Verificar duplicados» para importar los historiales.");
+      setSuggestedPlayerId("");
+    }catch(e){setError("No se completó la vinculación: "+e.message);}
+    finally{setCreatingPlayer(false);}
+  };
 
   const prepared=useMemo(()=>{
     if(!batch)return [];
@@ -148,7 +212,7 @@ export default function ImportUnified() {
           external_record_id:row.external_record_id,player_id:row.linkedId,
           fotmob_player_id:row.player_fotmob_id,player_name:row.player_name,
           fotmob_team_id:row.fotmob_team_id,team_name:row.team_name,
-          team_id:teamLinks.get(row.fotmob_team_id)||"",
+          team_id:resolveTeam(row),
           season:row.season,competition:row.competition,
           appearances:row.appearances,minutes:row.minutes,rating:row.rating,
           market_value:row.market_value,market_date:row.market_date,metrics:row.metrics,
@@ -256,7 +320,7 @@ export default function ImportUnified() {
           <div className="text-3xl font-bold text-blue-900">{links.size}</div>
           <p className="text-xs text-slate-600">Vínculos FotMob–Player confirmados actualmente en Base44.</p>
           <div className="border-t pt-2 text-sm">{teamLinks.size} clubes con ID FotMob vinculado</div>
-          <p className="text-xs text-amber-700">No se enlaza a nadie por coincidencia de nombre, ni se crean jugadores automáticamente.</p>
+          <p className="text-xs text-amber-700">Los jugadores externos se crean solo tras confirmación. Los equipos se enlazan por ID FotMob o por nombre único sin conflicto.</p>
         </div>
       </div>
 
@@ -264,6 +328,17 @@ export default function ImportUnified() {
       {fileErrors.length>0&&<div className="p-4 rounded-lg bg-amber-50 border border-amber-200"><p className="font-semibold text-amber-900">Errores del archivo ({fileErrors.length}); no se puede importar hasta corregirlos</p>{fileErrors.slice(0,8).map((s,i)=><p className="text-xs mt-1" key={i}>{s}</p>)}</div>}
       {importWarnings.length>0&&<div className="p-4 rounded-lg bg-amber-50 border border-amber-200"><p className="font-semibold text-amber-900 flex gap-2 items-center"><AlertTriangle size={17}/> Avisos del archivo: revisión necesaria antes de importar</p>{importWarnings.map((s,i)=><p className="text-xs text-amber-900 mt-1" key={i}>{s}</p>)}</div>}
 
+      {identity&&<section className="rounded-xl border border-blue-200 bg-blue-50 p-5 space-y-3">
+        <h2 className="font-bold text-blue-950">Vincular jugador · {identity.name} (FotMob {identity.pid})</h2>
+        <p className="text-xs text-blue-900">No existe un vínculo confirmado. Puedes utilizar una ficha existente o crear una ficha mínima sin UID, CA/PA ni otros atributos FM26.</p>
+        {identity.existing.length>0&&<p className="text-xs font-bold text-amber-800">Hay una coincidencia exacta de nombre: revisa y selecciona el jugador existente. No se creará un duplicado automáticamente.</p>}
+        <select className="max-w-full rounded-lg border border-blue-200 bg-white p-2 text-sm" value={suggestedPlayerId} onChange={e=>setSuggestedPlayerId(e.target.value)}>
+          <option value="">Crear ficha mínima nueva (solo si no existe)</option>
+          {allPlayers.filter(p=>identity.existing.some(x=>x.id===p.id)).map(p=><option key={p.id} value={p.id}>{p.name} · {p.fm26_uid||"Sin FM26 UID"}</option>)}
+        </select>
+        <button disabled={creatingPlayer||isAdmin!==true} onClick={addIdentity} className="block rounded-lg bg-[#003399] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{creatingPlayer?"Vinculando…":suggestedPlayerId?"Vincular ficha existente":"Crear ficha mínima y vincular"}</button>
+      </section>}
+      {identityNotice&&<p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{identityNotice}</p>}
       {!!prepared.length && <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
         <h2 className="font-bold">2. Revisar el contenido</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -283,7 +358,7 @@ export default function ImportUnified() {
             <td className="p-3 font-mono">{r.fotmob_id||r.player_fotmob_id||r.external_key?.split(":").pop()}</td>
             <td className="p-3">{r.name||r.player_name||r.competition}</td>
             <td className="p-3">{r.linkedId?<span className="text-emerald-700">Confirmado</span>:<span className="text-amber-700">Sin confirmar</span>}</td>
-            <td className="p-3">{plan?.[i]?.action||"Pendiente"}{plan?.[i]?.action==="enriquecer"&&<span className="ml-1 text-emerald-700">(+{plan[i].newMetricsCount} métricas)</span>}{plan?.[i]?.action==="revisar"&&<span className="block text-rose-700">{plan[i].reviewNotes?.join("; ")}</span>}</td>
+            <td className="p-3">{r.kind==="season" && resolveTeam(r) && <span className="mr-2 text-[10px] text-emerald-700">Equipo vinculado</span>}{plan?.[i]?.action||"Pendiente"}{plan?.[i]?.action==="enriquecer"&&<span className="ml-1 text-emerald-700">(+{plan[i].newMetricsCount} métricas)</span>}{plan?.[i]?.action==="revisar"&&<span className="block text-rose-700">{plan[i].reviewNotes?.join("; ")}</span>}</td>
           </tr>)}</tbody></table>
         </div>
         {prepared.length>45&&<p className="text-xs text-slate-500">Mostrando las primeras 45 filas de {prepared.length}.</p>}
@@ -297,7 +372,7 @@ export default function ImportUnified() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
           {[[toCreate,"Nuevos"],[toEnrich,"Historiales a enriquecer"],[toUpdate,"Snapshots a actualizar"],[skipped,"Ya existentes"],[unmatched,"Sin vincular"],[needReview,"Revisión obligatoria"]].map(([num,title])=><div key={title} className="p-3 bg-slate-50 rounded-lg"><div className="text-xl font-bold">{number(num)}</div><p className="text-xs">{title}</p></div>)}
         </div>
-        <p className="text-sm text-slate-700">No se escribirá ningún campo de <b>Player, Team, League, FM26 ni CA/PA</b>. Los historiales existentes solo reciben métricas nuevas si autorizas «Enriquecer». Se añadirán <b>{metricsToAdd} métricas</b> a {toEnrich} historiales, sin alterar PJ, minutos ni notas.</p>
+        <p className="text-sm text-slate-700">Durante la importación de historiales no se sobrescribirá ningún campo de <b>Player, Team, League, FM26 ni CA/PA</b>. Las fichas mínimas solo se crean al confirmarlas expresamente en el paso anterior. Los historiales existentes solo reciben métricas nuevas si autorizas «Enriquecer». Se añadirán <b>{metricsToAdd} métricas</b> a {toEnrich} historiales, sin alterar PJ, minutos ni notas.</p>
         <label className="flex gap-2 items-center text-sm font-semibold"><input type="checkbox" checked={authorized} onChange={e=>setAuthorized(e.target.checked)}/> He revisado la vista previa y autorizo los cambios indicados.</label>
         <button onClick={importBatch} disabled={!authorized||busy||!(toCreate+toUpdate+toEnrich)} className="px-5 py-2.5 rounded-lg bg-emerald-700 text-white font-bold text-sm disabled:opacity-40">
           {busy?"Importando…":`Aplicar ${toCreate+toUpdate+toEnrich} cambios`}
