@@ -11,6 +11,7 @@ export default function TopNavbar() {
     { label: "SCHEDULE", path: "/schedule" },
     { label: "NEWS", path: "/news" },
     { label: "STATS", path: "/stats" },
+    { label: "POSESIÓN", path: "/possession" },
     { label: "PLAYERS", path: "/players" },
     { label: "TEAMS", path: "/teams" },
     { label: "COUNTRIES", path: "/countries" },
@@ -23,7 +24,7 @@ export default function TopNavbar() {
   return (
     <header className="relative flex h-16 shrink-0 items-center justify-center border-b border-black/5 bg-white">
       {/* Navegación principal de fútbol */}
-      <nav className="flex items-center gap-7">
+      <nav className="flex items-center gap-3 lg:gap-5 xl:gap-7 overflow-x-auto max-w-full px-3">
         {footballNav.map((item) => {
           const isActive =
             location.pathname === item.path ||
