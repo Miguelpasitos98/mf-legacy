@@ -97,7 +97,7 @@ export default function ImportUnified() {
       const latestPlayers=rowsFromResponse(await base44.entities.Player.list({limit:500}));
       if(latestPlayers.length)setAllPlayers(latestPlayers);
       if(playerId && !latestPlayers.some(p=>String(p.id)===playerId))throw Error("El jugador seleccionado ya no existe.");
-      const matches=latestPlayers.filter(p=>String(p.name||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").trim().toLowerCase()===String(identity.name||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").trim().toLowerCase());
+      const matches=latestPlayers.filter(p=>String(p.name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase()===String(identity.name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase());
       if(!playerId){
         if(matches.length>0)throw Error("Existe un jugador con el mismo nombre: vuelve a seleccionar su ficha antes de crear otra. Si el intento anterior guardó al jugador, vincúlalo ahora.");
         if(!identity.name?.trim())throw Error("El JSON no trae el nombre del jugador.");
