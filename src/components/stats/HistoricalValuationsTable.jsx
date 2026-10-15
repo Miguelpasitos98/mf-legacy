@@ -42,6 +42,7 @@ export default function HistoricalValuationsTable({
   const [busy, setBusy] = useState(false);
   const [savingId, setSavingId] = useState("");
   const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const queryClient = useQueryClient();
 
   // Competiciones de club de la temporada abierta en el modal.
@@ -72,6 +73,7 @@ export default function HistoricalValuationsTable({
   };
 
   const openEdit = (record) => {
+    setConfirmDelete(false);
     setEditing(record);
     setForm({
       ...emptyForm,
@@ -86,6 +88,7 @@ export default function HistoricalValuationsTable({
   };
 
   const closeEdit = () => {
+    setConfirmDelete(false);
     setEditing(null);
     setForm(emptyForm);
     setError("");
@@ -124,7 +127,7 @@ export default function HistoricalValuationsTable({
 
   const deleteRecord = async () => {
     if (!editing?.id) return;
-    if (!window.confirm(`¿Eliminar la valoracion de ${editing.season}?`)) return;
+    if (!confirmDelete) return;
     setBusy(true);
     setError("");
     try {
@@ -438,14 +441,14 @@ export default function HistoricalValuationsTable({
                 )}
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-3">
-                <button
-                  type="button"
-                  onClick={deleteRecord}
-                  disabled={busy}
-                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-40"
-                >
-                  <Trash2 size={14} /> Eliminar
-                </button>
+                <div className="flex flex-col gap-2">
+                  {confirmDelete&&<p role="status" className="text-[11px] font-bold text-red-700">Se eliminará definitivamente la valoración de {editing.season}.</p>}
+                  <button type="button" onClick={confirmDelete?deleteRecord:()=>setConfirmDelete(true)} disabled={busy}
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-40">
+                    <Trash2 size={14}/>{confirmDelete?"Sí, eliminar definitivamente":"Eliminar"}
+                  </button>
+                  {confirmDelete&&<button type="button" onClick={()=>setConfirmDelete(false)} disabled={busy} className="text-xs text-slate-600 underline">Cancelar eliminación</button>}
+                </div>
                 <div className="flex gap-2">
                   <button
                     type="button"
