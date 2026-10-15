@@ -142,11 +142,6 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
   const save = async () => {
     const selected = rows.filter((r) => included.has(r.id) && ["new", "update"].includes(r.status));
     if (!selected.length || busy || saving) return;
-    const updates = selected.filter((r) => r.status === "update").length;
-    if (!window.confirm(
-      "Guardar " + selected.length + " registros para " + (player?.name || "este jugador") +
-      " (" + updates + " actualizaciones existentes). Los campos vacíos no borran información. ¿Confirmar?"
-    )) return;
     setSaving(true);
     onBusyChange?.(true);
     setError(""); setNotice("");
