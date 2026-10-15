@@ -109,6 +109,33 @@
     },
     "historical_valuation_date": {
       "type": "string"
+    },
+    "manual_metric_history": {
+      "type": "array",
+      "description": "Historical audit trail of administrator edits; source FotMob metrics remain traceable.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "metric_name": {
+            "type": "string"
+          },
+          "old_value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "new_value": {
+            "type": "number"
+          },
+          "source_note": {
+            "type": "string"
+          },
+          "changed_at": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
   "required": [
