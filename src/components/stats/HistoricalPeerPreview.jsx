@@ -14,7 +14,7 @@ const PercentileBar = ({item}) => {
   const good=strength(item);
   return <div className="inline-flex w-full items-center justify-end gap-2"
     title={`Percentil bruto ${show(item.percentile,2)} de 100 · ${item.n} temporadas de ${item.nPlayers} jugadores${item.penalty?" · Indicador penalizado (menos es mejor)":""}`}>
-    <div className="h-2.5 w-full min-w-[65px] max-w-[116px] overflow-hidden rounded-full bg-slate-200"
+    <div className="h-3 w-full min-w-[70px] max-w-[130px] overflow-hidden rounded-full bg-slate-200 ring-1 ring-inset ring-slate-300"
       role="meter" aria-label={`Percentil de ${item.name}`}
       aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(item.percentile.toFixed(1))}>
       <div className={`h-full rounded-full transition-all ${barColor(good)}`}
@@ -30,7 +30,7 @@ const PositionBar = ({item}) => {
   const good=strength(item);
   return <div className="inline-flex w-full items-center justify-end gap-2"
     title={`Puesto ${item.rank} de ${item.n} temporadas del mismo arquetipo comparables en esta estadística. No es un ranking de ${item.n} jugadores distintos.`}>
-    <div className="h-2 w-full min-w-[40px] max-w-[65px] overflow-hidden rounded-full bg-slate-200"
+    <div className="h-2.5 w-full min-w-[46px] max-w-[80px] overflow-hidden rounded-full bg-slate-200 ring-1 ring-inset ring-slate-300"
       role="meter" aria-label={`Barra de posición histórica de ${item.name}`}
       aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(good.toFixed(1))}>
       <div className={`h-full rounded-full transition-all ${barColor(good)}`}
@@ -56,11 +56,11 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const isThin=previewRows.some(r=>r.provisional);
   const validCount=previewRows.filter(r=>r.percentile!==null).length;
   return (
-    <section className={(main?"mt-3 ":"mt-4 ")+"space-y-3 rounded-xl border border-indigo-200 bg-[#f8faff] p-4"}>
+    <section className={(main?"mt-0 ":"mt-4 ")+"space-y-3 rounded-xl border-2 border-indigo-300 bg-[#f8faff] p-4 shadow-sm"}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h4 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-[#003399]">
-            <BarChart3 size={17}/> {main?"Composite MF LEGACY · vs nuestra base de datos":"vs jugadores MF LEGACY · vista previa"}
+          <h4 className="flex items-center gap-2 text-base font-black uppercase tracking-wide text-[#003399]">
+            <BarChart3 size={19}/> {main?"Composite MF LEGACY · vs nuestra base de datos":"vs jugadores MF LEGACY · vista previa"}
           </h4>
           <p className="mt-1 text-xs text-slate-600">
             Percentiles propios por posición, calculados con todas las temporadas de clubes de nuestra base. La temporada se consolida entre competiciones antes de comparar. Nunca se utilizan los percentiles originales de FotMob.
@@ -103,55 +103,54 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         La posición actual del jugador no se corresponde con ningún arquetipo. No se utilizará otra posición por aproximación.
       </p>}
       {data&&result&&!result.missing&&<>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {[
             ["Arquetipo",result.role],
             ["Temporadas comparables",result.population],
             ["Jugadores distintos",result.players],
             ["Indicadores valorables",validCount+"/"+previewRows.length],
-          ].map(([label,value])=><div className="rounded-lg border border-slate-100 bg-white p-3" key={label}>
+            ["Cobertura",result.composite?show(result.composite.coverage,1)+" %":"—"],
+            ["Composite final",result.composite?show(result.composite.score,1):"—"],
+          ].map(([label,value],i,arr)=>{const final=i===arr.length-1;return <div className={"rounded-lg border p-3 "+(final?"border-indigo-300 bg-indigo-50":"border-slate-100 bg-white")} key={label}>
             <div className="text-[10px] font-bold uppercase text-slate-500">{label}</div>
-            <div className="mt-1 text-lg font-black text-[#003399]">{value}</div>
-          </div>)}
+            <div className={"mt-1 font-black tabular-nums "+(final?"text-2xl text-[#003399]":"text-lg text-[#003399]")}>
+              {value}{final&&result.composite?<span className="text-xs font-normal text-slate-400"> /100</span>:null}
+            </div>
+          </div>;})}
         </div>
-        {result.composite&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-indigo-100 bg-white p-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Composite MF LEGACY · {result.composite.status==="partial"?"Parcial":"Calculado"}</p>
-            <p className="mt-1 text-xs text-slate-600">vs {result.role} · {result.population} temporadas de {result.players} jugadores distintos</p>
-            <p className="mt-1 text-[11px] text-amber-700">{result.players<10?"Muestra reducida: índice experimental, no nota definitiva.":"Ponderaciones experimentales; no equivale al rating oficial CraftedFC."}</p>
-          </div>
-          <div className="min-w-[165px] rounded-lg border border-indigo-100 bg-blue-50 px-4 py-2 text-right">
-            <p className="text-2xl font-black tabular-nums text-[#003399]">{show(result.composite.score,1)}<span className="text-sm font-normal text-slate-400"> /100</span></p>
-            <p className="text-[11px] text-slate-600">Cobertura {show(result.composite.coverage,1)} % · {result.composite.count}/{result.composite.total} indicadores</p>
-          </div>
-        </div>}
+        {result.composite&&<p className="text-[11px] text-slate-600">
+          Composite MF LEGACY · <strong>{result.composite.status==="partial"?"Parcial":"Calculado"}</strong> · vs {result.role} · {result.population} temporadas de {result.players} jugadores distintos · {result.composite.count}/{result.composite.total} indicadores.{" "}
+          <span className="text-amber-700">{result.players<10?"Muestra reducida: índice experimental, no nota definitiva.":"Ponderaciones experimentales; no equivale al rating oficial CraftedFC."}</span>
+        </p>}
         {!result.composite&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           Este arquetipo todavía no tiene pesos de Composite definidos; los percentiles se muestran independientemente.
         </p>}
         {isThin&&<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
           Percentiles provisionales: aún hay menos de 10 jugadores distintos del mismo arquetipo con datos de estas métricas. Las temporadas de un solo jugador no bastan para crear un percentil.
         </p>}
-        <div className="max-h-[480px] overflow-auto rounded-lg border border-slate-200 bg-white">
-          <table className="w-full min-w-[840px] text-left text-xs">
-            <thead className="sticky top-0 bg-[#eaf0f8]">
+        <div className="max-h-[640px] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full min-w-[980px] text-left text-xs">
+            <thead className="sticky top-0 z-10 bg-[#e2eaf6] shadow-[0_1px_0_0_rgba(15,49,86,0.15)]">
               <tr>
-                <th className="px-3 py-2">Indicador</th><th className="px-3 py-2 text-right">Tu valor (temporada)</th>
-                <th className="min-w-[155px] px-3 py-2 text-right">vs {result.role}</th>
-                <th className="min-w-[135px] px-3 py-2 text-right">Posición histórica</th>
-                <th className="px-3 py-2 text-right">Muestra (temp. / jugadores)</th>
-                <th className="px-3 py-2 text-right">Peso</th><th className="px-3 py-2 text-right">Aporta</th>
+                <th className="px-3 py-2.5">Indicador</th>
+                <th className="bg-[#d3e0f2] px-3 py-2.5 text-right">Tu valor (temporada)</th>
+                <th className="min-w-[165px] bg-[#d3e0f2] px-3 py-2.5 text-right">vs {result.role}</th>
+                <th className="min-w-[145px] bg-[#d3e0f2] px-3 py-2.5 text-right">Posición histórica</th>
+                <th className="px-3 py-2.5 text-right">Muestra (temp. / jugadores)</th>
+                <th className="px-3 py-2.5 text-right">Peso</th>
+                <th className="bg-[#d3e0f2] px-3 py-2.5 text-right">Aporta</th>
               </tr>
             </thead>
-            <tbody>{previewRows.map(item=><tr className="border-t border-slate-100" key={item.key}>
-              <td className="px-3 py-2 font-semibold text-slate-800">{item.name}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+            <tbody>{previewRows.map(item=><tr className="border-t border-slate-100 hover:bg-slate-50" key={item.key}>
+              <td className="px-3 py-2.5 font-semibold text-slate-800">{item.name}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
+              <td className="bg-indigo-50/50 px-3 py-2.5 text-right font-semibold tabular-nums text-slate-800">
                 {item.key==="market_value"?formatEur(item.value):show(item.value,item.key==="fc27_ovr"?0:2)}
               </td>
-              <td className="px-3 py-2 text-right"><PercentileBar item={item}/></td>
-              <td className="px-3 py-2 text-right"><PositionBar item={item}/></td>
-              <td className="px-3 py-2 text-right tabular-nums text-slate-600">{item.n} / {item.nPlayers}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-slate-600">{item.weight===null?"—":(item.weight>0?"+":"")+item.weight+" %"}</td>
-              <td className={"px-3 py-2 text-right font-bold tabular-nums "+(item.contribution<0?"text-rose-700":"text-emerald-700")}>
+              <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PercentileBar item={item}/></td>
+              <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PositionBar item={item}/></td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">{item.n} / {item.nPlayers}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">{item.weight===null?"—":(item.weight>0?"+":"")+item.weight+" %"}</td>
+              <td className={"bg-indigo-50/50 px-3 py-2.5 text-right text-sm font-black tabular-nums "+(item.contribution<0?"text-rose-700":"text-emerald-700")}>
                 {item.contribution===null?"—":(item.contribution>0?"+":"")+show(item.contribution,2)}
               </td>
             </tr>)}</tbody>

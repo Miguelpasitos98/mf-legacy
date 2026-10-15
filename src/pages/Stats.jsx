@@ -242,7 +242,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           <div className="mb-3 flex flex-wrap gap-1">
             <button onClick={()=>setSection("overview")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="overview"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Overview</button>
             <button onClick={()=>setSection("performance")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="performance"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Performance</button>
-            <button onClick={()=>setSection("craftedfc")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="craftedfc"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>CraftedFC</button>
+            <button onClick={()=>setSection("craftedfc")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="craftedfc"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Análisis MF Legacy</button>
             <button onClick={()=>setSection("compare")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="compare"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Compare</button>
           </div>
           {section==="overview"&&<CraftedfcOverview snapshot={cfcSnapshot} status={cfcStatus} fotmobRating={estimatedRating}/>}
