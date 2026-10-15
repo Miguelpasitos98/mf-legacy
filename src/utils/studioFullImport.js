@@ -30,3 +30,40 @@ export function studioSections(input){
  return [...STUDIO_LIST_SECTIONS,...Object.entries(input).filter(([k,v])=>
   Array.isArray(v)&&k!=="records"&&!STUDIO_LIST_SECTIONS.some(([s])=>s===k)).map(([name])=>[name,"extra_source"])];
 }
+export function studioImportManifest(input,{playerId="",fileHash=""}={}){
+ const pid=studioPlayerId(input);
+ if(!pid||!/^[0-9]+$/.test(pid))throw Error("Studio JSON sin ID FotMob único.");
+ if(input?.schema!=="mf_legacy_external_batch_v1"||!Array.isArray(input.records))
+  throw Error("No es un JSON de MF LEGACY Studio.");
+ const records=[],kinds={};
+ for(const [name,kind] of studioSections(input)){
+  if(!Array.isArray(input[name]))throw Error("La sección "+name+" no es una lista.");
+  const rows=input[name];kinds[name]=rows.length;
+  for(let i=0;i<rows.length;i++){
+   const x=rows[i]||{};
+   const date=str(x.date||x.market_value_as_of||x.fotmob_scisports_as_of);
+   const season=str(x.season),comp=typeof x.competition==="string"?x.competition:
+    str(x.competition?.understat_league||x.competition?.fotmob_tournament_id);
+   const tname=str(x.team_name||x.team?.names?.[0]);
+   const sourceRecordId=str(x.record_id||x.observation_id||x.external_record_id||
+     x.profile_season_id||[season,comp,i].join(":"));
+   const identifier=sourceRecordId.replace(/[^a-zA-Z0-9:_./-]/g,"_").slice(0,220)||String(i);
+   const status=kind==="market_point"?"model_estimate":
+    kind.startsWith("understat")?"manual_identity_unverified":
+    kind==="pending_team"?"pending_review":str(x.verification_status||"source_preserved");
+   records.push({record_key:"studio:"+pid+":"+name+":"+identifier,
+    player_id:str(playerId),fotmob_player_id:pid,record_kind:kind,
+    season,competition:comp,team_name:tname,
+    fotmob_team_id:str(x.fotmob_team_id||x.team?.fotmob_team_id),
+    provider:kind==="market_point"?"FotMob/SciSports":
+      kind.startsWith("understat")?"Understat (manual)":str(x.source||"MF Legacy Studio"),
+    source_record_id:sourceRecordId,record_date:date,
+    ...(kind==="market_point"&&num(x.value_eur)!==null?{market_value_eur:num(x.value_eur)}:{}),
+    ...(kind==="market_point"&&num(x.lower_bound)!==null?{market_lower_eur:num(x.lower_bound)}:{}),
+    ...(kind==="market_point"&&num(x.upper_bound)!==null?{market_upper_eur:num(x.upper_bound)}:{}),
+    ...(kind==="market_point"?{currency:str(x.currency||"EUR")}:{}),
+    status,payload_json:JSON.stringify(x),source_file_hash:fileHash,snapshot_date:str(input.snapshot_date)});
+  }
+ }
+ return {pid,records,kinds};
+}
