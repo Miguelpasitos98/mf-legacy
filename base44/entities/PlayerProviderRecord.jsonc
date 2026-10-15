@@ -58,6 +58,18 @@
     },
     "snapshot_date": {
       "type": "string"
+    },
+    "minutes": {
+      "type": "number"
+    },
+    "appearances": {
+      "type": "number"
+    },
+    "scisports_model_value_eur": {
+      "type": "number"
+    },
+    "source_verified": {
+      "type": "boolean"
     }
   },
   "required": [
