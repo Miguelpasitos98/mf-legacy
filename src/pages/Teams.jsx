@@ -88,6 +88,7 @@ export default function Teams() {
   const [form, setForm] = useState(emptyTeamForm);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [editingTeam, setEditingTeam] = useState(null);
+  const [teamFormError, setTeamFormError] = useState("");
   const [bulkTeamsMode, setBulkTeamsMode] = useState(false);
   const [bulkTeamIds, setBulkTeamIds] = useState([]);
   const [bulkTeamsConfirmOpen, setBulkTeamsConfirmOpen] = useState(false);
@@ -421,12 +422,14 @@ export default function Teams() {
   // --- HANDLERS ---
 
   const handleOpenAddTeam = () => {
+    setTeamFormError("");
     setEditingTeam(null);
     setForm({ ...emptyTeamForm });
     setAddModalOpen(true);
   };
 
   const handleImportJson = (importedForm) => {
+    setTeamFormError("");
     setForm(importedForm);
     setImportJsonModalOpen(false);
     setAddModalOpen(true);
@@ -471,6 +474,7 @@ export default function Teams() {
 
   const handleAddTeam = async (event) => {
     event.preventDefault();
+    setTeamFormError("");
     const wasEditing = Boolean(editingTeam);
 
     const newTeam = {
@@ -531,7 +535,7 @@ export default function Teams() {
 
     try {
       if (!form.name.trim() || !form.shortName.trim() || !form.country.trim()) {
-        alert("Name, short name and country are required.");
+        setTeamFormError("El nombre, el código corto y el país son obligatorios.");
         return;
       }
 
@@ -543,7 +547,7 @@ export default function Teams() {
 
       if (!countryId) {
         if (!form.countryCode.trim()) {
-          alert("Introduce the country code to create the country automatically.");
+          setTeamFormError("Introduce el código de país para crearlo automáticamente.");
           return;
         }
         const createdCountry = await base44.entities.Country.create({
@@ -555,7 +559,7 @@ export default function Teams() {
         const countryData = createdCountry?.data || createdCountry;
         countryId = countryData?.id || countryData?._id || createdCountry?.id || createdCountry?._id || "";
         if (!countryId) {
-          alert("The country was created, but Base44 did not return its ID. Check the Country entity response.");
+          setTeamFormError("El país se creó, pero Base44 no devolvió su identificador. Actualiza el listado antes de reintentar.");
           return;
         }
         queryClient.invalidateQueries({ queryKey: ["mf-legacy", "countries"] });
@@ -583,7 +587,7 @@ export default function Teams() {
           });
           leagueId = createdLeague?.id || createdLeague?.data?.id || createdLeague?._id || "";
           if (!leagueId) {
-            alert("The league was created, but Base44 did not return its ID.");
+            setTeamFormError("La competición se creó, pero Base44 no devolvió su identificador. Actualiza y comprueba la lista antes de reintentar.");
             return;
           }
           selectedLeague = { ...createdLeague, id: leagueId, name: newTeam.newLeagueName };
@@ -592,7 +596,7 @@ export default function Teams() {
       }
 
       if (!leagueId) {
-        alert("Select or create a league before saving the team.");
+        setTeamFormError("Selecciona o crea una competición antes de guardar el club.");
         return false;
       }
 
@@ -644,7 +648,7 @@ export default function Teams() {
     } catch (error) {
       console.error("Error saving team:", error);
       const errorMessage = error?.response?.data?.message || error?.response?.data?.error || error?.message || (typeof error === "string" ? error : JSON.stringify(error));
-      alert(`Error real de Base44:\n\n${errorMessage}`);
+      setTeamFormError(`Error al guardar el equipo: ${errorMessage}`);
       return false;
     }
   };
@@ -666,6 +670,7 @@ export default function Teams() {
         leagues={leagues}
         onCloseEdit={() => setEditingTeam(null)}
         onSubmit={handleAddTeam}
+        formError={teamFormError}
       />
     );
   }
@@ -829,7 +834,7 @@ export default function Teams() {
       )}
 
       {(addModalOpen || editingTeam) && (
-        <AddTeamModal form={form} setForm={setForm} countries={countries} leagues={leagues} isEditing={Boolean(editingTeam)} onClose={() => { setAddModalOpen(false); setEditingTeam(null); }} onSubmit={handleAddTeam} />
+        <AddTeamModal form={form} setForm={setForm} countries={countries} leagues={leagues} isEditing={Boolean(editingTeam)} formError={teamFormError} onClose={() => { setTeamFormError(""); setAddModalOpen(false); setEditingTeam(null); }} onSubmit={handleAddTeam} />
       )}
       {bulkTeamsConfirmOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="presentation">
