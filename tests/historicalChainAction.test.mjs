@@ -21,7 +21,7 @@ test("La pestaña Análisis ofrece introducción manual desde ambas filas ausent
  const preview=source("../src/components/stats/HistoricalPeerPreview.jsx");
  const wrapper=source("../src/components/stats/CraftedfcAnalysis.jsx");
  const page=source("../src/pages/Stats.jsx");
- for(const pattern of [/item\.value===null&&onSetMetric/,/xg_chain_p90/,/xg_buildup_p90/,/Añadir \+/,/<OverviewManualEditor mode=\{manualMode\}/,/records=\{rowsToEdit\}/,/season===season/])assert.match(preview,pattern);
+ for(const pattern of [/onSetMetric&&\!NON_EDITABLE_COMPOSITE\.has\(item\.key\)/,/xg_chain_p90/,/xg_buildup_p90/,/Añadir \+/,/<OverviewManualEditor mode=\{manualMode/,/records=\{rowsToEdit\}/,/season===season/])assert.match(preview,pattern);
  assert.match(preview,/snapshot global de CraftedFC/);
  assert.match(wrapper,/editableRows=\{editableRows\} onSetMetric=\{onSetMetric\}/);
  assert.match(page,/initialSeason=\{activeSeason\} editableRows=\{stats\} onSetMetric=\{onSetMetric\}/);
