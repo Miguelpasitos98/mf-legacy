@@ -988,7 +988,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       setEditOpen(false);
 
       if (onPlayerUpdated) {
-        onPlayerUpdated(updatedPlayer);
+        onPlayerUpdated(updatedPlayer,patch);
       }
     } catch (error) {
       console.error("Error updating player:", error);
