@@ -5,7 +5,7 @@ export const statNum = v => v===null||v===undefined||v===""?null:Number.isFinite
 export const nationalCompetition = name => {
  const x=norm(name);
  if(x.includes("clubworldcup"))return false;
- return /worldcup|copaamerica|nationsleague|conmebolqualif|euroqualif|afcon|asiancup|goldcup|internationalfriendly|uefaqualif/.test(x)
+ return /worldcup|copaamerica|nationsleague|conmebolqualif|euroqualif|afcon|africacupofnations|asiancup|goldcup|internationalfriendly|uefaqualif/.test(x)
   || /^euro(?:$|u\d{2}|\d{4}|qualification)/.test(x)
   || /^uefa(?:euro\d{4}|u\d{2}championship|europeanchampionship)/.test(x);
 };
