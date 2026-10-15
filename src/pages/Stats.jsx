@@ -477,9 +477,10 @@ export default function Stats(){
   const saveColumns=async(draft)=>{
     const clean=sanitizeConfig(draft);
     const payload={key:"stats_layout_personal_v1",version:clean.version,config_json:JSON.stringify(clean)};
-    if(prefsRecord?.id){await base44.entities.StatsViewPreference.update(prefsRecord.id,payload);}
-    else{const created=await base44.entities.StatsViewPreference.create(payload);setPrefsRecord({...payload,id:created?.id||created?.data?.id});}
-    queryClient.setQueryData(STATS_LAYOUT_KEY,{...payload,id:prefsRecord?.id||null});
+    let savedId=prefsRecord?.id||null;
+    if(savedId){await base44.entities.StatsViewPreference.update(savedId,payload);}
+    else{const created=await base44.entities.StatsViewPreference.create(payload);savedId=created?.id||created?.data?.id||null;setPrefsRecord({...payload,id:savedId});}
+    queryClient.setQueryData(STATS_LAYOUT_KEY,{...payload,id:savedId});
     setColumnConfig(clean);setPrefsWarning("");
   };
   const importComplete=()=>{
