@@ -4,6 +4,7 @@
 import { groupStatRows, nationalCompetition } from "./statsViews.js";
 import { metricName, WEIGHTS_BY_ROLE, calculateCompositeMF } from "./compositeEngine.js";
 import {ballSecurityFromRecords} from "./ballSecurity.js";
+import {createPossessionLookup,possessionAdjustedDefActions} from "./teamPossession.js";
 import {calculateExperimentalFallback} from "./experimentalFallback.js";
 import { canonicalHistoricalCompetition } from "./historicalJson.js";
 import { seasonReferencePosition, normalizeHistoricalPosition } from "./historicalPositions.js";
@@ -167,7 +168,7 @@ export const historicalNationalCompetition = name => {
     /^euro(?:$|u\d{2}|qualification)/.test(x) ||
     /^(uefau\d{2}championship|uefaeuropeanchampionship|africacupofnations)$/.test(x);
 };
-export function buildHistoricalObservations({stats=[],players=[],valuations=[],teamMatches=[]}={}){
+export function buildHistoricalObservations({stats=[],players=[],valuations=[],teamMatches=[],teams=[],teamPossessions=[]}={}){
   const byPlayer=new Map(players.filter(p=>p?.id).map(p=>[str(p.id),p]));
   const valueMaps=new Map();
   for(const v of valuations){
@@ -177,6 +178,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     valueMaps.get(key).push(v);
   }
   const tmLookup=teamMatchesLookup(teamMatches);
+  const getPossession=createPossessionLookup(teamPossessions,teams);
   const groups=new Map();
   for(const r of groupStatRows(stats).filter(r=>r?.season && !historicalNationalCompetition(r.competition))){
     const id=str(r.player_id);
@@ -208,6 +210,13 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     for(const [metric,names] of Object.entries(PER90))
       values[metric]=alignedPer90(records,names,
         metric==="xg_chain_p90"||metric==="xg_buildup_p90"?"Understat minutes":null);
+    // Prefer a complete, verified source PAdj series if it already exists;
+    // otherwise calculate our own 50%-possession-normalised metric.
+    // Never combine an adjusted numerator with missing minutes/competitions.
+    const hasDirectPAdj=records.every(r=>num(r.minutes)>0&&metricTotal(r,PER90.def_actions_poss_adj_p90)!==null);
+    values.def_actions_poss_adj_p90=hasDirectPAdj
+      ?alignedPer90(records,PER90.def_actions_poss_adj_p90)
+      :possessionAdjustedDefActions(records,metricTotal,getPossession);
     for(const [metric,names] of Object.entries(PERCENTAGE))
       values[metric]=metric==="ground_duels_won_pct"
         ? groundDuelPercentage(records) : weightedPct(records,names);
