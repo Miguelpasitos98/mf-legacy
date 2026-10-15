@@ -5,7 +5,7 @@ import {base44} from "@/api/base44Client";
 import {useTeamsQuery} from "@/hooks/useSharedData";
 import {HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {canonicalHistoricalCompetition,canonicalHistoricalClub} from "@/utils/historicalJson";
-import {validatePossessionRow,parsePossessionBatch,possessionKey} from "@/utils/teamPossession";
+import {validatePossessionRow,parsePossessionBatch,matchingPossessionRecord,possessionImportDecision} from "@/utils/teamPossession";
 import {Database,Upload,Save,Search,ChevronLeft,RefreshCw,FileJson} from "lucide-react";
 
 const unpack=r=>Array.isArray(r)?r:r?.items||r?.data||r?.results||[];
@@ -58,13 +58,7 @@ export default function TeamPossession(){
   // unambiguous canonical name, including existing pending records.
   const results=unpack(await base44.entities.TeamSeasonPossession.filter({season:row.season},{limit:500}));
   if(results.length===500)throw Error("Demasiados registros en esta temporada para deduplicar de forma segura.");
-  const name=canonicalHistoricalClub(row.team_name);
-  const matched=results.filter(item=>
-    canonicalHistoricalCompetition(item.competition)===canonicalHistoricalCompetition(row.competition) &&
-    ((row.team_id&&item.team_id&&String(row.team_id)===String(item.team_id)) ||
-     (name&&canonicalHistoricalClub(item.team_name)===name)));
-  if(matched.length>1)throw Error("Ya existen varios registros de esa combinación. Revisa duplicados antes de guardar.");
-  return matched[0]||null;
+  return matchingPossessionRecord(results,row);
  }
  const refreshComposite=()=>cache.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
  async function saveOne(event){
@@ -104,15 +98,10 @@ export default function TeamPossession(){
    const row=preview.rows[i];if(!row.team_id)result.pending++;setProgress((i+1)+" de "+preview.rows.length+" · "+row.team_name+" · "+row.season);
    try{
     const existing=await findExisting(row);
-    if(existing){
-     if(existing.team_id&&!row.team_id)throw Error("El registro ya está vinculado: no se puede desvincular mediante una importación sin identidad.");
-     if(Number(existing.team_possession_pct)===row.team_possession_pct&&
-        String(existing.source_url||"")===row.source_url&&
-        String(existing.team_id||"")===String(row.team_id||"")){
-      result.unchanged++;continue;
-     }
-     await base44.entities.TeamSeasonPossession.update(existing.id,row);result.updated++;
-    }else{await base44.entities.TeamSeasonPossession.create(row);result.new++;}
+    const action=possessionImportDecision(existing,row);
+    if(action==="unchanged"){result.unchanged++;continue;}
+    if(action==="update"){await base44.entities.TeamSeasonPossession.update(existing.id,row);result.updated++;}
+    else{await base44.entities.TeamSeasonPossession.create(row);result.new++;}
    }catch(e){result.failed.push(row.team_name+" "+row.season+" "+row.competition+": "+statusText(e));}
   }
   setProgress("");setImporting(false);refreshComposite();await refresh();
