@@ -16,6 +16,7 @@ import Players from "@/pages/Players";
 import Stats from "@/pages/Stats";
 import ImportHistory from "@/pages/ImportHistory";
 import ImportUnified from "@/pages/ImportUnified";
+import TeamPossession from "@/pages/TeamPossession";
 
 const AuthenticatedApp = () => {
   const {
@@ -53,6 +54,7 @@ const AuthenticatedApp = () => {
         <Route path="/teams" element={<Teams />} />
         <Route path="/players" element={<Players />} />
         <Route path="/stats" element={<Stats />} />
+        <Route path="/possession" element={<TeamPossession />} />
         <Route path="/countries" element={<Countries />} />
         <Route path="/import-histories" element={<ImportHistory />} />
         <Route path="/import-unified" element={<ImportUnified />} />
