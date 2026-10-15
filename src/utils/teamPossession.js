@@ -3,19 +3,25 @@ import {normalizeSeason} from "./historicalValuation.js";
 const str=v=>String(v??"").trim();
 const number=v=>v===null||v===undefined||str(v)===""?null:Number(str(v).replace(",","."));
 export const possessionKey=(teamId,season,competition)=>[str(teamId),normalizeSeason(season),canonicalHistoricalCompetition(competition)].join("|");
+export const possessionIdentity=row=>str(row.team_name)?canonicalHistoricalClub(row.team_name):"";
+// A missing Base44 club is a pending association, NOT a reason to discard
+// historical possession. Never create a Team from an external name alone.
+export const possessionRecordKey=row=>possessionKey(possessionIdentity(row)||str(row.team_id),row.season,row.competition);
 export function possessionPct(value){
  const v=number(value);
  return v!==null&&Number.isFinite(v)&&v>0&&v<100?v:null;
 }
-export function validatePossessionRow(row,teamList=[]){
+export function validatePossessionRow(row,teamList=[],{allowUnlinked=false}={}){
  const teams=teamList.filter(t=>t?.id);
  const id=str(row.team_id);
- const name=canonicalHistoricalClub(row.team_name||row.club||row.team);
- const team=id?teams.find(t=>str(t.id)===id):(()=>{
-  const matched=teams.filter(t=>canonicalHistoricalClub(t.name)===name);
-  return matched.length===1?matched[0]:null;
- })();
- if(!team)throw Error("Club no reconocido o ambiguo: selecciona un club existente en Base44.");
+ const rawName=str(row.team_name||row.club||row.team);
+ const name=canonicalHistoricalClub(rawName);
+ const matches=id?teams.filter(t=>str(t.id)===id):teams.filter(t=>name&&canonicalHistoricalClub(t.name)===name);
+ if(matches.length>1)throw Error("Varios clubes coinciden con este nombre. Hay que resolver la identidad.");
+ if(id&&matches.length!==1)throw Error("El ID del club no existe en Base44.");
+ const team=matches[0]||null;
+ if(!team&&!allowUnlinked)throw Error("Club no reconocido: selecciona un club existente en Base44.");
+ if(!team&&!rawName)throw Error("Sin vinculación, es obligatorio indicar el nombre del club.");
  if(id&&name&&canonicalHistoricalClub(team.name)!==name)throw Error("El nombre del club no coincide con su ID de Base44.");
  const season=normalizeSeason(row.season),span=season.match(/^(\d{4})\/(\d{4})$/);
  if(!(/^\d{4}$/.test(season)||(span&&+span[2]===+span[1]+1)))throw Error("Temporada inválida. Ejemplo: 2018/2019.");
@@ -27,9 +33,10 @@ export function validatePossessionRow(row,teamList=[]){
  if(url&&!/^https?:\/\/[^\s]+$/i.test(url))throw Error("La fuente debe ser una URL http(s) válida.");
  const mc=row.matches_covered===null||row.matches_covered===undefined||str(row.matches_covered)===""?null:Number(row.matches_covered);
  if(mc!==null&&(!Number.isInteger(mc)||mc<1||mc>200))throw Error("Partidos cubiertos debe ser un entero entre 1 y 200.");
- const idFotmob=str(row.fotmob_team_id||team.fotmob_id);
- if(row.fotmob_team_id&&team.fotmob_id&&str(team.fotmob_id)!==str(row.fotmob_team_id))throw Error("ID FotMob incompatible con el equipo.");
- return {team_id:str(team.id),team_name:str(team.name),...(idFotmob?{fotmob_team_id:idFotmob}:{}),season,competition,
+ const idFotmob=str(row.fotmob_team_id||team?.fotmob_id);
+ if(row.fotmob_team_id&&team?.fotmob_id&&str(team.fotmob_id)!==str(row.fotmob_team_id))throw Error("ID FotMob incompatible con el equipo.");
+ return {team_id:team?str(team.id):"",team_name:team?str(team.name):rawName,
+  ...(idFotmob?{fotmob_team_id:idFotmob}:{}),season,competition,
   team_possession_pct:pct,source:str(row.source)||"Manual",source_url:url,
   ...(mc!==null?{matches_covered:mc}:{}),
   verification_status:row.verification_status==="verified"?"verified":"pending",
@@ -45,8 +52,8 @@ export function parsePossessionBatch(raw,teams){
  items.forEach((item,i)=>{
   try{
    if(!item||typeof item!=="object")throw Error("Registro inválido.");
-   const row=validatePossessionRow(item,teams);
-   const key=possessionKey(row.team_id,row.season,row.competition);
+   const row=validatePossessionRow(item,teams,{allowUnlinked:true});
+   const key=possessionRecordKey(row);
    if(seen.has(key))throw Error("Club, temporada y competición duplicados en el lote.");
    seen.add(key);rows.push(row);
   }catch(e){errors.push("Fila "+(i+1)+": "+e.message);}
