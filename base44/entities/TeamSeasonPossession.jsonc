@@ -1,0 +1,83 @@
+{
+  "name": "TeamSeasonPossession",
+  "type": "object",
+  "properties": {
+    "team_id": {
+      "type": "string",
+      "description": "ID interno Base44 Team; clave principal junto a season y competition"
+    },
+    "fotmob_team_id": {
+      "type": "string",
+      "description": "ID externo FotMob verificado; opcional"
+    },
+    "team_name": {
+      "type": "string",
+      "description": "Nombre de club Base44 para auditor\u00eda, no clave primaria"
+    },
+    "season": {
+      "type": "string",
+      "description": "Temporada hist\u00f3rica YYYY/YYYY o YYYY"
+    },
+    "competition": {
+      "type": "string",
+      "description": "Competici\u00f3n hist\u00f3rica del club"
+    },
+    "team_possession_pct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Porcentaje medio de posesi\u00f3n del EQUIPO en la competici\u00f3n de la temporada; no partido ni jugador"
+    },
+    "source": {
+      "type": "string",
+      "description": "Fuente de la observaci\u00f3n, ej. FBref, FotMob o UEFA"
+    },
+    "source_url": {
+      "type": "string",
+      "description": "URL oficial verificable opcional"
+    },
+    "matches_covered": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "description": "N\u00famero de partidos cubiertos si est\u00e1 documentado"
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "verified",
+        "review"
+      ],
+      "default": "pending"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Nota de auditor\u00eda"
+    }
+  },
+  "required": [
+    "team_id",
+    "season",
+    "competition",
+    "team_possession_pct"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
