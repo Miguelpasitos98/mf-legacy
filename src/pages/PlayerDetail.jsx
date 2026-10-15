@@ -17,6 +17,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryModal";
+import {changedPlayerFields,playerEditHasChanges,applyPlayerEditPatch} from "@/utils/playerEditPatch";
 
 // MF LEGACY: logos de estado integrados, sin dependencias externas.
 const CAREER_STATUS_LOGOS = {
@@ -930,7 +931,9 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
     setEditError("");
 
     try {
-      await base44.entities.Player.update(editablePlayer.id, {
+      // Save only the explicitly edited fields. In particular an image URL
+      // must not submit hundreds of unrelated FM26 attributes to Base44.
+      const fullPayload = {
         name: form.name.trim(),
         date_of_birth: form.dateOfBirth.trim(),
         team_id: form.careerStatus === "active" ? (form.teamId || "") : "",
@@ -967,55 +970,15 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         position_ratings: positionRatings,
         stats: normalizedStats,
         description: form.description || "",
-      });
-
-      const updatedPlayer = {
-        ...editablePlayer,
-        name: form.name.trim(),
-        dateOfBirth: form.dateOfBirth.trim(),
-        date_of_birth: form.dateOfBirth.trim(),
-        teamId: form.careerStatus === "active" ? (form.teamId || "") : "",
-        team_id: form.careerStatus === "active" ? (form.teamId || "") : "",
-        career_status: form.careerStatus,
-        last_team_id: form.careerStatus === "active" ? (form.lastTeamId || "") : (form.lastTeamId || form.teamId || ""),
-        retirement_year: form.careerStatus === "retired" && form.retirementYear !== "" ? Number(form.retirementYear) : null,
-        countryId: form.countryId || "",
-        country_id: form.countryId || "",
-        secondaryCountryId: form.secondaryCountryId || "",
-        secondary_country_id: form.secondaryCountryId || "",
-        fm26_second_country_ids: form.secondaryCountryId ? [form.secondaryCountryId, ...(editablePlayer.fm26_second_country_ids || []).slice(1)].filter((id, index, values) => id && values.indexOf(id) === index) : (editablePlayer.fm26_second_country_ids || []).slice(1),
-        fm_position: form.fmPosition || "",
-        best_positions: form.bestPositions || "",
-        role_used_to_fill_empty_attributes:
-          form.roleUsedToFillEmptyAttributes || "",
-        preferred_central_position:
-          form.preferredCentralPosition || "",
-        style: form.style || "",
-        height: Number.isFinite(numericHeight) ? numericHeight : 0,
-        right_foot: form.rightFoot || "",
-        left_foot: form.leftFoot || "",
-        shirt_number:
-          Number.isFinite(numericShirtNumber)
-            ? numericShirtNumber
-            : 0,
-        salary:
-          Number.isFinite(numericSalary)
-            ? numericSalary
-            : 0,
-        photoUrl: form.photoUrl.trim(),
-        photo_url: form.photoUrl.trim(),
-        cardPhotoUrl: form.cardPhotoUrl.trim(),
-        card_photo_url: form.cardPhotoUrl.trim(),
-        nationalCardPhotoUrl: form.nationalCardPhotoUrl.trim(),
-        national_card_photo_url:
-          form.nationalCardPhotoUrl.trim(),
-        ca: numericCA,
-        cp: numericCP,
-        positionRatings,
-        position_ratings: positionRatings,
-        stats: normalizedStats,
-        description: form.description || "",
       };
+      const patch=changedPlayerFields(form,initialForm,fullPayload);
+      if(!playerEditHasChanges(patch)){
+        setEditOpen(false);
+        return;
+      }
+      // This is one small metadata UPDATE; loading the remote image is independent.
+      await base44.entities.Player.update(editablePlayer.id,patch);
+      const updatedPlayer=applyPlayerEditPatch(editablePlayer,patch);
 
       setEditablePlayer(updatedPlayer);
       setForm((current) => ({
