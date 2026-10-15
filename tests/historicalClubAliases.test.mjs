@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {canonicalHistoricalClub,resolveHistoricalTeam,prepareHistoricalJson} from "../src/utils/historicalJson.js";
+import {canonicalHistoricalClub,resolveHistoricalTeam,prepareHistoricalJson,withHistoricalTeamChoice} from "../src/utils/historicalJson.js";
 
 const scenarios=[
  ["Bayern Munich","FC Bayern München"],
@@ -67,6 +67,39 @@ test("JSON con 30 PJ Bayern München importables y 7 valoraciones sin cambios ni
  assert.deepEqual(result.filter(r=>r.type==="team"&&r.errors.length),[]);
  assert.equal(result.filter(r=>r.type==="team").length,30);
  assert.ok(result.filter(r=>r.type==="team").every(r=>r.payload.team_id==="6abfed78891b4f7324a149ec"));
+});
+test("Selección manual repara de forma segura todos los aliases desconocidos del mismo club",()=>{
+ const source=JSON.stringify({schema:"mf_legacy_historical_import_v1",player:{fotmob_id:"194165"},
+  valuations:[],team_matches:[
+    {season:"2020/2021",competition:"Bundesliga",team_name:"Nombre raro",team_matches:34},
+    {season:"2020/2021",competition:"DFB-Pokal",team_name:"Nombre raro",team_matches:6},
+    {season:"2020/2021",competition:"Champions League",team_name:"Nombre raro",fotmob_team_id:"9823",team_matches:10},
+    {season:"2020/2021",competition:"EFL Cup",team_name:"Otro club",team_matches:2}
+  ]});
+ const chosen={id:"base44-fcb",name:"FC Bayern München"};
+ const updated=withHistoricalTeamChoice(source,"Nombre raro",chosen);
+ assert.equal(updated.count,2);
+ const rows=JSON.parse(updated.source).team_matches;
+ assert.equal(rows[0].team_id,"base44-fcb");
+ assert.equal(rows[1].team_name,"FC Bayern München");
+ assert.equal(rows[2].team_name,"Nombre raro");
+ assert.equal(rows[2].fotmob_team_id,"9823");
+ assert.equal(rows[3].team_id,undefined);
+ const rechecked=prepareHistoricalJson(updated.source,{playerId:"player",fotmobPlayerId:"194165",teams:[chosen],stats:[]});
+ assert.equal(rechecked[0].errors.length,0);
+ assert.equal(rechecked[1].errors.length,0);
+});
+test("Selección manual rechaza equipo inventado o sin identificador",()=>{
+ const source=JSON.stringify({team_matches:[{team_name:"Nombre raro"}]});
+ assert.throws(()=>withHistoricalTeamChoice(source,"Nombre raro",{name:"Cualquiera"}),/identificador/i);
+ assert.throws(()=>withHistoricalTeamChoice(source,"No existente",{id:"team",name:"Team"}),/No hay filas/i);
+});
+test("El importador JSON permite selección humana para variantes nunca vistas",()=>{
+ const jsx=readFileSync(new URL("../src/components/stats/HistoricalJsonImporter.jsx",import.meta.url),"utf8");
+ assert.match(jsx,/manuallyResolveClub/);
+ assert.match(jsx,/withHistoricalTeamChoice\(raw,originalName,team\)/);
+ assert.match(jsx,/Seleccionar el club real de Base44/);
+ assert.match(jsx,/await analyze\(result.source\)/);
 });
 test("Importador independiente PJ Equipo utiliza el mismo resolver estricto",()=>{
  const jsx=readFileSync(new URL("../src/components/stats/TeamMatchesImporter.jsx",import.meta.url),"utf8");
