@@ -39,7 +39,7 @@ function ClubBadge({summary,onTeam}){
  </div>;
 }
 export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="rating",sortDirection="desc",onSort=()=>{},globalRanks=new Map(),playerRanks=new Map()}){
- const columns=config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen;
+ const columns=(config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen).filter(k=>k!=="playpct"&&k!=="rating");
  const divider=new Set(config.dividers?.season?.[category]||[]);
  const line=id=>divider.has(id)?" border-r-[3px] border-r-blue-300":"";
  const {data:peerData,isFetching:peersLoading,error:peersError}=useHistoricalPeerDataset(true);
@@ -65,7 +65,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
    <span>{peersLoading?"Calculando Composite…":peersError?"Composite no disponible: revisión de carga necesaria":peerData?"Composite actualizado":"Pendiente"}</span>
   </div>
   <div className="max-w-full overflow-x-auto">
-   <table className="w-full min-w-[1040px] text-left text-xs">
+   <table className="w-full min-w-[900px] text-left text-[11px]">
     <thead className="bg-[#003399] text-white"><tr>
      <th className={"px-3 py-3 text-center"+line("rank")} title="Posición entre las temporadas del mismo jugador (posición entre todos los jugadores)">RANK</th>
      <SortHeader column="player" label="JUGADOR" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={"min-w-36"+line("player")}/>
@@ -86,10 +86,10 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
       <td className={"px-3 py-2"+line("player")}><button onClick={()=>onOpen(summary,player)} className="flex items-center gap-2 text-left">
        <PlayerPhoto player={player} name={name}/><span className="font-extrabold text-[#0f3156] hover:underline">{name}</span>
       </button></td>
-      <td className={"whitespace-nowrap px-3 py-3 font-semibold"+line("season")}>{shortSeason(summary.season)}{seasonActive(summary.season)&&<span className="ml-1 text-[10px] font-normal text-blue-700">(en curso)</span>}</td>
-      <td className={"px-3 py-3"+line("club")}><ClubBadge summary={summary} onTeam={onTeam}/></td>
-      <td className={"px-3 py-3 text-right"+line("appearances")}>{fmt(statDisplay(summary,"appearances"))}</td>
-      <td className={"px-3 py-3 text-right"+line("minutes")}>{fmt(statDisplay(summary,"minutes"))}</td>
+      <td className={"whitespace-nowrap px-2 py-2 font-semibold"+line("season")}>{shortSeason(summary.season)}{seasonActive(summary.season)&&<span className="ml-1 text-[10px] font-normal text-blue-700">(en curso)</span>}</td>
+      <td className={"px-2 py-2"+line("club")}><ClubBadge summary={summary} onTeam={onTeam}/></td>
+      <td className={"px-2 py-2 text-right"+line("appearances")}>{fmt(statDisplay(summary,"appearances"))}</td>
+      <td className={"px-2 py-2 text-right"+line("minutes")}>{fmt(statDisplay(summary,"minutes"))}</td>
       {(()=>{const x=compositeBySeason.get(String(summary.player_id)+"|"+summary.season);return <>
         <td className="px-2 py-2 text-center font-bold text-slate-700" title={x?.source==="fallback"?"Posición actual, solo respaldo provisional":x?.source==="fifa"?"Posición de la carta FIFA/FC":x?.source==="season"?"Posición histórica manual":x?.source==="competition"?"Posición manual por competición":"Posición histórica no disponible"}>{x?.position||"—"}{x?.source==="fallback"&&<span className="text-amber-600">*</span>}</td>
         <td className={"px-2 py-2 text-right font-extrabold tabular-nums "+(x?.score!=null?"text-[#003399]":"text-slate-400")} title={x?.score!=null?"Composite "+x.role+" · cobertura "+fmt(x.coverage,1)+"% · no es el Legacy Rating definitivo":peersError?"No se pudo cargar la base completa para calcular percentiles":peersLoading?"Calculando con la base completa":"Sin Composite calculable"}>{x?.score==null?"—":fmt(x.score,1)}</td>
@@ -99,7 +99,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
        const coverage=formulaCoverage(summary,"season",k,config);
        const partial=coverage?coverage.available<coverage.total:summary.totals[k]?.partial;
        const hint=coverage?coverage.available+" de "+coverage.total+" competiciones · "+coverage.minutes.toLocaleString("es-ES")+" minutos disponibles para esta fórmula":partial?"Subtotal parcial: faltan estadísticas":undefined;
-       return <td key={k} className={"px-3 py-3 text-right"+line(k)} title={hint}>{fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
+       return <td key={k} className={"px-2 py-2 text-right"+line(k)} title={hint}>{fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
       })}
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
