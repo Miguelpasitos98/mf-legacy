@@ -67,7 +67,7 @@ const MiniCard = ({ label, value }) => (
 // The MAIN MF LEGACY Composite now comes exclusively from our historical
 // position-based player-season database. Never fall back to FotMob percentiles.
 export default function CraftedfcAnalysis({
-  snapshot, status, position = "", playerId, seasons = [], initialSeason = "",
+  snapshot, status, position = "", playerId, seasons = [], initialSeason = "", editableRows = [], onSetMetric,
 }) {
   const [externalOpen, setExternalOpen] = useState(false);
   const stats = snapshot ? (payloadField(snapshot, "stats") || {}) : {};
@@ -79,7 +79,7 @@ export default function CraftedfcAnalysis({
     <div className="space-y-3">
       {/* 1. Bloque principal y protagonista: Composite MF LEGACY */}
       <HistoricalPeerPreview main playerId={playerId} position={position}
-        seasons={seasons} initialSeason={initialSeason}/>
+        seasons={seasons} initialSeason={initialSeason} editableRows={editableRows} onSetMetric={onSetMetric}/>
 
       {/* 2. Referencia externa, secundaria y plegada por defecto */}
       <section className="rounded-xl border border-slate-200 bg-white">
