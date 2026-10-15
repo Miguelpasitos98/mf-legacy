@@ -108,6 +108,18 @@
           }
         }
       }
+    },
+    "source_section": {
+      "type": "string"
+    },
+    "source_index": {
+      "type": "number"
+    },
+    "source_file_uri": {
+      "type": "string"
+    },
+    "source_sha256": {
+      "type": "string"
     }
   },
   "required": [
