@@ -1,0 +1,71 @@
+{
+  "name": "PlayerSourceArchive",
+  "type": "object",
+  "properties": {
+    "record_key": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "fotmob_player_id": {
+      "type": "string"
+    },
+    "file_hash": {
+      "type": "string"
+    },
+    "source_file": {
+      "type": "string"
+    },
+    "batch": {
+      "type": "string"
+    },
+    "chunk_index": {
+      "type": "integer"
+    },
+    "chunk_total": {
+      "type": "integer"
+    },
+    "payload_json": {
+      "type": "string"
+    },
+    "payload_length": {
+      "type": "integer"
+    },
+    "snapshot_date": {
+      "type": "string"
+    },
+    "archive_status": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "record_key",
+    "fotmob_player_id",
+    "file_hash",
+    "chunk_index",
+    "chunk_total",
+    "payload_json"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

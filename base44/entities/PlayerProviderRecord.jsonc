@@ -1,0 +1,87 @@
+{
+  "name": "PlayerProviderRecord",
+  "type": "object",
+  "properties": {
+    "record_key": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "fotmob_player_id": {
+      "type": "string"
+    },
+    "record_kind": {
+      "type": "string"
+    },
+    "season": {
+      "type": "string"
+    },
+    "competition": {
+      "type": "string"
+    },
+    "team_name": {
+      "type": "string"
+    },
+    "fotmob_team_id": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "source_record_id": {
+      "type": "string"
+    },
+    "record_date": {
+      "type": "string"
+    },
+    "market_value_eur": {
+      "type": "number"
+    },
+    "market_lower_eur": {
+      "type": "number"
+    },
+    "market_upper_eur": {
+      "type": "number"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "payload_json": {
+      "type": "string"
+    },
+    "source_file_hash": {
+      "type": "string"
+    },
+    "snapshot_date": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "record_key",
+    "fotmob_player_id",
+    "record_kind",
+    "payload_json"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
