@@ -274,7 +274,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
               </tr>):<tr><td colSpan={6+selected.length} className="p-8 text-center text-slate-500">No hay registros para esta selección. Cambia el ámbito o la temporada.</td></tr>}</tbody>
             </table>
           </div>
-          {shown.some(r=>r.metrics?.length>0)&&<section className="mt-5 rounded-xl border border-slate-200 p-4">
+          {shown.length>0&&<section className="mt-5 rounded-xl border border-slate-200 p-4">
             <h3 className="mb-3 font-black text-slate-800">Todas las métricas importadas</h3>
             {shown.map((r,i)=><details key={r.id||i} className="mb-2 rounded-lg border border-slate-100 bg-slate-50 p-3">
               <summary className="cursor-pointer text-xs font-bold text-blue-900">{r.season} · {r.competition} · {r.metrics?.length||0} métricas</summary><button type="button" disabled={!r.id||r._sourceRows>1} onClick={()=>setMetricTarget({record:r,metric:"",field:null,current:null,newMetric:true})} className="mt-2 rounded border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-900 disabled:opacity-40">+ Añadir estadística manual</button>
@@ -289,6 +289,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           <button onClick={onClose} className="rounded-lg bg-[#003399] px-5 py-2 text-xs font-bold text-white">Cerrar</button>
         </div>
       </div>
+      <ManualMetricEditor target={metricTarget} onClose={()=>setMetricTarget(null)} onSave={onSetMetric}/>
       {teamMatchesTarget&&<div className="absolute inset-0 z-[2] flex items-center justify-center bg-slate-950/65 p-4" role="dialog" aria-modal="true" aria-label="Editar partidos disputados por el equipo">
         <form onSubmit={saveTeamMatches} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-5 shadow-2xl">
           <div className="flex items-start justify-between gap-3">
@@ -471,6 +472,6 @@ export default function Stats(){
         </div>
       </div>,document.body
     )}
-    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onOpenSettings={openDetailSettings} onSetTeamMatches={updateTeamMatches} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
+    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onOpenSettings={openDetailSettings} onSetTeamMatches={updateTeamMatches} onSetMetric={updateMetric} onClose={()=>setSelected(null)} onPlayer={id=>{setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
   </div>;
 }
