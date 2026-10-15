@@ -53,7 +53,7 @@ export default function ImportUnified({onImported}) {
           base44.entities.Player.list({limit:500})
         ]);
         if(!live)return;
-        setLinks(new Map(rowsFromResponse(rawLinks).filter(x=>x.fotmob_player_id&&x.player_id&&(/manual_confirmada|confirmada|verified|manual|confirmed/i.test(x.verification||""))).map(x=>[String(x.fotmob_player_id),String(x.player_id)])));
+        setLinks(new Map(rowsFromResponse(rawLinks).filter(x=>x.fotmob_player_id&&x.player_id&&(/manual_confirmada|confirmada|verified|manual|confirmed|automatic_exact_name_unique/i.test(x.verification||""))).map(x=>[String(x.fotmob_player_id),String(x.player_id)])));
         setAllTeams(rowsFromResponse(rawTeams));setAllPlayers(rowsFromResponse(rawPlayers));
         setTeamLinks(new Map(rowsFromResponse(rawTeams).filter(x=>Number(x.fotmob_id)>0&&x.id).map(x=>[String(x.fotmob_id),String(x.id)])));
       } catch(e){if(live){setError("No se pudieron consultar las vinculaciones de Base44: "+e.message);setIsAdmin(false);}}
@@ -340,6 +340,12 @@ export default function ImportUnified({onImported}) {
     let linkedId=existingLinks[0]?.player_id||"";
     if(linkedId&&!localPlayers.some(p=>String(p.id)===String(linkedId)))
       throw Error("El vínculo FotMob apunta a una ficha inexistente; requiere revisión.");
+    const snapshotName=safeRows.find(r=>r.kind==="player"&&String(r.fotmob_id)===pid)?.name;
+    if(linkedId&&snapshotName){
+      const player=localPlayers.find(p=>String(p.id)===String(linkedId));
+      if(normalized(player.name)!==normalized(snapshotName))
+        throw Error("El vínculo FotMob apunta a un jugador con nombre distinto. Se evita importar sobre la ficha equivocada.");
+    }
     if(!linkedId){
       const identityRow=safeRows.find(r=>r.kind==="player"&&String(r.fotmob_id)===pid);
       if(!identityRow?.name)throw Error("Falta la identidad del jugador en el JSON.");
@@ -369,6 +375,13 @@ export default function ImportUnified({onImported}) {
         note:"Asociación automática por nombre completo único; ID externo procedente del JSON, sin validación independiente. FM26 sin cambios.",
       });
     }
+    let sourceReport=null;
+    if(fullJson?.input){
+      sourceReport=await importFullStudioFile(base44,fullJson.input,fullJson.sourceText,{
+        playerId:linkedId,fileName:filenameForRun,
+        onProgress:(_phase,done,total)=>setProgress({done,total})
+      });
+    }
     const mapped=new Map([[pid,String(linkedId)]]);
     const teamMap=new Map(localTeams.filter(t=>t.fotmob_id&&t.id).map(t=>[String(t.fotmob_id),String(t.id)]));
     const resolved=safeRows.map(row=>{
@@ -396,6 +409,7 @@ export default function ImportUnified({onImported}) {
       return {...row,resolvedTeamId:teamId||""};
     });
     await importBatch(safePlan,true);
+    if(sourceReport)setReport(old=>old?{...old,full_source_import:sourceReport}:old);
   };
 
   const toCreate=plan?.filter(r=>r.action==="crear").length||0;
