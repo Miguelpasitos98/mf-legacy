@@ -90,11 +90,11 @@ export function studioImportManifest(input,{playerId="",fileHash=""}={}){
  }
  return {pid,records,kinds};
 }
-export function splitStudioArchive(input,{playerId="",fileHash="",sourceFile="",maxChunk=38000}={}){
+export function splitStudioArchive(input,{playerId="",fileHash="",sourceFile="",sourceText=null,maxChunk=38000}={}){
  if(!/^[a-f0-9]{64}$/.test(fileHash))throw Error("Hash SHA-256 requerido.");
  const pid=studioPlayerId(input);
  if(!pid)throw Error("Falta identidad FotMob.");
- const original=JSON.stringify(input);
+ const original=typeof sourceText==="string"?sourceText:JSON.stringify(input);
  const chunks=[];
  for(let i=0;i<original.length;i+=maxChunk)chunks.push(original.slice(i,i+maxChunk));
  return chunks.map((part,i)=>({record_key:"studio:archive:"+pid+":"+fileHash+":"+i,
