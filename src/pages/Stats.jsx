@@ -484,8 +484,12 @@ export default function Stats(){
     setColumnConfig(clean);setPrefsWarning("");
   };
   const importComplete=()=>{
-    queryClient.invalidateQueries({queryKey:["mf-legacy","stats"]});
-    // After a multi-player import, a full population refresh IS necessary.
+    // A successful import can add entire seasons or new Player/Team links.
+    // Invalidate only affected datasets; leave layout/preferences in cache.
+    queryClient.invalidateQueries({queryKey:STATS_ROWS_KEY});
+    queryClient.invalidateQueries({queryKey:STATS_DETAIL_KEY});
+    queryClient.invalidateQueries({queryKey:["mf-legacy","players"]});
+    queryClient.invalidateQueries({queryKey:["mf-legacy","teams"]});
     queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
   };
   return <div className="h-full w-full overflow-y-auto bg-[#f3f5f8]">
