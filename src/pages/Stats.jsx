@@ -97,7 +97,7 @@ function Avatar({name,photo,size="md"}) {
   return <div className={classes+" flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#e9f0f9] font-black text-[#31557b]"}>{photo&&!broken?<img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" onError={()=>setBroken(true)}/>:String(name||"?").slice(0,2).toUpperCase()}</div>;
 }
 function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);return <span className="inline-flex max-w-[170px] items-center gap-2">{logo&&!broken?<img src={logo} alt="" className="h-5 w-5 object-contain" onError={()=>setBroken(true)}/>:<Shield size={16} className="text-slate-300"/>}<span className="truncate">{teamName||"Sin equipo"}</span></span>;}
-function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,onOpenSettings,onSetTeamMatches,config}) {
+function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,onOpenSettings,onSetTeamMatches,onSetMetric,config}) {
   const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
   const {valuations:historicalValuations,loading:historicalLoading,refresh:historicalRefresh}=useHistoricalValuations(player?.id||stats[0]?.player_id);
   const {getTeamMatches,refresh:refreshTeamMatches}=useTeamMatchesLookup(stats);
@@ -130,6 +130,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const [teamLinkTarget,setTeamLinkTarget]=useState(null);
   const [teamMatchesTarget,setTeamMatchesTarget]=useState(null);
   const [teamMatchesValue,setTeamMatchesValue]=useState("");
+  const [metricTarget,setMetricTarget]=useState(null);
   const [teamMatchesBusy,setTeamMatchesBusy]=useState(false);
   const [teamMatchesError,setTeamMatchesError]=useState("");
   const editTeamMatches=record=>{setTeamMatchesTarget(record);setTeamMatchesValue(record.team_matches==null?"":String(record.team_matches));setTeamMatchesError("");};
