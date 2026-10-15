@@ -21,7 +21,7 @@ import TeamLinkPicker from "@/components/stats/TeamLinkPicker";
 import {initialConfig,sanitizeConfig,getColumn,columnValue,RAW_METRICS} from "@/utils/statsColumns";
 import {bestSeasonPerPlayer} from "@/utils/statsBestSeason";
 import ManualMetricEditor from "@/components/stats/ManualMetricEditor";
-import {applyManualStatChange} from "@/utils/manualStats";
+import {applyManualStatChange,applyManualStatChanges} from "@/utils/manualStats";
 import {advancedTotals} from "@/utils/statsAdvanced";
 import {metricName} from "@/utils/compositeEngine";
 import {buildSeasonSummaries} from "@/utils/statsSeason";
@@ -400,20 +400,25 @@ export default function Stats(){
   const activeCount=viewMode==="season"?seasonVisible.length:visible.length;
   const [detailRows,setDetailRows]=useState([]),[detailLoading,setDetailLoading]=useState(false);
   const updateMetric=async(record,change)=>{
-    if(!record?.id||!record?.external_record_id)throw Error("El registro no tiene identificador válido.");
-    const found=unpack(await base44.entities.PlayerSeasonStats.filter(
-      {external_record_id:record.external_record_id},{limit:5}));
+    if(!record?.id)throw Error("El registro no tiene identificador válido.");
+    const filters=record.external_record_id?{external_record_id:record.external_record_id}:
+      {player_id:record.player_id,season:record.season,competition:record.competition};
+    const found=unpack(await base44.entities.PlayerSeasonStats.filter(filters,{limit:25}));
     const exact=found.filter(r=>String(r.id)===String(record.id));
     if(exact.length!==1)throw Error("Registro no encontrado o duplicado; vuelve a abrir la ficha.");
     const current=exact[0];
     if(String(current.player_id)!==String(record.player_id)||
       current.season!==record.season||current.competition!==record.competition)
       throw Error("La identidad del historial ha cambiado.");
-    const actualValue=r=>change.field?num(r[change.field]):
-      num((r.metrics||[]).find(m=>metricName(m.name)===metricName(change.name))?.value);
-    if(actualValue(record)!==actualValue(current))
-      throw Error("El dato cambió desde que abriste la ficha. Actualízala antes de editar.");
-    const {update}=applyManualStatChange(current,change);
+    const changes=Array.isArray(change)?change:[change];
+    for(const c of changes){
+      const actualValue=r=>c.field?num(r[c.field]):
+        num((r.metrics||[]).find(m=>metricName(m.name)===metricName(c.name))?.value);
+      if(actualValue(record)!==actualValue(current))
+        throw Error("El dato cambió desde que abriste la ficha. Actualízala antes de editar.");
+    }
+    // All components of the requested statistic are persisted in ONE update.
+    const {update}=Array.isArray(change)?applyManualStatChanges(current,changes):applyManualStatChange(current,change);
     await base44.entities.PlayerSeasonStats.update(record.id,update);
     setDetailRows(rows=>rows.map(r=>String(r.id)===String(record.id)?{...r,...update}:r));
     setRevision(x=>x+1);
