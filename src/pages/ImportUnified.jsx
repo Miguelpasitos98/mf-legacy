@@ -116,8 +116,11 @@ export default function ImportUnified({onImported}) {
         note:"Alta/verificación del importador externo; FM26 sin modificaciones"});
       setLinks(old=>new Map(old).set(pid,playerId));
       setPlan(null);setAuthorized(false);setReport(null);
-      setIdentityNotice("Jugador vinculado correctamente. Pulsa «Verificar duplicados» para importar los historiales.");
+      setIdentityNotice("Jugador vinculado. Continuando la importación…");
       setSuggestedPlayerId("");
+      if(batch?.records?.length&&!fileErrors.length){
+        await autoImport(batch,fileName);
+      }
     }catch(e){setError("No se completó la vinculación: "+e.message);}
     finally{setCreatingPlayer(false);}
   };
@@ -152,8 +155,8 @@ export default function ImportUnified({onImported}) {
         const input=JSON.parse((await file.text()).replace(/^\uFEFF/,""));
         const result=parseUnifiedBatch(input);
         const pending=Array.isArray(input.pending_team_review)?input.pending_team_review.length:0;
-        if(pending)warnings.push(`${file.name}: ${pending} historiales con equipo sin confirmar permanecen fuera de la importación. Revísalos en el JSON original.`);
-        if(input.validated_for_direct_bulk_import===false)warnings.push(`${file.name}: el exportador ha marcado este lote como pendiente de validación. Revisa especialmente las parejas club-temporada antes de aplicar cambios.`);
+        if(pending)warnings.push(`${file.name}: ${pending} historiales con equipo no identificado se omiten automáticamente; los demás se importan.`);
+        if(input.validated_for_direct_bulk_import===false)warnings.push(`${file.name}: el exportador indica validación pendiente. Solo se aplican filas con identidad confirmada y sin conflictos.`);
         if(Array.isArray(input.summary?.conflicts_kept)&&input.summary.conflicts_kept.length)warnings.push(`${file.name}: ${input.summary.conflicts_kept.length} diferencias de fuente conservadas para revisión, sin sobrescribir automáticamente.`);
         for(const problem of result.errors)errors.push(file.name+": "+problem);
         for(const row of result.records){
@@ -299,7 +302,8 @@ export default function ImportUnified({onImported}) {
       }
       pos+=group.length;
       setProgress({done:pos,total:queue.length});
-      await new Promise(resolve=>setTimeout(resolve,1100));
+      // Small pacing to avoid bursts; no forced 1.1 s pause per batch.
+      if(pos<queue.length)await new Promise(resolve=>setTimeout(resolve,250));
     }
     if(reportItems.some(item=>["creado","actualizado","enriquecido"].includes(item.status)))onImported?.();
     setReport({file:fileName,importedAt:new Date().toISOString(),total:queue.length,
