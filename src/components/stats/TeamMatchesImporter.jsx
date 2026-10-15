@@ -14,6 +14,7 @@ import {
   parsePastedData,
   validateTeamMatchesRow,
 } from "@/utils/historicalValuation";
+import {historicalTeamCatalog,resolveHistoricalTeam,canonicalHistoricalClub,canonicalHistoricalCompetition} from "@/utils/historicalJson";
 
 const unpack = (r) => (Array.isArray(r) ? r : r?.items || r?.data || []);
 const normalizeName = (v) =>
@@ -52,30 +53,9 @@ export default function TeamMatchesImporter({ player, stats = [], teams = [], on
   const [excluded, setExcluded] = useState(new Set());
   const [edits, setEdits] = useState({});
 
-  // Lookup de equipos desde las estadisticas del jugador y la lista de equipos.
-  const teamLookup = useMemo(() => {
-    const byFotmobId = new Map();
-    const byName = new Map();
-    const add = (teamId, fotmobTeamId, teamName) => {
-      if (fotmobTeamId) {
-        const fid = String(fotmobTeamId);
-        if (!byFotmobId.has(fid))
-          byFotmobId.set(fid, { team_id: teamId, fotmob_team_id: fid, team_name: teamName });
-      }
-      if (teamName) {
-        const key = normalizeName(teamName);
-        if (!byName.has(key))
-          byName.set(key, { team_id: teamId, fotmob_team_id: fotmobTeamId ? String(fotmobTeamId) : "", team_name: teamName });
-      }
-    };
-    for (const r of stats) {
-      add(r.team_id, r.fotmob_team_id, r.team_name);
-    }
-    for (const t of teams) {
-      add(t.id, t.fotmob_id, t.name);
-    }
-    return { byFotmobId, byName };
-  }, [stats, teams]);
+  // Shared, conservative resolver: matches trusted ID or unambiguous alias.
+  // Unlike an arbitrary "first name wins" Map, conflicting clubs remain blocked.
+  const teamCatalog = useMemo(() => historicalTeamCatalog(stats, teams),[stats,teams]);
 
   // Carga TeamSeasonMatches existentes para los equipos del jugador.
   useEffect(() => {
@@ -117,15 +97,9 @@ export default function TeamMatchesImporter({ player, stats = [], teams = [], on
 
   // Resuelve el equipo de cada fila importada.
   const matchTeam = (row) => {
-    if (row.fotmob_team_id) {
-      const m = teamLookup.byFotmobId.get(String(row.fotmob_team_id));
-      if (m) return { team: m, method: "fotmob_id" };
-    }
-    if (row.team_name) {
-      const m = teamLookup.byName.get(normalizeName(row.team_name));
-      if (m) return { team: m, method: "name" };
-    }
-    return { team: null, method: null };
+    const resolved = resolveHistoricalTeam(row,stats,teams,teamCatalog);
+    return {team:resolved.team, method:resolved.team?(row.team_id?"team_id":row.fotmob_team_id?"fotmob_id":"name"):null,
+      matchError:resolved.error};
   };
 
   // Filas con validacion, matching y estado.
@@ -141,10 +115,10 @@ export default function TeamMatchesImporter({ player, stats = [], teams = [], on
       row.team_matches = row.team_matches !== undefined ? row.team_matches : raw.team_matches;
 
       const errors = validateTeamMatchesRow(row);
-      const { team, method } = matchTeam(row);
+      const { team, method, matchError } = matchTeam(row);
 
       // Deteccion de duplicados dentro del lote
-      const dupKey = `${normalizeName(row.team_name || row.fotmob_team_id)}|${normalizeSeason(row.season)}|${normalizeName(row.competition)}`;
+      const dupKey = `${team?.team_id||team?.fotmob_team_id||canonicalHistoricalClub(row.team_name)||String(row.fotmob_team_id)}|${normalizeSeason(row.season)}|${canonicalHistoricalCompetition(row.competition)}`;
       const dupCount = (seen.get(dupKey) || 0) + 1;
       seen.set(dupKey, dupCount);
 
@@ -166,12 +140,13 @@ export default function TeamMatchesImporter({ player, stats = [], teams = [], on
         ...row,
         team,
         teamMethod: method,
+        matchError,
         errors,
         status,
         existing: existingRec,
       };
     });
-  }, [parsedRows, edits, teamLookup, existingByKey]);
+  }, [parsedRows, edits, teamCatalog, existingByKey]);
 
   const summary = useMemo(() => {
     const counts = { new: 0, same: 0, update: 0, unmatched: 0, duplicate: 0, error: 0, excluded: 0 };
