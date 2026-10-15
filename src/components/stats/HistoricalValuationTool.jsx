@@ -2,6 +2,8 @@ import React,{useState,useMemo} from "react";
 import {createPortal} from "react-dom";
 import {Download,Upload,X,AlertTriangle} from "lucide-react";
 import {base44} from "@/api/base44Client";
+import {VALUATION_CSV_HEADER} from "@/utils/valuationPrompt";
+import {normalizeHistoricalPosition} from "@/utils/historicalPositions";
 
 const normalize=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase().replace(/\s+/g," ");
 const seasonText=v=>{const t=String(v??"").trim();const m=t.match(/^(\d{4})[/-](\d{2}|\d{4})$/);return m?m[1]+"/"+(m[2].length===2?m[1].slice(0,2)+m[2]:m[2]):t;};
@@ -62,9 +64,10 @@ export default function HistoricalValuationTool({onClose,onImported}){
    const matches=ids.length===1?group.get(keyOf(ids[0],x.season)):null;
    if(ids.length>1)return {...x,index:i+2,state:"ambiguous",reason:"Nombre duplicado en Base44; se necesita un identificador."};
    if(!matches)return {...x,index:i+2,state:"missing",reason:"No existe una combinación jugador-temporada confirmada."};
-   const hasOverall=x.overall!==null,hasValue=x.value!==null;
-   const valueConflict=matches.records.some(r=>(hasOverall&&present(r.fifa_fc_overall)&&Number(r.fifa_fc_overall)!==x.overall)||(hasValue&&present(r.transfermarkt_value_eur)&&Number(r.transfermarkt_value_eur)!==x.value));
-   const anyChange=matches.records.some(r=>(hasOverall&&(!present(r.fifa_fc_overall)||Number(r.fifa_fc_overall)!==x.overall))||(hasValue&&(!present(r.transfermarkt_value_eur)||Number(r.transfermarkt_value_eur)!==x.value)));
+   const hasOverall=x.overall!==null,hasValue=x.value!==null,hasPosition=!!x.position;
+   const positionDiff=r=>hasPosition&&normalizeHistoricalPosition(r.fifa_fc_position)!==x.position;
+   const valueConflict=matches.records.some(r=>(hasOverall&&present(r.fifa_fc_overall)&&Number(r.fifa_fc_overall)!==x.overall)||(hasValue&&present(r.transfermarkt_value_eur)&&Number(r.transfermarkt_value_eur)!==x.value)||(positionDiff(r)&&present(r.fifa_fc_position)));
+   const anyChange=matches.records.some(r=>(hasOverall&&(!present(r.fifa_fc_overall)||Number(r.fifa_fc_overall)!==x.overall))||(hasValue&&(!present(r.transfermarkt_value_eur)||Number(r.transfermarkt_value_eur)!==x.value))||positionDiff(r));
    return {...x,index:i+2,state:valueConflict&&!overwrite?"conflict":anyChange?"ready":"same",reason:valueConflict&&!overwrite?"Ya hay valores distintos; no se sobrescriben sin autorización.":"",matches};
   });
  },[items,unique,nameIndex,overwrite]);
@@ -73,7 +76,8 @@ export default function HistoricalValuationTool({onClose,onImported}){
   if(!complete||!unique.length)return;
   const seen=new Set();
   const rows=unique.filter(r=>{const k=normalize(r.name)+"|"+r.season;if(seen.has(k))return false;seen.add(k);return true;});
-  download("Jugador;Temporada\r\n"+rows.map(r=>[r.name,r.season].map(quoted).join(";")).join("\r\n"),"MF_LEGACY_Temporadas_Valoraciones.csv");
+  const body=rows.map(r=>[r.name,r.season,"","","","","",""].map(quoted).join(";")).join("\r\n");
+  download(VALUATION_CSV_HEADER+"\r\n"+body,"MF_LEGACY_Temporadas_Valoraciones.csv");
  };
  const fileSelected=async(event)=>{
   const file=event.target.files?.[0];event.target.value="";if(!file)return;
@@ -92,6 +96,7 @@ export default function HistoricalValuationTool({onClose,onImported}){
     const value=number(field(r,["Transfermarkt (€)","Transfermarkt","transfermarkt_value_eur","market_value_eur"]));
     const id=String(field(r,["base44_player_id","player_id"])).trim();
     const edition=String(field(r,["Edición","edition","fifa_fc_edition"])).trim();
+    const position=normalizeHistoricalPosition(field(r,["Posicion FIFA","posicion_fifa","fifa_fc_position","position"]));
     const status=String(field(r,["Estado","status","verification_status"])).trim();
     const source=String(field(r,["Fuente","source","sources"])).trim();
     const date=String(field(r,["Fecha","market_value_date","date"])).trim();
@@ -99,7 +104,7 @@ export default function HistoricalValuationTool({onClose,onImported}){
     if(overall!==null&&(!Number.isInteger(overall)||overall<1||overall>99)){errors.push("Fila "+(i+2)+": Overall fuera de 1–99.");continue;}
     if(value!==null&&value<0){errors.push("Fila "+(i+2)+": valor negativo.");continue;}
     const k=(id||normalize(name))+"|"+season;if(seen.has(k)){errors.push("Fila "+(i+2)+": jugador y temporada repetidos.");continue;}seen.add(k);
-    parsed.push({id,name,season,overall,value,edition,status,source,date});
+    parsed.push({id,name,season,overall,value,position,edition,status,source,date});
    }
    if(errors.length)throw Error(errors.slice(0,5).join(" ")+" ("+errors.length+" incidencias)");
    setItems(parsed);
@@ -114,6 +119,7 @@ export default function HistoricalValuationTool({onClose,onImported}){
    for(const r of item.matches.records){
     const patch={};if(item.overall!==null&&(!present(r.fifa_fc_overall)||overwrite))patch.fifa_fc_overall=item.overall;
     if(item.value!==null&&(!present(r.transfermarkt_value_eur)||overwrite))patch.transfermarkt_value_eur=item.value;
+    if(item.position&&(!present(r.fifa_fc_position)||overwrite))patch.fifa_fc_position=item.position;
     if(Object.keys(patch).length){
      patch.historical_valuation_source=item.source||"Revisión MF Legacy";
      patch.historical_valuation_status=item.status||"Pendiente de verificar";
@@ -133,12 +139,12 @@ export default function HistoricalValuationTool({onClose,onImported}){
  <div className="flex items-center justify-between bg-[#0d243b] px-5 py-4 text-white"><div><h2 className="text-lg font-black">Valoraciones históricas · FIFA/FC + Transfermarkt</h2><p className="text-xs text-blue-200">Una fila por jugador y temporada. Los valores se aplican a todas las competiciones del mismo año.</p></div><button onClick={onClose} disabled={busy} aria-label="Cerrar"><X/></button></div>
  <div className="space-y-5 overflow-y-auto p-5">
  <div className="flex flex-wrap items-center gap-3"><button onClick={loadAll} disabled={fetching||busy} className="rounded-lg bg-[#003399] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{fetching?"Cargando…":loaded?"Recargar temporadas":"1. Cargar todas las temporadas"}</button>{loaded&&<span className="text-xs text-slate-600">{unique.length} pares jugador-temporada · {records.length} registros de competición</span>}{loadError&&<p className="text-xs text-amber-800">{loadError}</p>}</div>
- <div className="rounded-xl border border-slate-200 p-4"><div className="flex items-center justify-between gap-3"><div><h3 className="font-black">2. Exportar tabla para ChatGPT</h3><p className="text-xs text-slate-500">CSV con solamente Jugador y Temporada, sin competiciones duplicadas.</p></div><button onClick={exportList} disabled={!complete||!unique.length||busy} className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-2 text-xs font-bold text-[#003399] disabled:opacity-40"><Download size={16}/> Exportar CSV</button></div></div>
- <div className="rounded-xl border border-slate-200 p-4"><h3 className="font-black">3. Importar tabla completada</h3><p className="mt-1 text-xs text-slate-600">Columnas mínimas: <strong>Jugador;Temporada;FIFA/FC Overall;Transfermarkt (€)</strong>. Se admiten columnas opcionales de fuente, edición, fecha y estado. Sin datos numéricos no se inventan resultados.</p><label className="mt-3 flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-blue-200 bg-blue-50 p-4 text-sm font-bold text-[#003399]"><Upload size={17}/>{inputName||"Seleccionar CSV o JSON completado"}<input type="file" accept=".csv,.json" className="sr-only" onChange={fileSelected} disabled={!complete||busy}/></label>
+ <div className="rounded-xl border border-slate-200 p-4"><div className="flex items-center justify-between gap-3"><div><h3 className="font-black">2. Exportar tabla para ChatGPT</h3><p className="text-xs text-slate-500">CSV con Jugador y Temporada (y las columnas que hay que rellenar), sin competiciones duplicadas.</p></div><button onClick={exportList} disabled={!complete||!unique.length||busy} className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-2 text-xs font-bold text-[#003399] disabled:opacity-40"><Download size={16}/> Exportar CSV</button></div></div>
+ <div className="rounded-xl border border-slate-200 p-4"><h3 className="font-black">3. Importar tabla completada</h3><p className="mt-1 text-xs text-slate-600">Columnas mínimas: <strong>Jugador;Temporada;FIFA/FC Overall;Transfermarkt (€)</strong>. Se admiten columnas opcionales de <strong>Posicion FIFA</strong>, fuente, edición, fecha y estado. Sin datos numéricos no se inventan resultados.</p><label className="mt-3 flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-blue-200 bg-blue-50 p-4 text-sm font-bold text-[#003399]"><Upload size={17}/>{inputName||"Seleccionar CSV o JSON completado"}<input type="file" accept=".csv,.json" className="sr-only" onChange={fileSelected} disabled={!complete||busy}/></label>
  {parseError&&<p className="mt-2 text-sm text-rose-700">{parseError}</p>}
  {!!items.length&&<><p className="mt-3 text-xs font-semibold">Listos: {summary.ready.length} temporadas · Ya coinciden: {summary.same} · Pendientes: {summary.blocked.length} · Competiciones a actualizar: {summary.ready.reduce((n,x)=>n+x.matches.records.length,0)}</p>
- <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-slate-200"><table className="w-full text-xs"><thead className="sticky top-0 bg-slate-100"><tr>{["Jugador","Temporada","Overall","Transfermarkt (€)","Competiciones","Estado"].map(x=><th key={x} className="p-2 text-left">{x}</th>)}</tr></thead><tbody>{prepared.map(x=><tr key={x.index} className="border-t"><td className="p-2">{x.name}</td><td className="p-2">{x.season}</td><td className="p-2">{x.overall??"—"}</td><td className="p-2">{x.value??"—"}</td><td className="p-2">{x.matches?.records.length??0}</td><td className={"p-2 "+(x.state==="ready"?"text-emerald-700":x.state==="same"?"text-slate-500":"text-amber-800")}>{x.state}{x.reason?" · "+x.reason:""}</td></tr>)}</tbody></table></div>
- <label className="mt-3 flex items-start gap-2 text-xs"><input type="checkbox" checked={overwrite} onChange={e=>{setOverwrite(e.target.checked);setAuthorized(false);}}/> Permitir reemplazar exclusivamente Overall y valor Transfermarkt históricos existentes cuando sean distintos.</label>
+ <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-slate-200"><table className="w-full text-xs"><thead className="sticky top-0 bg-slate-100"><tr>{["Jugador","Temporada","Overall","Posicion FIFA","Transfermarkt (€)","Competiciones","Estado"].map(x=><th key={x} className="p-2 text-left">{x}</th>)}</tr></thead><tbody>{prepared.map(x=><tr key={x.index} className="border-t"><td className="p-2">{x.name}</td><td className="p-2">{x.season}</td><td className="p-2">{x.overall??"—"}</td><td className="p-2 font-bold text-slate-700">{x.position||"—"}</td><td className="p-2">{x.value??"—"}</td><td className="p-2">{x.matches?.records.length??0}</td><td className={"p-2 "+(x.state==="ready"?"text-emerald-700":x.state==="same"?"text-slate-500":"text-amber-800")}>{x.state}{x.reason?" · "+x.reason:""}</td></tr>)}</tbody></table></div>
+ <label className="mt-3 flex items-start gap-2 text-xs"><input type="checkbox" checked={overwrite} onChange={e=>{setOverwrite(e.target.checked);setAuthorized(false);}}/> Permitir reemplazar exclusivamente Overall, posición FIFA y valor Transfermarkt históricos existentes cuando sean distintos.</label>
  {summary.blocked.length>0&&<p className="mt-2 flex items-center gap-1 text-xs text-amber-800"><AlertTriangle size={15}/> Resuelve todas las filas bloqueadas antes de importar.</p>}
  <label className="mt-3 flex items-start gap-2 text-xs font-bold"><input type="checkbox" checked={authorized} onChange={e=>setAuthorized(e.target.checked)}/> Confirmo que he revisado las temporadas, cifras y fuentes. Autorizo aplicar las valoraciones a todas sus competiciones.</label>
  <button disabled={!authorized||!isAdmin||busy||summary.blocked.length>0||!summary.ready.length} onClick={apply} className="mt-3 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{busy?"Importando…":"Aplicar a todas las competiciones"}</button>

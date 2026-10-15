@@ -4,7 +4,7 @@ import { CheckCircle2, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { formatEur } from "@/utils/historicalValuation";
-import { POSITION_OPTIONS, normalizeHistoricalPosition } from "@/utils/historicalPositions";
+import { POSITION_OPTIONS, normalizeHistoricalPosition, positionTone } from "@/utils/historicalPositions";
 import { nationalCompetition } from "@/utils/statsViews";
 import HistoricalPositionEditor from "./HistoricalPositionEditor";
 import CompetitionPositionEditor from "./CompetitionPositionEditor";
@@ -136,12 +136,33 @@ export default function HistoricalValuationsTable({
 
   return (
     <section className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-xs font-black uppercase tracking-widest text-[#003399]">
-          Valoraciones historicas
-        </h3>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-xs font-black uppercase tracking-widest text-[#003399]">
+            Valoraciones historicas
+          </h3>
+          <p className="mt-0.5 text-[11px] text-slate-500">
+            Una fila por temporada: Overall FIFA/FC, valor de Transfermarkt y la posicion historica que decide el arquetipo del Composite.
+          </p>
+        </div>
         {loading && <Loader2 size={14} className="animate-spin text-slate-400" />}
       </div>
+
+      {valuations.length > 0 && (
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            ["Temporadas", valuations.length, ""],
+            ["Con posicion FIFA", valuations.filter((v) => normalizeHistoricalPosition(v.fifa_fc_position)).length, "text-emerald-700"],
+            ["Verificadas", valuations.filter((v) => v.verification_status === "verified").length, "text-emerald-700"],
+            ["Ultima edicion", valuations[0]?.fifa_edition || "—", "text-slate-700"],
+          ].map(([label, value, tone]) => (
+            <div key={label} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+              <p className="text-[10px] font-bold uppercase text-slate-500">{label}</p>
+              <p className={"mt-0.5 text-lg font-black tabular-nums " + (tone || "text-[#003399]")}>{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {valuations.length === 0 ? (
         <p className="py-4 text-center text-xs text-slate-400">
@@ -176,8 +197,15 @@ export default function HistoricalValuationsTable({
                   <td className="px-3 py-2 font-semibold text-slate-700">
                     {formatEur(v.transfermarkt_value_eur)}
                   </td>
-                  <td className="px-3 py-2 font-bold text-slate-700">
-                    {normalizeHistoricalPosition(v.fifa_fc_position) || "—"}
+                  <td className="px-3 py-2">
+                    {normalizeHistoricalPosition(v.fifa_fc_position) ? (
+                      <span className={"inline-flex h-6 min-w-[2.25rem] items-center justify-center rounded px-1.5 text-[11px] font-black ring-1 ring-inset " + positionTone(v.fifa_fc_position)}
+                        title={"Posicion de la carta FIFA/FC de " + v.season}>
+                        {normalizeHistoricalPosition(v.fifa_fc_position)}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold text-slate-400">sin dato</span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <HistoricalPositionEditor

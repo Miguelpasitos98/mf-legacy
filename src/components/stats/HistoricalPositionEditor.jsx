@@ -6,6 +6,7 @@ import {
   POSITION_OPTIONS,
   POSITION_SOURCES,
   normalizeHistoricalPosition,
+  positionTone,
   resolveHistoricalPosition,
 } from "@/utils/historicalPositions";
 
@@ -22,13 +23,27 @@ const SOURCE_CLASS = {
 export default function HistoricalPositionEditor({ valuation, fallback = "", busy = false, onSave }) {
   const effective = resolveHistoricalPosition({ valuation, fallback });
   const override = normalizeHistoricalPosition(valuation?.historical_position_override);
+  const fifa = normalizeHistoricalPosition(valuation?.fifa_fc_position);
   const source = POSITION_SOURCES[effective.source] || POSITION_SOURCES.none;
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-1.5">
-        <strong className="text-sm font-black text-[#0f3156]">{effective.position || "—"}</strong>
-        <span className={"rounded-full px-2 py-0.5 text-[9px] font-bold uppercase " + (SOURCE_CLASS[effective.source] || SOURCE_CLASS.none)}
-          title={source.label}>
+        <span
+          className={
+            "inline-flex h-7 min-w-[2.75rem] items-center justify-center rounded-md px-2 text-sm font-black ring-1 ring-inset " +
+            positionTone(effective.position)
+          }
+          title={source.label}
+        >
+          {effective.position || "—"}
+        </span>
+        <span
+          className={
+            "rounded-full px-2 py-0.5 text-[9px] font-bold uppercase " +
+            (SOURCE_CLASS[effective.source] || SOURCE_CLASS.none)
+          }
+          title={source.label}
+        >
           {source.short}
         </span>
       </div>
@@ -49,6 +64,11 @@ export default function HistoricalPositionEditor({ valuation, fallback = "", bus
           {FIFA_EQUIVALENT_POSITIONS.map((code) => <option key={code} value={code}>{code}</option>)}
         </optgroup>
       </select>
+      {override && (
+        <p className="text-[10px] text-slate-500">
+          FIFA original: <strong className="font-black text-slate-700">{fifa || "sin dato"}</strong>
+        </p>
+      )}
       {override && (
         <button type="button" disabled={busy} onClick={() => onSave("")}
           className="inline-flex items-center gap-1 self-start text-[10px] font-bold text-slate-500 hover:text-[#003399] disabled:opacity-40">

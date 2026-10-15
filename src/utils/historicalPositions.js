@@ -65,3 +65,35 @@ export function seasonReferencePosition({ valuation, competitions = [], fallback
   const chain = resolveHistoricalPosition({ valuation, fallback });
   return { ...chain, mixed: overrides.length > 1 };
 }
+
+// --- Presentación (no interviene en ningún cálculo) ---
+
+// Grupo de juego de cada código, para colorear la interfaz.
+const GROUP_BY_POSITION = {
+  GK: "gk",
+  DFC: "def", LD: "def", LI: "def", CRD: "def", CRI: "def",
+  CB: "def", RB: "def", LB: "def", WB: "def", RWB: "def", LWB: "def",
+  CDM: "mid", CM: "mid", DM: "mid", RM: "mid", LM: "mid",
+  CAM: "att", ED: "att", EI: "att", DC: "att",
+  AM: "att", RW: "att", LW: "att", CF: "att", ST: "att", W: "att",
+};
+
+export const POSITION_GROUP_LABELS = {
+  gk: "Portería",
+  def: "Defensa",
+  mid: "Medio campo",
+  att: "Ataque",
+  none: "Sin posición",
+};
+
+export const positionGroup = (value) => GROUP_BY_POSITION[normalizeHistoricalPosition(value)] || "none";
+
+const TONE_BY_GROUP = {
+  gk: "bg-amber-100 text-amber-900 ring-amber-200",
+  def: "bg-sky-100 text-sky-900 ring-sky-200",
+  mid: "bg-emerald-100 text-emerald-900 ring-emerald-200",
+  att: "bg-rose-100 text-rose-900 ring-rose-200",
+  none: "bg-slate-100 text-slate-400 ring-slate-200",
+};
+
+export const positionTone = (value) => TONE_BY_GROUP[positionGroup(value)];
