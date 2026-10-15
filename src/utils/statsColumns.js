@@ -134,7 +134,7 @@ export function evalFormula(ast,values){
 export function getColumn(config,id){
  const def=config.computed.find(d=>d.id===id);
  const raw=RAW_METRICS.find(([key])=>key===id);
- return def?{...def,kind:"computed",unit:id==="playpct"?"%":""}:raw?{id,name:config.labels[id]||raw[1],decimals:["rating","xg","xa","xgot","xgexclpenalty","xgagainstwhileonpitch"].includes(id)?2:["topspeed","passaccuracy","longballaccuracy","crossaccuracy","dribblessuccessrate","duelswonvariante2","aerialswonvariante2"].includes(id)?1:0,kind:"raw"}:null;
+ return def?{...def,kind:"computed",unit:["playpct","calc_groundduelspct"].includes(id)?"%":""}:raw?{id,name:config.labels[id]||raw[1],decimals:["rating","xg","xa","xgot","xgexclpenalty","xgagainstwhileonpitch"].includes(id)?2:["topspeed","passaccuracy","longballaccuracy","crossaccuracy","dribblessuccessrate","duelswonvariante2","aerialswonvariante2"].includes(id)?1:0,kind:"raw"}:null;
 }
 export const rowValues=(row,mode)=>{
  const values={};
