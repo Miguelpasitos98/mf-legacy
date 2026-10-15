@@ -40,7 +40,7 @@ export function studioUnderstatMetrics(summary){
     provider:"Understat",verification_status:"manual_identity_unverified"};
   });
 }
-export function studioImportManifest(input,{playerId="",fileHash=""}={}){
+export function studioImportManifest(input,{playerId="",fileHash="",sourceFileUri=""}={}){
  const pid=studioPlayerId(input);
  if(!pid||!/^[0-9]+$/.test(pid))throw Error("Studio JSON sin ID FotMob único.");
  if(input?.schema!=="mf_legacy_external_batch_v1"||!Array.isArray(input.records))
@@ -85,7 +85,14 @@ export function studioImportManifest(input,{playerId="",fileHash=""}={}){
     ...(kind==="understat_summary"?{metrics:studioUnderstatMetrics(x)}:{}),
     source_verified:!["market_point","understat_observation","understat_summary","pending_team","historical_valuation"].includes(kind)
       &&/^(verified|confirmada)$/i.test(str(x.verification_status)),
-    status,payload_json:JSON.stringify(x),source_file_hash:fileHash,snapshot_date:str(input.snapshot_date)});
+    status,
+    // Base44 entity string fields reject very large provider payloads.
+    // Always preserve the COMPLETE original in private file storage. The
+    // compact record retains a reversible section/index pointer to it.
+    payload_json:JSON.stringify(x).length<=1800?JSON.stringify(x):
+      JSON.stringify({archived:true,source_section:name,source_index:i,source_file_hash:fileHash}),
+    source_section:name,source_index:i,source_file_uri:str(sourceFileUri),
+    source_file_hash:fileHash,snapshot_date:str(input.snapshot_date)});
   }
  }
  return {pid,records,kinds};
