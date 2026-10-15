@@ -31,7 +31,7 @@ import {buildSeasonSummaries} from "@/utils/statsSeason";
 import {patchHistoricalPeerCache,HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
 import {useStatsRows} from "@/hooks/useStatsRows";
-import {patchStatsCaches,STATS_DETAIL_KEY,STATS_ROWS_STALE_MS,STATS_CACHE_GC_MS,STATS_LAYOUT_KEY,statsDetailKey} from "@/utils/statsRowsCache";
+import {patchStatsCaches,STATS_ROWS_KEY,STATS_DETAIL_KEY,STATS_ROWS_STALE_MS,STATS_CACHE_GC_MS,STATS_LAYOUT_KEY,statsDetailKey} from "@/utils/statsRowsCache";
 import {useCraftedfcSnapshot} from "@/hooks/useCraftedfcSnapshot";
 import MfLegacyOverview from "@/components/stats/MfLegacyOverview";
 import CraftedfcAnalysis from "@/components/stats/CraftedfcAnalysis";
