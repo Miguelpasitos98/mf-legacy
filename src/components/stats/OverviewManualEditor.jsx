@@ -19,6 +19,11 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave}){
  const sorted=useMemo(()=>[...records].filter(r=>r.id).sort((a,b)=>String(b.season).localeCompare(String(a.season))||
   String(a.competition).localeCompare(String(b.competition))),[records]);
  const selected=sorted.find(r=>String(r.id)===recordId)||sorted[0]||null;
+ const hasValue=(r,n)=>number(r,n)!=="";
+ const status=r=>mode==="chain"?(hasValue(r,"xG Chain")&&hasValue(r,"Understat minutes")?"Con datos":"Incompleto"):
+ mode==="buildup"?(hasValue(r,"xG Buildup")&&hasValue(r,"Understat minutes")?"Con datos":"Incompleto"):
+ mode==="ground"?(hasValue(r,"Ground duels won")&&hasValue(r,"Ground duels contested")?"Con datos":"Incompleto"):
+ mode==="other"?"":hasValue(r,simpleNames[mode]||"",["appearances","minutes","rating"].includes(mode)?mode:null)?"Con datos":"Sin datos";
  useEffect(()=>{setRecordId("");setSource("");setError("");},[mode]);
  useEffect(()=>{
   if(!selected)return;
@@ -60,10 +65,11 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave}){
    {selected?<label className="block text-xs font-semibold text-slate-700">Temporada y competición
     <select value={selected.id} disabled={busy} onChange={e=>setRecordId(e.target.value)}
      className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm">
-     {sorted.map((r,i)=><option key={r.id} value={r.id}>{r.season} · {r.competition} · {r.team_name||"Club no indicado"}{sorted.some((x,j)=>j!==i&&x.season===r.season&&x.competition===r.competition)?" · "+String(r.external_record_id||r.id).slice(-9):""}</option>)}
+     {sorted.map((r,i)=><option key={r.id} value={r.id}>{r.season} · {r.competition} · {r.team_name||"Club no indicado"} · {status(r)}{sorted.some((x,j)=>j!==i&&x.season===r.season&&x.competition===r.competition)?" · "+String(r.external_record_id||r.id).slice(-9):""}</option>)}
     </select>
    </label>:<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">No hay competiciones con registros guardados en estos filtros. Cambia la temporada o el ámbito para introducir datos.</p>}
    {selected&&<div className="space-y-3">
+     <p className="text-[11px] font-medium text-blue-800">Estado de esta competición: {status(selected)}. Los cambios no afectarán a las demás competiciones.</p>
      {(mode==="chain"||mode==="buildup")&&<>
        <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">Introduce el total de la competición y sus minutos de Understat. Si solamente conoces el valor /90, elige esa opción: se reconstruirá un total derivado y quedará indicado en la fuente.</p>
        <label className="block text-xs font-semibold text-slate-700">Dato que tienes
@@ -72,7 +78,7 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave}){
         </select>
        </label>
        {valueInput(form.unit==="per90"?"Valor /90":"Valor total","value","1,25")}
-       {valueInput("Minutos Understat (misma fuente)","sourceMinutes","2.700",true)}
+       {valueInput("Minutos Understat (misma fuente)","sourceMinutes","2700",true)}
      </>}
      {mode==="ground"&&<>
        <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">Para calcular un porcentaje fiable necesitamos los duelos terrestres ganados y disputados. No se puede completar a partir de un porcentaje aislado.</p>
