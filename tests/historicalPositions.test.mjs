@@ -157,7 +157,7 @@ test("la interfaz persiste la posición histórica en la entidad y recalcula el 
   assert.match(table, /PlayerHistoricalValuation\.update\(record\.id, patch\)/);
   assert.match(table, /historical_position_override/);
   assert.match(table, /competition_positions/);
-  assert.match(table, /historical-peer-dataset/);
+  assert.match(table, /patchHistoricalPeerCache\(queryClient,"PlayerHistoricalValuation",record\.id,patch\)/);
   assert.match(editor, /Restaurar FIFA original/);
   assert.match(editor, /resolveHistoricalPosition/);
   assert.match(competition, /withCompetitionPosition/);
