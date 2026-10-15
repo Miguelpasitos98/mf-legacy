@@ -101,7 +101,6 @@ export default function ImportUnified() {
       if(!playerId){
         if(matches.length>0)throw Error("Existe un jugador con el mismo nombre: vuelve a seleccionar su ficha antes de crear otra. Si el intento anterior guardó al jugador, vincúlalo ahora.");
         if(!identity.name?.trim())throw Error("El JSON no trae el nombre del jugador.");
-        if(!window.confirm("Crear ficha mínima de "+identity.name+" desde FotMob "+pid+" sin UID ni atributos FM26, y vincularla?"))return;
         const positions={ST:"DC",W:"EI",CAM:"CAM",CM:"CM",DM:"CDM",WB:"LD",FB:"LD",CB:"DFC",GK:"GK"};
         if(!positions[identity.role])throw Error("Arquetipo no identificado. Confirma la posición antes de crear una ficha.");
         const payload={name:identity.name,position:positions[identity.role],
@@ -110,7 +109,7 @@ export default function ImportUnified() {
         playerId=String(created?.id||created?.data?.id||"");
         if(!playerId)throw Error("Player creado sin respuesta de ID. Busca la ficha antes de volver a intentarlo.");
         setAllPlayers(old=>[...old,{...payload,id:playerId}]);
-      }else if(!window.confirm("Vincular FotMob "+pid+" con el jugador existente seleccionado, sin alterar su ficha FM26?"))return;
+      }
       // If creation of the link fails, keep player for retry; never create a second one.
       await base44.entities.PlayerFotmobLink.create({fotmob_player_id:pid,player_id:playerId,
         player_name:identity.name,verification:"manual_confirmada",
