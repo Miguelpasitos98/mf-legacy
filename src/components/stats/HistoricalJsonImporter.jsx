@@ -72,6 +72,7 @@ const formatChange = (field, value) => {
   if (field === "transfermarkt_value_eur") return formatEur(value);
   if (field === "team_matches") return value + " PJ";
   if (field === "fifa_fc_overall") return "OVR " + value;
+  if (field === "fifa_fc_position") return "Posición " + value;
   return String(value);
 };
 
@@ -90,7 +91,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
   const sample = JSON.stringify({
     schema: "mf_legacy_historical_import_v1",
     player: { fotmob_id: fotmobId || "737066", name: player?.name || "Erling Haaland" },
-    valuations: [{ season: "2022/2023", fifa_fc_overall: 88, transfermarkt_value_eur: 180000000 }],
+    valuations: [{ season: "2022/2023", fifa_fc_overall: 88, fifa_fc_position: "CAM", transfermarkt_value_eur: 180000000 }],
     team_matches: [{ season: "2022/2023", competition: "Premier League", team_name: "Manchester City", team_matches: 38 }],
   }, null, 2);
 
@@ -247,7 +248,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
           spellCheck={false}
           className="mt-2 h-56 w-full resize-y rounded-xl border border-slate-300 bg-slate-50 p-3 font-mono text-xs text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"/>
       </label>
-      <p className="text-[11px] text-slate-500">Formato: schema mf_legacy_historical_import_v1, player.fotmob_id, listas valuations y team_matches. Los PJ Equipo con null se omiten sin error y no se convierten en cero; pueden completarse después.</p>
+      <p className="text-[11px] text-slate-500">Formato: schema mf_legacy_historical_import_v1, player.fotmob_id, listas valuations y team_matches. Cada valoración admite <strong>fifa_fc_position</strong> (posición de la carta, opcional y puede ser null). Los PJ Equipo con null se omiten sin error y no se convierten en cero; pueden completarse después.</p>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => analyze()} disabled={busy || saving || !raw.trim()}
           className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-40">
@@ -288,7 +289,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
                 </span>
               </div>
               {r.changes?.length > 0 && <p className="break-words text-[11px] text-slate-600">{r.changes.map((c) =>
-                c.field === "fifa_fc_overall" || c.field === "transfermarkt_value_eur" || c.field === "team_matches"
+                c.field === "fifa_fc_overall" || c.field === "fifa_fc_position" || c.field === "transfermarkt_value_eur" || c.field === "team_matches"
                   ? c.field + ": " + formatChange(c.field, c.from) + " → " + formatChange(c.field, c.to)
                   : "").filter(Boolean).join(" · ") || (r.status === "new" ? "Registro nuevo" : "Cambios de metadatos")}
               </p>}

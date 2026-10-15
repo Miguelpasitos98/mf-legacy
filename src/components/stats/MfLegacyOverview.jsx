@@ -149,7 +149,7 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
        </div>
        {selectedValuation?.verification_status!=="verified"&&<p className="mt-2 rounded-lg bg-amber-50 p-2 text-[11px] text-amber-800">{selectedValuation?"Datos pendientes de verificación.":"No hay valoraciones para esta temporada."}</p>}
        <button type="button" onClick={()=>setShowValuationHistory(v=>!v)} aria-expanded={showValuationHistory} className="mt-3 flex items-center gap-1 text-xs font-bold text-[#003399] hover:underline">{showValuationHistory?"Ocultar valoraciones":"Ver todas las valoraciones"} <ArrowRight size={13}/></button>
-       {showValuationHistory&&<div className="mt-2 max-h-[360px] overflow-auto"><HistoricalValuationsTable valuations={historicalValuations} loading={historicalLoading} onRefresh={historicalRefresh}/></div>}
+       {showValuationHistory&&<div className="mt-2 max-h-[360px] overflow-auto"><HistoricalValuationsTable valuations={historicalValuations} loading={historicalLoading} onRefresh={historicalRefresh} stats={editableRows} fallbackPosition={position}/></div>}
      </section>
    </div>
    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-blue-200 bg-blue-50/50 px-4 py-3"><span className="text-xs text-slate-600">¿Falta otra estadística histórica? Puedes incorporarla sin salir del Overview.</span><button type="button" onClick={()=>edit("other")} className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-2 text-xs font-bold text-[#003399] ring-1 ring-blue-200"><Plus size={14}/> Añadir otra estadística</button></div>

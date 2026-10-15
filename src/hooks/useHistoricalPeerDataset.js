@@ -7,7 +7,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
 const FIELDS={
   Player:["id","name","position","position_raw"],
   PlayerSeasonStats:["id","player_id","fotmob_player_id","season","competition","team_id","fotmob_team_id","minutes","appearances","rating","team_matches","metrics"],
-  PlayerHistoricalValuation:["id","player_id","season","fifa_fc_overall","transfermarkt_value_eur"],
+  PlayerHistoricalValuation:["id","player_id","season","fifa_fc_overall","transfermarkt_value_eur","fifa_fc_position","historical_position_override","competition_positions"],
   TeamSeasonMatches:["id","team_id","fotmob_team_id","season","competition","team_matches"],
 };
 const limited = err => /rate limit|too many requests|429/i.test(String(err?.message||err)) ||
@@ -47,7 +47,7 @@ async function allRecords(entityName, maxRecords=20000){
 const DATASETS=["Player","PlayerSeasonStats","PlayerHistoricalValuation","TeamSeasonMatches"];
 export function useHistoricalPeerDataset(enabled = false) {
   const query=useQuery({
-    queryKey:["mf-legacy","historical-peer-dataset","v2"],
+    queryKey:["mf-legacy","historical-peer-dataset","v3"],
     queryFn:async()=>{
       const loaded={};
       // Sequential loading avoids saturating Base44 and keeps each source complete.

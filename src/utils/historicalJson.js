@@ -162,7 +162,14 @@ export function prepareHistoricalJson(rawText, { playerId, fotmobPlayerId, stats
         errors.push("Valor Transfermarkt no válido.");
       else payload.transfermarkt_value_eur = market;
     }
-    if (Object.keys(payload).length === 0)
+    // Posición opcional de la carta FIFA/FC. Vacío o null se OMITE: nunca
+    // sobrescribe una corrección manual ni un dato ya guardado.
+    const fifaPosition = text(r.fifa_fc_position).toUpperCase().replace(/[^A-Z]/g, "");
+    if (fifaPosition) {
+      if (fifaPosition.length > 6) errors.push("Posición FIFA/FC no válida.");
+      else payload.fifa_fc_position = fifaPosition;
+    }
+    if (payload.fifa_fc_overall === undefined && payload.transfermarkt_value_eur === undefined)
       errors.push("No hay Overall ni valor de mercado en esta temporada; omite la fila.");
     if (payload.fifa_fc_overall !== undefined) {
       const url = urlField(r.fifa_source_url);

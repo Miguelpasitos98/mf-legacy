@@ -4,6 +4,7 @@
 import { groupStatRows, nationalCompetition } from "./statsViews.js";
 import { metricName, WEIGHTS_BY_ROLE, calculateCompositeMF } from "./compositeEngine.js";
 import { canonicalHistoricalCompetition } from "./historicalJson.js";
+import { seasonReferencePosition, normalizeHistoricalPosition } from "./historicalPositions.js";
 
 const num = value => value === "" || value === null || value === undefined ||
   !Number.isFinite(Number(value)) ? null : Number(value);
@@ -185,7 +186,20 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
   const observations=[];
   for(const [key,records] of groups){
     const player=byPlayer.get(str(records[0].player_id));
-    const role=historicalRole(player?.position||player?.position_raw);
+    const seasonValuations=valueMaps.get(key);
+    // La posición histórica efectiva decide el arquetipo de esta temporada:
+    // corrección por competición > corrección de temporada > posición FIFA >
+    // respaldo provisional. Nunca se inventa una posición FIFA.
+    const valuation=seasonValuations?.length===1?seasonValuations[0]:null;
+    const fallback=normalizeHistoricalPosition(player?.position||player?.position_raw);
+    let position=seasonReferencePosition({
+      valuation,competitions:records.map(r=>r.competition),fallback,
+    });
+    let role=historicalRole(position.position);
+    if(!role && position.source!=="fallback" && fallback){
+      position={position:fallback,source:"fallback",mixed:position.mixed};
+      role=historicalRole(fallback);
+    }
     if(!role)continue;
     const values={rating:weightedRating(records),finishing_xgot_minus_npxg:pairedFinishing(records),
       play_share:playShare(records,tmLookup)};
@@ -196,12 +210,12 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       values[metric]=metric==="ground_duels_won_pct"
         ? groundDuelPercentage(records) : weightedPct(records,names);
     // Never fall back to seasonless FC/Transfermarkt or snapshot CraftedFC fields.
-    const v=valueMaps.get(key);
-    values.fc27_ovr=v?.length===1?num(v[0].fifa_fc_overall):null;
-    values.market_value=v?.length===1?num(v[0].transfermarkt_value_eur):null;
+    values.fc27_ovr=valuation?num(valuation.fifa_fc_overall):null;
+    values.market_value=valuation?num(valuation.transfermarkt_value_eur):null;
     observations.push({
       key,playerId:str(player.id),playerName:player.name||records[0].player_name||"",
       season:str(records[0].season),role,values,
+      position:position.position,positionSource:position.source,positionMixed:Boolean(position.mixed),
       minutes:records.reduce((n,r)=>n+Math.max(0,num(r.minutes)||0),0),
       competitions:records.length,
     });

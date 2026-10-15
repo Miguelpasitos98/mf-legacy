@@ -1,8 +1,13 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, Clock, Edit3, Loader2, Pencil, Trash2, X } from "lucide-react";
+import { CheckCircle2, Loader2, Pencil, Trash2, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { formatEur } from "@/utils/historicalValuation";
+import { POSITION_OPTIONS, normalizeHistoricalPosition } from "@/utils/historicalPositions";
+import { nationalCompetition } from "@/utils/statsViews";
+import HistoricalPositionEditor from "./HistoricalPositionEditor";
+import CompetitionPositionEditor from "./CompetitionPositionEditor";
 
 const VERIFICATION_LABELS = {
   pending: { text: "Pendiente", cls: "bg-amber-50 text-amber-700" },
@@ -11,6 +16,7 @@ const VERIFICATION_LABELS = {
 };
 
 const emptyForm = {
+  fifa_fc_position: "",
   fifa_fc_overall: "",
   transfermarkt_value_eur: "",
   fifa_edition: "",
@@ -27,11 +33,41 @@ export default function HistoricalValuationsTable({
   valuations,
   loading,
   onRefresh,
+  stats = [],
+  fallbackPosition = "",
 }) {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
+  const [savingId, setSavingId] = useState("");
   const [error, setError] = useState("");
+  const queryClient = useQueryClient();
+
+  // Competiciones de club de la temporada abierta en el modal.
+  const seasonCompetitions = useMemo(() => {
+    if (!editing?.season) return [];
+    return [...new Set(stats
+      .filter((r) => r.season === editing.season && r.competition && !nationalCompetition(r.competition))
+      .map((r) => String(r.competition)))].sort();
+  }, [stats, editing?.season]);
+
+  // La posición efectiva decide el arquetipo del Composite: se persiste y se
+  // recalcula la comparación histórica de inmediato.
+  const savePositions = async (record, patch) => {
+    if (!record?.id) return;
+    setSavingId(record.id);
+    setError("");
+    try {
+      await base44.entities.PlayerHistoricalValuation.update(record.id, patch);
+      queryClient.invalidateQueries({ queryKey: ["mf-legacy", "historical-peer-dataset"] });
+      setEditing((prev) => (prev && prev.id === record.id ? { ...prev, ...patch } : prev));
+      onRefresh?.();
+    } catch (e) {
+      setError(e?.message || "No se pudo guardar la posición histórica.");
+    } finally {
+      setSavingId("");
+    }
+  };
 
   const openEdit = (record) => {
     setEditing(record);
@@ -59,6 +95,7 @@ export default function HistoricalValuationsTable({
     setError("");
     try {
       const patch = {};
+      patch.fifa_fc_position = normalizeHistoricalPosition(form.fifa_fc_position);
       if (form.fifa_fc_overall !== "")
         patch.fifa_fc_overall = parseInt(form.fifa_fc_overall, 10);
       if (form.transfermarkt_value_eur !== "")
@@ -112,13 +149,15 @@ export default function HistoricalValuationsTable({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left text-xs">
+          <table className="w-full min-w-[980px] text-left text-xs">
             <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-3 py-2">Temporada</th>
                 <th className="px-3 py-2">Edicion FIFA/FC</th>
                 <th className="px-3 py-2">Overall</th>
                 <th className="px-3 py-2">Transfermarkt</th>
+                <th className="px-3 py-2">Posicion FIFA</th>
+                <th className="px-3 py-2">Posicion efectiva</th>
                 <th className="px-3 py-2">Fecha valor</th>
                 <th className="px-3 py-2">Verificacion</th>
                 <th className="px-3 py-2"></th>
@@ -136,6 +175,19 @@ export default function HistoricalValuationsTable({
                   </td>
                   <td className="px-3 py-2 font-semibold text-slate-700">
                     {formatEur(v.transfermarkt_value_eur)}
+                  </td>
+                  <td className="px-3 py-2 font-bold text-slate-700">
+                    {normalizeHistoricalPosition(v.fifa_fc_position) || "—"}
+                  </td>
+                  <td className="px-3 py-2">
+                    <HistoricalPositionEditor
+                      valuation={v}
+                      fallback={fallbackPosition}
+                      busy={savingId === v.id}
+                      onSave={(position) =>
+                        savePositions(v, { historical_position_override: normalizeHistoricalPosition(position) })
+                      }
+                    />
                   </td>
                   <td className="px-3 py-2 text-slate-500">
                     {v.market_value_as_of || "—"}
@@ -237,6 +289,33 @@ export default function HistoricalValuationsTable({
                     className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                   />
                 </label>
+                <label className="block text-xs font-bold text-slate-600">
+                  Posicion FIFA/FC original
+                  <select
+                    value={normalizeHistoricalPosition(form.fifa_fc_position)}
+                    onChange={(e) => setForm((f) => ({ ...f, fifa_fc_position: e.target.value }))}
+                    disabled={busy}
+                    className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  >
+                    <option value="">Sin dato verificado</option>
+                    {normalizeHistoricalPosition(form.fifa_fc_position) &&
+                      !POSITION_OPTIONS.includes(normalizeHistoricalPosition(form.fifa_fc_position)) &&
+                      <option value={normalizeHistoricalPosition(form.fifa_fc_position)}>{normalizeHistoricalPosition(form.fifa_fc_position)}</option>}
+                    {POSITION_OPTIONS.map((code) => <option key={code} value={code}>{code}</option>)}
+                  </select>
+                  <span className="mt-1 block text-[11px] font-normal text-slate-500">
+                    Solo la posicion de la carta. Vacio significa que no puede verificarse: nunca se inventa.
+                  </span>
+                </label>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="mb-2 text-xs font-bold text-slate-600">Posicion por competicion</p>
+                  <CompetitionPositionEditor
+                    competitions={seasonCompetitions}
+                    valuation={editing}
+                    busy={busy || savingId === editing?.id}
+                    onSave={(list) => savePositions(editing, { competition_positions: list })}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block text-xs font-bold text-slate-600">
                     Fecha del valor

@@ -215,6 +215,7 @@ export default function HistoricalValuationImporter({
       if (row.transfermarkt_value_eur !== null)
         patch.transfermarkt_value_eur = row.transfermarkt_value_eur;
       if (row.fifa_edition) patch.fifa_edition = row.fifa_edition;
+      if (row.fifa_fc_position) patch.fifa_fc_position = row.fifa_fc_position;
       if (row.market_value_as_of) patch.market_value_as_of = row.market_value_as_of;
       if (row.fifa_source_url) patch.fifa_source_url = row.fifa_source_url;
       if (row.transfermarkt_source_url)
@@ -377,12 +378,13 @@ export default function HistoricalValuationImporter({
               </div>
 
               <div className="overflow-x-auto rounded-lg border border-slate-200">
-                <table className="w-full min-w-[860px] text-left text-xs">
+                <table className="w-full min-w-[1020px] text-left text-xs">
                   <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="w-8 px-2 py-2"></th>
                       <th className="px-2 py-2">Temporada</th>
                       <th className="px-2 py-2">Edicion FIFA/FC</th>
+                      <th className="px-2 py-2">Posicion FIFA</th>
                       <th className="px-2 py-2">Overall</th>
                       <th className="px-2 py-2">Transfermarkt</th>
                       <th className="px-2 py-2">Fecha valor</th>
@@ -441,6 +443,19 @@ export default function HistoricalValuationImporter({
                               }
                               disabled={busy}
                               className="w-24 rounded border border-slate-200 px-2 py-1 text-xs disabled:bg-slate-50"
+                            />
+                          </td>
+                          <td className="px-2 py-2">
+                            <input
+                              type="text"
+                              value={r.fifa_fc_position || ""}
+                              onChange={(e) =>
+                                updateEdit(r.rowIndex, "fifa_fc_position", e.target.value.toUpperCase())
+                              }
+                              disabled={busy}
+                              placeholder="CAM"
+                              aria-label="Posicion FIFA/FC"
+                              className="w-20 rounded border border-slate-200 px-2 py-1 text-xs disabled:bg-slate-50"
                             />
                           </td>
                           <td className="px-2 py-2">

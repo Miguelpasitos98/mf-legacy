@@ -10,6 +10,7 @@ import {
   parseMarketValue,
   validateMarketValueDate,
 } from "@/utils/historicalValuation";
+import { POSITION_OPTIONS, normalizeHistoricalPosition } from "@/utils/historicalPositions";
 
 const unpack = (v) => Array.isArray(v) ? v : v?.items || v?.data || [];
 const text = (v) => String(v ?? "").trim();
@@ -52,6 +53,7 @@ export default function HistoricalSingleEntryImporter({
   const [notice, setNotice] = useState("");
   const [overall, setOverall] = useState("");
   const [edition, setEdition] = useState("");
+  const [fifaPosition, setFifaPosition] = useState("");
   const [fifaUrl, setFifaUrl] = useState("");
   const [market, setMarket] = useState("");
   const [marketDate, setMarketDate] = useState("");
@@ -93,6 +95,7 @@ export default function HistoricalSingleEntryImporter({
   useEffect(() => {
     setOverall(valuation?.fifa_fc_overall == null ? "" : String(valuation.fifa_fc_overall));
     setEdition(valuation?.fifa_edition || fifaEditionForSeason(normalizedSeason));
+    setFifaPosition(normalizeHistoricalPosition(valuation?.fifa_fc_position));
     setFifaUrl(valuation?.fifa_source_url || "");
     setMarket(valuation?.transfermarkt_value_eur == null ? "" : String(valuation.transfermarkt_value_eur));
     setMarketDate(valuation?.market_value_as_of || "");
@@ -194,6 +197,8 @@ export default function HistoricalSingleEntryImporter({
         if (sourceUrl === null) { setError("La URL de FIFA/FC no es válida."); return; }
         payload = { fifa_fc_overall: +overall, fifa_edition: text(edition) || fifaEditionForSeason(normalizedSeason) };
         if (sourceUrl) payload.fifa_source_url = sourceUrl;
+        // La posición de la carta es opcional: vacío nunca sobrescribe ni inventa.
+        if (normalizeHistoricalPosition(fifaPosition)) payload.fifa_fc_position = normalizeHistoricalPosition(fifaPosition);
         key = "Overall FIFA/FC";
       } else {
         const amount = parseMarketValue(market);
@@ -313,6 +318,13 @@ export default function HistoricalSingleEntryImporter({
                 <input value={edition} onChange={(e) => setEdition(e.target.value)} className={inputStyle}
                   placeholder="FIFA 23 o FC 26" disabled={saving}/>
                 <span className="mt-1 block text-[11px] font-normal text-slate-500">Para años naturales, comprueba manualmente la edición.</span>
+              </label>
+              <label className={labelStyle}>Posición de la carta (opcional)
+                <select value={normalizeHistoricalPosition(fifaPosition)} onChange={(e) => setFifaPosition(e.target.value)} className={inputStyle} disabled={saving}>
+                  <option value="">Sin dato verificado</option>
+                  {POSITION_OPTIONS.map((code) => <option key={code} value={code}>{code}</option>)}
+                </select>
+                <span className="mt-1 block text-[11px] font-normal text-slate-500">Determina el arquetipo del Composite de esa temporada. No cambia la posición actual del jugador.</span>
               </label>
               <label className={labelStyle}>Enlace de fuente (opcional)
                 <input type="url" value={fifaUrl} onChange={(e) => setFifaUrl(e.target.value)} className={inputStyle} placeholder="https://sofifa.com/..." disabled={saving}/>

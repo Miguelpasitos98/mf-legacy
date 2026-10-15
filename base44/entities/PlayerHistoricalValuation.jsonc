@@ -26,6 +26,35 @@
       "type": "integer",
       "description": "Overall historico de FIFA/EA SPORTS FC (1-99). Nullable: ausencia de informacion. No es Potential ni CA/PA FM26."
     },
+    "fifa_fc_position": {
+      "type": "string",
+      "description": "Posicion principal de la carta original de FIFA/EA SPORTS FC de esa edicion. Nullable: se omite cuando no puede verificarse; nunca se inventa."
+    },
+    "historical_position_override": {
+      "type": "string",
+      "description": "Posicion historica elegida manualmente para toda la temporada. Tiene prioridad sobre la posicion FIFA y se conserva ante futuras importaciones."
+    },
+    "competition_positions": {
+      "type": "array",
+      "description": "Correcciones manuales de posicion por competicion dentro de la misma temporada, para roles distintos. Prioridad maxima sobre la posicion de temporada y la FIFA.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "competition": {
+            "type": "string",
+            "description": "Nombre de la competicion tal como aparece en las estadisticas importadas."
+          },
+          "position": {
+            "type": "string",
+            "description": "Posicion historica efectiva en esa competicion."
+          }
+        },
+        "required": [
+          "competition",
+          "position"
+        ]
+      }
+    },
     "fifa_source_url": {
       "type": "string",
       "description": "URL de la fuente del Overall. Opcional."

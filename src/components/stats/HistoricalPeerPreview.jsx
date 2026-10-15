@@ -2,6 +2,7 @@ import React,{useMemo,useState} from "react";
 import { AlertTriangle, BarChart3, ClipboardList, Database, RefreshCw } from "lucide-react";
 import { useHistoricalPeerDataset } from "@/hooks/useHistoricalPeerDataset";
 import { compareHistoricalObservation, historicalRole, historicalNationalCompetition } from "@/utils/historicalPeers";
+import { POSITION_SOURCES } from "@/utils/historicalPositions";
 import OverviewManualEditor from "@/components/stats/OverviewManualEditor";
 import { formatEur } from "@/utils/historicalValuation";
 import { buildMissingDataPrompt } from "@/utils/missingDataPrompt";
@@ -49,7 +50,11 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const [copyStatus,setCopyStatus]=useState("");
   const {data,error,isFetching,refetch}=useHistoricalPeerDataset(main);
   const season=seasons.includes(picked)?picked:seasons.includes(initialSeason)?initialSeason:seasons[0]||"";
-  const role=historicalRole(position);
+  // La posición histórica efectiva de la temporada decide el arquetipo; la
+  // posición actual de la ficha solo actúa como respaldo provisional.
+  const observation=useMemo(()=>data?.observations?.find(o=>o.playerId===String(playerId)&&o.season===season)||null,[data,playerId,season]);
+  const role=historicalRole(observation?.position)||historicalRole(position);
+  const positionSource=POSITION_SOURCES[observation?.positionSource]||null;
   const rowsToEdit=useMemo(()=>editableRows.filter(r=>r.season===season&&!historicalNationalCompetition(r.competition)),[editableRows,season]);
   const result=useMemo(()=>{
     if(!data?.observations?.length||!playerId||!season)return null;
@@ -111,8 +116,10 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             {seasons.map(s=><option value={s} key={s}>{s}</option>)}
           </select>
         </label>
-        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">
+        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800"
+          title={positionSource?positionSource.label:"Posición no identificada"}>
           vs {role||"posición no identificada"}
+          {observation?.position&&<span className="ml-1 font-normal">· {observation.position}{positionSource?" ("+positionSource.short+")":""}</span>}
         </span>
         {data&&<span className="text-xs text-slate-500">
           {data.loadedCounts.PlayerSeasonStats} registros estadísticos · {data.observations.length} temporadas de jugadores
@@ -131,7 +138,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         Esta ficha no tiene una temporada comparable con Player ID confirmado y posición identificada. No se calcula percentil.
       </p>}
       {data&&!role&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-        La posición actual del jugador no se corresponde con ningún arquetipo. No se utilizará otra posición por aproximación.
+        Ni la posición histórica de esta temporada ni la posición actual del jugador se corresponden con ningún arquetipo. No se utilizará otra posición por aproximación.
       </p>}
       {data&&result&&!result.missing&&<>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -158,6 +165,9 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         </p>}
         {isThin&&<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
           Percentiles provisionales: aún hay menos de 10 jugadores distintos del mismo arquetipo con datos de estas métricas. Las temporadas de un solo jugador no bastan para crear un percentil.
+        </p>}
+        {observation?.positionMixed&&<p className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs text-violet-900">
+          Las correcciones por competición de esta temporada no coinciden entre sí, así que el Composite usa la posición de referencia de la temporada. Puedes unificarlas o cambiarlas en «Valores históricos · temporada».
         </p>}
         {missingUnderstat&&onSetMetric&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-900">Los xG Chain /90 y xG Buildup /90 que aparecen como «—» no están disponibles para esta temporada en las competiciones guardadas. <strong>No se rellenan con el snapshot global de CraftedFC.</strong> Puedes pulsar «Añadir +» e introducir cifras verificadas de Understat para la competición correspondiente.</p>}
         <div className="max-h-[640px] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -193,7 +203,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           </table>
         </div>
         <p className="text-[11px] text-slate-600">
-          Método: percentil histórico de rango medio (empates compartidos), dentro del mismo arquetipo; 0 es el mínimo observado y 100 el máximo. Para métricas por 90 se suman sus totales con minutos alineados. Los porcentajes son promedios ponderados por minutos, la nota por partidos. Las métricas faltantes no se convierten en cero. Los indicadores con peso negativo se penalizan más cuanto mayor sea su valor bruto. El arquetipo procede de la posición <strong>actual</strong> de la ficha, no de una posición histórica verificada.
+          Método: percentil histórico de rango medio (empates compartidos), dentro del mismo arquetipo; 0 es el mínimo observado y 100 el máximo. Para métricas por 90 se suman sus totales con minutos alineados. Los porcentajes son promedios ponderados por minutos, la nota por partidos. Las métricas faltantes no se convierten en cero. Los indicadores con peso negativo se penalizan más cuanto mayor sea su valor bruto. El arquetipo procede de la posición <strong>histórica efectiva</strong> de la temporada (corrección manual por competición o de temporada → posición FIFA/FC → respaldo provisional de la ficha); nunca se inventa una posición FIFA. Los jugadores de arquetipos distintos no se mezclan en la misma distribución de percentiles.
           {" "}Las barras recuperan los colores originales (verde: percentil favorable alto; amarillo/rojo: bajo); en pérdidas y otras penalizaciones se invierte el color porque menos es mejor, sin alterar el percentil bruto ni el cálculo de Aporta. «Posición histórica» indica el puesto entre temporadas con datos, no entre jugadores distintos; los empates comparten puesto.
           {" "}Los resultados cambian al ampliar nuestra base de datos y no están ajustados todavía por época ni fuerza de liga. * Menos de 10 jugadores distintos. Los indicadores con datos de un solo jugador no generan percentil.
         </p>

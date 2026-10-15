@@ -237,6 +237,13 @@ const HEADER_ALIASES = {
     "edition",
     "fifa_fc_edition",
   ],
+  fifa_fc_position: [
+    "fifa_fc_position",
+    "posicion fifa",
+    "fifa position",
+    "posicion",
+    "position",
+  ],
   fifa_source_url: ["fifa_source_url", "fuente fifa", "fifa source"],
   transfermarkt_source_url: [
     "transfermarkt_source_url",
@@ -277,6 +284,7 @@ export const buildRowsFromParsed = ({ header, rows }) => {
       HEADER_ALIASES.transfermarkt_value_eur
     );
     const edition = findField(row, header, HEADER_ALIASES.fifa_edition);
+    const positionRaw = findField(row, header, HEADER_ALIASES.fifa_fc_position);
     const dateStr = findField(row, header, HEADER_ALIASES.market_value_as_of);
     const fifaSource = findField(
       row,
@@ -298,6 +306,7 @@ export const buildRowsFromParsed = ({ header, rows }) => {
       rowIndex: i,
       season,
       fifa_edition: edition || (season ? fifaEditionForSeason(season) : ""),
+      fifa_fc_position: positionRaw.toUpperCase().replace(/[^A-Z]/g, ""),
       fifa_fc_overall: overall === "invalid" ? null : overall,
       fifa_fc_overall_raw: overallRaw,
       fifa_fc_overall_invalid: overall === "invalid",

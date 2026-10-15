@@ -299,7 +299,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             </details>)}
           </section>}
           </>}
-          {section==="performance"&&<HistoricalValuationsTable valuations={historicalValuations} loading={historicalLoading} onRefresh={historicalRefresh}/>}
+          {section==="performance"&&<HistoricalValuationsTable valuations={historicalValuations} loading={historicalLoading} onRefresh={historicalRefresh} stats={stats} fallbackPosition={player?.position||player?.position_raw||""}/>}
         </div>
         <div className="flex justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3">
           <span className="text-xs text-slate-500">Fuente: archivos FotMob Studio · registros sujetos a revisión.</span>
