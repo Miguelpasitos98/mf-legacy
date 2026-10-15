@@ -281,7 +281,7 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
         {skippedMissingMatches > 0 && <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800"><strong>{skippedMissingMatches} PJ Equipo desconocidos omitidos.</strong> Los registros válidos siguen disponibles para importar. Puedes volver a pegar el mismo JSON cuando conozcas esos partidos, sin sobrescribir los existentes.</p>}
         <p className="text-xs text-slate-600"><strong>Vista previa:</strong> marca los registros que quieras guardar. Los nuevos vienen seleccionados; ningún valor existente se sobrescribe sin que lo marques.</p>
         <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200">
-          {rows.map((r) => <label key={r.id} className={"flex cursor-pointer items-start gap-3 border-b border-slate-100 p-3 last:border-0 " + (r.status === "error" ? "bg-rose-50" : "hover:bg-slate-50")}>
+          {rows.map((r) => <div key={r.id} className={"flex items-start gap-3 border-b border-slate-100 p-3 last:border-0 " + (r.status === "error" ? "bg-rose-50" : "hover:bg-slate-50")}>
             <input type="checkbox" checked={included.has(r.id)} onChange={() => toggle(r.id)}
               disabled={!["new", "update"].includes(r.status) || saving || busy}
               className="mt-1 h-4 w-4 shrink-0 accent-blue-800"/>
@@ -313,9 +313,9 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
                       .map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                   <p className="mt-1 text-[10px] text-slate-500">Esto actualiza el JSON pegado y vuelve a analizarlo; todavía no guarda datos.</p>
-                </div>
+                </div>}
             </div>
-          </label>)}
+          </div>)}
         </div>
         {progress && <p role="status" className="text-xs font-bold text-blue-700"><Loader2 size={14} className="mr-1 inline animate-spin"/>{progress}</p>}
         <div className="flex justify-end">
