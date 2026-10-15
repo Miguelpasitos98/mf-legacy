@@ -117,7 +117,9 @@ export function selectStudioWrites(targetRows,existingRows=[]){
  for(const row of targetRows){
   const old=existing.get(row.record_key);
   if(!old)create.push(row);
-  else if(old.payload_json===row.payload_json && (!row.player_id||old.player_id===row.player_id))
+  else if(Object.entries(row).every(([key,val])=>
+    (key==="source_file_hash"||key==="source_file") ||
+    JSON.stringify(old[key]??null)===JSON.stringify(val??null)))
    unchanged.push(row);
   else update.push({id:old.id,row});
  }
