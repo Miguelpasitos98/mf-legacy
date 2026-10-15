@@ -20,6 +20,7 @@ import StatsColumnSettings from "@/components/stats/StatsColumnSettings";
 import TeamLinkPicker from "@/components/stats/TeamLinkPicker";
 import {initialConfig,sanitizeConfig,getColumn,columnValue,RAW_METRICS} from "@/utils/statsColumns";
 import {bestSeasonPerPlayer} from "@/utils/statsBestSeason";
+import ManualMetricEditor from "@/components/stats/ManualMetricEditor";
 import {buildSeasonSummaries} from "@/utils/statsSeason";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
 import {useCraftedfcSnapshot} from "@/hooks/useCraftedfcSnapshot";
