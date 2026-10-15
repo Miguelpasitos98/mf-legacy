@@ -28,7 +28,7 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave,def
   if(!selected)return;
   setForm({
    value:mode==="chain"||mode==="buildup"?number(selected,mode==="chain"?"xG Chain":"xG Buildup"):
-    mode==="other"?"":number(selected,simpleNames[mode]||"",["appearances","minutes","rating"].includes(mode)?mode:null),
+    mode==="other"?number(selected,defaultName):number(selected,simpleNames[mode]||"",["appearances","minutes","rating"].includes(mode)?mode:null),
    sourceMinutes:number(selected,"Understat minutes"),
    won:number(selected,"Ground duels won"),
    contested:number(selected,"Ground duels contested"),
@@ -88,6 +88,7 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave,def
        {Number(form.contested.replace(",","."))>0&&<p className="text-xs font-bold text-blue-900">Porcentaje calculado: {(100*Number(form.won.replace(",","."))/Number(form.contested.replace(",","."))).toLocaleString("es-ES",{maximumFractionDigits:2})} %</p>}
      </>}
      {mode==="other"&&<>
+       <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-900">Estás editando el valor de origen de esta competición. Para métricas /90, introduce el TOTAL de la competición si el registro guarda un total; el Composite calculará automáticamente la cifra por 90 con los minutos disponibles. Comprueba que la competición y los minutos sean correctos.</p>
        <label className="block text-xs font-semibold text-slate-700">Nombre de la métrica
         <input value={form.name} required maxLength={100} onChange={e=>set("name",e.target.value)} placeholder="Ej.: Big chances created" className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm"/>
        </label>
