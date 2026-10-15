@@ -40,15 +40,29 @@
     },
     "schema_version": {
       "type": "string"
+    },
+    "file_uri": {
+      "type": "string",
+      "description": "URI de archivo privado Base44 UploadPrivateFile"
+    },
+    "archive_storage": {
+      "type": "string"
+    },
+    "original_file_bytes": {
+      "type": "number"
+    },
+    "record_count": {
+      "type": "number"
+    },
+    "source_sections": {
+      "type": "object"
     }
   },
   "required": [
     "record_key",
     "fotmob_player_id",
     "file_hash",
-    "chunk_index",
-    "chunk_total",
-    "payload_json"
+    "archive_storage"
   ],
   "rls": {
     "read": {},
