@@ -311,7 +311,7 @@ function KitColorPicker({ kitNumber, photoUrl, badgeBg, badgeText, onChangeColor
   );
 }
 
-export function AddTeamModal({ form, setForm, countries, leagues, onClose, onSubmit, isEditing = false }) {
+export function AddTeamModal({ form, setForm, countries, leagues, onClose, onSubmit, isEditing = false, formError = "" }) {
   const [logoImageError, setLogoImageError] = useState(false);
   const [logoPalette, setLogoPalette] = useState([]);
   const [colorTarget, setColorTarget] = useState("primary");
@@ -560,6 +560,7 @@ export function AddTeamModal({ form, setForm, countries, leagues, onClose, onSub
               </div>
             )}
 
+            {formError&&<div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">{formError}</div>}
             <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
               <button type="button" onClick={onClose} className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Cancel</button>
               <button type="submit" className="flex h-10 items-center gap-2 rounded-xl bg-[#003399] px-4 text-xs font-semibold text-white transition hover:bg-[#002477]">{isEditing ? <Save size={15} /> : <Plus size={15} />}{isEditing ? "Save changes" : "Add team"}</button>
