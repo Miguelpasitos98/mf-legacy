@@ -23,7 +23,9 @@ export const RAW_METRICS=[
  ["foulswon","Faltas recibidas"],["foulscommitted","Faltas cometidas"],["defensiveactions","Acciones defensivas"],
  ["blockedscoringattempt","Tiros bloqueados"],["possessionwonfinal3rd","Recuperaciones en campo rival"],["dribbledpast","Regateado"],
  ["xgagainstwhileonpitch","xG encajado en campo"],["yellowcards","Tarjetas amarillas"],["redcards","Tarjetas rojas"],
- ["penaltygoals","Goles de penalti"],["penaltiesawarded","Penaltis provocados"],["started","Titularidades"]
+ ["penaltygoals","Goles de penalti"],["penaltiesawarded","Penaltis provocados"],["started","Titularidades"],
+ ["xgchain","xG Chain (total Understat)"],["xgbuildup","xG Buildup (total Understat)"],["understatminutes","Minutos Understat"],
+ ["groundduelswon","Duelos terrestres ganados"],["groundduelscontested","Duelos terrestres disputados"]
 ];
 export const COMPUTED=[
  {id:"ga",name:"Goles + asistencias",formula:"goals + assists",decimals:0},
@@ -34,7 +36,10 @@ export const COMPUTED=[
  {id:"xgper90",name:"xG /90",formula:"xg * 90 / minutes",decimals:2},
  {id:"xaper90",name:"xA /90",formula:"xa * 90 / minutes",decimals:2},
  {id:"xgaper90",name:"xG+xA /90",formula:"(xg + xa) * 90 / minutes",decimals:2},
- {id:"playpct",name:"Play %",formula:"minutes / (team_matches * 90) * 100",decimals:1}
+ {id:"playpct",name:"Play %",formula:"minutes / (team_matches * 90) * 100",decimals:1},
+ {id:"calc_xgchainper90",name:"xG Chain /90 (Understat)",formula:"xgchain * 90 / understatminutes",decimals:2},
+ {id:"calc_xgbuildupper90",name:"xG Buildup /90 (Understat)",formula:"xgbuildup * 90 / understatminutes",decimals:2},
+ {id:"calc_groundduelspct",name:"Duelos terrestres ganados (%)",formula:"groundduelswon * 100 / groundduelscontested",decimals:2}
 ];
 export const RAW_IDS=new Set(RAW_METRICS.map(x=>x[0]));
 export const COMPUTED_IDS=new Set(COMPUTED.map(x=>x.id));
@@ -42,16 +47,16 @@ export const DEFAULT_COLS={
  season:{
  Resumen:["goals","assists","xg","xa","gaper90","xgaper90","playpct"],
  Ataque:["goals","assists","ga","goalsper90","assistsper90","gaper90","xg","xa","xgper90","xaper90","xgaper90","shots","shotsontarget"],
- Creación:["chancescreated","bigchancescreated","accuratepasses","successfulcrosses","xa","xaper90"],
- Defensa:["tackles","interceptions","recoveries","clearances","cleansheets"],
+ Creación:["chancescreated","bigchancescreated","accuratepasses","successfulcrosses","xa","xaper90","calc_xgchainper90","calc_xgbuildupper90"],
+ Defensa:["tackles","interceptions","recoveries","clearances","cleansheets","calc_groundduelspct"],
  Portería:["saves","cleansheets","goalsconcededwhileonpitch"],
  Físico:["totaldistancecovered","numberofsprints"]
  },
  competition:{
  Resumen:["goals","assists","xg","xa","shots","shotsontarget","playpct"],
  Ataque:["goals","assists","xg","xa","xgot","shots","shotsontarget","bigchancescreated"],
- Creación:["accuratepasses","chancescreated","bigchancescreated","xa","successfulcrosses"],
- Defensa:["tackles","interceptions","recoveries","clearances"],
+ Creación:["accuratepasses","chancescreated","bigchancescreated","xa","successfulcrosses","calc_xgchainper90","calc_xgbuildupper90"],
+ Defensa:["tackles","interceptions","recoveries","clearances","calc_groundduelspct"],
  Portería:["saves","cleansheets","goalsconcededwhileonpitch"],
  Físico:["totaldistancecovered","numberofsprints"]
  }
