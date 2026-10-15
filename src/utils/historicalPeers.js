@@ -3,6 +3,7 @@
 // Population: one season per player, all club competitions, same current-position archetype.
 import { groupStatRows, nationalCompetition } from "./statsViews.js";
 import { metricName, WEIGHTS_BY_ROLE, calculateCompositeMF } from "./compositeEngine.js";
+import {calculateExperimentalFallback} from "./experimentalFallback.js";
 import { canonicalHistoricalCompetition } from "./historicalJson.js";
 import { seasonReferencePosition, normalizeHistoricalPosition } from "./historicalPositions.js";
 
@@ -272,7 +273,8 @@ export function compareHistoricalObservation(observation,observations,minimum=10
     return {...item,weight:result?.weight??null,contribution:Object.is(rawContribution,-0)?0:rawContribution,
       name:result?.name||item.key};
   });
+  const experimentalFallback=WEIGHTS_BY_ROLE[role]?calculateExperimentalFallback(role,percentiles):null;
   return {role,playerId:observation.playerId,season:observation.season,
     population:peers.length,players:new Set(peers.map(p=>p.playerId)).size,
-    rows,composite:calc,method:"Percentiles históricos MF LEGACY por posición (rango medio de empates)."};
+    rows,composite:calc,experimentalFallback,method:"Percentiles históricos MF LEGACY por posición (rango medio de empates)."};
 }
