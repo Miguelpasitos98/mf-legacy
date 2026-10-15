@@ -1,22 +1,24 @@
-// Construye el texto de consulta para pedir en un chat externo los datos que
-// faltan de una temporada concreta. Solo describe el jugador, la temporada y
-// los indicadores en blanco; no calcula ni modifica nada.
-export function buildMissingDataPrompt({ playerName, season, role, missing = [] }) {
+// Solicitud de investigación separada de valoraciones FIFA/Transfermarkt.
+// Conserva la agrupación por temporada y los nombres originales de indicadores.
+export function buildMissingDataPrompt({playerName, seasons = [], season, role, missing = []} = {}) {
   const name = String(playerName || "").trim() || "el jugador";
-  const seasonText = String(season || "").trim() || "la temporada indicada";
-  const list = missing.length
-    ? missing.map((item) => "- " + item).join("\n")
-    : "- (no se detectaron datos en blanco)";
+  const entries = seasons.length ? seasons : [{season, role, missing}];
+  const filtered = entries.map(s => ({
+    season: String(s.season || "").trim(),
+    role: String(s.role || "").trim(),
+    missing: [...new Set((s.missing || []).map(m => typeof m === "string" ? m : m.name).filter(Boolean))]
+  })).filter(s => s.season && s.missing.length);
   return [
-    "Necesito completar datos históricos de fútbol. Responde solo con lo que puedas confirmar.",
-    "",
+    "MF LEGACY — ESTADÍSTICAS DE RENDIMIENTO FALTANTES (NO VALORACIONES)",
     "Jugador: " + name,
-    "Temporada: " + seasonText,
-    "Posición / arquetipo: " + (role || "sin definir"),
+    "Investiga las métricas que aparecen en blanco, separadas por temporada y competición. No busques FIFA/FC Overall, posición FIFA, Transfermarkt ni PJ Equipo: esos datos pertenecen a otro botón.",
     "",
-    "Me faltan estos datos de esa temporada:",
-    list,
+    "Temporadas e indicadores sin dato:",
+    ...filtered.map(s => "TEMPORADA " + s.season + (s.role ? " · arquetipo " + s.role : "") + "\n" + s.missing.map(m => "- " + m).join("\n")),
     "",
-    "Para cada dato indica el valor y la competición a la que corresponde. Si algún dato no existe o no lo conoces, indícalo como desconocido en lugar de inventarlo.",
+    "Busca únicamente cifras reales de cada temporada; no mezcles competiciones, clubes ni temporadas. Distingue total, por 90 minutos y porcentaje. No confundas valores ausentes con cero. No estimes ni inventes. No hace falta citar fuentes ni añadir URLs.",
+    "Devuelve exclusivamente un bloque de código JSON válido con la siguiente estructura:",
+    JSON.stringify({schema:"mf_legacy_missing_stats_research_v1",player:{name},seasons:filtered.map(s => ({season:s.season,stats:s.missing.map(metric=>({metric,competition:null,value:null}))}))},null,2),
+    "Sustituye los null cuando encuentres valores fiables. Especifica competition para cada valor, sin inventarla. Este JSON de investigación NO es el formato del importador de valoraciones históricas; sus estadísticas pueden introducirse mediante el editor de métricas de la competición."
   ].join("\n");
 }
