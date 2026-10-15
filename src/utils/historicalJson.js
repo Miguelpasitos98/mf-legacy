@@ -117,6 +117,25 @@ export function resolveHistoricalTeam(item, stats=[], teams=[], catalog=null) {
   }, error: "" };
 }
 
+// Explicit user choice for unknown aliases. Apply to all identical names in
+// the pasted JSON, without touching any row with a pre-existing trusted ID.
+// The user still reviews the preview before anything is persisted.
+export function withHistoricalTeamChoice(jsonText,originalName,team){
+  if(!team?.id||!team?.name)throw Error("Selecciona un equipo existente con identificador.");
+  const json=JSON.parse(jsonText);
+  const wanted=canonicalHistoricalClub(originalName);
+  if(!wanted||!Array.isArray(json.team_matches))throw Error("No se encontró el nombre de origen.");
+  let changed=0;
+  json.team_matches=json.team_matches.map(row=>{
+    if(!row || canonicalHistoricalClub(row.team_name)!==wanted ||
+       text(row.team_id)||text(row.fotmob_team_id))return row;
+    changed++;
+    return {...row,team_name:text(team.name),team_id:text(team.id)};
+  });
+  if(!changed)throw Error("No hay filas sin identificar para vincular con ese club.");
+  return {source:JSON.stringify(json,null,2),count:changed};
+}
+
 export function prepareHistoricalJson(rawText, { playerId, fotmobPlayerId, stats = [], teams = [] }) {
   if (!rawText.trim()) throw Error("Pega primero el JSON que te devuelva ChatGPT.");
   if (rawText.length > 300000) throw Error("El JSON es demasiado grande. Divídelo por jugador.");
