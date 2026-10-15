@@ -329,10 +329,12 @@ export default function Stats(){
     return [...new Set(known)].map(id=>getColumn(columnConfig,id)).filter(Boolean);
   },[columnConfig]);
   const allSeasonsRanked=useMemo(()=>{
-    const mapped=seasonSummaries.map(summary=>({summary,player:byID.get(String(summary.player_id))||null}));
+    // Keep unfinished seasons out of historical rankings and historical bests.
+    const displayedSummaries=seasonSummaries.filter(summary=>seasonDisplay==="current" ? seasonActive(summary.season) : !seasonActive(summary.season));
+    const mapped=displayedSummaries.map(summary=>({summary,player:byID.get(String(summary.player_id))||null}));
     if(tab==="todos"){
       const existing=new Set(seasonSummaries.map(s=>String(s.player_id)));
-      mapped.push(...players.filter(p=>!existing.has(String(p.id))).map(player=>({summary:null,player})));
+      if(seasonDisplay!=="current")mapped.push(...players.filter(p=>!existing.has(String(p.id))).map(player=>({summary:null,player})));
     }
     const enough=mapped.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minMinutes:minMinutes===0);
     const ranked=seasonDisplay==="best"?bestSeasonPerPlayer(enough,bestMetric,columnConfig):enough;
