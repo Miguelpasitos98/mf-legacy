@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { formatEur } from "@/utils/historicalValuation";
+import {patchHistoricalPeerCache} from "@/utils/historicalPeerCache";
 import { POSITION_OPTIONS, normalizeHistoricalPosition, positionTone } from "@/utils/historicalPositions";
 import { nationalCompetition } from "@/utils/statsViews";
 import HistoricalPositionEditor from "./HistoricalPositionEditor";
@@ -59,7 +60,7 @@ export default function HistoricalValuationsTable({
     setError("");
     try {
       await base44.entities.PlayerHistoricalValuation.update(record.id, patch);
-      queryClient.invalidateQueries({ queryKey: ["mf-legacy", "historical-peer-dataset"] });
+      patchHistoricalPeerCache(queryClient,"PlayerHistoricalValuation",record.id,patch);
       setEditing((prev) => (prev && prev.id === record.id ? { ...prev, ...patch } : prev));
       onRefresh?.();
     } catch (e) {
@@ -109,6 +110,7 @@ export default function HistoricalValuationsTable({
       if (form.verification_status) patch.verification_status = form.verification_status;
       if (form.notes) patch.notes = form.notes;
       await base44.entities.PlayerHistoricalValuation.update(editing.id, patch);
+      patchHistoricalPeerCache(queryClient,"PlayerHistoricalValuation",editing.id,patch);
       closeEdit();
       onRefresh?.();
     } catch (e) {
