@@ -67,3 +67,36 @@ export function studioImportManifest(input,{playerId="",fileHash=""}={}){
  }
  return {pid,records,kinds};
 }
+export function splitStudioArchive(input,{playerId="",fileHash="",sourceFile="",maxChunk=38000}={}){
+ if(!/^[a-f0-9]{64}$/.test(fileHash))throw Error("Hash SHA-256 requerido.");
+ const pid=studioPlayerId(input);
+ if(!pid)throw Error("Falta identidad FotMob.");
+ const original=JSON.stringify(input);
+ const chunks=[];
+ for(let i=0;i<original.length;i+=maxChunk)chunks.push(original.slice(i,i+maxChunk));
+ return chunks.map((part,i)=>({record_key:"studio:archive:"+pid+":"+fileHash+":"+i,
+  player_id:str(playerId),fotmob_player_id:pid,file_hash:fileHash,source_file:str(sourceFile),
+  batch:str(input.batch),chunk_index:i,chunk_total:chunks.length,payload_json:part,
+  payload_length:part.length,snapshot_date:str(input.snapshot_date),
+  schema_version:str(input.schema),archive_status:"original_full_json"}));
+}
+export function recoverStudioArchive(rows){
+ if(!rows.length)throw Error("No hay fragmentos del archivo.");
+ const sorted=[...rows].sort((a,b)=>a.chunk_index-b.chunk_index);
+ if(sorted.length!==sorted[0].chunk_total||
+    sorted.some((r,i)=>r.chunk_index!==i||r.chunk_total!==sorted.length||
+      r.file_hash!==sorted[0].file_hash))throw Error("Archivo incompleto o mezclado.");
+ return JSON.parse(sorted.map(r=>r.payload_json).join(""));
+}
+export function selectStudioWrites(targetRows,existingRows=[]){
+ const existing=new Map(existingRows.filter(x=>x.record_key).map(x=>[x.record_key,x]));
+ const create=[],update=[],unchanged=[];
+ for(const row of targetRows){
+  const old=existing.get(row.record_key);
+  if(!old)create.push(row);
+  else if(old.payload_json===row.payload_json && (!row.player_id||old.player_id===row.player_id))
+   unchanged.push(row);
+  else update.push({id:old.id,row});
+ }
+ return {create,update,unchanged};
+}
