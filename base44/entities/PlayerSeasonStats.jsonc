@@ -65,6 +65,15 @@
           },
           "percentile": {
             "type": "number"
+          },
+          "source": {
+            "type": "string"
+          },
+          "provider_minutes": {
+            "type": "number"
+          },
+          "verification_status": {
+            "type": "string"
           }
         }
       }
