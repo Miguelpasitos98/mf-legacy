@@ -4,6 +4,7 @@ import {AlertTriangle, CheckCircle2, CloudUpload, Database, FileJson, ShieldChec
 import {parseUnifiedBatch, rowsFromResponse} from "@/utils/unifiedImport";
 import {assessHistoricalEnrichment} from "@/utils/statsEnrichment";
 import {importFullStudioFile} from "@/utils/studioFullImportUploader";
+import {enrichImportedUnderstat} from "@/utils/understatHistoricalBridge";
 
 const localDate = () => new Date().toISOString().slice(0, 10);
 const number = v => (v == null ? "—" : Number(v).toLocaleString("es-ES"));
@@ -409,7 +410,13 @@ export default function ImportUnified({onImported}) {
       return {...row,resolvedTeamId:teamId||""};
     });
     await importBatch(safePlan,true);
-    if(sourceReport)setReport(old=>old?{...old,full_source_import:sourceReport}:old);
+    let understatReport=null;
+    if(sourceReport){
+      understatReport=await enrichImportedUnderstat(base44,linkedId,pid,
+        (_phase,done,total)=>setProgress({done,total}));
+      if(understatReport.updated)onImported?.();
+    }
+    if(sourceReport)setReport(old=>old?{...old,full_source_import:sourceReport,understat_import:understatReport}:old);
   };
 
   const toCreate=plan?.filter(r=>r.action==="crear").length||0;
