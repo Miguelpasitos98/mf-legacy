@@ -1,6 +1,6 @@
 // Cache keys and pure updates for STATS. Queries are shared across page mounts.
-export const STATS_ROWS_KEY=["mf-legacy","stats","rows"];
-export const STATS_DETAIL_KEY=["mf-legacy","stats","detail"];
+export const STATS_ROWS_KEY=["mf-legacy","stats","rows","v2"];
+export const STATS_DETAIL_KEY=["mf-legacy","stats","detail","v2"];
 export const STATS_LAYOUT_KEY=["mf-legacy","stats","layout"];
 export const STATS_ROWS_STALE_MS=30*60*1000;
 export const STATS_CACHE_GC_MS=3*60*60*1000;
