@@ -5,6 +5,7 @@ import {parseUnifiedBatch, rowsFromResponse} from "@/utils/unifiedImport";
 import {assessHistoricalEnrichment} from "@/utils/statsEnrichment";
 import {importFullStudioFile} from "@/utils/studioFullImportUploader";
 import {enrichImportedUnderstat} from "@/utils/understatHistoricalBridge";
+import {nationalCompetition} from "@/utils/statsViews";
 
 const localDate = () => new Date().toISOString().slice(0, 10);
 const number = v => (v == null ? "—" : Number(v).toLocaleString("es-ES"));
@@ -238,11 +239,14 @@ export default function ImportUnified({onImported}) {
     const recordFor = row => {
       if(row.kind==="season"){
         if(!row.linkedId)throw Error("No se permite historial sin Player confirmado.");
+        // Competition takes precedence over an inconsistent historical club
+        // attribution: EURO / World Cup / national qualifiers are never a club.
+        const national=nationalCompetition(row.competition);
         const data={
           external_record_id:row.external_record_id,player_id:row.linkedId,
           fotmob_player_id:row.player_fotmob_id,player_name:row.player_name,
-          fotmob_team_id:row.fotmob_team_id,team_name:row.team_name,
-          team_id:row.resolvedTeamId||resolveTeam(row),
+          fotmob_team_id:national?"":row.fotmob_team_id,team_name:national?"":row.team_name,
+          team_id:national?"":(row.resolvedTeamId||resolveTeam(row)),
           season:row.season,competition:row.competition,
           appearances:row.appearances,minutes:row.minutes,rating:row.rating,
           market_value:row.market_value,market_date:row.market_date,metrics:row.metrics,
