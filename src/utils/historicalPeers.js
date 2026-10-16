@@ -296,7 +296,7 @@ export function compareHistoricalObservation(observation,observations,minimum=10
   });
   // Do not rank a mostly empty season as world-class just because the single
   // available metric (typically play share) happens to have a high percentile.
-  if(calc?.score!==null && (calc?.count<3 || calc?.coverage<25)){
+  if(calc && calc.score!==null && (calc.count<3 || calc.coverage<25)){
     calc.score=null;
     calc.status="insufficient_coverage";
   }
