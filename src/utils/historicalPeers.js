@@ -77,7 +77,13 @@ const alignedPer90=(records,names,minutesSource=null)=>{
   let amount=0, minutes=0, count=0;
   for(const row of records){
     // Understat totals MUST use Understat minutes, never FotMob minutes.
-    const mins=minutesSource?num(pickMetric(row,[minutesSource])?.value):num(row.minutes);
+    const candidate=pickMetric(row,names);
+    // Understat-only totals must be divided by Understat minutes even when
+    // FotMob lists a different duration for the same competition.
+    const understat=candidate?.source==="Understat";
+    const mins=understat
+      ?(num(candidate.provider_minutes)??num(pickMetric(row,["Understat minutes"])?.value))
+      :minutesSource?num(pickMetric(row,[minutesSource])?.value):num(row.minutes);
     const value=metricTotal(row,names);
     if(mins===null || mins<=0 || value===null)continue;
     amount+=value;minutes+=mins;count++;
@@ -288,6 +294,12 @@ export function compareHistoricalObservation(observation,observations,minimum=10
     return {...item,weight:result?.weight??null,contribution:Object.is(rawContribution,-0)?0:rawContribution,
       name:result?.name||item.key};
   });
+  // Do not rank a mostly empty season as world-class just because the single
+  // available metric (typically play share) happens to have a high percentile.
+  if(calc?.score!==null && (calc?.count<3 || calc?.coverage<25)){
+    calc.score=null;
+    calc.status="insufficient_coverage";
+  }
   const experimentalFallback=WEIGHTS_BY_ROLE[role]?calculateExperimentalFallback(role,percentiles):null;
   return {role,playerId:observation.playerId,season:observation.season,
     population:peers.length,players:new Set(peers.map(p=>p.playerId)).size,
