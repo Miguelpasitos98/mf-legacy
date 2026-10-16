@@ -23,7 +23,7 @@ export function providerMetricBridge(row){
  const metrics=sourceMetrics.map(m=>({name:metricNames[m.name],value:n(m.value),
   per90:n(m.per90)??n(m.value)*90/mins,percentile:null,
   source:"Understat",provider_minutes:mins,verification_status:"manual_identity_unverified"}));
- metrics.push({name:"Understat minutes",value:mins,per90:null,percentile:null,
+ metrics.push({name:"Understat minutes",value:mins,
   source:"Understat",provider_minutes:mins,verification_status:"manual_identity_unverified"});
  return {...row,metrics};
 }
