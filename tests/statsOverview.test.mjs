@@ -20,7 +20,7 @@ test("El Overview usa exactamente el Composite histórico ST de la temporada ele
  assert.equal(model.trend.length,2);
  assert.equal(model.trend.filter(t=>t.selected).length,1);
  assert.equal(model.trend.find(t=>t.selected).season,"2021/2022");
- assert.equal(model.trend.find(t=>t.season==="2022/2023").score!==null,true);
+ assert.equal(model.trend.find(t=>t.season==="2022/2023").score,null); // Una sola métrica no justifica Composite
 });
 test("No calcula un Composite ficticio cuando se selecciona el histórico completo",()=>{
  const m=overviewHistoricalModel(data,"a","Todas");
