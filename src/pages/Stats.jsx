@@ -16,6 +16,7 @@ import { useHistoricalValuations } from "@/hooks/useHistoricalValuations";
 import { useTeamMatchesLookup } from "@/hooks/useTeamMatchesLookup";
 import ImportUnified from "@/pages/ImportUnified";
 import SeasonStatsTable from "@/components/stats/SeasonStatsTable";
+import StatsControlBar from "@/components/stats/StatsControlBar";
 import SortHeader from "@/components/stats/SortHeader";
 import {nextSorting,sortStatsItems,defaultSortDirection} from "@/utils/statsSort";
 import StatsColumnSettings from "@/components/stats/StatsColumnSettings";
@@ -413,6 +414,72 @@ export default function Stats(){
   };
   const filtered=visible.slice(page*50,(page+1)*50);
   const activeCount=viewMode==="season"?seasonVisible.length:visible.length;
+  const [bulkSelection,setBulkSelection]=useState(()=>new Set());
+  const [bulkConfirm,setBulkConfirm]=useState("");
+  const [bulkBusy,setBulkBusy]=useState(false);
+  const [bulkStatus,setBulkStatus]=useState("");
+  const bulkRows=useMemo(()=>seasonVisible.filter(({summary})=>summary&&bulkSelection.has(summary.id)),[seasonVisible,bulkSelection]);
+  const bulkPlayerCount=useMemo(()=>new Set(bulkRows.map(({summary})=>summary.player_id?("p:"+summary.player_id):summary.fotmob_player_id?("f:"+summary.fotmob_player_id):"")).size,[bulkRows]);
+  const toggleBulk=id=>setBulkSelection(prev=>{const next=new Set(prev);if(next.has(id))next.delete(id);else next.add(id);return next;});
+  const toggleBulkPage=checked=>{
+    const ids=seasonVisible.slice(page*50,(page+1)*50).filter(({summary})=>summary).map(({summary})=>summary.id);
+    setBulkSelection(prev=>{const next=new Set(prev);ids.forEach(id=>{if(checked)next.add(id);else next.delete(id);});return next;});
+  };
+  const changeViewMode=mode=>{
+    setBulkSelection(new Set());setBulkConfirm("");
+    if(mode==="season"){setViewMode("season");setCompetition("Todas");setSort("composite");setSortDirection("desc");}
+    else{setViewMode("competition");setSort("rating");}
+    setPage(0);
+  };
+  const changeSeasonDisplay=mode=>{
+    setBulkConfirm("");setSeasonDisplay(mode);setSort("composite");setSortDirection("desc");
+    if(mode==="best")setBestMetric("composite");
+    setPage(0);
+  };
+  const changeSort=value=>{
+    setSort(value);setSortDirection(defaultSortDirection(value));
+    if(viewMode==="season"&&seasonDisplay==="best"&&(value==="composite"||bestCriteria.some(c=>c.id===value)))setBestMetric(value);
+    setPage(0);
+  };
+  const sortOptions=useMemo(()=>{
+    const list=[];
+    if(!["composite","rating","goals","assists","xg","xa","tackles","minutes","appearances","gaper90","xgaper90"].includes(sort))
+      list.push({value:sort,label:getColumn(columnConfig,sort)?.name||sort});
+    if(viewMode==="season")list.push({value:"composite",label:"Composite MF LEGACY"});
+    list.push({value:"rating",label:"Nota FotMob"},{value:"goals",label:"Goles"},{value:"assists",label:"Asistencias"},{value:"xg",label:"xG"},{value:"xa",label:"xA"},{value:"tackles",label:"Entradas"});
+    if(viewMode==="season")list.push({value:"minutes",label:"Minutos"},{value:"appearances",label:"Partidos"},{value:"gaper90",label:"G+A /90"},{value:"xgaper90",label:"xG+xA /90"});
+    return list;
+  },[sort,viewMode,columnConfig]);
+  const bestOptions=useMemo(()=>[{value:"composite",label:"Composite MF LEGACY"},...bestCriteria.map(c=>({value:c.id,label:c.name}))],[bestCriteria]);
+  const runBulkDelete=async kind=>{
+    if(!bulkRows.length){setBulkStatus("No hay filas seleccionadas.");return;}
+    setBulkBusy(true);setBulkStatus("");
+    try{
+      if(kind==="season"){
+        for(const {summary} of bulkRows){
+          if(summary.player_id)await base44.entities.PlayerSeasonStats.deleteMany({player_id:String(summary.player_id),season:summary.season});
+          else if(summary.fotmob_player_id)await base44.entities.PlayerSeasonStats.deleteMany({fotmob_player_id:String(summary.fotmob_player_id),season:summary.season});
+          else throw Error("Una de las temporadas seleccionadas no tiene identificador de jugador.");
+        }
+      }else{
+        const seen=new Set();
+        for(const {summary} of bulkRows){
+          const key=summary.player_id?("p:"+summary.player_id):summary.fotmob_player_id?("f:"+summary.fotmob_player_id):"";
+          if(!key)throw Error("Uno de los jugadores seleccionados no tiene identificador.");
+          if(seen.has(key))continue;
+          seen.add(key);
+          await base44.entities.PlayerSeasonStats.deleteMany(summary.player_id?{player_id:String(summary.player_id)}:{fotmob_player_id:String(summary.fotmob_player_id)});
+        }
+      }
+      setBulkStatus(kind==="season"?"Temporadas eliminadas: "+bulkRows.length+".":"Estadísticas eliminadas de "+bulkPlayerCount+" jugador(es), en todas sus temporadas.");
+      setBulkSelection(new Set());setBulkConfirm("");
+      refreshStats();
+      queryClient.invalidateQueries({queryKey:STATS_DETAIL_KEY});
+      queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
+    }catch(error){
+      setBulkStatus("No se pudo eliminar: "+(error?.message||"error de permisos o conexión"));
+    }finally{setBulkBusy(false);}
+  };
   const [detailRows,setDetailRows]=useState([]),[detailLoading,setDetailLoading]=useState(false);
   const detailRequest=useRef(0);
   const updateMetric=async(record,change)=>{
@@ -535,25 +602,49 @@ export default function Stats(){
       </div>
     </div>
     <div className="space-y-2 px-3 py-3 md:px-5">
-      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm"><div className="flex flex-wrap items-end gap-2"><label className="text-[11px] font-bold text-slate-500">TEMPORADA<select className="mt-1 block min-w-36 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-[#193a5b]" value={season} onChange={e=>{setSeason(e.target.value);setCompetition("Todas");setPage(0);}}><option>Todas</option>{options.map(x=><option key={x}>{x}</option>)}</select></label><label className="text-[11px] font-bold text-slate-500">COMPETICIÓN<select disabled={viewMode==="season"} title={viewMode==="season"?"El resumen suma las competiciones de club disponibles":"Filtra una competición"} className="mt-1 block min-w-40 rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400" value={competition} onChange={e=>{setCompetition(e.target.value);setPage(0);}}><option>Todas</option>{competitions.map(x=><option key={x}>{x}</option>)}</select></label><label className="min-w-[220px] flex-1 text-[11px] font-bold text-slate-500">BUSCAR JUGADOR, CLUB O ID<div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 px-3"><Search size={16} className="text-slate-400"/><input value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}} className="w-full bg-transparent py-2 text-sm font-normal outline-none" placeholder="Buscar en MY LEGACY…"/></div></label><label className="text-[11px] font-bold text-slate-500">ORDENAR<select className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-sm" value={sort} onChange={e=>{setSort(e.target.value);setSortDirection(defaultSortDirection(e.target.value));if(viewMode==="season"&&seasonDisplay==="best"&&(e.target.value==="composite"||bestCriteria.some(c=>c.id===e.target.value)))setBestMetric(e.target.value);setPage(0);}}>{!["composite","rating","goals","assists","xg","xa","tackles","minutes","appearances","gaper90","xgaper90"].includes(sort)&&<option value={sort}>{getColumn(columnConfig,sort)?.name||sort}</option>}{viewMode==="season"&&<option value="composite">Composite MF LEGACY</option>}<option value="rating">Nota FotMob</option><option value="goals">Goles</option><option value="assists">Asistencias</option><option value="xg">xG</option><option value="xa">xA</option><option value="tackles">Entradas</option>{viewMode==="season"&&<><option value="minutes">Minutos</option><option value="appearances">Partidos</option><option value="gaper90">G+A /90</option><option value="xgaper90">xG+xA /90</option></>}</select></label>{viewMode==="season"&&<label className="text-[11px] font-bold text-slate-500">MÍNIMO DE MINUTOS<select className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-sm" value={minMinutes} onChange={e=>{setMinMinutes(Number(e.target.value));setPage(0);}}><option value={0}>Sin mínimo</option><option value={500}>500 min</option><option value={900}>900 min</option><option value={1800}>1800 min</option></select></label>}</div></div>
-      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm"><div className="mb-2 flex flex-wrap items-center gap-2"><p className="mr-1 text-[10px] font-black uppercase tracking-widest text-slate-500">VISTA</p><div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1"><button onClick={()=>{setViewMode("season");setCompetition("Todas");setSort("composite");setSortDirection("desc");setPage(0);}} className={"rounded-md px-4 py-2 text-xs font-bold "+(viewMode==="season"?"bg-[#003399] text-white shadow-sm":"text-slate-600 hover:bg-white")}>Temporadas</button><button onClick={()=>{setViewMode("competition");setSort("rating");setPage(0);}} className={"rounded-md px-4 py-2 text-xs font-bold "+(viewMode==="competition"?"bg-[#003399] text-white shadow-sm":"text-slate-600 hover:bg-white")}>Competiciones</button></div><p className="text-xs text-slate-500">{viewMode==="season"?"Una fila por jugador y temporada; subtotales de todas las competiciones de clubes cargadas.":"Una fila por competición, sin agregación."}</p></div>{viewMode==="season"&&<div className="mb-2 flex flex-wrap items-center gap-2 border-y border-slate-100 py-2">
-        <span className="mr-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">JUGADORES</span>
-        <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1">
-          <button type="button" onClick={()=>{setSeasonDisplay("all");setSort("composite");setSortDirection("desc");setPage(0);}} className={"rounded-md px-3 py-1.5 text-xs font-bold "+(seasonDisplay==="all"?"bg-[#003399] text-white shadow-sm":"text-slate-600 hover:bg-white")}>Todas las temporadas</button>
-          <button type="button" onClick={()=>{setSeasonDisplay("best");setBestMetric("composite");setSort("composite");setSortDirection("desc");setPage(0);}} className={"rounded-md px-3 py-1.5 text-xs font-bold "+(seasonDisplay==="best"?"bg-[#003399] text-white shadow-sm":"text-slate-600 hover:bg-white")}>Mejor temporada por jugador</button>
-          <button type="button" onClick={()=>{setSeasonDisplay("current");setSort("composite");setSortDirection("desc");setPage(0);}} className={"rounded-md px-3 py-1.5 text-xs font-bold "+(seasonDisplay==="current"?"bg-[#003399] text-white shadow-sm":"text-slate-600 hover:bg-white")}>Temporada actual</button>
-        </div>
-        {seasonDisplay==="best"&&<label className="flex items-center gap-2 text-[11px] font-bold text-slate-600">MEJOR POR
-          <select value={bestMetric} onChange={e=>{setBestMetric(e.target.value);setSort(e.target.value);setSortDirection("desc");setPage(0);}} className="max-w-56 rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-semibold text-[#003399]">
-            <option value="composite">Composite MF LEGACY</option>{bestCriteria.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </label>}
-        <span className="text-[11px] text-slate-500">{seasonDisplay==="current"?"Solo temporadas en curso: ranking separado, sin alterar el historial.":seasonDisplay==="best"?"Una fila por jugador, con su máximo entre temporadas finalizadas.":"Se muestran todas las temporadas finalizadas de cada jugador."}</span>
-      </div>}
-      <p className="sr-only">STAT COLUMNS</p><div className="flex flex-wrap gap-1">{CAT_TABS.map(label=><button key={label} onClick={()=>{setCategory(label);setPage(0);}} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(category===label?"bg-[#003399] text-white":"border border-slate-200 text-slate-700 hover:bg-slate-50")}>{label}</button>)}</div></div>
+      <StatsControlBar
+        season={season}
+        seasonOptions={options}
+        onSeason={value=>{setSeason(value);setCompetition("Todas");setPage(0);}}
+        competition={competition}
+        competitions={competitions}
+        onCompetition={value=>{setCompetition(value);setPage(0);}}
+        search={search}
+        onSearch={value=>{setSearch(value);setPage(0);}}
+        sort={sort}
+        sortOptions={sortOptions}
+        onSort={changeSort}
+        minMinutes={minMinutes}
+        onMinMinutes={value=>{setMinMinutes(value);setPage(0);}}
+        viewMode={viewMode}
+        onViewMode={changeViewMode}
+        seasonDisplay={seasonDisplay}
+        onSeasonDisplay={changeSeasonDisplay}
+        bestMetric={bestMetric}
+        bestOptions={bestOptions}
+        onBestMetric={value=>{setBestMetric(value);setSort(value);setSortDirection("desc");setPage(0);}}
+        categories={CAT_TABS}
+        category={category}
+        onCategory={label=>{setCategory(label);setPage(0);}}
+      />
+      <p className="sr-only">STAT COLUMNS</p>
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3"><div className="text-xs font-bold text-[#0d315b]">{viewMode==="season"?(seasonDisplay==="current"?"Ranking de la temporada actual (en curso)":seasonDisplay==="best"?"Mejor temporada finalizada por jugador · "+(bestMetric==="composite"?"Composite MF LEGACY":getColumn(columnConfig,bestMetric)?.name||bestMetric):"Ranking histórico · temporadas finalizadas"):"Detalle por competición"}</div><div className="flex flex-wrap items-center gap-2"><span role="status" className="text-[11px] text-slate-500">{busy?(cached?"Actualizando en segundo plano…":"Cargando estadísticas…"):cached?"En caché · acceso rápido":"Sin datos cargados"}{refreshedAt&&!busy?" · "+new Date(refreshedAt).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):""}</span><button type="button" onClick={()=>{refreshStats();queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});}} disabled={busy} title="Sincronizar estadísticas y Composite con Base44" className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[11px] font-bold text-blue-900 disabled:opacity-40"><RefreshCw size={13} className={busy?"animate-spin":""}/> Actualizar datos</button><p className="text-xs text-slate-500">{activeCount.toLocaleString("es")} filas · {rows.length} registros consultados {hasMore?"(cobertura parcial: hay más por cargar)":""}</p></div></div>
+      {viewMode==="season"&&(bulkSelection.size>0||bulkStatus)&&<div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-[#eef2f7] px-4 py-2">
+        {bulkSelection.size>0&&<span className="text-[11px] font-black uppercase tracking-wider text-[#173B67]">{bulkSelection.size} seleccionado{bulkSelection.size===1?"":"s"}</span>}
+        {bulkSelection.size>0&&!bulkConfirm&&<>
+          <button type="button" onClick={()=>setBulkConfirm("season")} className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50">Eliminar temporadas</button>
+          <button type="button" onClick={()=>setBulkConfirm("player")} className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50">Eliminar jugadores completos</button>
+        </>}
+        {bulkConfirm&&<>
+          <span role="alert" className="text-[11px] font-semibold text-rose-800">{bulkConfirm==="season"?"Se eliminarán todas las estadísticas de las "+bulkSelection.size+" temporadas seleccionadas. La ficha del jugador se conserva.":"Se eliminarán todas las estadísticas de "+bulkPlayerCount+" jugador(es), en todas sus temporadas. La ficha del jugador se conserva."}</span>
+          <button type="button" disabled={bulkBusy} onClick={()=>runBulkDelete(bulkConfirm)} className="rounded-lg bg-rose-600 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-40">{bulkBusy?"Eliminando…":"Sí, eliminar"}</button>
+          <button type="button" disabled={bulkBusy} onClick={()=>setBulkConfirm("")} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 disabled:opacity-40">Cancelar</button>
+        </>}
+        {bulkStatus&&<span role="status" className="text-[11px] font-semibold text-[#173B67]">{bulkStatus}</span>}
+        {bulkSelection.size>0&&<button type="button" onClick={()=>{setBulkSelection(new Set());setBulkConfirm("");}} className="ml-auto rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700">Quitar selección</button>}
+      </div>}
       {error&&<div className="border-b border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">Error al cargar estadísticas: {error}</div>}
-      {viewMode==="season"?<SeasonStatsTable items={seasonVisible} compositeBySeason={compositeIndex} peerLoading={peerLoading} peerError={peerError} globalRanks={globalSeasonRanks} playerRanks={playerSeasonRanks} category={category} config={columnConfig} page={page} sortKey={sort} sortDirection={sortDirection} onSort={chooseSort} onOpen={openSeasonDetail} onTeam={id=>navigate("/teams?stats_team="+encodeURIComponent(id))}/>:<div className="max-w-full overflow-x-auto"><table className="w-full min-w-[920px] text-left text-xs"><thead className="bg-[#003399] text-white"><tr><th className={"px-2 py-3 text-center"+listLine("rank")} title="Posición entre las competiciones del jugador (posición entre todos los jugadores)">RANK</th><SortHeader column="player" label="JUGADOR" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={"min-w-[190px]"+listLine("player")}/><SortHeader column="club" label="EQUIPO" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("club")}/><SortHeader column="season" label="TEMPORADA" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("season")}/><SortHeader column="competition" label="COMPETICIÓN" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("competition")}/><SortHeader column="appearances" label="PJ" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("appearances")}/><SortHeader column="minutes" label="MIN" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("minutes")}/><SortHeader column="rating" label="NOTA" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("rating")}/>{columns.map(id=><SortHeader key={id} column={id} label={getColumn(columnConfig,id)?.name||metricLabel(id)} active={sort} direction={sortDirection} onSort={chooseSort} className={listLine(id)}/>)}<th className="px-3 py-3">FICHA</th></tr></thead>
+      {viewMode==="season"?<SeasonStatsTable items={seasonVisible} compositeBySeason={compositeIndex} peerLoading={peerLoading} peerError={peerError} globalRanks={globalSeasonRanks} playerRanks={playerSeasonRanks} category={category} config={columnConfig} page={page} sortKey={sort} sortDirection={sortDirection} onSort={chooseSort} onOpen={openSeasonDetail} onTeam={id=>navigate("/teams?stats_team="+encodeURIComponent(id))} selection={bulkSelection} onToggleSelect={toggleBulk} onToggleSelectPage={toggleBulkPage}/>:<div className="max-w-full overflow-x-auto"><table className="w-full min-w-[920px] text-left text-xs"><thead className="bg-[#003399] text-white"><tr><th className={"px-2 py-3 text-center"+listLine("rank")} title="Posición entre las competiciones del jugador (posición entre todos los jugadores)">RANK</th><SortHeader column="player" label="JUGADOR" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={"min-w-[190px]"+listLine("player")}/><SortHeader column="club" label="EQUIPO" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("club")}/><SortHeader column="season" label="TEMPORADA" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("season")}/><SortHeader column="competition" label="COMPETICIÓN" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("competition")}/><SortHeader column="appearances" label="PJ" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("appearances")}/><SortHeader column="minutes" label="MIN" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("minutes")}/><SortHeader column="rating" label="NOTA" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("rating")}/>{columns.map(id=><SortHeader key={id} column={id} label={getColumn(columnConfig,id)?.name||metricLabel(id)} active={sort} direction={sortDirection} onSort={chooseSort} className={listLine(id)}/>)}<th className="px-3 py-3">FICHA</th></tr></thead>
       <tbody>{filtered.map(({record:r,player:p},i)=>{const info=r?resolveTeam(r,teams,stats):null;const team=r?info?.team:byTeam.get(String(p?.team_id||""));const linkable=!r||info?.status==="confirmed";return <tr key={(r?.id||r?.external_record_id||p?.id||"")+":"+i} className="border-b border-slate-100 odd:bg-white even:bg-[#f6f8f6] hover:bg-[#eef3fb]"><td className={"whitespace-nowrap px-2 py-3 text-center"+listLine("rank")}><strong className="font-black text-slate-800">{playerCompetitionRanks.get(rankIdentity({record:r,player:p},"competition"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalCompetitionRanks.get(rankIdentity({record:r,player:p},"competition"))??"—"})</span></td><td className={"px-3 py-2"+listLine("player")}><button onClick={()=>openDetail({record:r,player:p})} className="flex items-center gap-2 text-left"><Avatar name={p?.name||r?.player_name} photo={playerPhoto(p)}/><span><span className="block font-extrabold text-[#0f3156] hover:underline">{p?.name||r?.player_name||"Jugador"}</span><span className="text-[10px] text-slate-400">FM {playerUID(p)||"—"} · FotMob {r?.fotmob_player_id||"—"}</span></span></button></td><td className={"px-3 py-2 text-slate-700"+listLine("club")}>{r&&info?.status==="national"?<span className="text-slate-500">Selección nacional</span>:r&&!linkable?<span className="text-amber-800">{info?.label||"Club pendiente"}{info?.status==="suggested"&&<span className="block text-[10px]">Sin verificar</span>}</span>:team?.id?<button className="hover:underline" onClick={()=>navigate("/teams?stats_team="+encodeURIComponent(team.id))}><TeamBadge teamName={team.name} logo={teamLogo(team)}/></button>:<TeamBadge teamName={r?.team_name||team?.name} logo={teamLogo(team)}/>}</td><td className={"px-3 py-3"+listLine("season")}>{r?.season||"—"}</td><td className={"px-3 py-3"+listLine("competition")}>{r?.competition||"Sin datos"}</td><td className={"px-3 py-3 text-right"+listLine("appearances")}>{show(r?.appearances)}</td><td className={"px-3 py-3 text-right"+listLine("minutes")}>{show(r?.minutes)}</td><td className={"px-3 py-3 text-right font-bold"+listLine("rating")}>{show(r?.rating,2)}</td>{columns.map(id=><td key={id} className={"px-3 py-3 text-right"+listLine(id)}>{show(columnValue(r,"competition",id,columnConfig),getColumn(columnConfig,id)?.decimals??0)}{columnValue(r,"competition",id,columnConfig)!==null&&getColumn(columnConfig,id)?.unit?" "+getColumn(columnConfig,id).unit:""}</td>)}<td className="px-3 py-3"><button onClick={()=>openDetail({record:r,player:p})} className="rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Ver stats</button></td></tr>})}
       {!filtered.length&&<tr><td colSpan={9+columns.length} className="px-6 py-12 text-center"><Database className="mx-auto mb-3 text-slate-300" size={36}/><p className="font-bold text-slate-600">Todavía no hay estadísticas para estos filtros</p><p className="mt-1 text-xs text-slate-400">Puedes cambiar los filtros o importar archivos de FotMob Studio.</p></td></tr>}</tbody></table></div>}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"><p className="text-xs text-slate-500">Página {page+1} · Los campos no disponibles se indican con —</p><div className="flex gap-2">{page>0&&<button onClick={()=>setPage(x=>x-1)} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Anterior</button>}{(page+1)*50<activeCount&&<button onClick={()=>setPage(x=>x+1)} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white">Siguiente</button>}{hasMore&&<button disabled={busy} onClick={loadMore} className="rounded-lg border border-blue-300 px-4 py-2 text-xs font-bold text-[#003399] disabled:opacity-40">Cargar más</button>}</div></div></div>

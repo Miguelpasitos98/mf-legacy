@@ -137,3 +137,249 @@
     color: #0C1321;
   }
 }
+
+/* =========================================================
+   STATS · barra de control compacta (ámbito exclusivo)
+   ========================================================= */
+
+.mf-statsbar {
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px #173b6710;
+  color: #173b67;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mf-statsbar .filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #d8e2ef;
+  position: relative;
+}
+
+.mf-statsbar .filters:after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 42px;
+  height: 2px;
+  background: #1d4ed8;
+}
+
+.mf-statsbar .field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  white-space: nowrap;
+}
+
+.mf-statsbar .field select,
+.mf-statsbar .searchbox {
+  box-sizing: border-box;
+  height: 30px;
+  border: 1px solid #d5dee9;
+  border-radius: 6px;
+  background: #fff;
+  color: #173b67;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  outline: none;
+}
+
+.mf-statsbar .field select:focus-visible,
+.mf-statsbar .searchbox:focus-within {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px #1d4ed833;
+}
+
+.mf-statsbar .field select:disabled {
+  background: #eef2f7;
+  color: #94a3b8;
+}
+
+.mf-statsbar .season {
+  width: 92px;
+}
+
+.mf-statsbar .competition {
+  width: 102px;
+}
+
+.mf-statsbar .searchfield {
+  flex: 1;
+  min-width: 180px;
+}
+
+.mf-statsbar .searchbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.mf-statsbar .searchbox input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #173b67;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.mf-statsbar .searchbox input::placeholder {
+  color: #94a3b8;
+}
+
+.mf-statsbar .sort {
+  width: 103px;
+}
+
+.mf-statsbar .minutes {
+  width: 112px;
+}
+
+.mf-statsbar .lower {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.mf-statsbar .row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.mf-statsbar .label {
+  flex: none;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.mf-statsbar .group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid #d5dee9;
+  border-radius: 7px;
+  background: #eef2f7;
+}
+
+.mf-statsbar .button,
+.mf-statsbar .category {
+  cursor: pointer;
+  transition: background-color 0.16s, color 0.16s, box-shadow 0.16s, transform 0.16s;
+}
+
+.mf-statsbar .button {
+  height: 23px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #52647a;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.mf-statsbar .button.selected {
+  background: #1d4ed8;
+  color: #fff;
+  box-shadow: 0 1px 3px #173b6730;
+}
+
+.mf-statsbar .button:hover {
+  background: #dfe9f7;
+  color: #173b67;
+}
+
+.mf-statsbar .button.selected:hover {
+  background: #173b67;
+  color: #fff;
+}
+
+.mf-statsbar .button:active,
+.mf-statsbar .category:active {
+  transform: translateY(1px);
+}
+
+.mf-statsbar .button:focus-visible,
+.mf-statsbar .category:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+.mf-statsbar .categories {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.mf-statsbar .category {
+  height: 23px;
+  padding: 0 9px;
+  border: 1px solid #d5dee9;
+  border-radius: 6px;
+  background: #fff;
+  color: #52647a;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.mf-statsbar .category.selected {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.mf-statsbar .category:hover {
+  background: #eaf1fb;
+  color: #173b67;
+}
+
+.mf-statsbar .category.selected:hover {
+  background: #173b67;
+  color: #fff;
+}
+
+.mf-statsbar .playerrow {
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.mf-statsbar .players {
+  margin-right: auto;
+}
+
+.mf-statsbar .divider {
+  height: 16px;
+  width: 1px;
+  background: #d8e2ef;
+  flex: none;
+}

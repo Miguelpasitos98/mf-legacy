@@ -37,13 +37,14 @@ function ClubBadge({summary,onTeam}){
   {(otherClubs.length>0||unresolvedTeams>0)&&<p className="mt-0.5 text-[10px] text-amber-700">{otherClubs.length>0?("+"+otherClubs.length+" club(es)"):""} {unresolvedTeams>0?("· "+unresolvedTeams+" competiciones sin club confirmado"):""}</p>}
  </div>;
 }
-export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="composite",sortDirection="desc",onSort=()=>{},globalRanks=new Map(),playerRanks=new Map(),compositeBySeason=new Map(),peerLoading=false,peerError=null}){
+export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="composite",sortDirection="desc",onSort=()=>{},globalRanks=new Map(),playerRanks=new Map(),compositeBySeason=new Map(),peerLoading=false,peerError=null,selection=new Set(),onToggleSelect=()=>{},onToggleSelectPage=()=>{}}){
  const columns=(config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen).filter(k=>k!=="playpct"&&k!=="rating");
  const divider=new Set(config.dividers?.season?.[category]||[]);
  const line=id=>divider.has(id)?" border-r-[3px] border-r-blue-300":"";
  // The parent supplies rows ALREADY sorted by the same Composite used by
  // the global rank. Never independently sort here: that would misalign RANK.
  const pageRows=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0).slice(page*50,(page+1)*50);
+ const pageSelectable=pageRows.filter(({summary})=>summary).map(({summary})=>summary.id);
  return <div>
   <div className="flex flex-wrap justify-between gap-2 border-b border-slate-100 px-3 py-2 text-[11px] text-slate-600">
    <span>Composite MF LEGACY: mismo cálculo por arquetipo que en el desglose. Posiciones con * = respaldo provisional.</span>
@@ -52,6 +53,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
   <div className="max-w-full overflow-x-auto">
    <table className="w-full min-w-[900px] text-left text-[11px]">
     <thead className="bg-[#003399] text-white"><tr>
+     <th className="w-8 px-2 py-3 text-center"><input type="checkbox" aria-label="Seleccionar todas las temporadas de esta página" disabled={!pageSelectable.length} checked={pageSelectable.length>0&&pageSelectable.every(id=>selection.has(id))} onChange={e=>onToggleSelectPage(e.target.checked)} className="h-3.5 w-3.5 cursor-pointer accent-[#1D4ED8] disabled:cursor-not-allowed"/></th>
      <th className={"px-3 py-3 text-center"+line("rank")} title="Posición entre las temporadas del mismo jugador (posición entre todos los jugadores)">RANK</th>
      <SortHeader column="player" label="JUGADOR" active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={"min-w-36"+line("player")}/>
      <SortHeader column="season" label="TEMP." active={sortKey} direction={sortDirection} onSort={onSort} align="left" className={line("season")}/>
@@ -65,8 +67,9 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
     </tr></thead>
     <tbody>{pageRows.map(({summary,player},i)=>{
      const name=player?.name||summary?.player_name||"Jugador";
-     if(!summary)return <tr key={String(player?.id||i)} className="border-b border-slate-100 text-xs"><td className={"whitespace-nowrap px-2 py-3 text-center"+line("rank")}><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td><td className="px-3 py-2"><div className="flex items-center gap-2"><PlayerPhoto player={player} name={name}/><span className="font-semibold text-slate-700">{name}</span></div></td><td colSpan={7+columns.length} className="px-3 py-3 text-slate-400">Sin estadísticas importadas para esta temporada</td></tr>;
+     if(!summary)return <tr key={String(player?.id||i)} className="border-b border-slate-100 text-xs"><td className="px-2 py-3"/><td className={"whitespace-nowrap px-2 py-3 text-center"+line("rank")}><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td><td className="px-3 py-2"><div className="flex items-center gap-2"><PlayerPhoto player={player} name={name}/><span className="font-semibold text-slate-700">{name}</span></div></td><td colSpan={7+columns.length} className="px-3 py-3 text-slate-400">Sin estadísticas importadas para esta temporada</td></tr>;
      return <tr key={summary.id} className="border-b border-slate-100 align-middle odd:bg-white even:bg-[#f6f8f6] hover:bg-[#edf3fb]">
+      <td className="px-2 py-3 text-center"><input type="checkbox" aria-label={"Seleccionar "+name+" "+summary.season} checked={selection.has(summary.id)} onChange={()=>onToggleSelect(summary.id)} className="h-3.5 w-3.5 cursor-pointer accent-[#1D4ED8]"/></td>
       <td className={"whitespace-nowrap px-2 py-3 text-center"+line("rank")}><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td>
       <td className={"px-3 py-2"+line("player")}><button onClick={()=>onOpen(summary,player)} className="flex items-center gap-2 text-left">
        <PlayerPhoto player={player} name={name}/><span className="font-extrabold text-[#0f3156] hover:underline">{name}</span>
@@ -89,7 +92,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
     })}
-    {!pageRows.length&&<tr><td colSpan={9+columns.length} className="px-6 py-12 text-center text-slate-500">No hay temporadas con estadísticas para esta selección.</td></tr>}
+    {!pageRows.length&&<tr><td colSpan={10+columns.length} className="px-6 py-12 text-center text-slate-500">No hay temporadas con estadísticas para esta selección.</td></tr>}
     </tbody>
    </table>
   </div>
