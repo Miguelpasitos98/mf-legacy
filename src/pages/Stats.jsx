@@ -668,6 +668,6 @@ export default function Stats(){
       </div>,document.body
     )}
     {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onOpenSettings={openDetailSettings} onSetTeamMatches={updateTeamMatches} onSetMetric={updateMetric} onClose={()=>{detailRequest.current++;setSelected(null);}} onPlayer={id=>{detailRequest.current++;setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
-    {compareOpen&&bulkRows.length>1&&<SeasonCompareView entries={bulkRows} compositeBySeason={compositeIndex} config={columnConfig} onClose={()=>setCompareOpen(false)} onOpenDetail={(summary,player)=>{setCompareOpen(false);openSeasonDetail(summary,player);}} onTeam={id=>navigate("/teams?stats_team="+encodeURIComponent(id))}/>}
+    {compareOpen&&bulkRows.length>1&&<SeasonCompareView entries={bulkRows} compositeBySeason={compositeIndex} config={columnConfig} observations={peerDataset?.observations||[]} peerLoading={peerLoading} peerError={peerError} onClose={()=>setCompareOpen(false)} onOpenDetail={(summary,player)=>{setCompareOpen(false);openSeasonDetail(summary,player);}} onTeam={id=>navigate("/teams?stats_team="+encodeURIComponent(id))}/>}
   </div>;
 }
