@@ -56,7 +56,10 @@ const PERCENTAGE = {
 const pickMetric=(row,names)=>{
   const index=new Map((row.metrics||[]).filter(m=>m?.name).map(m=>[metricName(m.name),m]));
   for(const name of names){
-    const m=index.get(metricName(name));
+    // Manual entries may store the metric as a rate (" /90"); metricTotal turns
+    // it back into a competition total using aligned minutes. An explicit rate
+    // entry takes precedence over a previously stored total for the same metric.
+    const m=index.get(metricName(name+" /90"))||index.get(metricName(name));
     if(m && num(m.value)!==null) return m;
   }
   return null;

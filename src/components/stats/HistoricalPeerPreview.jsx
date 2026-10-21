@@ -223,7 +223,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right font-semibold tabular-nums text-slate-800">
                 {onSetMetric&&!NON_EDITABLE_COMPOSITE.has(item.key)?
                   <button type="button"
-                    onClick={()=>setManualMode(item.key==="xg_chain_p90"?"chain":item.key==="xg_buildup_p90"?"buildup":item.key==="ground_duels_won_pct"?"ground":{mode:"other",name:EDIT_METRIC_NAMES[item.key]||item.name})}
+                    onClick={()=>setManualMode(item.key==="xg_chain_p90"?"chain":item.key==="xg_buildup_p90"?"buildup":item.key==="ground_duels_won_pct"?"ground":{mode:"other",name:EDIT_METRIC_NAMES[item.key]||item.name,per90:/_p90$/.test(item.key)})}
                     className="inline-flex items-center justify-end gap-1 rounded px-2 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
                     title={(item.value===null?"Añadir":"Corregir")+" estadística de origen por competición (el Composite se recalcula después)"}>
                     {item.value===null?"Añadir +":show(item.value,2)}{item.value!==null&&<span className="text-[10px] text-blue-500">✎</span>}
@@ -244,7 +244,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           <Database size={14}/> Consulta de solo lectura · FotMob, FC histórico y Transfermarkt previamente almacenados en MF LEGACY · {new Date(data.loadedAt).toLocaleString("es-ES")}
         </p>
       </>}
-      <OverviewManualEditor mode={manualMode!==null&&typeof manualMode==="object"?manualMode.mode:manualMode} defaultName={manualMode!==null&&typeof manualMode==="object"?manualMode.name:""} records={rowsToEdit} onClose={()=>setManualMode(null)} onSave={onSetMetric}/>
+      <OverviewManualEditor mode={manualMode!==null&&typeof manualMode==="object"?manualMode.mode:manualMode} defaultName={manualMode!==null&&typeof manualMode==="object"?manualMode.name:""} per90={manualMode!==null&&typeof manualMode==="object"?Boolean(manualMode.per90):false} records={rowsToEdit} onClose={()=>setManualMode(null)} onSave={onSetMetric}/>
     </section>
   );
 }

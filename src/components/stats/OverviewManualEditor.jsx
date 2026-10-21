@@ -10,7 +10,11 @@ const number=(record,name,field=null)=>{
 };
 const simpleNames={goals:"Goals",assists:"Assists",xg:"xG",xa:"xA",shots:"Shots",
  appearances:"appearances",minutes:"minutes",rating:"rating"};
-export default function OverviewManualEditor({mode,records=[],onClose,onSave,defaultName=""}){
+export default function OverviewManualEditor({mode,records=[],onClose,onSave,defaultName="",per90=false}){
+ // Las métricas por 90 se guardan como tasa con sufijo "/90": el motor las
+ // convierte a total con los minutos y las vuelve a expresar por 90.
+ const baseName=String(defaultName||"").trim().replace(/\s*\/\s*90$/i,"");
+ const storedName=per90?baseName+" /90":baseName;
  const [recordId,setRecordId]=useState("");
  const [form,setForm]=useState({value:"",sourceMinutes:"",won:"",contested:"",name:"",unit:"total"});
  const [busy,setBusy]=useState(false);
@@ -28,14 +32,14 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave,def
   if(!selected)return;
   setForm({
    value:mode==="chain"||mode==="buildup"?number(selected,mode==="chain"?"xG Chain":"xG Buildup"):
-    mode==="other"?number(selected,defaultName):number(selected,simpleNames[mode]||"",["appearances","minutes","rating"].includes(mode)?mode:null),
+    mode==="other"?number(selected,storedName):number(selected,simpleNames[mode]||"",["appearances","minutes","rating"].includes(mode)?mode:null),
    sourceMinutes:number(selected,"Understat minutes"),
    won:number(selected,"Ground duels won"),
    contested:number(selected,"Ground duels contested"),
-   unit:"total",name:mode==="other"?defaultName:""
+   unit:"total",name:mode==="other"?baseName:""
   });
   setError("");
- },[selected?.id,mode,defaultName]);
+ },[selected?.id,mode,storedName]);
  if(!mode)return null;
  const label=MANUAL_CARD_TITLES[mode]||"Estadística histórica";
  const set=(key,value)=>setForm(prev=>({...prev,[key]:value}));
@@ -44,7 +48,8 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave,def
   if(!selected)return;
   setBusy(true);setError("");
   try{
-   const changes=createOverviewManualChanges(selected,mode,form,"");
+   const payload=mode==="other"&&per90?{...form,name:String(form.name||"").trim().replace(/\s*\/\s*90$/i,"")+" /90"}:form;
+   const changes=createOverviewManualChanges(selected,mode,payload,"");
    await onSave(selected,changes);
    onClose();
   }catch(err){setError(err?.message||"No se pudo guardar el dato.");}
@@ -88,11 +93,11 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave,def
        {Number(form.contested.replace(",","."))>0&&<p className="text-xs font-bold text-blue-900">Porcentaje calculado: {(100*Number(form.won.replace(",","."))/Number(form.contested.replace(",","."))).toLocaleString("es-ES",{maximumFractionDigits:2})} %</p>}
      </>}
      {mode==="other"&&<>
-       <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-900">Estás editando el valor de origen de esta competición. Para métricas /90, introduce el TOTAL de la competición si el registro guarda un total; el Composite calculará automáticamente la cifra por 90 con los minutos disponibles. Comprueba que la competición y los minutos sean correctos.</p>
+       <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-900">{per90?"Introduce el valor por 90 minutos de esta competición, el mismo que aparece en «Tu valor (temporada)». Se guardará como estadística de origen y el Composite lo recalculará con los minutos disponibles.":"Estás editando el valor de origen de esta competición. Para métricas /90, introduce el TOTAL de la competición si el registro guarda un total; el Composite calculará automáticamente la cifra por 90 con los minutos disponibles."} Comprueba que la competición y los minutos sean correctos.</p>
        <label className="block text-xs font-semibold text-slate-700">Nombre de la métrica
         <input value={form.name} required maxLength={100} onChange={e=>set("name",e.target.value)} placeholder="Ej.: Big chances created" className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm"/>
        </label>
-       {valueInput("Valor","value")}
+       {valueInput(per90?"Valor por 90 minutos":"Valor","value")}
      </>}
      {["goals","assists","xg","xa","shots","appearances","minutes","rating"].includes(mode)&&valueInput("Nuevo valor para esta competición","value")}
      <p className="text-[11px] text-slate-500">Se guardarán únicamente las cifras modificadas, con registro del valor anterior y la fecha. No se alteran los demás datos del jugador.</p>
