@@ -8,6 +8,8 @@ import CompareDuelBar,{seasonColor} from "@/components/stats/CompareDuelBar";
 // arquetipo histórico, con el mismo motor que el Composite de STATS. Solo lectura.
 const fmt=(value,decimals=0)=>value===null||value===undefined||value===""||!Number.isFinite(Number(value))?"—":Number(value).toLocaleString("es-ES",{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
 const signed=value=>(value>0?"+":"")+fmt(value,1);
+// Suma directa de los aportes de todos los indicadores valorables de la temporada.
+const contributionSum=season=>(season?.analysis?.rows||[]).reduce((total,row)=>total+(Number.isFinite(Number(row.contribution))?Number(row.contribution):0),0);
 
 const SUMMARY_ROWS=[
  {key:"role",label:"Arquetipo de la temporada",get:season=>season.role||"—"},
@@ -29,7 +31,7 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
   <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
    <div>
     <h3 className="text-sm font-black uppercase tracking-wide text-[#003399]">Análisis MF LEGACY comparado</h3>
-    <p className="mt-1 text-xs text-slate-600">Percentiles propios calculados con todas las temporadas de clubes de nuestra base. Cada temporada se compara con su propio arquetipo, igual que en el desglose individual. La columna «Líder» indica quién gana cada indicador y por cuántos puntos de percentil.</p>
+    <p className="mt-1 text-xs text-slate-600">Percentiles propios calculados con todas las temporadas de clubes de nuestra base. Cada temporada se compara con su propio arquetipo, igual que en el desglose individual. La columna «Líder» indica quién gana cada indicador y la línea «aporta» de cada casilla, los puntos que esa estadística suma al Composite de esa temporada. En el Composite, «suma» es el total de esos aportes antes de reescalar.</p>
    </div>
    <span role="status" className="text-[11px] text-slate-500">{peerLoading?"Actualizando la base histórica…":peerError?"Comparación previa en caché · revisar sincronización":"Base histórica cargada"}</span>
   </div>
@@ -71,6 +73,7 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
       {seasons.map(season=><td key={season.summary.id} className="px-3 py-2 text-right">
        <span className="block text-base font-black tabular-nums text-[#003399]">{season.score===null?"—":fmt(season.score,1)}</span>
        <span className={"block text-[10px] font-bold "+(season.rank===1?"text-emerald-700":"text-rose-700")}>{season.rank===1?"Líder":season.gapToLeader!==null?"−"+fmt(Math.abs(season.gapToLeader),1)+" pts":"—"}</span>
+       {season.score!==null&&<span className="block text-[10px] font-semibold tabular-nums text-slate-500" title={"Suma de los aportes de los "+fmt(season.count,0)+" indicadores valorables: "+signed(contributionSum(season))+" puntos. El Composite reescala esa suma según el peso disponible de la temporada."}>suma {signed(contributionSum(season))}</span>}
       </td>)}
      </tr>
      <tr className="bg-[#e2eaf6]"><td colSpan={seasons.length+4} className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#173B67]">Indicadores del Composite · percentil frente a su arquetipo · {contested} comparables</td></tr>
@@ -100,6 +103,7 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
          </span>
          <span className="block text-[10px] text-slate-500">{fmt(row.value,2)}{row.provisional&&<span className="text-amber-600"> *</span>}</span>
          <span className={"mt-0.5 inline-block rounded px-1.5 text-[10px] font-bold tabular-nums "+(isBest?"bg-emerald-600 text-white":"bg-rose-100 text-rose-800")} title={isBest?"Mejor percentil de la fila":"Diferencia en puntos de percentil frente al mejor de la fila"}>{isBest?"mejor":signed(delta)}</span>
+         <span className="mt-0.5 block text-[10px] font-semibold tabular-nums text-slate-500" title={"Aporte de "+indicator.name+" al Composite de "+season.summary.season+": percentil "+fmt(row.percentile,1)+" × peso "+(indicator.weight===null?"—":indicator.weight+" %")+" = "+signed(row.contribution)+" puntos"}>aporta {signed(row.contribution)}</span>
         </td>;
        })}
       </tr>;
