@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { aggregate, defaultSeason, groupStatRows, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, ClipboardPaste, Copy, Database, RefreshCw, Search, Shield, Settings2, Upload, X } from "lucide-react";
+import { ArrowLeftRight, ArrowRight, ClipboardPaste, Copy, Database, RefreshCw, Search, Shield, Settings2, Upload, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
 import { normalizeLabel, metricLabel } from "@/utils/statsImport";
@@ -16,6 +16,7 @@ import { useHistoricalValuations } from "@/hooks/useHistoricalValuations";
 import { useTeamMatchesLookup } from "@/hooks/useTeamMatchesLookup";
 import ImportUnified from "@/pages/ImportUnified";
 import SeasonStatsTable from "@/components/stats/SeasonStatsTable";
+import SeasonCompareView from "@/components/stats/SeasonCompareView";
 import StatsControlBar from "@/components/stats/StatsControlBar";
 import SortHeader from "@/components/stats/SortHeader";
 import {nextSorting,sortStatsItems,defaultSortDirection} from "@/utils/statsSort";
@@ -415,6 +416,7 @@ export default function Stats(){
   const filtered=visible.slice(page*50,(page+1)*50);
   const activeCount=viewMode==="season"?seasonVisible.length:visible.length;
   const [bulkSelection,setBulkSelection]=useState(()=>new Set());
+  const [compareOpen,setCompareOpen]=useState(false);
   const [bulkConfirm,setBulkConfirm]=useState("");
   const [bulkBusy,setBulkBusy]=useState(false);
   const [bulkStatus,setBulkStatus]=useState("");
@@ -426,7 +428,7 @@ export default function Stats(){
     setBulkSelection(prev=>{const next=new Set(prev);ids.forEach(id=>{if(checked)next.add(id);else next.delete(id);});return next;});
   };
   const changeViewMode=mode=>{
-    setBulkSelection(new Set());setBulkConfirm("");
+    setBulkSelection(new Set());setCompareOpen(false);setBulkConfirm("");
     if(mode==="season"){setViewMode("season");setCompetition("Todas");setSort("composite");setSortDirection("desc");}
     else{setViewMode("competition");setSort("rating");}
     setPage(0);
@@ -632,6 +634,7 @@ export default function Stats(){
       {viewMode==="season"&&(bulkSelection.size>0||bulkStatus)&&<div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-[#eef2f7] px-4 py-2">
         {bulkSelection.size>0&&<span className="text-[11px] font-black uppercase tracking-wider text-[#173B67]">{bulkSelection.size} seleccionado{bulkSelection.size===1?"":"s"}</span>}
         {bulkSelection.size>0&&!bulkConfirm&&<>
+          {bulkSelection.size>1?<button type="button" onClick={()=>setCompareOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#003399] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#002777]"><ArrowLeftRight size={13}/> Comparar seleccionados</button>:<span className="text-[11px] text-slate-500">Selecciona dos o más temporadas para compararlas.</span>}
           <button type="button" onClick={()=>setBulkConfirm("season")} className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50">Eliminar temporadas</button>
           <button type="button" onClick={()=>setBulkConfirm("player")} className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50">Eliminar jugadores completos</button>
         </>}
@@ -665,5 +668,6 @@ export default function Stats(){
       </div>,document.body
     )}
     {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onOpenSettings={openDetailSettings} onSetTeamMatches={updateTeamMatches} onSetMetric={updateMetric} onClose={()=>{detailRequest.current++;setSelected(null);}} onPlayer={id=>{detailRequest.current++;setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
+    {compareOpen&&bulkRows.length>1&&<SeasonCompareView entries={bulkRows} compositeBySeason={compositeIndex} config={columnConfig} onClose={()=>setCompareOpen(false)} onOpenDetail={(summary,player)=>{setCompareOpen(false);openSeasonDetail(summary,player);}} onTeam={id=>navigate("/teams?stats_team="+encodeURIComponent(id))}/>}
   </div>;
 }
