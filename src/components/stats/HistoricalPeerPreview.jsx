@@ -163,34 +163,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             </div>
           </div>;})}
         </div>
-        {result.experimentalFallback&&<details className="rounded-xl border border-amber-200 bg-white p-3" open>
-          <summary className="cursor-pointer text-xs font-black uppercase tracking-wide text-amber-900">
-            Experimento A · fallback por posición · comparar con Composite actual
-          </summary>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              ["Composite actual",result.composite?.score],
-              ["Fallback experimental",result.experimentalFallback.score],
-              ["Cobertura base",result.experimentalFallback.baseCoverage],
-              ["Peso retenido",result.experimentalFallback.denominator*100],
-            ].map(([title,value],i)=><div key={title} className="rounded-lg bg-slate-50 p-3">
-              <p className="text-[10px] font-bold uppercase text-slate-500">{title}</p>
-              <p className="mt-1 text-xl font-black tabular-nums text-blue-900">{show(value,2)}{i===2||i===3?" %":""}</p>
-            </div>)}
-          </div>
-          <p className="mt-2 text-[11px] text-slate-600">No altera el Composite oficial ni la clasificación. Aplica las reglas base-only reconstruidas en la investigación de Codex de octubre de 2026, utilizando únicamente los percentiles históricos válidos de MF LEGACY. Los pesos negativos conservan su signo.</p>
-          <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-slate-200">
-            <table className="w-full min-w-[560px] text-left text-[11px]">
-              <thead className="sticky top-0 bg-slate-100 text-slate-700"><tr><th className="px-2 py-2">Métrica ausente</th><th className="px-2 py-2">Destino</th><th className="px-2 py-2 text-right">Peso transferido</th><th className="px-2 py-2">Resultado</th></tr></thead>
-              <tbody>{result.experimentalFallback.trace.map((t,i)=><tr key={i} className="border-t border-slate-100">
-                <td className="px-2 py-1.5">{t.source}</td><td className="px-2 py-1.5">{t.target||"Sin sustituta"}</td>
-                <td className="px-2 py-1.5 text-right tabular-nums">{show(t.weight,2)} pp</td>
-                <td className={"px-2 py-1.5 "+(t.action==="retained"?"text-emerald-700":"text-amber-700")}>{t.action==="retained"?"Aplicado":t.action==="target-not-in-base"?"Fuera del perfil":t.action==="target-percentile-missing"?"Sin percentil":t.action==="explicit-drop"?"Descarte definido":"Renormalización"}</td>
-              </tr>)}</tbody>
-            </table>
-          </div>
-          {result.experimentalFallback.clipped&&<p className="mt-2 text-[11px] text-amber-900">El cálculo firmado ha superado los límites 0–100; se muestra una cifra limitada, manteniendo el valor sin recortar en memoria.</p>}
-        </details>}
+
         {result.composite&&<p className="text-[11px] text-slate-600">
           Composite MF LEGACY · <strong>{result.composite.status==="partial"?"Parcial":"Calculado"}</strong> · vs {result.role} · {result.population} temporadas de {result.players} jugadores distintos · {result.composite.count}/{result.composite.total} indicadores.{" "}
           <span className="text-amber-700">{result.players<10?"Muestra reducida: índice experimental, no nota definitiva.":"Ponderaciones experimentales; no equivale al rating oficial CraftedFC."}</span>
