@@ -2,7 +2,7 @@ import React from "react";
 import {AlertTriangle,Crown} from "lucide-react";
 import {strengthOf} from "@/utils/compareAnalysis";
 import {shortSeason} from "@/utils/compareMetrics";
-import CompareDivergingBars,{seasonColor} from "@/components/stats/CompareDivergingBars";
+import CompareDuelBar,{seasonColor} from "@/components/stats/CompareDuelBar";
 
 // Comparativa del análisis MF LEGACY: cada temporada se compara con su propio
 // arquetipo histórico, con el mismo motor que el Composite de STATS. Solo lectura.
@@ -43,7 +43,7 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
       <th className="px-3 py-3">Análisis MF LEGACY</th>
       <th className="px-2 py-3 text-center">Peso</th>
       <th className="min-w-[150px] px-3 py-3 text-left" title="Temporada con el mejor percentil del indicador y ventaja sobre la segunda">Líder · ventaja</th>
-      <th className="min-w-[190px] px-3 py-3 text-left" title="Barras desde el centro (percentil 50): a la derecha se supera la media del arquetipo, a la izquierda se queda por debajo">Diferencia visual</th>
+      <th className="min-w-[190px] px-3 py-3 text-left" title="Una sola barra por indicador: se extiende hacia el jugador que gana, con su color, y su longitud mide la diferencia">Diferencia</th>
       {seasons.map(season=><th key={season.summary.id} className="min-w-[120px] px-3 py-3 text-right" style={{color:seasonColor(season.index)}}>
        <span className="block truncate text-white" title={nameOf(season)}>{nameOf(season)}</span>
        <span className="block text-[10px] font-normal text-blue-100">{shortSeason(season.summary.season)}{season.rank?" · "+season.rank+"º":""}</span>
@@ -63,7 +63,11 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
       <td className="px-3 py-2 font-black text-[#0d315b]">Composite MF LEGACY</td>
       <td className="px-2 py-2 text-center text-slate-400">—</td>
       <td className="px-3 py-2 text-[11px] font-bold text-emerald-800" title="Diferencia de Composite entre el primer y el segundo puesto">{model.headline?model.headline.winner.rank+"º vs 2º · "+signed(model.headline.gap)+" pts":"—"}</td>
-      <td className="px-3 py-2"><div className="flex items-center gap-2" title="Composite sobre 100 puntos"><div className="relative h-2.5 flex-1 overflow-hidden rounded-sm bg-slate-100 ring-1 ring-inset ring-slate-200"><div className="absolute inset-y-0 left-1/2 w-px bg-slate-300"/>{seasons.filter(s=>s.score!==null).map(season=><div key={season.summary.id} className={"absolute inset-y-0 "+(season.score>=50?"left-1/2 rounded-r-sm":"right-1/2 rounded-l-sm")} style={{width:Math.min(50,Math.abs(season.score-50))+"%",background:seasonColor(season.index)}}/>)}</div></div></td>
+      <td className="px-3 py-2">{model.headline
+       ?<CompareDuelBar seasons={seasons} nameOf={index=>nameOf(seasons[index])}
+         best={{index:model.headline.winner.index,strength:model.headline.winner.score}}
+         second={{index:model.headline.loser.index,strength:model.headline.loser.score}}/>
+       :<span className="text-[10px] font-semibold text-slate-400">sin segundo Composite</span>}</td>
       {seasons.map(season=><td key={season.summary.id} className="px-3 py-2 text-right">
        <span className="block text-base font-black tabular-nums text-[#003399]">{season.score===null?"—":fmt(season.score,1)}</span>
        <span className={"block text-[10px] font-bold "+(season.rank===1?"text-emerald-700":"text-rose-700")}>{season.rank===1?"Líder":season.gapToLeader!==null?"−"+fmt(Math.abs(season.gapToLeader),1)+" pts":"—"}</span>
@@ -78,10 +82,10 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
        <td className="px-3 py-2">
         {leaderCell?<>
          <span className="flex items-center gap-1.5"><Crown size={13} className="shrink-0 text-amber-500"/><span className="truncate font-bold text-slate-800" title={nameOf(leaderCell)}>{nameOf(leaderCell)}</span></span>
-         <span className="block text-[10px] text-slate-500">{indicator.gap===null?"sin segunda cifra":indicator.gap===0?"empate con el 2º":signed(indicator.gap)+" pts de percentil"}</span>
+         <span className="block text-[10px] text-slate-500">{indicator.gap===null?"sin segunda cifra":indicator.gap===0?"empate con el 2º":"gana el indicador"}</span>
         </>:<span className="text-slate-400">—</span>}
        </td>
-       <td className="px-3 py-2"><CompareDivergingBars cells={indicator.cells} nameOf={index=>nameOf(seasons[index])} labelOf={index=>shortSeason(seasons[index].summary.season)}/></td>
+       <td className="px-3 py-2"><CompareDuelBar best={indicator.best} second={indicator.second} seasons={seasons} nameOf={index=>nameOf(seasons[index])}/></td>
        {indicator.cells.map(cell=>{
         const season=seasons[cell.index];
         const row=cell.row;
@@ -104,7 +108,7 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
     </tbody>
    </table>
   </div>
-  <p className="mt-2 text-[11px] text-slate-500">Cada barra parte del centro, que marca el percentil 50 del arquetipo: hacia la derecha la temporada supera la media de su puesto y hacia la izquierda queda por debajo, así que una barra más larga siempre es mejor. El color identifica a cada jugador en toda la tabla. La corona y la marca verde señalan el mejor percentil de la fila y la cifra roja es la diferencia exacta frente a ese mejor. Los percentiles comparan temporadas de jugadores distintos, no partidos sueltos.</p>
+  <p className="mt-2 text-[11px] text-slate-500">Una sola barra por indicador: el centro es el empate y la barra se extiende hacia el jugador que gana, pintada con su color, con la diferencia en puntos de percentil a su lado. Si los valores son iguales la barra se queda quieta en el medio. El color identifica a cada jugador en toda la tabla, la corona señala al mejor de cada fila y la cifra roja es la diferencia exacta frente a ese mejor. Los percentiles comparan temporadas de jugadores distintos, no partidos sueltos.</p>
   {onOpen&&<p className="mt-1 text-[11px] text-slate-500">Pulsa «Desglose completo» en cualquier ficha para ver el análisis detallado con la muestra completa.</p>}
  </section>;
 }

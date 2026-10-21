@@ -1,7 +1,7 @@
 import React from "react";
 import {Trophy} from "lucide-react";
 import {shortSeason} from "@/utils/compareMetrics";
-import {seasonColor} from "@/components/stats/CompareDivergingBars";
+import {seasonColor} from "@/components/stats/CompareDuelBar";
 
 const fmt=(value,decimals=1)=>value===null||value===undefined||!Number.isFinite(Number(value))?"—":Number(value).toLocaleString("es-ES",{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
 
