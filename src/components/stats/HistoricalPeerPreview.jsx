@@ -240,11 +240,6 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             </tr>)}</tbody>
           </table>
         </div>
-        <p className="text-[11px] text-slate-600">
-          Método: percentil histórico de rango medio (empates compartidos), dentro del mismo arquetipo; 0 es el mínimo observado y 100 el máximo. Para métricas por 90 se suman sus totales con minutos alineados. Los porcentajes son promedios ponderados por minutos, la nota por partidos. Las métricas faltantes no se convierten en cero. Los indicadores con peso negativo se penalizan más cuanto mayor sea su valor bruto. El arquetipo procede de la posición <strong>histórica efectiva</strong> de la temporada (corrección manual por competición o de temporada → posición FIFA/FC → respaldo provisional de la ficha); nunca se inventa una posición FIFA. Los jugadores de arquetipos distintos no se mezclan en la misma distribución de percentiles.
-          {" "}Las barras recuperan los colores originales (verde: percentil favorable alto; amarillo/rojo: bajo); en pérdidas y otras penalizaciones se invierte el color porque menos es mejor, sin alterar el percentil bruto ni el cálculo de Aporta. «Posición histórica» indica el puesto entre temporadas con datos, no entre jugadores distintos; los empates comparten puesto.
-          {" "}Los resultados cambian al ampliar nuestra base de datos y no están ajustados todavía por época ni fuerza de liga. * Menos de 10 jugadores distintos. Los indicadores con datos de un solo jugador no generan percentil.
-        </p>
         <p className="flex items-center gap-2 text-[11px] text-slate-500">
           <Database size={14}/> Consulta de solo lectura · FotMob, FC histórico y Transfermarkt previamente almacenados en MF LEGACY · {new Date(data.loadedAt).toLocaleString("es-ES")}
         </p>
