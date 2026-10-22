@@ -25,7 +25,7 @@ export const RAW_METRICS=[
  ["xgagainstwhileonpitch","xG encajado en campo"],["yellowcards","Tarjetas amarillas"],["redcards","Tarjetas rojas"],
  ["penaltygoals","Goles de penalti"],["penaltiesawarded","Penaltis provocados"],["started","Titularidades"],
  ["xgchain","xG Chain (total Understat)"],["xgbuildup","xG Buildup (total Understat)"],["understatminutes","Minutos Understat"],
- ["psxgot_against","PSxG a puerta recibido"],["goals_conceded_from_shots","Goles encajados por disparos"],
+ ["goals_prevented","Goles evitados (FotMob)"],["psxgot_against","PSxG a puerta recibido"],["goals_conceded_from_shots","Goles encajados por disparos"],
  ["groundduelswon","Duelos terrestres ganados"],["groundduelscontested","Duelos terrestres disputados"]
 ];
 export const COMPUTED=[
@@ -60,7 +60,7 @@ export const DEFAULT_COLS={
  Ataque:["goals","assists","xg","xa","xgot","shots","shotsontarget","bigchancescreated"],
  Creación:["accuratepasses","chancescreated","bigchancescreated","xa","successfulcrosses","calc_xgchainper90","calc_xgbuildupper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","calc_groundduelspct"],
- Portería:["saves","cleansheets","goalsconcededwhileonpitch"],
+ Portería:["saves","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
  Físico:["totaldistancecovered","numberofsprints"]
  }
 };
@@ -164,6 +164,23 @@ export function columnValue(row,mode,id,config){
  if(!row)return null;
  const definition=config.computed.find(d=>d.id===id);
  if(definition){try{
+  // Preferir el dato oficial de FotMob, si se dispone de él. El fallback
+  // PSxGOT solo es válido cuando ambos componentes comparten cobertura.
+  // Se restringe a los dos indicadores predefinidos, sin alterar otras fórmulas.
+  const isGPrev=id==="calc_goals_prevented"||id==="calc_goals_prevented_p90";
+  const isDefaultFormula=isGPrev&&definition.formula===COMPUTED.find(d=>d.id===id)?.formula;
+  if(isDefaultFormula){
+   if(mode==="season"&&Array.isArray(row.records)){
+    const direct=alignedFormulaInputs(row.records,id==="calc_goals_prevented"?["goals_prevented"]:["goals_prevented","minutes"]);
+    if(direct.available&&(!id.endsWith("_p90")||direct.totals.minutes>0))
+     return id.endsWith("_p90")?direct.totals.goals_prevented*90/direct.totals.minutes:direct.totals.goals_prevented;
+   }else{
+    const direct=metricsValue(row,"goals_prevented");
+    const mins=metricsValue(row,"minutes");
+    if(direct!==null&&(!id.endsWith("_p90")||mins>0))
+     return id.endsWith("_p90")?direct*90/mins:direct;
+   }
+  }
   const ast=parseFormula(definition.formula);
   if(mode==="season"&&Array.isArray(row.records)){
    const vars=[...new Set((definition.formula.match(/[a-zA-Z][a-zA-Z0-9_]*/g)||[]))];
