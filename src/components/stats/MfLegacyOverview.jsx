@@ -1,4 +1,6 @@
 import React,{useMemo,useState} from "react";
+import {useQuery} from "@tanstack/react-query";
+import {base44} from "@/api/base44Client";
 import {Activity,ArrowRight,BarChart3,CalendarDays,ChevronRight,Database,Pencil,Plus,RefreshCw,TrendingUp} from "lucide-react";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
 import {overviewHistoricalModel} from "@/utils/statsOverviewModel";
@@ -27,6 +29,16 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
  snapshot=null,cfcStatus="idle",onSeasonChange,onPerformance,onAnalysis,historicalLoading=false,historicalRefresh,editableRows=[],onSetMetric}){
  const [showValuationHistory,setShowValuationHistory]=useState(false);
  const [manualMode,setManualMode]=useState(null);
+ const {data:understatRows=[]}=useQuery({
+  queryKey:["understat-season-rates",playerId,season],
+  enabled:!!playerId&&season!=="Todas",
+  queryFn:async()=>{
+   const response=await base44.entities.UnderstatSeasonRate.filter({player_id:playerId,season},{limit:250});
+   return Array.isArray(response)?response:response?.items||response?.data||[];
+  },
+  staleTime:60000
+ });
+ const singleRate=understatRows.length===1?understatRows[0]:null;
  const {data,isFetching,error,refetch}=useHistoricalPeerDataset(true);
  const model=useMemo(()=>overviewHistoricalModel(data,playerId,season,8),[data,playerId,season]);
  const {result,indicators,trend}=model;
@@ -92,6 +104,14 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
      </div>
    </section>
 
+   {hasSeason&&understatRows.length>0&&<section className="rounded-xl border border-blue-200 bg-white p-4">
+    <h4 className="mb-2 text-xs font-black uppercase text-blue-900">Understat · datos independientes de temporada y equipo</h4>
+    <p className="mb-3 text-xs text-slate-500">No son una media de Champions, Liga y copas. Cada equipo conserva sus propios valores y nunca se promedian sin minutos.</p>
+    <div className="grid gap-2 sm:grid-cols-2">{understatRows.map(r=><div key={r.id||r.team} className="rounded-lg border bg-slate-50 p-3">
+     <strong className="text-xs">{r.team} · {r.season}</strong>
+     <div className="mt-2 flex gap-4 text-xs"><span>xG Chain /90: <b>{show(r.xg_chain_p90,2)}</b></span><span>xG Buildup /90: <b>{show(r.xg_buildup_p90,2)}</b></span></div>
+    </div>)}</div>
+   </section>}
    {error&&<p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">No se pudieron cargar los percentiles: {error.message}. El rendimiento sigue disponible.</p>}
 
    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">

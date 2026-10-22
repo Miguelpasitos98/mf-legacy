@@ -1,0 +1,47 @@
+{
+  "name": "UnderstatSeasonRate",
+  "type": "object",
+  "properties": {
+    "player_id": {
+      "type": "string",
+      "description": "ID interno del jugador Base44"
+    },
+    "fotmob_player_id": {
+      "type": "string"
+    },
+    "season": {
+      "type": "string"
+    },
+    "team": {
+      "type": "string"
+    },
+    "team_key": {
+      "type": "string"
+    },
+    "xg_chain_p90": {
+      "type": "number"
+    },
+    "xg_buildup_p90": {
+      "type": "number"
+    },
+    "xg_total": {
+      "type": "number"
+    },
+    "xa_total": {
+      "type": "number"
+    },
+    "source": {
+      "type": "string"
+    },
+    "source_scope": {
+      "type": "string",
+      "description": "Alcance original de Understat; no equivale a todas las competiciones."
+    }
+  },
+  "required": [
+    "player_id",
+    "season",
+    "team",
+    "team_key"
+  ]
+}
