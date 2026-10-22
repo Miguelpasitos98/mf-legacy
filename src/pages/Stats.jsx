@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeftRight, ArrowRight, ClipboardPaste, Copy, Database, RefreshCw, Search, Shield, Settings2, Upload, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { usePlayersQuery, useTeamsQuery } from "@/hooks/useSharedData";
+import { usePlayersQuery, useTeamsQuery, useCountriesQuery } from "@/hooks/useSharedData";
 import { normalizeLabel, metricLabel } from "@/utils/statsImport";
 import { buildValuationPrompt } from "@/utils/valuationPrompt";
 import {buildMissingMarketPrompt,missingMarketSeasons} from "@/utils/missingMarketPrompt";
@@ -104,11 +104,14 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const [season,setSeason]=useState("auto");
   const activeSeason=season==="auto"?defaultSeason(stats,initialSeason):season;
   const [competition,setCompetition]=useState("Todas");
-  const [scope,setScope]=useState("clubs");
+  const [scope,setScope]=useState("all");
   const [category,setCategory]=useState("Resumen");
   const [teamLinkTarget,setTeamLinkTarget]=useState(null);
   const [nationalTarget,setNationalTarget]=useState(null);
   const [nationalChoice,setNationalChoice]=useState("");
+  const [nationalCategory,setNationalCategory]=useState("senior");
+  const countriesQuery=useCountriesQuery();
+  const countries=countriesQuery.data||[];
   const [nationalError,setNationalError]=useState("");
   const [nationalBusy,setNationalBusy]=useState(false);
   const [teamMatchesTarget,setTeamMatchesTarget]=useState(null);
@@ -172,7 +175,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
     const info=resolveTeam(r,teams,uniqueRecords);
     if(nationalCompetition(r.competition)){
       const name=info.team?.name||"Selección sin vincular";
-      return <button type="button" onClick={()=>{setNationalTarget(r);setNationalChoice("");setNationalError("");}} className="text-left text-xs font-semibold text-blue-800 hover:underline" title="Vincular selección nacional">{name} {info.team?"✓":"✎"}</button>;
+      return <button type="button" onClick={()=>{setNationalTarget(r);setNationalChoice("");setNationalCategory(/(?:u20|sub.?20)/i.test(r.competition)?"u20":/(?:olympic|olimpic|u23|sub.?23)/i.test(r.competition)?"u23":"senior");setNationalError("");}} className="text-left text-xs font-semibold text-blue-800 hover:underline" title="Vincular selección nacional">{name} {info.team?"✓":"✎"}</button>;
     }
     const team=info.team;
     const suggested=info.status==="suggested";
@@ -331,25 +334,51 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
         <div className="w-full max-w-lg space-y-3 rounded-xl bg-white p-5 shadow-xl">
           <h3 className="text-base font-black text-[#0e2844]">Vincular selección nacional</h3>
           <p className="text-xs text-slate-600">{nationalTarget.season} · {nationalTarget.competition}. Solo cambia la selección asociada, no las estadísticas.</p>
-          <select value={nationalChoice} onChange={e=>setNationalChoice(e.target.value)} className="w-full rounded border p-2 text-sm">
-            <option value="">Elegir selección existente…</option>
-            {teams.filter(t=>t.id&&t.name&&(/national|internation|selecci|nacional/i.test([t.type,t.category,t.team_type,t.kind].join(" "))||/argentina|spain|españa|france|francia|brazil|brasil|england|germany|alemania|portugal|italia|uruguay|colombia|mexico|méxico|morocco|marruecos|netherlands|u[- ]?(17|20|21|23)|sub[- ]?(17|20|21|23)/i.test(t.name))).sort((a,b)=>a.name.localeCompare(b.name,"es")).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          <p className="text-[11px] text-amber-800">Comprueba si corresponde a absoluta, Sub-20 o Sub-23. Si no existe la selección en la lista, no vincules un club.</p>
+          <label className="block text-xs font-semibold">País
+            <select value={nationalChoice} onChange={e=>setNationalChoice(e.target.value)} className="mt-1 w-full rounded border p-2 text-sm">
+              <option value="">Seleccionar país de MF Legacy…</option>
+              {[...countries].filter(c=>c.id&&c.name).sort((a,b)=>a.name.localeCompare(b.name,"es")).map(c=><option key={c.id} value={String(c.id)}>{c.name}</option>)}
+            </select>
+          </label>
+          <label className="block text-xs font-semibold">Categoría de selección
+            <select value={nationalCategory} onChange={e=>setNationalCategory(e.target.value)} className="mt-1 w-full rounded border p-2 text-sm">
+              <option value="senior">Selección absoluta</option>
+              <option value="u20">Sub-20</option>
+              <option value="u23">Olímpica / Sub-23</option>
+              <option value="u17">Sub-17</option>
+              <option value="u21">Sub-21</option>
+            </select>
+          </label>
+          <p className="text-[11px] text-amber-800">La selección se obtiene del país y categoría elegidos. Si no existe, se crea sin alterar otros equipos.</p>
           {nationalError&&<p role="alert" className="text-xs text-red-700">{nationalError}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" disabled={nationalBusy} onClick={()=>setNationalTarget(null)} className="rounded border px-3 py-2 text-xs">Cancelar</button>
             <button type="button" disabled={nationalBusy||!nationalChoice} onClick={async()=>{
               setNationalBusy(true);setNationalError("");
               try{
-                const chosen=teams.find(t=>String(t.id)===nationalChoice);
-                if(!chosen)throw Error("Selección no encontrada.");
+                const country=countries.find(c=>String(c.id)===nationalChoice);
+                if(!country)throw Error("Selecciona un país de la tabla de países.");
+                const suffix={senior:"",u20:" Sub-20",u23:" Olímpica (Sub-23)",u17:" Sub-17",u21:" Sub-21"}[nationalCategory];
+                const name=String(country.name).trim()+suffix;
+                const norm=n=>String(n||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+                const candidates=teams.filter(t=>norm(t.name)===norm(name)&&(String(t.country_id||"")===nationalChoice||!t.country_id));
+                if(candidates.length>1)throw Error("Hay selecciones duplicadas. Revisa la tabla antes de vincular.");
+                let chosen=candidates[0];
+                if(chosen&&!chosen.country_id){
+                  chosen=await base44.entities.Team.update(chosen.id,{country_id:nationalChoice});
+                }
+                if(!chosen){
+                  const created=await base44.entities.Team.create({name,country_id:nationalChoice,short_name:String(country.code||"").toUpperCase()+(nationalCategory==="senior"?"":" "+nationalCategory.toUpperCase()),is_complete:false,data_source:"Manual"});
+                  chosen=created;
+                }
+                if(!chosen?.id)throw Error("No se pudo verificar la selección elegida.");
                 const current=await base44.entities.PlayerSeasonStats.get(nationalTarget.id);
                 if(!current||current.season!==nationalTarget.season||current.competition!==nationalTarget.competition||String(current.player_id)!==String(nationalTarget.player_id))throw Error("La identidad del registro cambió; vuelve a abrirlo.");
-                const patch={team_id:String(chosen.id),team_name:chosen.name,fotmob_team_id:chosen.fotmob_id||null};
+                const patch={team_id:String(chosen.id),team_name:chosen.name,fotmob_team_id:chosen.fotmob_id?String(chosen.fotmob_id):""};
                 await base44.entities.PlayerSeasonStats.update(current.id,patch);
                 setNationalTarget(null);
                 queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
+                queryClient.invalidateQueries({queryKey:["mf-legacy","teams"]});
                 window.location.reload();
               }catch(e){setNationalError(e?.message||"Error al vincular.");}
               finally{setNationalBusy(false);}
