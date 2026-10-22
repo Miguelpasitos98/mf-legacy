@@ -16,7 +16,12 @@ const unpack=v=>Array.isArray(v)?v:v?.items||v?.data||[];
 const empty=v=>v===null||v===undefined||v==="";
 const LEAGUES=/^(la ?liga|laliga|premier league|ligue ?1|bundesliga|serie ?a|eredivisie|primeira liga|liga portugal|championship|major league soccer|mls|liga nos|liga bbva|super lig|superliga|liga mx|liga 1|primera division|1\. liga|brasileirao)/i;
 const CUPS=/(champions|europa|conference|copa|cup|pokal|coupe|ta[cç]a|supercopa|super cup|supercup|world cup|mundial|uefa|club world)/i;
-const isDomestic=r=>LEAGUES.test(txt(r.competition));
+const isDomestic=r=>{
+ const name=txt(r.competition);
+ // Some historical provider records are prefixed with country or season,
+ // rather than starting with "LaLiga" as the older matcher assumed.
+ return !CUPS.test(name)&&(LEAGUES.test(name)||/(?:^|[^a-z])(laliga|la liga|premier league|ligue 1|bundesliga|serie a|eredivisie|primeira liga|liga portugal)(?:[^a-z]|$)/i.test(name));
+};
 const isSafeCandidate=r=>!CUPS.test(txt(r.competition));
 const metricEmpty=(row,name)=>empty(valueOf(row,name));
 const existingRate=(row,name)=>valueOf(row,name+" season /90")??valueOf(row,name+" /90");
@@ -73,15 +78,18 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
     // national-league record already present in the database.
     const exactDomestic=declared?domestic.filter(r=>key(r.competition)===key(declared)):domestic;
     const safeCandidates=candidates.filter(isSafeCandidate);
-    const eligible=exactDomestic.length?exactDomestic:domestic.length?domestic:safeCandidates;
+    const declaredSafe=declared&&!CUPS.test(declared);
+    const explicitMatches=declaredSafe?safeCandidates.filter(r=>key(r.competition)===key(declared)):[];
+    const eligible=exactDomestic.length?exactDomestic:domestic.length?domestic:explicitMatches.length?explicitMatches:safeCandidates;
     const selectedId=txt(overrides[i]);
+    // Explicit manual choices are allowed only from non-cup competitions.
     const selected=eligible.find(r=>txt(r.id)===selectedId);
     const auto=domestic.length===1?domestic[0]:null;
     const anchor=selected||auto;
     if(!anchor&&candidates.length)issues.push(
       eligible.length
         ?"Selecciona expresamente la competición de liga nacional de esta temporada. Las copas están excluidas."
-        :"No hay ninguna competición de liga elegible para este equipo y temporada.");
+        : "No hay una liga nacional disponible en MF Legacy para este equipo y temporada. Competiciones encontradas: "+candidates.map(r=>txt(r.competition)||"(sin nombre)").join(", ")+". Añade primero el registro de liga nacional.");
     const options=eligible.map(r=>({id:txt(r.id),label:txt(r.competition)+" · "+txt(r.team_name)+" · "+txt(r.id).slice(-8)}));
     const offered=[
       ["xG",xg],["xA",xa],
