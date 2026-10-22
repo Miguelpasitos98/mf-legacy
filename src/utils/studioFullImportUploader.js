@@ -1,6 +1,22 @@
 import {studioImportManifest,splitStudioArchive,selectStudioWrites} from "./studioFullImport.js";
 const responseRows=r=>Array.isArray(r)?r:r?.items||r?.data||r?.entities||r?.results||[];
 const timeout=e=>/timed out|timeout|504|429|rate limit/i.test(String(e?.message||e));
+const rateLimited=e=>/429|rate limit exceeded|retry after/i.test(String(e?.message||e));
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const rateWait=(error,attempt)=>{
+ const found=String(error?.message||error).match(/retry after\s+(\d+)\s*s/i);
+ return Math.min(70000,Math.max(21000,found?Number(found[1])*1000+2000:21000*(attempt+1)));
+};
+async function updateWithRateLimit(entity,id,row,progress){
+ for(let attempt=0;attempt<5;attempt++){
+  try{return await entity.update(id,row);}
+  catch(e){
+   if(!rateLimited(e)||attempt===4)throw e;
+   progress?.("Límite temporal de Base44; reanudando actualización",attempt+1,5);
+   await sleep(rateWait(e,attempt));
+  }
+ }
+}
 export async function studioJsonSha256(source){
  const data=new TextEncoder().encode(source);
  const digest=await crypto.subtle.digest("SHA-256",data);
@@ -54,7 +70,7 @@ async function saveEntity(entity,records,progress){
   progress?.(created+updated+writes.unchanged.length,records.length);
  }
  for(const entry of writes.update){
-  await entity.update(entry.id,entry.row);
+  await updateWithRateLimit(entity,entry.id,entry.row);
   updated++;progress?.(created+updated+writes.unchanged.length,records.length);
  }
  return {created,updated,unchanged:writes.unchanged.length};
