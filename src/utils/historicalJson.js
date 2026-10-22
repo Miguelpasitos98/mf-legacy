@@ -14,6 +14,7 @@ const CLUB_ALIASES = {
   "fc red bull salzburg": "salzburg", "fc salzburg": "salzburg",
   "bryne fk": "bryne", "molde fk": "molde",
   "bayer 04 leverkusen": "bayer leverkusen",
+  "inter": "internazionale milan",
   "inter milan": "internazionale milan",
   "internazionale": "internazionale milan",
   "fc internazionale milano": "internazionale milan",
