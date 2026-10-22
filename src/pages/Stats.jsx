@@ -65,9 +65,22 @@ function Avatar({name,photo,size="md"}) {
   return <div className={classes+" flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#e9f0f9] font-black text-[#31557b]"}>{photo&&!broken?<img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" onError={()=>setBroken(true)}/>:String(name||"?").slice(0,2).toUpperCase()}</div>;
 }
 function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);return <span className="inline-flex max-w-[170px] items-center gap-2">{logo&&!broken?<img src={logo} alt="" className="h-5 w-5 object-contain" onError={()=>setBroken(true)}/>:<Shield size={16} className="text-slate-300"/>}<span className="truncate">{teamName||"Sin equipo"}</span></span>;}
+const seasonForView=r=>{
+ const override=String(r?.display_season||"");
+ if(/^\d{4}\/\d{4}$/.test(override))return override;
+ const raw=String(r?.season||"").trim();
+ if(/^\d{4}\/\d{4}$/.test(raw))return raw;
+ if(!/^\d{4}$/.test(raw))return raw;
+ const year=Number(raw);
+ const competition=String(r?.competition||"").toLowerCase();
+ // Summer national tournaments close the previous European football season.
+ const summerNational=/world cup|worldcup|copa america|copa américa|euro 20|european championship|summer olympics|olympic games|finalissima/i.test(competition);
+ const start=summerNational?year-1:year;
+ return start+"/"+(start+1);
+};
 function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,onOpenSettings,onSetTeamMatches,onSetMetric,config}) {
   const queryClient=useQueryClient();
-  const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
+  const seasons=useMemo(()=>[...new Set(stats.map(seasonForView).filter(Boolean))].sort().reverse(),[stats]);
   const {valuations:historicalValuations,loading:historicalLoading,refresh:historicalRefresh}=useHistoricalValuations(player?.id||stats[0]?.player_id);
   const {getTeamMatches,refresh:refreshTeamMatches}=useTeamMatchesLookup(stats);
   const [valuationImporterOpen,setValuationImporterOpen]=useState(false);
@@ -102,7 +115,11 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const [section,setSection]=useState("overview");
   const {snapshot:cfcSnapshot,status:cfcStatus}=useCraftedfcSnapshot(player?.id);
   const [season,setSeason]=useState("auto");
-  const activeSeason=season==="auto"?defaultSeason(stats,initialSeason):season;
+  const [seasonOverrides,setSeasonOverrides]=useState({});
+  const [seasonEdit,setSeasonEdit]=useState(null);
+  const [seasonSaving,setSeasonSaving]=useState(false);
+  const [seasonError,setSeasonError]=useState("");
+  const activeSeason=season==="auto"?seasonForView(stats.find(r=>r.season===defaultSeason(stats,initialSeason))||stats[0]||{}):season;
   const [competition,setCompetition]=useState("Todas");
   const [scope,setScope]=useState("all");
   const [category,setCategory]=useState("Resumen");
@@ -135,7 +152,8 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   };
   const byTeam=useMemo(()=>new Map(teams.map(t=>[String(t.id),t])),[teams]);
   const uniqueRecords=useMemo(()=>groupStatRows(stats),[stats]);
-  const seasonRows=uniqueRecords.filter(s=>activeSeason==="Todas"||s.season===activeSeason);
+  const displayedSeason=r=>seasonForView({...r,display_season:seasonOverrides[String(r.id)]??r.display_season});
+  const seasonRows=uniqueRecords.filter(s=>activeSeason==="Todas"||displayedSeason(s)===activeSeason);
   const competitions=[...new Set(seasonRows.map(s=>s.competition))].sort();
   const shown=seasonRows.filter(r=>(scope==="all"||!nationalCompetition(r.competition))&&(competition==="Todas"||r.competition===competition)).map(r=>{
     const tm=getTeamMatches(r);
@@ -301,7 +319,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <table className="w-full min-w-[720px] text-left text-xs">
               <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className={"px-3 py-3"+line("season_competition")}>Temporada / competición</th><th className={"px-3 py-3"+line("club")}>Equipo / selección</th><th className={"px-3 py-3"+line("appearances")}>PJ</th><th className={"px-3 py-3"+line("minutes")}>Min</th><th className={"whitespace-nowrap px-2 py-3"+line("team_matches")} title="Partidos disputados por el equipo en esta competición, a la fecha del registro; pulsa el dato para editarlo">PJ equipo</th><th className={"px-3 py-3"+line("rating")}>Nota</th>{selected.map(id=><th key={id} className={"whitespace-nowrap px-3 py-3"+line(id)}>{getColumn(config,id)?.name||metricLabel(id)}</th>)}</tr></thead>
               <tbody>{shown.length?shown.slice().sort((a,b)=>b.season.localeCompare(a.season)||(num(b.minutes)||num(b.appearances)||0)-(num(a.minutes)||num(a.appearances)||0)||a.competition.localeCompare(b.competition)).map((r,i)=><tr key={r.id||r.external_record_id||i} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className={"px-3 py-3 font-semibold"+line("season_competition")}>{r.season}<div className="font-normal text-slate-500">{r.competition}</div>{r._sourceRows>1&&<span className="text-[10px] text-blue-700">Fuentes consolidadas: {r._sourceRows}</span>}</td>
+                <td className={"px-3 py-3 font-semibold"+line("season_competition")}>{displayedSeason(r)} <button type="button" title="Cambiar temporada de visualización" className="ml-1 text-[10px] text-blue-700 underline" onClick={()=>{setSeasonEdit({row:r,chosen:displayedSeason(r)});setSeasonError("");}}>Editar</button><div className="font-normal text-slate-500">{r.competition}{/^\d{4}$/.test(String(r.season||""))&&<span className="ml-1 text-amber-700">(origen: {r.season})</span>}</div>{r._sourceRows>1&&<span className="text-[10px] text-blue-700">Fuentes consolidadas: {r._sourceRows}</span>}</td>
                 <td className={"px-3 py-3"+line("club")}>{teamCell(r)}</td>
                 <td className={"px-3 py-3"+line("appearances")}>{valueButton(r,"Partidos",r.appearances,0,"appearances")}</td><td className={"px-3 py-3"+line("minutes")}>{valueButton(r,"Minutos",r.minutes,0,"minutes")}</td><td className={"px-2 py-3"+line("team_matches")}><button type="button" onClick={()=>editTeamMatches(r)} disabled={!r.id} aria-label={"Editar partidos del equipo de "+r.competition+" "+r.season} title="Editar partidos disputados por el equipo en esta competición" className="whitespace-nowrap rounded-md border border-transparent px-2 py-1 font-semibold text-[#003399] hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400">{r.team_matches==null?"Añadir +":show(r.team_matches)}{r._teamMatchesSource==="team"&&<span className="ml-1 text-[9px] text-emerald-600" title="PJ equipo importado a nivel de club">club</span>}</button></td><td className={"px-3 py-3"+line("rating")}>{valueButton(r,"Nota FotMob",r.rating,2,"rating")}</td>
                 {selected.map(id=><td key={id} className={"px-3 py-3 font-semibold"+line(id)}>{getColumn(config,id)?.kind==="raw"?valueButton(r,columnMetricName(r,id),columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??0):<span title="Calculado automáticamente a partir de las estadísticas originales">{show(columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??0)}{columnValue(r,"competition",id,config)!==null&&getColumn(config,id)?.unit?" "+getColumn(config,id).unit:""}</span>}</td>)}
@@ -339,6 +357,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           <div className="flex justify-end gap-2"><button type="button" onClick={()=>setTeamMatchesTarget(null)} disabled={teamMatchesBusy} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Cancelar</button><button type="submit" disabled={teamMatchesBusy} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{teamMatchesBusy?"Guardando…":"Guardar PJ equipo"}</button></div>
         </form>
       </div>}
+      {seasonEdit&&<div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Cambiar temporada de visualización"><div className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-xl"><h3 className="font-bold text-[#0e2844]">Temporada de visualización</h3><p className="text-xs text-slate-600">{seasonEdit.row.competition} · origen {seasonEdit.row.season}. No se cambian las estadísticas ni el identificador original.</p><select className="w-full rounded border p-2" value={seasonEdit.chosen} onChange={e=>setSeasonEdit(v=>({...v,chosen:e.target.value}))}>{[...new Set([seasonEdit.chosen,...seasons,...Array.from({length:20},(_,i)=>String(2013+i)+"/"+String(2014+i))])].sort().reverse().map(y=><option key={y} value={y}>{y}</option>)}</select>{seasonError&&<p role="alert" className="text-xs text-red-700">{seasonError}</p>}<div className="flex justify-end gap-2"><button type="button" disabled={seasonSaving} onClick={()=>setSeasonEdit(null)} className="rounded border px-3 py-2">Cancelar</button><button type="button" disabled={seasonSaving||!seasonEdit.row.id} className="rounded bg-[#003399] px-3 py-2 text-white disabled:opacity-40" onClick={async()=>{setSeasonSaving(true);setSeasonError("");try{const original=seasonEdit.row;const fresh=await base44.entities.PlayerSeasonStats.get(original.id);if(String(fresh.player_id)!==String(original.player_id)||fresh.competition!==original.competition||fresh.season!==original.season)throw Error("El registro ha cambiado; recarga los datos.");await base44.entities.PlayerSeasonStats.update(fresh.id,{display_season:seasonEdit.chosen});setSeasonOverrides(v=>({...v,[String(fresh.id)]:seasonEdit.chosen}));setSeason(seasonEdit.chosen);setCompetition("Todas");setSeasonEdit(null);queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});}catch(e){setSeasonError(e.message||"No se pudo guardar.");}finally{setSeasonSaving(false);}}}>Guardar temporada</button></div></div></div>}
       {nationalTarget&&<div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Vincular selección nacional">
         <div className="w-full max-w-lg space-y-3 rounded-xl bg-white p-5 shadow-xl">
           <h3 className="text-base font-black text-[#0e2844]">Vincular selección nacional</h3>
