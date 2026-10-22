@@ -131,7 +131,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
     return tm?{...r,team_matches:tm.team_matches,_teamMatchesSource:"team"}:r;
   });
   const sums=aggregate(shown);
-  const advanced=advancedTotals(shown);
+  const advanced=advancedTotals(shown,{includeSeasonRates:competition==="Todas"});
   const summaryBasics=aggregate(shown,["appearances","minutes"]);
   const ratingRows=shown.filter(r=>num(r.rating)!==null&&num(r.appearances)>0);
   const ratedGames=ratingRows.reduce((v,r)=>v+Number(r.appearances),0);
