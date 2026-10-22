@@ -11,11 +11,12 @@ const FIELDS={
   TeamSeasonMatches:["id","team_id","fotmob_team_id","season","competition","team_matches"],
   Team:["id","name","fotmob_id"],
   TeamSeasonPossession:["id","team_id","fotmob_team_id","season","competition","team_possession_pct"],
+  UnderstatSeasonRate:["id","player_id","season","team","team_key","xg_chain_p90","xg_buildup_p90"],
 };
 const limited = err => /rate limit|too many requests|429/i.test(String(err?.message||err)) ||
   err?.status === 429 || err?.response?.status === 429;
 const timeout = err => /query timed out|timeout|timed out|504|gateway timeout/i.test(String(err?.message||err)) || err?.status===504;
-const PAGE_SIZE={Player:300,PlayerSeasonStats:120,PlayerHistoricalValuation:250,TeamSeasonMatches:250,Team:200,TeamSeasonPossession:250};
+const PAGE_SIZE={Player:300,PlayerSeasonStats:120,PlayerHistoricalValuation:250,TeamSeasonMatches:250,Team:200,TeamSeasonPossession:250,UnderstatSeasonRate:250};
 async function readPage(query){
   // Retry ONLY the unsuccessful page. Never restart the entire population
   // or silently return a truncated dataset after a temporary timeout.
