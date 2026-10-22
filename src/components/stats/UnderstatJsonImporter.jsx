@@ -22,12 +22,13 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
  const [raw,setRaw]=useState("");
  const [rows,setRows]=useState([]);
  const [chosen,setChosen]=useState(new Set());
+ const [competitionOverrides,setCompetitionOverrides]=useState({});
  const [error,setError]=useState("");
  const [message,setMessage]=useState("");
  const [busy,setBusy]=useState(false);
  const playerId=txt(player?.id||stats.find(r=>r.player_id)?.player_id);
  const matching=useMemo(()=>stats.filter(r=>r.id&&txt(r.player_id)===playerId),[stats,playerId]);
- const analyze=()=>{
+ const analyze=(overrides=competitionOverrides)=>{
   setRows([]);setChosen(new Set());setError("");setMessage("");
   try{
    const data=JSON.parse(raw);
@@ -61,11 +62,20 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
 
     // Understat's standard player season table is domestic-league scoped.
     // Never attach it to an arbitrary first competition such as Champions.
-    const leagueCandidates=candidates.filter(r=>LEAGUES.test(txt(r.competition)) || key(r.competition)===key(item.competition));
     const declared=txt(item.competition);
-    const eligible=declared?candidates.filter(r=>key(r.competition)===key(declared)):leagueCandidates.filter(r=>LEAGUES.test(txt(r.competition)));
-    if(eligible.length!==1)issues.push("No se ha identificado una liga nacional única. Añade competition al JSON para seleccionar la liga correctamente.");
-    const anchor=eligible.length===1?eligible[0]:null;
+    // Only domestic leagues are eligible. Explicit JSON competition may disambiguate
+    // league names, but never redirect an Understat rate to a cup.
+    const domestic=candidates.filter(r=>LEAGUES.test(txt(r.competition)));
+    const eligible=declared?domestic.filter(r=>key(r.competition)===key(declared)):domestic;
+    const selectedId=txt(overrides[i]);
+    const selected=eligible.find(r=>txt(r.id)===selectedId);
+    const anchor=selected||(eligible.length===1?eligible[0]:null);
+    if(!anchor)issues.push(!domestic.length
+      ?"No hay una liga nacional reconocida para este equipo y temporada. Revisa el nombre de la competición en MF Legacy."
+      :declared&&!eligible.length
+        ?"La competición indicada en el JSON no coincide con ninguna liga nacional del equipo y temporada."
+        :"Se encontraron varias ligas candidatas. Selecciona el registro exacto antes de importar.");
+    const options=eligible.map(r=>({id:txt(r.id),label:txt(r.competition)+" · "+txt(r.team_name)+" · "+txt(r.id).slice(-8)}));
     const offered=[
       ["xG",xg],["xA",xa],
       ["xG Chain /90",chain],["xG Buildup /90",buildup]
@@ -79,7 +89,7 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
     }));
     const diffs=metrics;
     const same=diffs.length===0;
-    return {id:i,season,team,anchor,metrics,diffs,issues,status:issues.length?"error":same?"same":"new"};
+    return {id:i,season,team,anchor,options,metrics,diffs,issues,status:issues.length?"error":same?"same":"new"};
    });
    setRows(out);setChosen(new Set(out.filter(r=>r.status==="new").map(r=>r.id)));
    setMessage("Vista previa generada. Solo los datos nuevos están seleccionados; marca las actualizaciones explícitamente.");
@@ -121,10 +131,10 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
  return <div className="space-y-4">
   <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-900">Importa xG, xA, xG Chain /90 y xG Buildup /90 exclusivamente a la liga nacional. Solo rellena campos vacíos; jamás sobrescribe valores existentes ni copia datos a Champions u otras copas. Si falta identificar la liga, el registro se bloquea.</p>
   <label className="block text-xs font-bold text-slate-700">Pegar JSON Understat
-   <textarea value={raw} onChange={e=>{setRaw(e.target.value);setRows([]);setChosen(new Set());setError("");}} spellCheck={false} disabled={busy} placeholder={'{"schema":"mf_legacy_understat_per90_import_v1","player":{"fotmob_id":"701154"},"records":[{"season":"2023/2024","team":"Paris Saint-Germain","xg_chain_p90":1.15,"xg_buildup_p90":0.40}]}'}
+   <textarea value={raw} onChange={e=>{setRaw(e.target.value);setRows([]);setChosen(new Set());setCompetitionOverrides({});setError("");}} spellCheck={false} disabled={busy} placeholder={'{"schema":"mf_legacy_understat_per90_import_v1","player":{"fotmob_id":"701154"},"records":[{"season":"2023/2024","team":"Paris Saint-Germain","xg_chain_p90":1.15,"xg_buildup_p90":0.40}]}'}
     className="mt-2 h-52 w-full rounded-xl border border-slate-300 bg-slate-50 p-3 font-mono text-xs text-slate-800"/>
   </label>
-  <div className="flex gap-2"><button type="button" disabled={!raw.trim()||busy} onClick={analyze} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Analizar JSON</button><button type="button" disabled={busy} onClick={()=>{setRaw("");setRows([]);setChosen(new Set());setError("");setMessage("");}} className="rounded-lg border px-4 py-2 text-xs">Limpiar</button></div>
+  <div className="flex gap-2"><button type="button" disabled={!raw.trim()||busy} onClick={()=>analyze()} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Analizar JSON</button><button type="button" disabled={busy} onClick={()=>{setRaw("");setRows([]);setChosen(new Set());setCompetitionOverrides({});setError("");setMessage("");}} className="rounded-lg border px-4 py-2 text-xs">Limpiar</button></div>
   {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-800">{error}</p>}
   {message&&<p role="status" className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">{message}</p>}
   {!!rows.length&&<><p className="text-xs text-slate-600">{rows.length} filas · {rows.filter(r=>r.status==="error").length} errores. Los existentes no se modifican sin marcarlos.</p>
@@ -132,6 +142,7 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
     <input type="checkbox" disabled={busy||!["new","update"].includes(r.status)} checked={chosen.has(r.id)} onChange={e=>setChosen(prev=>{const s=new Set(prev);if(e.target.checked)s.add(r.id);else s.delete(r.id);return s;})}/>
     <span className="flex-1"><strong>{r.season} · {r.team}</strong><span className="ml-2 text-slate-500">{r.status==="new"?"Nuevo":r.status==="update"?"Actualizar":r.status==="same"?"Sin cambios":"Error"}</span>
     <span className="block text-slate-600">{r.metrics.length} campos vacíos para completar · xG: {r.metrics.find(m=>m.name==="xG")?.value??"—"} · xA: {r.metrics.find(m=>m.name==="xA")?.value??"—"} · Chain /90: {r.metrics.find(m=>m.name.startsWith("xG Chain"))?.value??"—"} · Buildup /90: {r.metrics.find(m=>m.name.startsWith("xG Buildup"))?.value??"—"}</span>
+    {r.options.length>1&&<span className="mt-2 block"><span className="block font-semibold text-slate-700">Registro de liga nacional</span><select aria-label={"Seleccionar liga "+r.season+" "+r.team} value={competitionOverrides[r.id]||""} disabled={busy} onChange={e=>{const next={...competitionOverrides,[r.id]:e.target.value};setCompetitionOverrides(next);analyze(next);}} className="mt-1 w-full rounded border border-slate-300 bg-white p-2"><option value="">Selecciona el registro exacto</option>{r.options.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></span>}
     {r.issues.map((t,i)=><span key={i} className="block text-red-700">{t}</span>)}</span>
    </label>)}</div>
    <button type="button" disabled={busy||!chosen.size} onClick={save} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{busy?"Guardando…":"Guardar "+chosen.size+" registros"}</button>
