@@ -31,7 +31,7 @@ class PossessionPipelineTest(unittest.TestCase):
             (snapshots / "italy.json").write_text(json.dumps({
                 "competition": "Serie A", "season": "2025/2026",
                 "records": [{"team_name": "Inter", "team_possession_pct": "59,7",
-                             "fotmob_team_id": "verified-id-required"}]
+                             "fotmob_team_id": "8636"}]
             }), encoding="utf-8")
             out = root / "import.json"
             result = subprocess.run([sys.executable, str(IMPORTER), "--leagues", str(CATALOG),

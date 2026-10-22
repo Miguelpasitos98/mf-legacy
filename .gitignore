@@ -30,3 +30,10 @@ dist-ssr
 .env
 .vite
 base44/.app.jsonc
+
+# Local possession responses and Python bytecode
+scripts/possession/.cache/
+.local-possession-cache/
+/exports/
+__pycache__/
+*.pyc

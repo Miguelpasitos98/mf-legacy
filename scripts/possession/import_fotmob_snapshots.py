@@ -66,6 +66,8 @@ def main():
     ap.add_argument("--snapshots", required=True, type=Path, help="Folder with authorised FotMob JSON snapshots")
     ap.add_argument("--output", required=True, type=Path, help="MF Legacy JSON output")
     args = ap.parse_args()
+    if not args.snapshots.is_dir() or not list(args.snapshots.glob("*.json")):
+        ap.error("Snapshots directory is missing or contains no JSON files")
     leagues = items(json.loads(args.leagues.read_text(encoding="utf-8")))
     allowed = {str(x["name"]).casefold(): x["name"] for x in leagues if isinstance(x, dict) and x.get("name")}
     if not allowed:
@@ -100,11 +102,12 @@ def main():
                     fid = first(record, ID_KEYS)
                     if isinstance(fid, dict):
                         fid = first(fid, ID_KEYS)
+                    if fid is not None and not re.fullmatch(r"[1-9]\d*", str(fid)):
+                        raise ValueError("FotMob team ID must be a positive integer")
                     value = percent(first(record, POSS_KEYS))
                     key = (actual.casefold(), yr, str(fid) if fid is not None else name.casefold())
                     if key in seen:
                         raise ValueError("duplicate identity within the batch")
-                    seen.add(key)
                     row = dict(team_name=name, season=yr, competition=actual,
                                team_possession_pct=value, source="FotMob",
                                verification_status="pending")
@@ -117,6 +120,7 @@ def main():
                         if not str(matches).isdigit() or not 1 <= int(matches) <= 200:
                             raise ValueError("invalid matches_covered")
                         row["matches_covered"] = int(matches)
+                    seen.add(key)
                     results.append(row)
                 except (ValueError, TypeError) as e:
                     issues.append(f"{file.name}: team row {n}: {e}")
