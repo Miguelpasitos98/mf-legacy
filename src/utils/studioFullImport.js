@@ -45,6 +45,13 @@ export function studioImportManifest(input,{playerId="",fileHash="",sourceFileUr
  if(!pid||!/^[0-9]+$/.test(pid))throw Error("Studio JSON sin ID FotMob único.");
  if(input?.schema!=="mf_legacy_external_batch_v1"||!Array.isArray(input.records))
   throw Error("No es un JSON de MF LEGACY Studio.");
+ const identity=input?.understat?.dataset_identity||input?.understat?.identity||{};
+ const datasetConfirmed=String(identity?.pid||identity?.fotmob_player_id||"")===pid
+  &&String(identity?.uid||identity?.understat_player_id||"").trim()!==""
+  &&(identity?.verified===true||/^(confirmed|verified)$/i.test(String(identity?.status||identity?.state||""))||Boolean(identity?.confirmed_at));
+ const understatId=String(identity?.uid||identity?.understat_player_id||"").trim();
+ const observationValid=x=>datasetConfirmed&&String(x?.player?.fotmob_player_id||"")===pid
+  &&String(x?.player?.understat_player_id||"")===understatId;
  const records=[],kinds={};
  for(const [name,kind] of studioSections(input)){
   if(input[name]!==undefined&&!Array.isArray(input[name]))throw Error("La sección "+name+" no es una lista.");
@@ -59,14 +66,14 @@ export function studioImportManifest(input,{playerId="",fileHash="",sourceFileUr
      x.profile_season_id||[season,comp,i].join(":"));
    const identifier=sourceRecordId.replace(/[^a-zA-Z0-9:_./-]/g,"_").slice(0,220)||String(i);
    const status=kind==="market_point"?"model_estimate":
-    kind.startsWith("understat")?"manual_identity_unverified":
+    kind.startsWith("understat")?(observationValid(x)?"dataset_identity_confirmed":"identity_unverified"):
     kind==="pending_team"?"pending_review":str(x.verification_status||"source_preserved");
    records.push({record_key:"studio:"+pid+":"+name+":"+identifier,
     player_id:str(playerId),fotmob_player_id:pid,record_kind:kind,
     season,competition:comp,team_name:tname,
     fotmob_team_id:str(x.fotmob_team_id||x.team?.fotmob_team_id),
     provider:kind==="market_point"?"FotMob/SciSports":
-      kind.startsWith("understat")?"Understat (manual)":str(x.source||"MF Legacy Studio"),
+      kind.startsWith("understat")?"Understat · dataset local":str(x.source||"MF Legacy Studio"),
     source_record_id:sourceRecordId,record_date:date,
     ...(kind==="market_point"&&num(x.value_eur)!==null?{market_value_eur:num(x.value_eur)}:{}),
     ...(kind==="market_point"&&num(x.lower_bound)!==null?{market_lower_eur:num(x.lower_bound)}:{}),
@@ -82,8 +89,9 @@ export function studioImportManifest(input,{playerId="",fileHash="",sourceFileUr
     ...(["fotmob_season","understat_summary"].includes(kind)&&num(x.matches??x.totals?.games)!==null?
      {appearances:num(x.matches??x.totals?.games)}:{}),
     ...(kind==="fotmob_season"&&Array.isArray(x.metrics)?{metrics:x.metrics}:{}),
-    ...(kind==="understat_summary"?{metrics:studioUnderstatMetrics(x)}:{}),
-    source_verified:!["market_point","understat_observation","understat_summary","pending_team","historical_valuation"].includes(kind)
+    ...(kind==="understat_summary"?{metrics:studioUnderstatMetrics(x).map(m=>({...m,verification_status:observationValid(x)?"dataset_identity_confirmed":"identity_unverified"}))}:{}),
+    source_verified:kind.startsWith("understat")?observationValid(x):
+      !["market_point","pending_team","historical_valuation"].includes(kind)
       &&/^(verified|confirmada)$/i.test(str(x.verification_status)),
     status,
     // Base44 entity string fields reject very large provider payloads.
