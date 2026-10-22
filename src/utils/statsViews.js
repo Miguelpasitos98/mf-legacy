@@ -4,8 +4,8 @@ export const metricNorm = name => norm(String(name??"").replace(/%/g,"percent"))
 export const statNum = v => v===null||v===undefined||v===""?null:Number.isFinite(Number(v))?Number(v):null;
 export const nationalCompetition = name => {
  const x=norm(name);
- if(x.includes("clubworldcup"))return false;
- return /worldcup|copaamerica|nationsleague|conmebolqualif|euroqualif|afcon|africacupofnations|asiancup|goldcup|internationalfriendly|uefaqualif/.test(x)
+ if(x.includes("clubworldcup")||x.includes("fifaclubworldcup"))return false;
+ return /worldcup|copaamerica|nationsleague|conmebolqualif|euroqualif|afcon|africacupofnations|asiancup|goldcup|internationalfriendly|uefaqualif|olympicgames|olympics|olympicfootball|olympicqualif|fifau20|fifau17|u20worldcup|u17worldcup|u23asiancup|u20asiancup|u17asiancup|southamericanu20|southamericanu17|worldcupqualification|worldcupqualifiers|friendliesinternational/.test(x)
   || /^euro(?:$|u\d{2}|\d{4}|qualification)/.test(x)
   || /^uefa(?:euro\d{4}|u\d{2}championship|europeanchampionship)/.test(x);
 };
@@ -25,7 +25,14 @@ const exactTeam=(r,teams)=>{
  return null;
 };
 export const resolveTeam=(record,teams,peers=[])=>{
- if(nationalCompetition(record.competition))return {team:null,status:"national",label:"Selección nacional · no identificada"};
+ if(nationalCompetition(record.competition)){
+  const team=exactTeam(record,teams);
+  const sourceName=String(record.team_name||"").trim();
+  const suspicious= /^(atletico|atlético|river plate|manchester|paris saint|psg|real madrid|barcelona|arsenal|chelsea|bayern|monaco)/i.test(sourceName);
+  // Never guess a national side from the player's club or nationality.
+  if(team && !suspicious && (record.team_id||record.fotmob_team_id))return {team,status:"national_confirmed",label:"Selección vinculada"};
+  return {team:null,status:"national_unlinked",label:suspicious?"Selección pendiente · asociación de club detectada":"Selección pendiente de vincular"};
+ }
  const team=exactTeam(record,teams);
  if(record.team_id&&team)return {team,status:"confirmed",label:"Equipo vinculado"};
  if(team)return {team,status:"confirmed",label:"Identificado por nombre o ID FotMob"};
