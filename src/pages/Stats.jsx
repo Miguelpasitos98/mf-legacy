@@ -361,9 +361,12 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
                 const suffix={senior:"",u20:" Sub-20",u23:" Olímpica (Sub-23)",u17:" Sub-17",u21:" Sub-21"}[nationalCategory];
                 const name=String(country.name).trim()+suffix;
                 const norm=n=>String(n||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]/g,"");
-                const candidates=teams.filter(t=>String(t.country_id||"")===nationalChoice&&norm(t.name)===norm(name));
+                const candidates=teams.filter(t=>norm(t.name)===norm(name)&&(String(t.country_id||"")===nationalChoice||!t.country_id));
                 if(candidates.length>1)throw Error("Hay selecciones duplicadas. Revisa la tabla antes de vincular.");
                 let chosen=candidates[0];
+                if(chosen&&!chosen.country_id){
+                  chosen=await base44.entities.Team.update(chosen.id,{country_id:nationalChoice});
+                }
                 if(!chosen){
                   const created=await base44.entities.Team.create({name,country_id:nationalChoice,short_name:String(country.code||"").toUpperCase()+(nationalCategory==="senior"?"":" "+nationalCategory.toUpperCase()),is_complete:false,data_source:"Manual"});
                   chosen=created;
@@ -375,6 +378,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
                 await base44.entities.PlayerSeasonStats.update(current.id,patch);
                 setNationalTarget(null);
                 queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
+                queryClient.invalidateQueries({queryKey:["mf-legacy","teams"]});
                 window.location.reload();
               }catch(e){setNationalError(e?.message||"Error al vincular.");}
               finally{setNationalBusy(false);}
