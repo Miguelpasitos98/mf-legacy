@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {WEIGHTS_BY_ROLE, COMPOSITE_ROLES,calculateCompositeMF,metricPercentiles,normalizeRole} from '../src/utils/compositeEngine.js';
+import {WEIGHTS_BY_ROLE, COMPOSITE_ROLES,calculateCompositeMF,metricPercentiles,normalizeRole,analyzeCompositeSensitivity} from '../src/utils/compositeEngine.js';
 
 test('los ocho arquetipos conservan sus pesos visibles y un resto positivo para rating',()=>{
  assert.equal(COMPOSITE_ROLES.length,8);
@@ -90,4 +90,19 @@ test('CB redistribuye solo la métrica xG ausente; no transfiere a percentiles a
  assert.equal(get('accurate_long_balls_p90').weight,4);
  assert.equal(get('def_actions_poss_adj_p90').weight,8.75);
  assert.equal(get('accurate_passes_p90').weight,0);
+});
+
+test('Analizar nota recalcula escenarios sin mutar el Composite original',()=>{
+ const input={goals_prevented_p90:90,fc27_ovr:70,accurate_long_balls_p90:60,
+ accurate_passes_p90:50,market_value:70,play_share:80,save_pct:65,rating:75};
+ const original=calculateCompositeMF({metrics:[]},'GK',input);
+ const before=JSON.stringify(original);
+ const scenarios=analyzeCompositeSensitivity(original);
+ const goals=scenarios.find(s=>s.key==='goals_prevented_p90');
+ assert.ok(goals);
+ assert.equal(goals.original,original.score);
+ assert.ok(Number.isFinite(goals.without));
+ assert.ok(goals.without<goals.original);
+ assert.equal(JSON.stringify(original),before);
+ assert.deepEqual(analyzeCompositeSensitivity({role:'GK',score:null,rows:[]}),[]);
 });
