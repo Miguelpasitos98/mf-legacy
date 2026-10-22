@@ -96,7 +96,7 @@ export async function enrichImportedUnderstat(base44,playerId,fotmobId,onProgres
 export function seasonUnderstatRates(rows=[]){
  const bySeason=new Map();
  for(const row of rows){
-  if(row.record_kind!=="understat_summary")continue;
+  if(row.record_kind!=="understat_summary"||row.status!=="dataset_identity_confirmed")continue;
   const season=txt(row.season),minutes=n(row.minutes);
   if(!/^\\d{4}\/\\d{4}$/.test(season)||!(minutes>0))continue;
   const metrics=Array.isArray(row.metrics)?row.metrics:[];
