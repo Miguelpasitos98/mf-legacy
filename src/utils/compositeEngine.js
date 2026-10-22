@@ -151,3 +151,21 @@ export function calculateCompositeMF(row,positionOrRole,percentilesOverride=null
   const count=rows.filter(r=>r.percentile!==null).length;
   return {role,score,coverage:round(coverage*100),count,total:rows.length,observedAdds:round(scoreSum),availableWeight,missing:rows.filter(r=>r.percentile===null).map(r=>r.key),rows,status:count===0?"no_data":coverage===1?"calculated":"partial",method:"MF Legacy: media ponderada de percentiles FotMob disponibles usando baremos observados; pesos negativos conservados."};
 }
+/**
+ * Diagnostic only: remove one observed metric and renormalize with the same
+ * composite engine. Does not change the stored score or claim a new rank.
+ */
+export function analyzeCompositeSensitivity(calculation){
+ if(!calculation?.role||calculation.score===null)return [];
+ const percentiles=Object.fromEntries(calculation.rows.map(r=>[r.key,r.percentile]));
+ return calculation.rows
+  .filter(r=>r.percentile!==null&&r.contribution!==null)
+  .map(r=>{
+   const without=calculateCompositeMF({metrics:[]},calculation.role,{...percentiles,[r.key]:null});
+   return {key:r.key,name:r.name,weight:r.weight,adds:r.contribution,
+    original:calculation.score,without:without.score,
+    delta:without.score===null?null:Math.round((without.score-calculation.score)*100)/100};
+  })
+  .filter(r=>r.without!==null)
+  .sort((a,b)=>Math.abs(b.adds)-Math.abs(a.adds));
+}
