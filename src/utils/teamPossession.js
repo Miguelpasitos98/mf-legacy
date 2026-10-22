@@ -119,15 +119,49 @@ export function createPossessionLookup(possessions=[],teams=[]){
 }
 // Possession normalised to a neutral 50% share of match possession.
 // Experimental MF LEGACY convention, not verified as CraftedFC's code.
-export function possessionAdjustedDefActions(records=[],getTotal,getPossession){
- if(!records.length||typeof getTotal!=="function"||typeof getPossession!=="function")return null;
- let adjusted=0,minsSum=0;
+// Explicit provider "Defensive actions" wins; reconstruction requires ALL FOUR
+// components, and never guesses a missing component as zero.
+export function defensiveActionsTotal(row,getTotal){
+ const direct=getTotal(row,["Defensive actions"]);
+ if(direct!==null&&direct!==undefined&&Number.isFinite(Number(direct))&&Number(direct)>=0)
+  return {value:Number(direct),method:"direct"};
+ const components=[
+  ["Tackles","Tackles won"],
+  ["Interceptions"],
+  ["Clearances"],
+  ["Blocked shots","Blocked scoring attempts","Blocked scoring attempt"]
+ ];
+ const values=components.map(names=>getTotal(row,names));
+ if(values.some(v=>v===null||v===undefined||!Number.isFinite(Number(v))||Number(v)<0))
+  return {value:null,method:"missing_actions"};
+ return {value:values.reduce((s,n)=>s+Number(n),0),method:"reconstructed"};
+}
+export function possessionAdjustedDefActionsDetail(records=[],getTotal,getPossession){
+ const result={value:null,covered:0,total:records.length,minutesCovered:0,minutesTotal:0,excluded:[],methods:[]};
+ if(!records.length||typeof getTotal!=="function"||typeof getPossession!=="function")return result;
+ let adjusted=0;
  for(const row of records){
-  const actions=getTotal(row,["Defensive actions"]),minutes=number(row.minutes),pct=getPossession(row);
-  if(actions===null||actions===undefined||!Number.isFinite(Number(actions))||Number(actions)<0||
-     minutes===null||minutes<=0||pct===null||pct===undefined||possessionPct(pct)===null)return null;
-  adjusted+=Number(actions)*50/(100-pct);
-  minsSum+=minutes;
+  const minutes=number(row.minutes),pct=getPossession(row),actions=defensiveActionsTotal(row,getTotal);
+  if(minutes!==null&&minutes>0)result.minutesTotal+=minutes;
+  const reasons=[];
+  if(minutes===null||minutes<=0)reasons.push("minutes");
+  if(possessionPct(pct)===null)reasons.push("team_possession");
+  if(actions.value===null)reasons.push("defensive_actions");
+  if(reasons.length){
+   result.excluded.push({season:row.season,competition:row.competition,team:row.team_name||"",reasons});
+   continue;
+  }
+  adjusted+=actions.value*50/(100-pct);
+  result.minutesCovered+=minutes;
+  result.covered++;
+  result.methods.push(actions.method);
  }
- return minsSum>0?adjusted*90/minsSum:null;
+ if(result.minutesCovered>0)result.value=adjusted*90/result.minutesCovered;
+ return result;
+}
+// Backwards-compatible strict API: partial coverage requires callers to
+// explicitly opt into the detailed result, never silently return a full-season value.
+export function possessionAdjustedDefActions(records=[],getTotal,getPossession){
+ const detail=possessionAdjustedDefActionsDetail(records,getTotal,getPossession);
+ return detail.covered===detail.total?detail.value:null;
 }
