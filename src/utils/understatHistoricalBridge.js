@@ -85,7 +85,24 @@ export async function enrichImportedUnderstat(base44,playerId,fotmobId,onProgres
   updated++;metricsAdded+=next.added;
   onProgress?.("Enlazando estadísticas Understat",i+1,source.length);
  }
- return {seasons:source.length,updated,metricsAdded,ambiguous,unmatched,source:"Understat · dataset local"};
+ const globalRates=seasonUnderstatRates(source);
+ let globalSaved=0,globalUnchanged=0;
+ for(const rate of globalRates){
+   if(rate.fotmob_player_id!==String(fotmobId))continue;
+   const key={player_id:String(playerId),season:rate.season,team_key:"season-global"};
+   const existing=asRows(await base44.entities.UnderstatSeasonRate.filter(key,{limit:5}));
+   if(existing.length>1)throw Error("Duplicados de temporada Understat: "+rate.season);
+   const row={...key,fotmob_player_id:String(fotmobId),team:"Temporada",
+    xg_chain_p90:rate.xg_chain_p90??null,xg_buildup_p90:rate.xg_buildup_p90??null,
+    source:"Understat · dataset local",source_scope:rate.source_scope};
+   if(existing.length){
+     const old=existing[0];
+     if(old.xg_chain_p90===row.xg_chain_p90&&old.xg_buildup_p90===row.xg_buildup_p90){globalUnchanged++;continue;}
+     await base44.entities.UnderstatSeasonRate.update(old.id,row);
+   }else await base44.entities.UnderstatSeasonRate.create(row);
+   globalSaved++;
+ }
+ return {seasons:source.length,updated,metricsAdded,ambiguous,unmatched,globalSaved,globalUnchanged,source:"Understat · dataset local"};
 }
 
 /**
@@ -96,9 +113,9 @@ export async function enrichImportedUnderstat(base44,playerId,fotmobId,onProgres
 export function seasonUnderstatRates(rows=[]){
  const bySeason=new Map();
  for(const row of rows){
-  if(row.record_kind!=="understat_summary")continue;
+  if(row.record_kind!=="understat_summary"||row.status!=="dataset_identity_confirmed")continue;
   const season=txt(row.season),minutes=n(row.minutes);
-  if(!/^\\d{4}\/\\d{4}$/.test(season)||!(minutes>0))continue;
+  if(!/^\d{4}\/\d{4}$/.test(season)||!(minutes>0))continue;
   const metrics=Array.isArray(row.metrics)?row.metrics:[];
   const find=name=>metrics.find(m=>norm(m.name)===norm(name));
   const chain=find("xGChain"),buildup=find("xGBuildup");

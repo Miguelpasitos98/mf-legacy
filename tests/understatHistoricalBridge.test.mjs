@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {providerMetricBridge,eligibleUnderstatSeason,enrichUnderstatSeason,enrichImportedUnderstat} from "../src/utils/understatHistoricalBridge.js";
+import {providerMetricBridge,eligibleUnderstatSeason,enrichUnderstatSeason,enrichImportedUnderstat,seasonUnderstatRates} from "../src/utils/understatHistoricalBridge.js";
 import {buildHistoricalObservations,compareHistoricalObservation} from "../src/utils/historicalPeers.js";
 const rice="6acd65944897bc1b68fe2b15";
 const season={id:"fb-1",player_id:rice,fotmob_player_id:"654096",fotmob_team_id:"9825",
@@ -78,4 +78,22 @@ test("Integra LaLiga desde Understat por nombre exacto del club cuando la fuente
  assert.ok(Math.abs(next.row.metrics.find(m=>m.name==="xG Buildup").per90-0.0133)<0.002);
  assert.equal(eligibleUnderstatSeason(summary,{...season,competition:"Champions League"}),false);
  assert.equal(eligibleUnderstatSeason(summary,{...season,team_name:"Real Sociedad"}),false);
+});
+
+test("Sørloth: xG Chain y Buildup de temporada se guardan sin competición",async()=>{
+ const sample={record_kind:"understat_summary",fotmob_player_id:"440330",season:"2024/2025",status:"dataset_identity_confirmed",minutes:1525,
+  metrics:[{name:"xGChain",value:21.54},{name:"xGBuildup",value:2.15}]};
+ const rate=seasonUnderstatRates([sample]);assert.equal(rate.length,1);
+ assert.ok(Math.abs(rate[0].xg_chain_p90-21.54*90/1525)<1e-9);
+ const rates=[];
+ const db={entities:{
+  PlayerProviderRecord:{filter:async()=>[sample]},
+  PlayerSeasonStats:{filter:async()=>[]},
+  UnderstatSeasonRate:{filter:async()=>rates,create:async row=>{rates.push({...row,id:"r1"});return row;},update:async()=>{throw Error("No esperaba actualización");}}
+ }};
+ const first=await enrichImportedUnderstat(db,"player-1","440330");
+ assert.equal(first.globalSaved,1);
+ assert.equal(rates[0].team_key,"season-global");
+ const second=await enrichImportedUnderstat(db,"player-1","440330");
+ assert.equal(second.globalUnchanged,1);
 });
