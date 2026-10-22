@@ -5,7 +5,7 @@ export const statNum = v => v===null||v===undefined||v===""?null:Number.isFinite
 export const nationalCompetition = name => {
  const x=norm(name);
  if(x.includes("clubworldcup")||x.includes("fifaclubworldcup"))return false;
- return /worldcup|copaamerica|nationsleague|conmebolqualif|euroqualif|afcon|africacupofnations|asiancup|goldcup|internationalfriendly|uefaqualif|olympicgames|olympics|olympicfootball|olympicqualif|fifau20|fifau17|u20worldcup|u17worldcup|u23asiancup|u20asiancup|u17asiancup|southamericanu20|southamericanu17|worldcupqualification|worldcupqualifiers|friendliesinternational/.test(x)
+ return /finalissima|conmeboluefacupofchampions|worldcup|copaamerica|nationsleague|conmebolqualif|euroqualif|afcon|africacupofnations|asiancup|goldcup|internationalfriendly|uefaqualif|olympicgames|olympics|olympicfootball|olympicqualif|fifau20|fifau17|u20worldcup|u17worldcup|u23asiancup|u20asiancup|u17asiancup|southamericanu20|southamericanu17|worldcupqualification|worldcupqualifiers|friendliesinternational/.test(x)
   || /^euro(?:$|u\d{2}|\d{4}|qualification)/.test(x)
   || /^uefa(?:euro\d{4}|u\d{2}championship|europeanchampionship)/.test(x);
 };
