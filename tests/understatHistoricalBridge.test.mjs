@@ -65,3 +65,17 @@ test("No otorga Composite por una única estadística de posesión de minutos",(
  assert.equal(r.composite.score,null);
  assert.equal(r.composite.status,"insufficient_coverage");
 });
+
+test("Integra LaLiga desde Understat por nombre exacto del club cuando la fuente carece de fotmob_team_id",()=>{
+ const summary={record_kind:"understat_summary",fotmob_player_id:"440330",fotmob_team_id:"",team_name:"Atletico Madrid",season:"2025/2026",competition:"La_Liga",minutes:211,appearances:4,status:"dataset_identity_confirmed",metrics:[
+  {name:"xGChain",value:0.8826632164418697,per90:0.8826632164418697*90/211},
+  {name:"xGBuildup",value:0.031262032687664,per90:0.031262032687664*90/211}]};
+ const season={id:"sorloth",fotmob_player_id:"440330",fotmob_team_id:"9906",team_name:"Atlético de Madrid",season:"2025/2026",competition:"LaLiga",minutes:1850,metrics:[]};
+ assert.equal(eligibleUnderstatSeason(summary,season),true);
+ const next=enrichUnderstatSeason(season,summary);
+ assert.equal(next.changed,true);
+ assert.ok(Math.abs(next.row.metrics.find(m=>m.name==="xG Chain").per90-0.376)<0.002);
+ assert.ok(Math.abs(next.row.metrics.find(m=>m.name==="xG Buildup").per90-0.0133)<0.002);
+ assert.equal(eligibleUnderstatSeason(summary,{...season,competition:"Champions League"}),false);
+ assert.equal(eligibleUnderstatSeason(summary,{...season,team_name:"Real Sociedad"}),false);
+});
