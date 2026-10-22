@@ -98,17 +98,33 @@ export function calculateCompositeMF(row,positionOrRole,percentilesOverride=null
   // These display their real value but receive NO percentile (no invented comparisons).
   if(historicalValues&&historicalValues.fifa_fc_overall!=null)derived.fc27_ovr=historicalValues.fifa_fc_overall;
   if(historicalValues&&historicalValues.transfermarkt_value_eur!=null)derived.market_value=historicalValues.transfermarkt_value_eur;
+  // GK: when xG Buildup /90 is unavailable, reallocate its 8 points
+  // 60% to accurate long balls /90 and 40% to accurate passes /90.
+  // Never transfer weight to a metric without a comparable percentile.
+  // Preserve the base weights for traceability in the breakdown.
+  const baseWeights={...weights};
+  const transferred={};
+  if(role==="GK"&&pct(input.xg_buildup_p90)===null){
+    const missingWeight=weights.xg_buildup_p90;
+    weights.xg_buildup_p90=0;
+    for(const [key,fraction] of [["accurate_long_balls_p90",0.6],["accurate_passes_p90",0.4]]){
+      if(pct(input[key])!==null){
+        weights[key]+=missingWeight*fraction;
+        transferred[key]=missingWeight*fraction;
+      }
+    }
+  }
   const entries=Object.entries(weights);
   const absTotal=entries.reduce((n,[,w])=>n+Math.abs(w),0);
   let presentAbs=0,availableWeight=0,scoreSum=0;
   const rows=entries.map(([key,weight])=>{
     const percentile=pct(input[key]);
     const derivedValue=derived[key]??null;
-    if(percentile===null)return {key,name:METRIC_NAMES[key]||key,weight,percentile:null,contribution:null,derivedValue};
+    if(percentile===null)return {key,name:METRIC_NAMES[key]||key,weight,baseWeight:baseWeights[key],transferred:transferred[key]||0,percentile:null,contribution:null,derivedValue};
     presentAbs+=Math.abs(weight);availableWeight+=weight;
     const contribution=percentile*weight/100;
     scoreSum+=contribution;
-    return {key,name:METRIC_NAMES[key]||key,weight,percentile,contribution:round(contribution),derivedValue};
+    return {key,name:METRIC_NAMES[key]||key,weight,baseWeight:baseWeights[key],transferred:transferred[key]||0,percentile,contribution:round(contribution),derivedValue};
   });
   const coverage=absTotal?presentAbs/absTotal:0;
   // Historical rows have many missing metrics: normalize ONLY observed weights,
