@@ -6,7 +6,7 @@ import {useTeamsQuery} from "@/hooks/useSharedData";
 import {HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {canonicalHistoricalCompetition,canonicalHistoricalClub} from "@/utils/historicalJson";
 import {validatePossessionRow,parsePossessionBatch,matchingPossessionRecord,possessionImportDecision} from "@/utils/teamPossession";
-import {Database,Upload,Save,Search,ChevronLeft,RefreshCw,FileJson} from "lucide-react";
+import {Database,Upload,Save,Search,ChevronLeft,ChevronDown,ChevronRight,RefreshCw,FileJson,Layers3} from "lucide-react";
 
 const unpack=r=>Array.isArray(r)?r:r?.items||r?.data||r?.results||[];
 const blank={team_id:"",team_name:"",season:"2024/2025",competition:"Premier League",team_possession_pct:"",source:"Manual",source_url:"",matches_covered:"",notes:""};
@@ -25,6 +25,8 @@ export default function TeamPossession(){
  const [notice,setNotice]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  const [json,setJson]=useState(""),[preview,setPreview]=useState(null),[importing,setImporting]=useState(false),[progress,setProgress]=useState("");
  const [fileName,setFileName]=useState("");
+ const [expandedSeason,setExpandedSeason]=useState("");
+ const [expandedLeagues,setExpandedLeagues]=useState({});
  const update=(key,value)=>{setForm(prev=>({...prev,[key]:value}));setNotice("");setError("");};
  const refresh=async()=>{
   setLoading(true);
@@ -43,7 +45,23 @@ export default function TeamPossession(){
  const displayed=useMemo(()=>rows.filter(r=>{
   const club=teams.find(t=>String(t.id)===String(r.team_id));
   return normalize([club?.name||r.team_name,r.season,r.competition].join(" ")).includes(normalize(listFilter));
- }).sort((a,b)=>String(b.season).localeCompare(String(a.season))||String(a.team_name).localeCompare(String(b.team_name))).slice(0,200),[rows,teams,listFilter]);
+ }).sort((a,b)=>String(b.season).localeCompare(String(a.season))||String(a.team_name).localeCompare(String(b.team_name))),[rows,teams,listFilter]);
+ const seasonGroups=useMemo(()=>{
+  const seasons=new Map();
+  for(const row of displayed){
+   const season=String(row.season||"Temporada desconocida");
+   const league=String(row.competition||"Competición sin identificar");
+   if(!seasons.has(season))seasons.set(season,new Map());
+   const leagues=seasons.get(season);
+   if(!leagues.has(league))leagues.set(league,[]);
+   leagues.get(league).push(row);
+  }
+  return [...seasons.entries()].sort(([a],[b])=>b.localeCompare(a)).map(([season,leagues])=>({
+   season,total:[...leagues.values()].reduce((n,r)=>n+r.length,0),
+   leagues:[...leagues.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([competition,records])=>({competition,records,pending:records.filter(r=>!r.team_id).length}))
+  }));
+ },[displayed]);
+ const activeSeason=seasonGroups.some(g=>g.season===expandedSeason)?expandedSeason:seasonGroups[0]?.season||"";
  const filteredTeams=useMemo(()=>teams.filter(t=>normalize(t.name).includes(normalize(search))).slice(0,100),[teams,search]);
  const setForEdit=row=>{
   setForm({team_id:row.team_id||"",team_name:row.team_name||"",season:row.season||"",competition:row.competition||"",
@@ -168,7 +186,53 @@ export default function TeamPossession(){
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
      <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-extrabold text-slate-900">Registros guardados ({rows.length}{rows.length===500?"+":""}) · pendientes: {rows.filter(r=>!r.team_id).length}</h2><button className="inline-flex items-center gap-2 text-xs font-bold text-[#003399]" onClick={refresh} disabled={loading}><RefreshCw size={15}/> {loading?"Cargando…":"Actualizar"}</button></div>
      <input className={inputClass+" mb-3"} value={listFilter} onChange={e=>setListFilter(e.target.value)} placeholder="Filtrar por equipo, temporada o competición…" />
-     <div className="overflow-x-auto"><table className="w-full min-w-[580px] border-collapse text-left text-sm"><thead className="text-xs uppercase text-slate-500"><tr><th className="border-b p-2">Equipo</th><th className="border-b p-2">Temporada</th><th className="border-b p-2">Competición</th><th className="border-b p-2 text-right">Posesión</th><th className="border-b p-2">Fuente</th><th className="border-b p-2">Vinculación</th><th className="border-b p-2"></th></tr></thead><tbody>{displayed.map(row=><tr key={row.id} className="border-b border-slate-100"><td className="p-2 font-medium">{teams.find(t=>String(t.id)===String(row.team_id))?.name||row.team_name}</td><td className="p-2">{row.season}</td><td className="p-2">{row.competition}</td><td className="p-2 text-right font-extrabold tabular-nums">{Number(row.team_possession_pct).toLocaleString("es-ES",{maximumFractionDigits:2})} %</td><td className="p-2 text-xs">{row.source_url?<a href={row.source_url} target="_blank" rel="noopener noreferrer" className="text-[#003399] underline">{row.source||"Fuente"}</a>:row.source||"Manual"}</td><td className="p-2 text-xs">{row.team_id?<span className="font-bold text-emerald-700">Vinculado</span>:<span className="font-bold text-amber-700">Pendiente</span>}</td><td className="p-2 text-right"><button type="button" className="font-semibold text-[#003399]" onClick={()=>setForEdit(row)}>Editar</button></td></tr>)}</tbody></table>{!displayed.length&&<p className="py-6 text-center text-sm text-slate-500">{loading?"Cargando registros…":"Sin registros para este filtro."}</p>}</div>
+     <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+       <span>{seasonGroups.length} temporadas · {seasonGroups.reduce((n,g)=>n+g.leagues.length,0)} grupos de competición · {displayed.length} equipos registrados</span>
+       <span>Abre una temporada y después una liga para ver sus equipos.</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+       {seasonGroups.map(g=><button type="button" key={g.season} onClick={()=>setExpandedSeason(prev=>prev===g.season?"":g.season)}
+        aria-expanded={activeSeason===g.season}
+        className={"rounded-xl border p-3 text-left transition-colors "+(activeSeason===g.season?"border-blue-400 bg-blue-50 ring-1 ring-blue-200":"border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-white")}>
+        <span className="block text-sm font-black text-[#162d56]">{g.season}</span>
+        <span className="mt-1 block text-xs text-slate-600">{g.leagues.length} competiciones</span>
+        <span className="mt-1 block text-xs font-semibold text-blue-800">{g.total} registros</span>
+       </button>)}
+      </div>
+      {seasonGroups.filter(g=>g.season===activeSeason).map(g=><div key={g.season} className="overflow-hidden rounded-xl border border-blue-100 bg-slate-50 p-3">
+       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-sm font-black text-[#162d56]"><Layers3 size={17}/>{g.season}</h3>
+        <span className="text-xs text-slate-500">{g.leagues.length} ligas/competiciones · {g.total} registros</span>
+       </div>
+       <div className="grid gap-2">
+        {g.leagues.map(league=>{
+         const leagueKey=g.season+"|"+league.competition;
+         const open=Boolean(expandedLeagues[leagueKey]);
+         return <div key={leagueKey} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <button type="button" className="flex w-full items-center justify-between gap-3 p-3 text-left hover:bg-blue-50"
+           aria-expanded={open} onClick={()=>setExpandedLeagues(prev=>({...prev,[leagueKey]:!prev[leagueKey]}))}>
+           <span className="flex min-w-0 items-center gap-2">{open?<ChevronDown size={16} className="shrink-0 text-blue-700"/>:<ChevronRight size={16} className="shrink-0 text-slate-400"/>}<span className="truncate text-sm font-bold text-slate-900">{league.competition}</span></span>
+           <span className="flex shrink-0 items-center gap-2 text-xs"><span className="rounded-full bg-blue-50 px-2 py-1 font-bold text-blue-800">{league.records.length} equipos</span>{league.pending>0&&<span className="rounded-full bg-amber-50 px-2 py-1 font-semibold text-amber-800">{league.pending} pendientes</span>}</span>
+          </button>
+          {open&&<div className="overflow-x-auto border-t border-slate-100">
+           <table className="w-full min-w-[510px] text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500"><tr><th className="p-2">Equipo</th><th className="p-2 text-right">Posesión</th><th className="p-2">Fuente</th><th className="p-2">Estado</th><th className="p-2"></th></tr></thead>
+            <tbody>{league.records.map(row=><tr key={row.id} className="border-t border-slate-100">
+             <td className="p-2 font-semibold">{teams.find(t=>String(t.id)===String(row.team_id))?.name||row.team_name}</td>
+             <td className="p-2 text-right font-black tabular-nums">{Number(row.team_possession_pct).toLocaleString("es-ES",{maximumFractionDigits:2})} %</td>
+             <td className="p-2">{row.source_url?<a href={row.source_url} target="_blank" rel="noopener noreferrer" className="text-[#003399] underline">{row.source||"Fuente"}</a>:row.source||"Manual"}</td>
+             <td className="p-2">{row.team_id?<span className="text-emerald-700">Vinculado</span>:<span className="text-amber-700">Pendiente</span>}</td>
+             <td className="p-2 text-right"><button type="button" className="font-bold text-[#003399]" onClick={()=>setForEdit(row)}>Editar</button></td>
+            </tr>)}</tbody>
+           </table>
+          </div>}
+         </div>;
+        })}
+       </div>
+      </div>)}
+      {!displayed.length&&<p className="py-6 text-center text-sm text-slate-500">{loading?"Cargando registros…":"Sin registros para este filtro."}</p>}
+     </div>
     </section>
    </>}
   </div>
