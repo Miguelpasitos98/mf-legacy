@@ -38,7 +38,7 @@ function ClubBadge({summary,onTeam}){
  </div>;
 }
 export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="composite",sortDirection="desc",onSort=()=>{},globalRanks=new Map(),playerRanks=new Map(),compositeBySeason=new Map(),peerLoading=false,peerError=null,selection=new Set(),onToggleSelect=()=>{},onToggleSelectPage=()=>{}}){
- const columns=(config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen).filter(k=>k!=="playpct"&&k!=="rating");
+ const columns=(config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen).filter(k=>k!=="rating");
  const divider=new Set(config.dividers?.season?.[category]||[]);
  const line=id=>divider.has(id)?" border-r-[3px] border-r-blue-300":"";
  // The parent supplies rows ALREADY sorted by the same Composite used by
