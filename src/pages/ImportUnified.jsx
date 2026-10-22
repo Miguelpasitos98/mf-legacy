@@ -18,6 +18,33 @@ const download = (payload, name) => {
   URL.revokeObjectURL(url);
 };
 
+
+const playerNameKey = value => String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+const playerNameCandidates = (players,name) => {
+  const query=playerNameKey(name);
+  if(!query)return [];
+  return players.filter(p=>{
+    const n=playerNameKey(p.name);
+    return n===query || (query.length>=5 && n.split(" ").includes(query)) ||
+      (n.length>=5 && query.split(" ").includes(n)) ||
+      (query.split(" ").length>1 && query.split(" ").every(t=>n.split(" ").includes(t)));
+  });
+};
+// Base44 lists may be capped; page through the catalogue, but fail closed if pagination
+// is ignored (same first record repeated) so a partial catalogue never creates duplicates.
+async function loadAllPlayers(){
+  const all=[],seen=new Set();
+  for(let offset=0;offset<50000;offset+=500){
+    const page=rowsFromResponse(await base44.entities.Player.list({limit:500,skip:offset}));
+    if(!page.length)return all;
+    let added=0;
+    for(const p of page){if(!p.id||seen.has(String(p.id)))continue;seen.add(String(p.id));all.push(p);added++;}
+    if(!added)throw Error("La paginación de jugadores no avanza; no se permite crear fichas con un catálogo incompleto.");
+    if(page.length<500)return all;
+  }
+  throw Error("Catálogo de jugadores demasiado grande para verificar con seguridad.");
+}
+
 export default function ImportUnified({onImported}) {
   const [isAdmin,setIsAdmin] = useState(null);
   const [links,setLinks] = useState(new Map());
@@ -52,7 +79,7 @@ export default function ImportUnified({onImported}) {
         const [rawLinks,rawTeams,rawPlayers]=await Promise.all([
           base44.entities.PlayerFotmobLink.list({limit:500}),
           base44.entities.Team.list({limit:500}),
-          base44.entities.Player.list({limit:500})
+          loadAllPlayers()
         ]);
         if(!live)return;
         setLinks(new Map(rowsFromResponse(rawLinks).filter(x=>x.fotmob_player_id&&x.player_id&&(/manual_confirmada|confirmada|verified|manual|confirmed|automatic_exact_name_unique/i.test(x.verification||""))).map(x=>[String(x.fotmob_player_id),String(x.player_id)])));
@@ -70,7 +97,7 @@ export default function ImportUnified({onImported}) {
     if(!row)return null;
     const pid=String(row.fotmob_id||"");
     if(!pid || links.has(pid))return null;
-    const sameName=allPlayers.filter(p=>String(p.name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase()===String(row.name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase());
+    const sameName=playerNameCandidates(allPlayers,row.name);
     return {pid,name:row.name,role:row.archetype,existing:sameName};
   },[batch,links,allPlayers]);
   const normalizeTeamName = value => String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/gi,"").toLowerCase();
@@ -101,9 +128,9 @@ export default function ImportUnified({onImported}) {
       const latestPlayers=rowsFromResponse(await base44.entities.Player.list({limit:500}));
       if(latestPlayers.length)setAllPlayers(latestPlayers);
       if(playerId && !latestPlayers.some(p=>String(p.id)===playerId))throw Error("El jugador seleccionado ya no existe.");
-      const matches=latestPlayers.filter(p=>String(p.name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase()===String(identity.name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase());
+      const matches=playerNameCandidates(latestPlayers,identity.name);
       if(!playerId){
-        if(matches.length>0)throw Error("Existe un jugador con el mismo nombre: vuelve a seleccionar su ficha antes de crear otra. Si el intento anterior guardó al jugador, vincúlalo ahora.");
+        if(matches.length>0)throw Error("Existe una ficha con nombre igual o compatible. Selecciónala antes de crear otra para evitar duplicados.");
         if(!identity.name?.trim())throw Error("El JSON no trae el nombre del jugador.");
         const positions={ST:"DC",W:"EI",CAM:"CAM",CM:"CM",DM:"CDM",WB:"LD",FB:"LD",CB:"DFC",GK:"GK"};
         if(!positions[identity.role])throw Error("Arquetipo no identificado. Confirma la posición antes de crear una ficha.");
@@ -341,20 +368,21 @@ export default function ImportUnified({onImported}) {
     if(existingLinks.length>1)throw Error("Hay varios vínculos de jugador: revisión manual obligatoria.");
     const localPlayers=rowsFromResponse(playersResponse);
     const localTeams=rowsFromResponse(teamsResponse);
-    const normalized=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase();
+    const normalized=playerNameKey;
     let linkedId=existingLinks[0]?.player_id||"";
     if(linkedId&&!localPlayers.some(p=>String(p.id)===String(linkedId)))
       throw Error("El vínculo FotMob apunta a una ficha inexistente; requiere revisión.");
     const snapshotName=safeRows.find(r=>r.kind==="player"&&String(r.fotmob_id)===pid)?.name;
     if(linkedId&&snapshotName){
       const player=localPlayers.find(p=>String(p.id)===String(linkedId));
-      if(normalized(player.name)!==normalized(snapshotName))
+      if(normalized(player.name)!==normalized(snapshotName) && !playerNameCandidates([player],snapshotName).length)
         throw Error("El vínculo FotMob apunta a un jugador con nombre distinto. Se evita importar sobre la ficha equivocada.");
     }
     if(!linkedId){
       const identityRow=safeRows.find(r=>r.kind==="player"&&String(r.fotmob_id)===pid);
       if(!identityRow?.name)throw Error("Falta la identidad del jugador en el JSON.");
       const candidates=localPlayers.filter(p=>normalized(p.name)===normalized(identityRow.name));
+      const possibleMatches=playerNameCandidates(localPlayers,identityRow.name);
       if(candidates.length>1)throw Error("Varios jugadores tienen el mismo nombre; el archivo queda sin asociación automática para evitar duplicados.");
       if(candidates.length===1){
         // Unique exact full-name match only. Refuse conflicting external identities.
@@ -364,6 +392,7 @@ export default function ImportUnified({onImported}) {
           throw Error("La ficha existente ya está asociada a otro ID FotMob; se mantiene intacta.");
         linkedId=candidate;
       }else{
+        if(possibleMatches.length)throw Error("Hay jugadores con nombres compatibles (por ejemplo nombre corto o apellido). Selecciona la ficha existente manualmente; no se creará un duplicado.");
         const positions={ST:"DC",W:"EI",CAM:"CAM",CM:"CM",DM:"CDM",CB:"DFC",GK:"GK",WB:"LD",FB:"LD"};
         const position=positions[identityRow.archetype];
         if(!position)throw Error("La posición no está verificada para crear la ficha automáticamente.");
