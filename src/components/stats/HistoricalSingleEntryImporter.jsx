@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { CheckCircle2, ClipboardEdit, Loader2, ShieldAlert, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import HistoricalJsonImporter from "./HistoricalJsonImporter";
+import UnderstatJsonImporter from "./UnderstatJsonImporter";
 import {
   fifaEditionForSeason,
   formatEur,
@@ -279,7 +280,7 @@ export default function HistoricalSingleEntryImporter({
     <div className="fixed inset-0 z-[11000] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm"
       role="dialog" aria-modal="true" aria-label="Introducir datos históricos"
       onMouseDown={(event) => { if (event.target === event.currentTarget && !saving && !jsonSaving) onClose(); }}>
-      <div className={"flex max-h-[94vh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl " + (entryMode === "json" ? "max-w-3xl" : "max-w-xl")}>
+      <div className={"flex max-h-[94vh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl " + (entryMode !== "manual" ? "max-w-3xl" : "max-w-xl")}>
         <header className="flex shrink-0 items-start justify-between gap-3 bg-[#0e2844] px-5 py-4 text-white">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-blue-200">MF LEGACY · Importación histórica</p>
@@ -289,11 +290,12 @@ export default function HistoricalSingleEntryImporter({
           <button type="button" onClick={onClose} disabled={saving || jsonSaving} aria-label="Cerrar" className="rounded-lg p-2 hover:bg-white/10"><X size={19}/></button>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+          <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1">
             <button type="button" disabled={jsonSaving} onClick={() => setEntryMode("json")} className={"rounded-lg px-3 py-2.5 text-xs font-bold " + (entryMode === "json" ? "bg-[#003399] text-white" : "text-slate-700 hover:bg-white")}>Pegar JSON completo</button>
+            <button type="button" disabled={jsonSaving} onClick={() => setEntryMode("understat")} className={"rounded-lg px-3 py-2.5 text-xs font-bold " + (entryMode === "understat" ? "bg-[#003399] text-white" : "text-slate-700 hover:bg-white")}>Understat /90</button>
             <button type="button" disabled={jsonSaving} onClick={() => setEntryMode("manual")} className={"rounded-lg px-3 py-2.5 text-xs font-bold " + (entryMode === "manual" ? "bg-[#003399] text-white" : "text-slate-700 hover:bg-white")}>Introducir uno a uno</button>
           </div>
-          {entryMode === "json" ? <HistoricalJsonImporter player={player} fotmobPlayerId={fotmobPlayerId} stats={stats} teams={teams} onSaved={onSaved} onBusyChange={setJsonSaving}/> : <>
+          {entryMode === "json" ? <HistoricalJsonImporter player={player} fotmobPlayerId={fotmobPlayerId} stats={stats} teams={teams} onSaved={onSaved} onBusyChange={setJsonSaving}/> : entryMode === "understat" ? <UnderstatJsonImporter player={player} fotmobPlayerId={fotmobPlayerId} stats={stats} onSaved={onSaved} onBusyChange={setJsonSaving}/> : <>
           <p className="mb-4 text-sm text-slate-600">Selecciona qué dato quieres añadir o corregir. Cada guardado afecta a <strong>un único dato</strong>, nunca a un lote.</p>
           <div className="mb-4 grid grid-cols-3 gap-2" role="tablist" aria-label="Tipo de dato">
             {[
