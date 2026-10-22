@@ -48,8 +48,9 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
     candidates.forEach(r=>groups.set(txt(r.team_id||r.fotmob_team_id||r.team_name),1));
     if(!candidates.length)issues.push("No existe una competición del equipo y temporada en MF Legacy.");
     if(groups.size>1)issues.push("Identidad de equipo ambigua; corrige la vinculación.");
+    if(matching.some(r=>r.season===season&&key(r.team_name)!==key(team)))issues.push("Hay varios equipos en la temporada: no se puede guardar una tasa global combinada sin minutos. Importación bloqueada para evitar cálculos falsos.");
     const anchor=[...candidates].sort((a,b)=>String(a.competition).localeCompare(String(b.competition)))[0]||null;
-    const metrics=[["xG Chain",chain],["xG Buildup",buildup]].filter(([,v])=>v!==null).map(([name,v])=>({name:name+" season /90",value:v,sourceNote:"Understat · JSON /90 · "+team+" · "+season}));
+    const metrics=[["xG Chain",chain],["xG Buildup",buildup]].filter(([,v])=>v!==null&&!Number.isNaN(v)).map(([name,v])=>({name:name+" season /90",value:v,sourceNote:"Understat · JSON /90 · "+team+" · "+season}));
     const diffs=metrics.filter(m=>Number(valueOf(anchor||{},m.name))!==m.value||valueOf(anchor||{},m.name)==null);
     const same=diffs.length===0;
     return {id:i,season,team,anchor,metrics,diffs,issues,status:issues.length?"error":same?"same":metrics.length===diffs.length?"new":"update"};
@@ -66,12 +67,12 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
   try{
    for(const r of targets){
     // Fetch and validate a fresh, exact snapshot before modifying any data.
-    const fetched=unpack(await base44.entities.PlayerSeasonStats.filter({external_record_id:r.anchor.external_record_id||undefined,player_id:playerId,season:r.season,competition:r.anchor.competition},{limit:25}));
+    const fetched=unpack(await base44.entities.PlayerSeasonStats.filter({player_id:playerId,season:r.season,competition:r.anchor.competition},{limit:25}));
     const exact=fetched.find(x=>txt(x.id)===txt(r.anchor.id));
     if(!exact||txt(exact.player_id)!==playerId||txt(exact.season)!==r.season||txt(exact.team_name)!==txt(r.anchor.team_name))
      throw Error("El registro "+r.season+" · "+r.team+" cambió o no se encontró. Vuelve a analizar.");
     for(const m of r.metrics){
-     if(valueOf(exact,m.name)!==valueOf(r.anchor,m.name))
+     if(String(valueOf(exact,m.name)??"")!==String(valueOf(r.anchor,m.name)??""))
       throw Error("Un valor cambió desde la vista previa. Vuelve a analizar.");
     }
     const updates=r.metrics.filter(m=>Number(valueOf(exact,m.name))!==m.value||valueOf(exact,m.name)==null);
