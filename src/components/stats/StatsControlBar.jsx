@@ -15,6 +15,9 @@ export default function StatsControlBar({
   sort = "composite",
   sortOptions = [],
   onSort = () => {},
+  position = "Todas",
+  positionOptions = [],
+  onPosition = () => {},
   minMinutes = 0,
   onMinMinutes = () => {},
   viewMode = "season",
@@ -49,6 +52,13 @@ export default function StatsControlBar({
           >
             <option value="Todas">Todas</option>
             {competitions.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label className="field">
+          POSICIÓN
+          <select className="position" value={position} onChange={(event) => onPosition(event.target.value)} aria-label="Filtrar por posición">
+            <option value="Todas">Todas las posiciones</option>
+            {positionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
         <label className="field searchfield">
