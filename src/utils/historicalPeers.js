@@ -293,7 +293,7 @@ export function compareHistoricalObservation(observation,observations,minimum=10
   const role=observation.role;
   const peers=observations.filter(r=>r.role===role);
   const keys=WEIGHTS_BY_ROLE[role] ?
-    [...Object.keys(WEIGHTS_BY_ROLE[role]),"rating"] :
+    [...Object.keys(WEIGHTS_BY_ROLE[role]),...(role==="CB"?["accurate_passes_p90"]:[]),"rating"] :
     [...new Set(peers.flatMap(p=>Object.keys(p.values)))];
   const items=keys.map(key=>{
     const current=num(observation.values[key]);

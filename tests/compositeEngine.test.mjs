@@ -68,3 +68,26 @@ test('GK no inventa un percentil de pases cuando tambien faltan',()=>{
  assert.equal(r.find(x=>x.key==='accurate_passes_p90').weight,1);
  assert.equal(r.find(x=>x.key==='xg_buildup_p90').weight,0);
 });
+
+test('CB redistribuye ambos xG faltantes en pases y acciones ajustadas 45/40/15',()=>{
+ const p={accurate_passes_p90:85,accurate_long_balls_p90:80,def_actions_poss_adj_p90:22,fc27_ovr:99};
+ const r=calculateCompositeMF({metrics:[]},'CB',p);
+ const get=k=>r.rows.find(x=>x.key===k);
+ assert.equal(get('xg_buildup_p90').weight,0);
+ assert.equal(get('xg_chain_p90').weight,0);
+ assert.ok(Math.abs(get('accurate_passes_p90').weight-10.35)<1e-9);
+ assert.ok(Math.abs(get('accurate_long_balls_p90').weight-11.2)<1e-9);
+ assert.ok(Math.abs(get('def_actions_poss_adj_p90').weight-11.45)<1e-9);
+ assert.equal(get('accurate_passes_p90').baseWeight,0);
+ assert.equal(get('accurate_long_balls_p90').baseWeight,2);
+ assert.equal(get('def_actions_poss_adj_p90').baseWeight,8);
+});
+test('CB redistribuye solo la métrica xG ausente; no transfiere a percentiles ausentes',()=>{
+ const r=calculateCompositeMF({metrics:[]},'CB',{xg_buildup_p90:80,accurate_long_balls_p90:70,def_actions_poss_adj_p90:55});
+ const get=k=>r.rows.find(x=>x.key===k);
+ assert.equal(get('xg_buildup_p90').weight,18);
+ assert.equal(get('xg_chain_p90').weight,0);
+ assert.equal(get('accurate_long_balls_p90').weight,4);
+ assert.equal(get('def_actions_poss_adj_p90').weight,8.75);
+ assert.equal(get('accurate_passes_p90').weight,0);
+});
