@@ -178,7 +178,7 @@ export const historicalNationalCompetition = name => {
     /^euro(?:$|u\d{2}|qualification)/.test(x) ||
     /^(uefau\d{2}championship|uefaeuropeanchampionship|africacupofnations)$/.test(x);
 };
-export function buildHistoricalObservations({stats=[],players=[],valuations=[],teamMatches=[],teams=[],teamPossessions=[]}={}){
+export function buildHistoricalObservations({stats=[],players=[],valuations=[],teamMatches=[],teams=[],teamPossessions=[],understatRates=[]}={}){
   const byPlayer=new Map(players.filter(p=>p?.id).map(p=>[str(p.id),p]));
   const valueMaps=new Map();
   for(const v of valuations){
@@ -196,6 +196,14 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     const key=valKey(id,str(r.season));
     if(!groups.has(key))groups.set(key,[]);
     groups.get(key).push(r);
+  }
+  const understatByPlayerSeason=new Map();
+  for(const rate of understatRates){
+    const pid=str(rate.player_id),season=str(rate.season);
+    if(!pid||!season)continue;
+    const k=valKey(pid,season);
+    if(!understatByPlayerSeason.has(k))understatByPlayerSeason.set(k,[]);
+    understatByPlayerSeason.get(k).push(rate);
   }
   const observations=[];
   for(const [key,records] of groups){
@@ -224,6 +232,22 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     const directRates=advancedTotals(records);
     if(directRates.xg_chain_p90!==null)values.xg_chain_p90=directRates.xg_chain_p90;
     if(directRates.xg_buildup_p90!==null)values.xg_buildup_p90=directRates.xg_buildup_p90;
+    // Independent Understat rates are player/team/season scoped, not league
+    // rows. One team may supply a direct /90 without needing domestic FotMob
+    // records. Multiple teams cannot be averaged without Understat minutes.
+    const providerRows=understatByPlayerSeason.get(key)||[];
+    const teamIds=new Set(providerRows.map(r=>str(r.team_key||r.team).toLowerCase()).filter(Boolean));
+    if(teamIds.size===1 && providerRows.length===1){
+      const u=providerRows[0];
+      const chain=num(u.xg_chain_p90),buildup=num(u.xg_buildup_p90);
+      if(chain!==null&&chain>=0)values.xg_chain_p90=chain;
+      if(buildup!==null&&buildup>=0&&(chain===null||buildup<=chain))values.xg_buildup_p90=buildup;
+    }else if(providerRows.length>1){
+      // Never imply that a rate from just one of several teams represents
+      // the player's full season, and never average unweighted rates.
+      values.xg_chain_p90=null;
+      values.xg_buildup_p90=null;
+    }
     // Prefer a complete, verified source PAdj series if it already exists;
     // otherwise calculate our own 50%-possession-normalised metric.
     // Never combine an adjusted numerator with missing minutes/competitions.
