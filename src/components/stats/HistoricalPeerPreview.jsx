@@ -3,6 +3,7 @@ import { AlertTriangle, BarChart3, ClipboardList, Database, RefreshCw } from "lu
 import { useHistoricalPeerDataset } from "@/hooks/useHistoricalPeerDataset";
 import { compareHistoricalObservation, historicalRole, historicalNationalCompetition } from "@/utils/historicalPeers";
 import { POSITION_SOURCES } from "@/utils/historicalPositions";
+import { analyzeCompositeSensitivity } from "@/utils/compositeEngine";
 import OverviewManualEditor from "@/components/stats/OverviewManualEditor";
 import { formatEur } from "@/utils/historicalValuation";
 const EDIT_METRIC_NAMES={npxg_p90:"xG excl. penalty",xa_p90:"xA",xgot_p90:"xGOT",shots_on_target_p90:"Shots on target",big_chances_created_p90:"Big chances created",possession_won_final_3rd_p90:"Possession won final 3rd",accurate_long_balls_p90:"Accurate long balls",successful_dribbles_p90:"Dribbles",dispossessed_p90:"Dispossessed",dribbled_past_p90:"Dribbled past",goals_prevented_p90:"Goals prevented",accurate_passes_p90:"Accurate passes",def_actions_poss_adj_p90:"PAdj defensive actions",aerial_duels_won_pct:"Aerials won %",ground_duels_won_pct:"Ground duels won %",save_pct:"Save percentage"};
@@ -50,6 +51,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const [picked,setPicked]=useState("");
   const [manualMode,setManualMode]=useState(null);
   const [copyStatus,setCopyStatus]=useState("");
+  const [showSensitivity,setShowSensitivity]=useState(false);
   const {data,error,isFetching,refetch}=useHistoricalPeerDataset(main);
   const season=seasons.includes(picked)?picked:seasons.includes(initialSeason)?initialSeason:seasons[0]||"";
   // La posición histórica efectiva de la temporada decide el arquetipo; la
@@ -65,6 +67,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
     try{return compareHistoricalObservation(observation,data.observations,10);}catch(e){console.error("Error Composite de temporada",season,e);return {calculationError:e.message||"Error calculando Composite"};}
   },[data,playerId,season]);
   const previewRows=result?.rows||[];
+  const sensitivity=useMemo(()=>analyzeCompositeSensitivity(result?.composite),[result]);
   // Keep unavailable indicators visible but grouped at the bottom, without affecting calculation.
   const displayedRows=[...previewRows].sort((a,b)=>Number(a.value===null)-Number(b.value===null));
   const missingUnderstat=previewRows.some(r=>(r.key==="xg_chain_p90"||r.key==="xg_buildup_p90")&&r.value===null);
@@ -180,6 +183,26 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         {observation?.positionMixed&&<p className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs text-violet-900">
           Las correcciones por competición de esta temporada no coinciden entre sí, así que el Composite usa la posición de referencia de la temporada. Puedes unificarlas o cambiarlas en «Valores históricos · temporada».
         </p>}
+        {result.composite?.score!==null&&sensitivity.length>0&&<div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs font-bold text-slate-700">¿Qué influye más en esta nota?</span>
+            <button type="button" onClick={()=>setShowSensitivity(v=>!v)}
+              aria-expanded={showSensitivity}
+              className="rounded-md border border-blue-200 px-3 py-1.5 text-xs font-semibold text-[#003399] hover:bg-blue-50">
+              {showSensitivity?"Ocultar análisis":"Analizar nota"} <span aria-hidden="true">{showSensitivity?"▴":"▾"}</span>
+            </button>
+          </div>
+          {showSensitivity&&<div className="mt-3 border-t border-slate-100 pt-3">
+            <p className="mb-2 text-[11px] text-slate-500">Simulación: se elimina un indicador cada vez y se recalcula el Composite con los pesos disponibles. No modifica la nota oficial de MF Legacy ni predice un nuevo puesto en el ranking.</p>
+            <div className="space-y-2">
+              {sensitivity.slice(0,5).map(s=><div key={s.key} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-medium text-slate-700">{s.name} <span className="text-[10px] font-normal text-slate-400">({show(s.weight,1)} %)</span></span>
+                <span className="tabular-nums text-slate-600">Sin este indicador: <strong className="text-slate-800">{show(s.without,1)}</strong> <span className={s.delta>0?"text-emerald-700":s.delta<0?"text-rose-700":"text-slate-500"}>({s.delta>0?"+":""}{show(s.delta,1)} pts)</span></span>
+              </div>)}
+            </div>
+            <p className="mt-2 text-[10px] text-slate-400">Se muestran los cinco mayores aportes absolutos. La redistribución automática por ausencia de xG también se respeta en cada simulación.</p>
+          </div>}
+        </div>}
         {missingUnderstat&&onSetMetric&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-900">Los xG Chain /90 y xG Buildup /90 que aparecen como «—» no están disponibles para esta temporada en las competiciones guardadas. <strong>No se rellenan con el snapshot global de CraftedFC.</strong> Puedes pulsar «Añadir +» e introducir cifras verificadas de Understat para la competición correspondiente.</p>}
         <div className="max-h-[640px] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[980px] text-left text-xs">
