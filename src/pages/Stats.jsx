@@ -350,6 +350,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
                 await base44.entities.PlayerSeasonStats.update(current.id,patch);
                 setNationalTarget(null);
                 queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
+                window.location.reload();
               }catch(e){setNationalError(e?.message||"Error al vincular.");}
               finally{setNationalBusy(false);}
             }} className="rounded bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{nationalBusy?"Guardando…":"Vincular selección"}</button>
