@@ -23,6 +23,30 @@ const SUMMARY_ROWS=[
  {key:"wins",label:"Indicadores ganados",get:season=>season.score===null?"—":fmt(season.wins,0)+" / "+fmt(season.contested,0)}
 ];
 
+
+// Summary comparisons are meaningful only for comparable numeric measures.
+// Do not invent weights for these descriptive rows or compare unequal denominators.
+const summaryValue=(row,season,seasons)=>{
+ if(!season.analysis)return null;
+ if(row.key==="coverage")return season.coverage;
+ if(row.key==="average")return season.average;
+ if(row.key==="count"){
+  if(!seasons.every(s=>s.analysis&&s.total===season.total))return null;
+  return season.count;
+ }
+ if(row.key==="wins"){
+  if(!seasons.every(s=>s.analysis&&s.contested===season.contested))return null;
+  return season.wins;
+ }
+ return null;
+};
+const summaryDuel=(row,seasons)=>{
+ const ranked=seasons.map((season,index)=>({index,strength:summaryValue(row,season,seasons)}))
+  .filter(item=>item.strength!==null&&item.strength!==undefined&&Number.isFinite(Number(item.strength)))
+  .sort((a,b)=>b.strength-a.strength||a.index-b.index);
+ return ranked.length>=2?{best:ranked[0],second:ranked[1],gap:ranked[0].strength-ranked[1].strength}:null;
+};
+
 export default function CompareAnalysisTable({model,peerLoading=false,peerError=null,onOpen}){
  if(!model)return null;
  const {seasons=[],indicators=[],contested=0}=model;
@@ -54,13 +78,20 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
     </thead>
     <tbody>
      <tr className="bg-[#e2eaf6]"><td colSpan={seasons.length+4} className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#173B67]">Resumen del análisis</td></tr>
-     {SUMMARY_ROWS.map(row=><tr key={row.key} className="border-t border-slate-100 odd:bg-white even:bg-[#f7f9fc]">
-      <td className="px-3 py-2 font-semibold text-slate-700">{row.label}</td>
-      <td className="px-2 py-2 text-center text-slate-400">—</td>
-      <td className="px-3 py-2 text-slate-400">—</td>
-      <td className="px-3 py-2 text-slate-400">—</td>
-      {seasons.map(season=><td key={season.summary.id} className={"px-3 py-2 text-right "+(row.key==="wins"?"font-black text-emerald-800":"font-bold tabular-nums text-slate-800")}>{row.get(season)}</td>)}
-     </tr>)}
+     {SUMMARY_ROWS.map(row=>{
+      const duel=summaryDuel(row,seasons);
+      const leader=duel?seasons[duel.best.index]:null;
+      return <tr key={row.key} className="border-t border-slate-100 odd:bg-white even:bg-[#f7f9fc]">
+       <td className="px-3 py-2 font-semibold text-slate-700">{row.label}</td>
+       <td className="px-2 py-2 text-center text-slate-400" title="Las filas resumen no tienen peso estadístico">—</td>
+       <td className="px-3 py-2 text-[11px]">{leader?<span className="font-bold text-slate-800" title={nameOf(leader)}>
+        {duel.gap===0?"Empate":nameOf(leader)}
+        <span className="block text-[10px] font-normal text-slate-500">{duel.gap===0?"sin ventaja":"+"+fmt(duel.gap,1)+" "+(row.key==="coverage"?"p. p.":row.key==="average"?"puntos":"indicadores")}</span>
+       </span>:<span className="text-slate-400">—</span>}</td>
+       <td className="px-3 py-2">{duel?<CompareDuelBar seasons={seasons} nameOf={index=>nameOf(seasons[index])} best={duel.best} second={duel.second}/>:<span className="text-slate-400">—</span>}</td>
+       {seasons.map(season=><td key={season.summary.id} className={"px-3 py-2 text-right "+(row.key==="wins"?"font-black text-emerald-800":"font-bold tabular-nums text-slate-800")}>{row.get(season)}</td>)}
+      </tr>;
+     })}
      <tr className="border-t-2 border-[#003399]/25 bg-[#eaf0fb]">
       <td className="px-3 py-2 font-black text-[#0d315b]">Composite MF LEGACY</td>
       <td className="px-2 py-2 text-center text-slate-400">—</td>
