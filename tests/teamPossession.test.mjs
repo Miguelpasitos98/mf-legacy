@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {validatePossessionRow,parsePossessionBatch,possessionKey,possessionPct,createPossessionLookup,possessionAdjustedDefActions,matchingPossessionRecord,possessionImportDecision} from "../src/utils/teamPossession.js";
+import {validatePossessionRow,parsePossessionBatch,possessionKey,possessionPct,createPossessionLookup,possessionAdjustedDefActions,possessionAdjustedDefActionsDetail,matchingPossessionRecord,possessionImportDecision} from "../src/utils/teamPossession.js";
 import {buildHistoricalObservations} from "../src/utils/historicalPeers.js";
 const teams=[
  {id:"city",name:"Manchester City"},
@@ -127,4 +127,34 @@ test("Historial CM utiliza posesión para PAdj y exige cubrir todas las competic
  assert.equal(build([{...entry,team_possession_pct:67.9}])[0].values.def_actions_poss_adj_p90,null);
  const value=build([{...entry,team_possession_pct:67.9},{...entry,competition:"Champions League",team_possession_pct:60.1}])[0].values.def_actions_poss_adj_p90;
  assert.ok(value>0&&Number.isFinite(value));
+});
+
+test("Reconstruye acciones defensivas con cuatro métricas y posesión vinculada",()=>{
+ const stats=[{team_id:"city",season:"2018/2019",competition:"Premier League",minutes:900,metrics:[
+  {name:"Tackles",value:9},{name:"Interceptions",value:8},
+  {name:"Clearances",value:10},{name:"Blocked shots",value:3}
+ ]}];
+ const pick=(r,names)=>r.metrics.find(m=>names.includes(m.name))?.value??null;
+ const get=createPossessionLookup([entry],teams);
+ const detail=possessionAdjustedDefActionsDetail(stats,pick,get);
+ assert.equal(detail.covered,1);
+ assert.ok(Math.abs(detail.value-(30*50/(100-67.9))*90/900)<1e-10);
+ assert.deepEqual(detail.methods,["reconstructed"]);
+});
+test("Solo calcula con competiciones cubiertas y declara por qué excluye otras",()=>{
+ const r=[
+  {team_id:"city",season:"2018/2019",competition:"Premier League",minutes:900,metrics:[{name:"Defensive actions",value:40}]},
+  {team_id:"city",season:"2018/2019",competition:"Champions League",minutes:400,metrics:[{name:"Defensive actions",value:20}]}
+ ];
+ const get=createPossessionLookup([entry],teams);
+ const pick=(row,names)=>row.metrics.find(m=>names.includes(m.name))?.value??null;
+ const detail=possessionAdjustedDefActionsDetail(r,pick,get);
+ assert.equal(detail.covered,1);
+ assert.equal(detail.total,2);
+ assert.equal(detail.minutesCovered,900);
+ assert.deepEqual(detail.excluded[0].reasons,["team_possession"]);
+ assert.equal(possessionAdjustedDefActions(r,pick,get),null);
+ const observations=buildHistoricalObservations({players:[{id:"p",position:"CB"}],stats:r.map(x=>({...x,player_id:"p",appearances:10})),teams,teamPossessions:[entry]});
+ assert.equal(observations[0].pAdjCoverage.covered,1);
+ assert.ok(observations[0].values.def_actions_poss_adj_p90>0);
 });
