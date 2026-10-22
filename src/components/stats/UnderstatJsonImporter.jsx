@@ -28,7 +28,9 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
    const data=JSON.parse(raw);
    if(data.schema!=="mf_legacy_understat_per90_import_v1")throw Error("Esquema no compatible con Understat /90.");
    const given=txt(data.player?.fotmob_id),expected=txt(fotmobPlayerId);
-   if(!expected||!given||given!==expected)throw Error("El ID FotMob del JSON debe coincidir con el jugador abierto.");
+   if(!expected)throw Error("La ficha del jugador no tiene ID FotMob verificado. Vincúlalo antes de importar.");
+   if(given&&given!==expected)throw Error("El ID FotMob del JSON no coincide con el jugador abierto.");
+   if(!given&&key(data.player?.name)!==key(player?.name||stats.find(r=>r.player_name)?.player_name))throw Error("Sin ID FotMob en el JSON, el nombre debe coincidir con el jugador abierto.");
    if(!playerId)throw Error("El jugador no tiene ID de Base44.");
    if(!Array.isArray(data.records)||!data.records.length||data.records.length>500)throw Error("El JSON debe contener entre 1 y 500 registros.");
    const seen=new Set();
