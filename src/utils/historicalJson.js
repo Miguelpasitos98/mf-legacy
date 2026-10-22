@@ -40,6 +40,12 @@ export function canonicalHistoricalClub(value) {
 
 // These aliases are naming differences, not additional fixtures.
 const COMPETITION_ALIASES = {
+  "laliga": "laliga",
+  "la liga": "laliga",
+  "laliga ea sports": "laliga",
+  "la liga ea sports": "laliga",
+  "uefa champions league": "champions league",
+  "champions league": "champions league",
   "fa community shield": "community shield",
   "dfl supercup": "super cup",
   "dfb pokal": "dfb pokal",
