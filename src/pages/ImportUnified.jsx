@@ -125,7 +125,7 @@ export default function ImportUnified({onImported}) {
         return;
       }
       let playerId=suggestedPlayerId;
-      const latestPlayers=rowsFromResponse(await base44.entities.Player.list({limit:500}));
+      const latestPlayers=await loadAllPlayers();
       if(latestPlayers.length)setAllPlayers(latestPlayers);
       if(playerId && !latestPlayers.some(p=>String(p.id)===playerId))throw Error("El jugador seleccionado ya no existe.");
       const matches=playerNameCandidates(latestPlayers,identity.name);
@@ -141,6 +141,8 @@ export default function ImportUnified({onImported}) {
         if(!playerId)throw Error("Player creado sin respuesta de ID. Busca la ficha antes de volver a intentarlo.");
         setAllPlayers(old=>[...old,{...payload,id:playerId}]);
       }
+      const conflicting=rowsFromResponse(await base44.entities.PlayerFotmobLink.filter({player_id:playerId},{limit:10}));
+      if(conflicting.some(l=>String(l.fotmob_player_id)!==pid))throw Error("Esta ficha ya está vinculada a otro FotMob ID; revisa antes de asociarla.");
       // If creation of the link fails, keep player for retry; never create a second one.
       await base44.entities.PlayerFotmobLink.create({fotmob_player_id:pid,player_id:playerId,
         player_name:identity.name,verification:"manual_confirmada",
@@ -361,7 +363,7 @@ export default function ImportUnified({onImported}) {
     const pid=playerIds[0];
     const [linkResponse,playersResponse,teamsResponse]=await Promise.all([
       base44.entities.PlayerFotmobLink.filter({fotmob_player_id:pid},{limit:10}),
-      base44.entities.Player.list({limit:500}),
+      loadAllPlayers(),
       base44.entities.Team.list({limit:500}),
     ]);
     const existingLinks=rowsFromResponse(linkResponse);
