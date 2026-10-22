@@ -109,6 +109,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const [teamLinkTarget,setTeamLinkTarget]=useState(null);
   const [nationalTarget,setNationalTarget]=useState(null);
   const [nationalChoice,setNationalChoice]=useState("");
+  const [countrySearch,setCountrySearch]=useState("");
   const [nationalCategory,setNationalCategory]=useState("senior");
   const countriesQuery=useCountriesQuery();
   const countries=countriesQuery.data||[];
@@ -175,7 +176,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
     const info=resolveTeam(r,teams,uniqueRecords);
     if(nationalCompetition(r.competition)){
       const name=info.team?.name||"Selección sin vincular";
-      return <button type="button" onClick={()=>{setNationalTarget(r);setNationalChoice("");setNationalCategory(/(?:u20|sub.?20)/i.test(r.competition)?"u20":/(?:olympic|olimpic|u23|sub.?23)/i.test(r.competition)?"u23":"senior");setNationalError("");}} className="text-left text-xs font-semibold text-blue-800 hover:underline" title="Vincular selección nacional">{name} {info.team?"✓":"✎"}</button>;
+      return <button type="button" onClick={()=>{setNationalTarget(r);setNationalChoice("");setCountrySearch("");setNationalCategory(/(?:u20|sub.?20)/i.test(r.competition)?"u20":/(?:olympic|olimpic|u23|sub.?23)/i.test(r.competition)?"u23":"senior");setNationalError("");}} className="text-left text-xs font-semibold text-blue-800 hover:underline" title="Vincular selección nacional">{name} {info.team?"✓":"✎"}</button>;
     }
     const team=info.team;
     const suggested=info.status==="suggested";
@@ -334,12 +335,17 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
         <div className="w-full max-w-lg space-y-3 rounded-xl bg-white p-5 shadow-xl">
           <h3 className="text-base font-black text-[#0e2844]">Vincular selección nacional</h3>
           <p className="text-xs text-slate-600">{nationalTarget.season} · {nationalTarget.competition}. Solo cambia la selección asociada, no las estadísticas.</p>
-          <label className="block text-xs font-semibold">País
-            <select value={nationalChoice} onChange={e=>setNationalChoice(e.target.value)} className="mt-1 w-full rounded border p-2 text-sm">
-              <option value="">Seleccionar país de MF Legacy…</option>
-              {[...countries].filter(c=>c.id&&c.name).sort((a,b)=>a.name.localeCompare(b.name,"es")).map(c=><option key={c.id} value={String(c.id)}>{c.name}</option>)}
-            </select>
-          </label>
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold" htmlFor="national-country-search">Buscar país</label>
+            <input id="national-country-search" type="search" autoComplete="off" value={countrySearch} onChange={e=>{setCountrySearch(e.target.value);setNationalChoice("");}} placeholder="Escribe Argentina, España, Francia…" className="w-full rounded border p-2 text-sm"/>
+            <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200" role="listbox" aria-label="Países de MF Legacy">
+              {[...countries].filter(c=>c.id&&c.name&&String(c.name).toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g,"").includes(countrySearch.toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g,""))).sort((a,b)=>a.name.localeCompare(b.name,"es")).slice(0,60).map(c=><button key={c.id} role="option" aria-selected={nationalChoice===String(c.id)} type="button" onClick={()=>{setNationalChoice(String(c.id));setCountrySearch(c.name);}} className={"flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-blue-50 "+(nationalChoice===String(c.id)?"bg-blue-100 font-bold":"")}>
+                {c.flag&&/^(https?:|data:)/i.test(c.flag)?<img src={c.flag} alt="" className="h-5 w-7 shrink-0 object-contain"/>:<span className="inline-block w-7 text-center text-lg">{c.flag&&!/^https?:/i.test(c.flag)?c.flag:"🏳️"}</span>}
+                <span>{c.name}</span>{nationalChoice===String(c.id)&&<span className="ml-auto text-blue-800">✓</span>}
+              </button>)}
+              {!countries.some(c=>c.id&&String(c.name||"").toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g,"").includes(countrySearch.toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g,"")))&&<p className="p-3 text-xs text-slate-500">No se encontraron países.</p>}
+            </div>
+          </div>
           <label className="block text-xs font-semibold">Categoría de selección
             <select value={nationalCategory} onChange={e=>setNationalCategory(e.target.value)} className="mt-1 w-full rounded border p-2 text-sm">
               <option value="senior">Selección absoluta</option>
