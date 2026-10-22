@@ -99,6 +99,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           <p className="mt-1 text-xs text-slate-600">
             Percentiles propios por posición, calculados con todas las temporadas de clubes de nuestra base. La temporada se consolida entre competiciones antes de comparar. Nunca se utilizan los percentiles originales de FotMob.
           </p>
+          {observation?.pAdjCoverage?.total>0&&observation.pAdjCoverage.covered<observation.pAdjCoverage.total&&<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Acciones defensivas ajustadas /90: cobertura parcial ({observation.pAdjCoverage.covered}/{observation.pAdjCoverage.total} competiciones, {show(observation.pAdjCoverage.minutesCovered,0)} minutos cubiertos). El resultado solo representa los partidos con acciones, minutos y posesión. {observation.pAdjCoverage.excluded.map(x=>x.competition+": "+x.reasons.map(reason=>reason==="team_possession"?"posesión de equipo":reason==="defensive_actions"?"acciones defensivas":"minutos").join(", ")).join("; ")}</div>}
           {observation?.pAdjMethod==="mf_possession_50_experimental"&&<p className="mt-1 text-xs font-semibold text-amber-700">PAdj /90: cálculo experimental MF LEGACY normalizado al 50 % de posesión; no reproduce necesariamente la fórmula interna de CraftedFC.</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">

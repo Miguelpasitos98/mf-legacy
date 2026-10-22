@@ -5,7 +5,7 @@ import {advancedTotals} from "./statsAdvanced.js";
 import { groupStatRows, nationalCompetition } from "./statsViews.js";
 import { metricName, WEIGHTS_BY_ROLE, calculateCompositeMF } from "./compositeEngine.js";
 import {ballSecurityFromRecords} from "./ballSecurity.js";
-import {createPossessionLookup,possessionAdjustedDefActions} from "./teamPossession.js";
+import {createPossessionLookup,possessionAdjustedDefActionsDetail} from "./teamPossession.js";
 import {calculateExperimentalFallback} from "./experimentalFallback.js";
 import { canonicalHistoricalCompetition } from "./historicalJson.js";
 import { seasonReferencePosition, normalizeHistoricalPosition } from "./historicalPositions.js";
@@ -252,9 +252,12 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     // otherwise calculate our own 50%-possession-normalised metric.
     // Never combine an adjusted numerator with missing minutes/competitions.
     const hasDirectPAdj=records.every(r=>num(r.minutes)>0&&metricTotal(r,PER90.def_actions_poss_adj_p90)!==null);
+    const pAdjDetail=hasDirectPAdj?null:possessionAdjustedDefActionsDetail(records,metricTotal,getPossession);
     values.def_actions_poss_adj_p90=hasDirectPAdj
       ?alignedPer90(records,PER90.def_actions_poss_adj_p90)
-      :possessionAdjustedDefActions(records,metricTotal,getPossession);
+      :pAdjDetail.value;
+    // A partially covered value is reported transparently and uses only the
+    // covered minutes, never the entire season denominator.
     for(const [metric,names] of Object.entries(PERCENTAGE))
       values[metric]=metric==="ground_duels_won_pct"
         ? groundDuelPercentage(records) : weightedPct(records,names);
@@ -270,6 +273,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       season:str(records[0].season),role,values,
       position:position.position,positionSource:position.source,positionMixed:Boolean(position.mixed),
       pAdjMethod:hasDirectPAdj?"provider_imported":values.def_actions_poss_adj_p90!==null?"mf_possession_50_experimental":"missing",
+      pAdjCoverage:hasDirectPAdj?{covered:records.length,total:records.length,minutesCovered:records.reduce((n,r)=>n+(num(r.minutes)||0),0),excluded:[],methods:["provider"]}:pAdjDetail,
       minutes:records.reduce((n,r)=>n+Math.max(0,num(r.minutes)||0),0),
       competitions:records.length,
     });
