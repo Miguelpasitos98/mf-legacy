@@ -15,6 +15,9 @@ const rate=v=>{
 const unpack=v=>Array.isArray(v)?v:v?.items||v?.data||[];
 const empty=v=>v===null||v===undefined||v==="";
 const LEAGUES=/^(la ?liga|laliga|premier league|ligue ?1|bundesliga|serie ?a|eredivisie|primeira liga|liga portugal|championship|major league soccer|mls|liga nos|liga bbva|super lig|superliga|liga mx|liga 1|primera division|1\. liga|brasileirao)/i;
+const CUPS=/(champions|europa|conference|copa|cup|pokal|coupe|ta[cç]a|supercopa|super cup|supercup|world cup|mundial|uefa|club world)/i;
+const isDomestic=r=>LEAGUES.test(txt(r.competition));
+const isSafeCandidate=r=>!CUPS.test(txt(r.competition));
 const metricEmpty=(row,name)=>empty(valueOf(row,name));
 const existingRate=(row,name)=>valueOf(row,name+" season /90")??valueOf(row,name+" /90");
 
@@ -65,16 +68,20 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
     const declared=txt(item.competition);
     // Only domestic leagues are eligible. Explicit JSON competition may disambiguate
     // league names, but never redirect an Understat rate to a cup.
-    const domestic=candidates.filter(r=>LEAGUES.test(txt(r.competition)));
-    const eligible=declared?domestic.filter(r=>key(r.competition)===key(declared)):domestic;
+    const domestic=candidates.filter(isDomestic);
+    // Alias spelling in the imported JSON must not hide an otherwise unique
+    // national-league record already present in the database.
+    const exactDomestic=declared?domestic.filter(r=>key(r.competition)===key(declared)):domestic;
+    const safeCandidates=candidates.filter(isSafeCandidate);
+    const eligible=exactDomestic.length?exactDomestic:domestic.length?domestic:safeCandidates;
     const selectedId=txt(overrides[i]);
     const selected=eligible.find(r=>txt(r.id)===selectedId);
-    const anchor=selected||(eligible.length===1?eligible[0]:null);
-    if(!anchor)issues.push(!domestic.length
-      ?"No hay una liga nacional reconocida para este equipo y temporada. Revisa el nombre de la competición en MF Legacy."
-      :declared&&!eligible.length
-        ?"La competición indicada en el JSON no coincide con ninguna liga nacional del equipo y temporada."
-        :"Se encontraron varias ligas candidatas. Selecciona el registro exacto antes de importar.");
+    const auto=domestic.length===1?domestic[0]:null;
+    const anchor=selected||auto;
+    if(!anchor&&candidates.length)issues.push(
+      eligible.length
+        ?"Selecciona expresamente la competición de liga nacional de esta temporada. Las copas están excluidas."
+        :"No hay ninguna competición de liga elegible para este equipo y temporada.");
     const options=eligible.map(r=>({id:txt(r.id),label:txt(r.competition)+" · "+txt(r.team_name)+" · "+txt(r.id).slice(-8)}));
     const offered=[
       ["xG",xg],["xA",xa],
@@ -138,11 +145,12 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
   {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-800">{error}</p>}
   {message&&<p role="status" className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">{message}</p>}
   {!!rows.length&&<><p className="text-xs text-slate-600">{rows.length} filas · {rows.filter(r=>r.status==="error").length} errores. Los existentes no se modifican sin marcarlos.</p>
+   <div className="mb-2 flex flex-wrap gap-2"><button type="button" disabled={busy||!rows.some(r=>r.status==="new"||r.status==="update")} onClick={()=>setChosen(new Set(rows.filter(r=>r.status==="new"||r.status==="update").map(r=>r.id)))} className="rounded border border-blue-300 px-3 py-1.5 text-xs font-bold text-blue-800 disabled:opacity-40">Seleccionar todos los válidos</button><button type="button" disabled={busy||!chosen.size} onClick={()=>setChosen(new Set())} className="rounded border px-3 py-1.5 text-xs font-bold disabled:opacity-40">Deseleccionar todos</button></div>
    <div className="max-h-72 overflow-auto rounded-lg border">{rows.map(r=><label key={r.id} className="flex items-start gap-2 border-b p-3 text-xs last:border-0">
     <input type="checkbox" disabled={busy||!["new","update"].includes(r.status)} checked={chosen.has(r.id)} onChange={e=>setChosen(prev=>{const s=new Set(prev);if(e.target.checked)s.add(r.id);else s.delete(r.id);return s;})}/>
     <span className="flex-1"><strong>{r.season} · {r.team}</strong><span className="ml-2 text-slate-500">{r.status==="new"?"Nuevo":r.status==="update"?"Actualizar":r.status==="same"?"Sin cambios":"Error"}</span>
     <span className="block text-slate-600">{r.metrics.length} campos vacíos para completar · xG: {r.metrics.find(m=>m.name==="xG")?.value??"—"} · xA: {r.metrics.find(m=>m.name==="xA")?.value??"—"} · Chain /90: {r.metrics.find(m=>m.name.startsWith("xG Chain"))?.value??"—"} · Buildup /90: {r.metrics.find(m=>m.name.startsWith("xG Buildup"))?.value??"—"}</span>
-    {r.options.length>1&&<span className="mt-2 block"><span className="block font-semibold text-slate-700">Registro de liga nacional</span><select aria-label={"Seleccionar liga "+r.season+" "+r.team} value={competitionOverrides[r.id]||""} disabled={busy} onChange={e=>{const next={...competitionOverrides,[r.id]:e.target.value};setCompetitionOverrides(next);analyze(next);}} className="mt-1 w-full rounded border border-slate-300 bg-white p-2"><option value="">Selecciona el registro exacto</option>{r.options.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></span>}
+    {r.options.length>0&&(!r.anchor||r.options.length>1)&&<span className="mt-2 block"><span className="block font-semibold text-slate-700">Registro de liga nacional</span><select aria-label={"Seleccionar liga "+r.season+" "+r.team} value={competitionOverrides[r.id]||r.anchor?.id||""} disabled={busy} onChange={e=>{const next={...competitionOverrides,[r.id]:e.target.value};setCompetitionOverrides(next);analyze(next);}} className="mt-1 w-full rounded border border-slate-300 bg-white p-2"><option value="">Selecciona el registro exacto</option>{r.options.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></span>}
     {r.issues.map((t,i)=><span key={i} className="block text-red-700">{t}</span>)}</span>
    </label>)}</div>
    <button type="button" disabled={busy||!chosen.size} onClick={save} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{busy?"Guardando…":"Guardar "+chosen.size+" registros"}</button>
