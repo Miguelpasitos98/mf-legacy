@@ -168,3 +168,16 @@ test("PAdj enlaza posesión pendiente si existe un único club exacto por nombre
  const mismatched=[{...pending[0],team_id:"united"}];
  assert.equal(createPossessionLookup(mismatched,teams)({team_id:"city",season:"2018/2019",competition:"Premier League"}),null);
 });
+
+test("Inter 2023/24: enlaza posesión Serie A aun si Team se llama Inter Milan",()=>{
+ const inter=[{id:"inter",name:"Inter Milan"}];
+ const possession=[{team_id:"",team_name:"Inter",season:"2023/2024",competition:"Serie A",team_possession_pct:57.2}];
+ const get=createPossessionLookup(possession,inter);
+ const row={team_id:"inter",team_name:"Internazionale",season:"2023/2024",competition:"Serie A",minutes:2283,metrics:[{name:"Defensive actions",value:123}]};
+ assert.equal(get(row),57.2);
+ const total=(r,names)=>r.metrics.find(m=>names.includes(m.name))?.value??null;
+ const detail=possessionAdjustedDefActionsDetail([row],total,get);
+ assert.equal(detail.covered,1);
+ assert.ok(Math.abs(detail.value-123*50/(100-57.2)*90/2283)<1e-10);
+ assert.equal(get({...row,competition:"Champions League"}),null);
+});
