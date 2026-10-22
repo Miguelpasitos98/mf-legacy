@@ -3,8 +3,8 @@ import {buildHistoricalObservations} from "./historicalPeers.js";
 // One shared, versioned React Query cache for all the comparison views.
 // Raw inputs remain in-memory only, allowing safe recalculation after a
 // single successful entity update without another full Base44 download.
-export const HISTORICAL_PEER_KEY=["mf-legacy","historical-peer-dataset","v6"];
-export const PEER_ENTITIES=["Player","PlayerSeasonStats","PlayerHistoricalValuation","TeamSeasonMatches","Team","TeamSeasonPossession"];
+export const HISTORICAL_PEER_KEY=["mf-legacy","historical-peer-dataset","v7-understat"];
+export const PEER_ENTITIES=["Player","PlayerSeasonStats","PlayerHistoricalValuation","TeamSeasonMatches","Team","TeamSeasonPossession","UnderstatSeasonRate"];
 
 export function createHistoricalPeerDataset(records, date=new Date().toISOString()){
   const loadedCounts=Object.fromEntries(PEER_ENTITIES.map(name=>[name,(records[name]||[]).length]));
@@ -14,7 +14,8 @@ export function createHistoricalPeerDataset(records, date=new Date().toISOString
     valuations:records.PlayerHistoricalValuation||[],
     teamMatches:records.TeamSeasonMatches||[],
     teams:records.Team||[],
-    teamPossessions:records.TeamSeasonPossession||[]
+    teamPossessions:records.TeamSeasonPossession||[],
+    understatRates:records.UnderstatSeasonRate||[]
   });
   return {observations,loadedCounts,loadedAt:date,records};
 }
