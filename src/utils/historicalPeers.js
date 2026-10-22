@@ -323,7 +323,7 @@ export function compareHistoricalObservation(observation,observations,minimum=10
   const rows=items.map(item=>{
     const result=calc?.rows.find(r=>r.key===item.key);
     const rawContribution=result?.contribution??null;
-    return {...item,weight:result?.weight??null,contribution:Object.is(rawContribution,-0)?0:rawContribution,
+    return {...item,weight:result?.weight??null,baseWeight:result?.baseWeight??null,transferred:result?.transferred??0,contribution:Object.is(rawContribution,-0)?0:rawContribution,
       name:result?.name||item.key};
   });
   // Do not rank a mostly empty season as world-class just because the single
