@@ -114,6 +114,24 @@ export function calculateCompositeMF(row,positionOrRole,percentilesOverride=null
       }
     }
   }
+  // CB: redistribute each missing xG participation metric independently.
+  // CraftedFC reference: 45% accurate passes, 40% accurate long balls,
+  // 15% possession-adjusted defensive actions.
+  if(role==="CB"){
+    weights.accurate_passes_p90=0;
+    baseWeights.accurate_passes_p90=0;
+    for(const missing of ["xg_buildup_p90","xg_chain_p90"]){
+      if(pct(input[missing])!==null)continue;
+      const missingWeight=weights[missing];
+      weights[missing]=0;
+      for(const [key,fraction] of [["accurate_passes_p90",0.45],["accurate_long_balls_p90",0.40],["def_actions_poss_adj_p90",0.15]]){
+        if(pct(input[key])===null)continue;
+        const amount=missingWeight*fraction;
+        weights[key]+=amount;
+        transferred[key]=(transferred[key]||0)+amount;
+      }
+    }
+  }
   const entries=Object.entries(weights);
   const absTotal=entries.reduce((n,[,w])=>n+Math.abs(w),0);
   let presentAbs=0,availableWeight=0,scoreSum=0;
