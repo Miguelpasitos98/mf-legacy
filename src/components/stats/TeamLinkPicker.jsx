@@ -25,7 +25,7 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
   return [];
  });
  const [openYears,setOpenYears]=useState(()=>new Set([initialRecord?.season||(season!=="Todas"?season:null)].filter(Boolean))); 
- const [showLinked,setShowLinked]=useState(()=>Boolean(initialRecord?.id&&resolveTeam(initialRecord,teams,records).status==="confirmed")),[allowReplace,setAllowReplace]=useState(false);
+ const [showLinked,setShowLinked]=useState(()=>Boolean(initialRecord?.id&&resolveTeam(initialRecord,teams,records).status==="confirmed"));
  const [search,setSearch]=useState(""),[teamId,setTeamId]=useState("");
  const [working,setWorking]=useState(false),[error,setError]=useState("");
  const candidates=useMemo(()=>teams.filter(t=>norm(t.name).includes(norm(search))||norm(t.short_name).includes(norm(search))).sort((a,b)=>String(a.name).localeCompare(String(b.name),"es")).slice(0,75),[teams,search]);
@@ -45,7 +45,6 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
  const selectYear=group=>{setSelected(current=>toggleSeasonSelection(current,group.items));setOpenYears(current=>new Set([...current,group.year]));};
  const confirm=async()=>{
   if(!selectedTeam||!selected.length)return;
-  if(conflicts.length&&!allowReplace){setError("Hay registros asociados a otro club. Marca la autorización de reemplazo antes de guardar.");return;}
   setError("");setWorking(true);
   try{
    const result=await onApply(selected,teamId);
@@ -112,12 +111,12 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
      <strong>{selected.length} registros seleccionados</strong>{groupSummary.length?" · "+groupSummary.join(" · "):""}
      {selectedTeam&&<span className="mt-1 block">Club elegido: <strong>{selectedTeam.name}</strong></span>}
     </div>
-    {conflicts.length>0&&<label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"><input type="checkbox" checked={allowReplace} onChange={e=>setAllowReplace(e.target.checked)} className="mt-0.5 accent-amber-700"/><span><AlertTriangle size={14} className="mr-1 inline"/> {conflicts.length} registro(s) ya señalan otro club. Autorizo expresamente sustituir esos vínculos por <strong>{selectedTeam?.name}</strong>.</span></label>}
+    {conflicts.length>0&&<p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"><AlertTriangle size={14} className="mr-1 inline"/> {conflicts.length} registro(s) tienen otro club asociado. Al pulsar «Asignar», solo se sustituirá el vínculo de las filas seleccionadas; las estadísticas no cambian.</p>}
     {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{error}</p>}
    </div>
    <footer className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3">
     <p className="max-w-sm text-[11px] text-slate-500">Solo cambia el vínculo de los registros marcados. Nunca el equipo actual ni las estadísticas.</p>
-    <div className="flex gap-2"><button disabled={working} onClick={onClose} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">Cancelar</button><button disabled={working||!selectedTeam||!selected.length||(conflicts.length>0&&!allowReplace)} onClick={confirm} className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{working?"Guardando…":"Asignar "+selected.length+" registros"}</button></div>
+    <div className="flex gap-2"><button disabled={working} onClick={onClose} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">Cancelar</button><button disabled={working||!selectedTeam||!selected.length} onClick={confirm} className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{working?"Guardando…":"Asignar "+selected.length+" registros"}</button></div>
    </footer>
   </div>
  </div>,document.body);
