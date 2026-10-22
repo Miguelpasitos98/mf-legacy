@@ -145,6 +145,14 @@
           }
         }
       }
+    },
+    "national_team_id": {
+      "type": "string",
+      "description": "NationalTeam.id para competiciones de selecci\u00f3n, independiente del club Team"
+    },
+    "national_country_id": {
+      "type": "string",
+      "description": "Country.id vinculado a la selecci\u00f3n"
     }
   },
   "required": [

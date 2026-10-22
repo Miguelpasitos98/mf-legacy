@@ -1,0 +1,52 @@
+{
+  "name": "NationalTeam",
+  "type": "object",
+  "properties": {
+    "country_id": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "senior",
+        "u17",
+        "u20",
+        "u21",
+        "u23"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "fotmob_id": {
+      "type": "integer"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "country_id",
+    "category",
+    "name"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
