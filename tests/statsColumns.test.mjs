@@ -51,3 +51,25 @@ test("se puede renombrar un indicador de fuente sin alterar las estadísticas",(
  assert.equal(getColumn(c,"goals").name,"Tantos");
  assert.equal(columnValue(r,"competition","goals",c),10);
 });
+
+test("GPrev solo se calcula con PSxGOT y goles de disparos de igual cobertura",()=>{
+ const config=initialConfig();
+ const keeper={player_id:"keeper",season:"2025/2026",competition:"LaLiga",minutes:1800,appearances:20,metrics:[
+  {name:"psxgot_against",value:28.4},{name:"goals_conceded_from_shots",value:20}
+ ]};
+ const summary=buildSeasonSummaries([keeper],[])[0];
+ assert.ok(config.columns.season.Portería.includes("calc_goals_prevented"));
+ assert.equal(columnValue(summary,"season","calc_goals_prevented",config),8.399999999999999);
+ assert.ok(Math.abs(columnValue(summary,"season","calc_goals_prevented_p90",config)-0.42)<1e-10);
+ const partial=buildSeasonSummaries([keeper,{...keeper,competition:"Copa del Rey",minutes:90,metrics:[{name:"psxgot_against",value:2}]}],[])[0];
+ assert.equal(columnValue(partial,"season","calc_goals_prevented",config),8.399999999999999);
+ assert.equal(columnValue(partial,"season","calc_goals_prevented_p90",config),columnValue(summary,"season","calc_goals_prevented_p90",config));
+ assert.equal(columnValue({...keeper,metrics:[]},"competition","calc_goals_prevented",config),null);
+});
+test("las preferencias antiguas reciben indicadores GK sin borrar sus columnas",()=>{
+ const old=initialConfig();
+ old.columns.season.Portería=["saves","cleansheets"];
+ const clean=sanitizeConfig(old);
+ assert.deepEqual(clean.columns.season.Portería.slice(0,2),["saves","cleansheets"]);
+ assert.ok(clean.columns.season.Portería.includes("calc_goals_prevented_p90"));
+});
