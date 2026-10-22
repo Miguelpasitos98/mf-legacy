@@ -25,6 +25,7 @@ export const RAW_METRICS=[
  ["xgagainstwhileonpitch","xG encajado en campo"],["yellowcards","Tarjetas amarillas"],["redcards","Tarjetas rojas"],
  ["penaltygoals","Goles de penalti"],["penaltiesawarded","Penaltis provocados"],["started","Titularidades"],
  ["xgchain","xG Chain (total Understat)"],["xgbuildup","xG Buildup (total Understat)"],["understatminutes","Minutos Understat"],
+ ["psxgot_against","PSxG a puerta recibido"],["goals_conceded_from_shots","Goles encajados por disparos"],
  ["groundduelswon","Duelos terrestres ganados"],["groundduelscontested","Duelos terrestres disputados"]
 ];
 export const COMPUTED=[
@@ -39,6 +40,8 @@ export const COMPUTED=[
  {id:"playpct",name:"Play %",formula:"minutes / (team_matches * 90) * 100",decimals:1},
  {id:"calc_xgchainper90",name:"xG Chain /90 (Understat)",formula:"xgchain * 90 / understatminutes",decimals:2},
  {id:"calc_xgbuildupper90",name:"xG Buildup /90 (Understat)",formula:"xgbuildup * 90 / understatminutes",decimals:2},
+ {id:"calc_goals_prevented",name:"Goles evitados",formula:"psxgot_against - goals_conceded_from_shots",decimals:2},
+ {id:"calc_goals_prevented_p90",name:"Goles evitados /90",formula:"(psxgot_against - goals_conceded_from_shots) * 90 / minutes",decimals:2},
  {id:"calc_groundduelspct",name:"Duelos terrestres ganados (%)",formula:"groundduelswon * 100 / groundduelscontested",decimals:2}
 ];
 export const RAW_IDS=new Set(RAW_METRICS.map(x=>x[0]));
@@ -49,7 +52,7 @@ export const DEFAULT_COLS={
  Ataque:["goals","assists","ga","goalsper90","assistsper90","gaper90","xg","xa","xgper90","xaper90","xgaper90","shots","shotsontarget"],
  Creación:["chancescreated","bigchancescreated","accuratepasses","successfulcrosses","xa","xaper90","calc_xgchainper90","calc_xgbuildupper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","cleansheets","calc_groundduelspct"],
- Portería:["saves","cleansheets","goalsconcededwhileonpitch"],
+ Portería:["saves","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
  Físico:["totaldistancecovered","numberofsprints"]
  },
  competition:{
@@ -83,6 +86,7 @@ export function sanitizeConfig(data){
    const fromOldDefault=Number(value.version||1)<2&&category==="Resumen"&&Array.isArray(input)&&JSON.stringify(input)===JSON.stringify(legacyDefault);
    columns[mode][category]=Array.isArray(input)?[...new Set(input.filter(k=>typeof k==="string"&&ids.has(k)))].slice(0,30):[...DEFAULT_COLS[mode][category]];
    if(fromOldDefault&&!columns[mode][category].includes("playpct"))columns[mode][category].push("playpct");
+   if(category==="Portería")for(const id of ["calc_goals_prevented","calc_goals_prevented_p90"])if(!columns[mode][category].includes(id))columns[mode][category].push(id);
   }
  }
  const dividers={season:{},competition:{}};
@@ -134,7 +138,7 @@ export function evalFormula(ast,values){
 export function getColumn(config,id){
  const def=config.computed.find(d=>d.id===id);
  const raw=RAW_METRICS.find(([key])=>key===id);
- return def?{...def,kind:"computed",unit:["playpct","calc_groundduelspct"].includes(id)?"%":""}:raw?{id,name:config.labels[id]||raw[1],decimals:["rating","xg","xa","xgot","xgexclpenalty","xgagainstwhileonpitch"].includes(id)?2:["topspeed","passaccuracy","longballaccuracy","crossaccuracy","dribblessuccessrate","duelswonvariante2","aerialswonvariante2"].includes(id)?1:0,kind:"raw"}:null;
+ return def?{...def,kind:"computed",unit:["playpct","calc_groundduelspct"].includes(id)?"%":""}:raw?{id,name:config.labels[id]||raw[1],decimals:["rating","xg","xa","xgot","xgexclpenalty","xgagainstwhileonpitch","psxgot_against"].includes(id)?2:["topspeed","passaccuracy","longballaccuracy","crossaccuracy","dribblessuccessrate","duelswonvariante2","aerialswonvariante2"].includes(id)?1:0,kind:"raw"}:null;
 }
 export const rowValues=(row,mode)=>{
  const values={};
