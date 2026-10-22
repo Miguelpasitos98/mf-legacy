@@ -95,9 +95,17 @@ export function createPossessionLookup(possessions=[],teams=[]){
  }
  for(const row of possessions){
   const pct=possessionPct(row.team_possession_pct);
-  if(pct===null||!row.team_id)continue;
-  const team=teams.find(t=>str(t.id)===str(row.team_id));
-  if(!team)continue; // require an existing, verified Base44 club identity
+  if(pct===null)continue;
+  const inputName=canonicalHistoricalClub(row.team_name);
+  const exactId=teams.filter(t=>row.team_id&&str(t.id)===str(row.team_id));
+  const named=teams.filter(t=>inputName&&canonicalHistoricalClub(t.name)===inputName);
+  // Historical possession batches frequently contain an unresolved team_id.
+  // Permit only an unambiguous exact canonical name match to an existing Team.
+  // Explicit IDs must exist and agree with the supplied name.
+  if(row.team_id&&exactId.length!==1)continue;
+  const team=row.team_id?exactId[0]:named.length===1?named[0]:null;
+  if(!team)continue;
+  if(inputName&&canonicalHistoricalClub(team.name)!==inputName)continue;
   const season=normalizeSeason(row.season),comp=canonicalHistoricalCompetition(row.competition);
   const code=season+"|"+comp;
   push(byId,str(team.id)+"|"+code,pct);
