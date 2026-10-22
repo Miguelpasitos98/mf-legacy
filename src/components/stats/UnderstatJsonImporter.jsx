@@ -48,7 +48,7 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
     candidates.forEach(r=>groups.set(txt(r.team_id||r.fotmob_team_id||r.team_name),1));
     if(!candidates.length)issues.push("No existe una competición del equipo y temporada en MF Legacy.");
     if(groups.size>1)issues.push("Identidad de equipo ambigua; corrige la vinculación.");
-    if(matching.some(r=>r.season===season&&key(r.team_name)!==key(team)))issues.push("Hay varios equipos en la temporada: no se puede guardar una tasa global combinada sin minutos. Importación bloqueada para evitar cálculos falsos.");
+
     const anchor=[...candidates].sort((a,b)=>String(a.competition).localeCompare(String(b.competition)))[0]||null;
     const metrics=[["xG Chain",chain],["xG Buildup",buildup]].filter(([,v])=>v!==null&&!Number.isNaN(v)).map(([name,v])=>({name:name+" season /90",value:v,sourceNote:"Understat · JSON /90 · "+team+" · "+season}));
     const diffs=metrics.filter(m=>Number(valueOf(anchor||{},m.name))!==m.value||valueOf(anchor||{},m.name)==null);
