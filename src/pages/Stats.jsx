@@ -115,6 +115,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const countries=countriesQuery.data||[];
   const [nationalError,setNationalError]=useState("");
   const [nationalBusy,setNationalBusy]=useState(false);
+  const [nationalLinks,setNationalLinks]=useState({});
   const [teamMatchesTarget,setTeamMatchesTarget]=useState(null);
   const [teamMatchesValue,setTeamMatchesValue]=useState("");
   const [metricTarget,setMetricTarget]=useState(null);
@@ -173,10 +174,15 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
     return (r.metrics||[]).find(m=>metricName(m.name)===metricName(candidate))?.name||candidate;
   };
   const teamCell=r=>{
-    const info=resolveTeam(r,teams,uniqueRecords);
+    const linked=nationalLinks[String(r.id)];
+    const info=resolveTeam(linked?{...r,...linked}:r,teams,uniqueRecords);
     if(nationalCompetition(r.competition)){
-      const name=info.team?.name||"Selección sin vincular";
-      return <button type="button" onClick={()=>{setNationalTarget(r);setNationalChoice("");setCountrySearch("");setNationalCategory(/(?:u20|sub.?20)/i.test(r.competition)?"u20":/(?:olympic|olimpic|u23|sub.?23)/i.test(r.competition)?"u23":"senior");setNationalError("");}} className="text-left text-xs font-semibold text-blue-800 hover:underline" title="Vincular selección nacional">{name} {info.team?"✓":"✎"}</button>;
+      const nationalTeam=info.team;
+      const name=linked?.team_name||nationalTeam?.name||"Selección sin vincular";
+      const country=countries.find(c=>String(c.id)===String(linked?.country_id||nationalTeam?.country_id)||(name===c.name||name.startsWith(c.name+" ")));
+      const flag=country?.flag;
+      const flagNode=flag&&/^(https?:|data:)/i.test(flag)?<img src={flag} alt="" className="h-4 w-6 shrink-0 object-contain"/>:<span className="w-6 shrink-0 text-center">{flag&&!/^(https?:|data:)/i.test(flag)?flag:"🏳️"}</span>;
+      return <button type="button" onClick={()=>{setNationalTarget(r);setNationalChoice("");setCountrySearch("");setNationalCategory(/(?:u20|sub.?20)/i.test(r.competition)?"u20":/(?:olympic|olimpic|u23|sub.?23)/i.test(r.competition)?"u23":"senior");setNationalError("");}} className="text-left text-xs font-semibold text-blue-800 hover:underline" title="Vincular selección nacional"><span className="inline-flex max-w-[210px] items-center gap-2">{flagNode}<span className="truncate">{name}</span><span className="text-[10px] text-slate-400">{linked||nationalTeam?"✓":"✎"}</span></span></button>;
     }
     const team=info.team;
     const suggested=info.status==="suggested";
@@ -382,10 +388,10 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
                 if(!current||current.season!==nationalTarget.season||current.competition!==nationalTarget.competition||String(current.player_id)!==String(nationalTarget.player_id))throw Error("La identidad del registro cambió; vuelve a abrirlo.");
                 const patch={team_id:String(chosen.id),team_name:chosen.name,fotmob_team_id:chosen.fotmob_id?String(chosen.fotmob_id):""};
                 await base44.entities.PlayerSeasonStats.update(current.id,patch);
+                setNationalLinks(old=>({...old,[String(current.id)]:{...patch,country_id:nationalChoice}}));
                 setNationalTarget(null);
                 queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
                 queryClient.invalidateQueries({queryKey:["mf-legacy","teams"]});
-                window.location.reload();
               }catch(e){setNationalError(e?.message||"Error al vincular.");}
               finally{setNationalBusy(false);}
             }} className="rounded bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{nationalBusy?"Guardando…":"Vincular selección"}</button>
