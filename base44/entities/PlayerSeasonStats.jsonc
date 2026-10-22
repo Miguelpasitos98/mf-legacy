@@ -153,6 +153,10 @@
     "national_country_id": {
       "type": "string",
       "description": "Country.id vinculado a la selecci\u00f3n"
+    },
+    "display_season": {
+      "type": "string",
+      "description": "Temporada deportiva mostrada YYYY/YYYY; override manual sin cambiar el a\u00f1o de origen ni external_record_id"
     }
   },
   "required": [
