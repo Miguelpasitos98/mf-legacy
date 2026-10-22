@@ -89,7 +89,7 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
   const targets=rows.filter(r=>chosen.has(r.id)&&["new","update"].includes(r.status));
   if(!targets.length||busy)return;
   setBusy(true);onBusyChange?.(true);setError("");setMessage("");
-  let count=0;
+  let count=0,skipped=0;
   try{
    for(const r of targets){
     // Fetch and validate a fresh, exact snapshot before modifying any data.
@@ -97,23 +97,25 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
     const exact=fetched.find(x=>txt(x.id)===txt(r.anchor.id));
     if(!exact||txt(exact.player_id)!==playerId||txt(exact.season)!==r.season||txt(exact.team_name)!==txt(r.anchor.team_name))
      throw Error("El registro "+r.season+" · "+r.team+" cambió o no se encontró. Vuelve a analizar.");
-    for(const m of r.metrics){
+    // Re-evaluate each field against fresh server data. Existing fields are
+    // skipped individually, rather than stopping the entire batch.
+    const updates=r.metrics.filter(m=>{
      const base=m.name.endsWith(" /90")?m.name.replace(" /90",""):m.name;
-     const unchanged=m.name.endsWith(" /90")
+     const missing=m.name.endsWith(" /90")
        ?empty(existingRate(exact,base))&&empty(valueOf(exact,base))
        :metricEmpty(exact,m.name);
-     if(!unchanged)throw Error("El campo "+m.name+" ya tiene datos. No se ha sobrescrito; vuelve a analizar.");
-    }
-    const updates=r.metrics;
+     if(!missing)skipped++;
+     return missing;
+    });
     if(updates.length){
      const {update}=applyManualStatChanges(exact,updates);
      await base44.entities.PlayerSeasonStats.update(exact.id,update);
      count++;
     }
    }
-   setMessage(count+" registros guardados. Vuelve a analizar para comprobar valores actuales.");
+   setMessage(count+" registros actualizados · "+skipped+" campos existentes omitidos sin sobrescribir. Vuelve a analizar para comprobar valores actuales.");
    setRows([]);setChosen(new Set());onSaved?.({refresh:true});
-  }catch(err){setError("Se guardaron "+count+" registros antes de detenerse. "+(err.message||"Error")+". Vuelve a analizar antes de reintentar.");setRows([]);setChosen(new Set());if(count)onSaved?.({refresh:true});}
+  }catch(err){setError("Se guardaron "+count+" registros, y se omitieron "+skipped+" campos existentes antes de detenerse. "+(err.message||"Error")+". Vuelve a analizar antes de reintentar.");setRows([]);setChosen(new Set());if(count)onSaved?.({refresh:true});}
   finally{setBusy(false);onBusyChange?.(false);}
  };
  return <div className="space-y-4">
