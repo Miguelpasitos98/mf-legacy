@@ -73,3 +73,26 @@ test("las preferencias antiguas reciben indicadores GK sin borrar sus columnas",
  assert.deepEqual(clean.columns.season.Portería.slice(0,2),["saves","cleansheets"]);
  assert.ok(clean.columns.season.Portería.includes("calc_goals_prevented_p90"));
 });
+
+test("Ederson FotMob Goals prevented tiene prioridad sobre reconstrucciones",()=>{
+ const cfg=initialConfig();
+ const base={player_id:"363364",season:"2022/2023",appearances:35,minutes:3150,metrics:[
+  {name:"Goals prevented",value:-5.87},
+  {name:"psxgot_against",value:40},{name:"goals_conceded_from_shots",value:30}
+ ]};
+ const league={...base,competition:"Premier League"};
+ assert.equal(columnValue(league,"competition","calc_goals_prevented",cfg),-5.87);
+ assert.ok(Math.abs(columnValue(league,"competition","calc_goals_prevented_p90",cfg)-(-5.87*90/3150))<1e-12);
+ const champions={...base,competition:"Champions League",minutes:900,metrics:[{name:"Goals prevented",value:2.7}]};
+ const summary=buildSeasonSummaries([league,champions],[])[0];
+ assert.ok(Math.abs(columnValue(summary,"season","calc_goals_prevented",cfg)-(-3.17))<1e-12);
+ assert.ok(Math.abs(columnValue(summary,"season","calc_goals_prevented_p90",cfg)-(-3.17*90/4050))<1e-12);
+});
+test("GPrev no se inventa cuando faltan fuente y componentes; el fallback sigue disponible",()=>{
+ const cfg=initialConfig();
+ const empty={minutes:900,metrics:[]};
+ assert.equal(columnValue(empty,"competition","calc_goals_prevented",cfg),null);
+ const reconstructed={minutes:900,metrics:[{name:"psxgot_against",value:12},{name:"goals_conceded_from_shots",value:10}]};
+ assert.equal(columnValue(reconstructed,"competition","calc_goals_prevented",cfg),2);
+ assert.equal(columnValue(reconstructed,"competition","calc_goals_prevented_p90",cfg),.2);
+});
