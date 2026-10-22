@@ -13,6 +13,19 @@ const rate=v=>{
  return n;
 };
 const unpack=v=>Array.isArray(v)?v:v?.items||v?.data||[];
+const parsePastedJson=raw=>{
+ const cleaned=String(raw||"").replace(/^\uFEFF/,"").trim();
+ const withoutFence=cleaned.replace(/^\x60{3}(?:json)?\s*/i,"").replace(/\s*\x60{3}$/,"").trim();
+ try{return JSON.parse(withoutFence);}catch(first){
+  const start=withoutFence.indexOf("{"),end=withoutFence.lastIndexOf("}");
+  if(start<0||end<=start)throw Error("No se encontró un objeto JSON. Copia desde { hasta }.");
+  const candidate=withoutFence.slice(start,end+1);
+  try{return JSON.parse(candidate);}catch{
+   throw Error("El texto no contiene un JSON válido. Copia únicamente el JSON, sin explicaciones ni bloques adicionales.");
+  }
+ }
+};
+
 const empty=v=>v===null||v===undefined||v==="";
 const LEAGUES=/^(la ?liga|laliga|premier league|ligue ?1|bundesliga|serie ?a|eredivisie|primeira liga|liga portugal|championship|major league soccer|mls|liga nos|liga bbva|super lig|superliga|liga mx|liga 1|primera division|1\. liga|brasileirao)/i;
 const metricEmpty=(row,name)=>empty(valueOf(row,name));
@@ -30,7 +43,7 @@ export default function UnderstatJsonImporter({player,fotmobPlayerId,stats=[],on
  const analyze=()=>{
   setRows([]);setChosen(new Set());setError("");setMessage("");
   try{
-   const data=JSON.parse(raw);
+   const data=parsePastedJson(raw);
    if(data.schema!=="mf_legacy_understat_per90_import_v1")throw Error("Esquema no compatible con Understat /90.");
    const given=txt(data.player?.fotmob_id),expected=txt(fotmobPlayerId);
    if(!expected)throw Error("La ficha del jugador no tiene ID FotMob verificado. Vincúlalo antes de importar.");
