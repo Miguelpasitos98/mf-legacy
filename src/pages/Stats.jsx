@@ -1,3 +1,4 @@
+import {POSITION_OPTIONS,normalizeHistoricalPosition,positionGroup} from "@/utils/historicalPositions.js";
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { aggregate, defaultSeason, groupStatRows, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
@@ -433,7 +434,7 @@ export default function Stats(){
   const [statsParams]=useSearchParams();
   const pq=usePlayersQuery(),tq=useTeamsQuery();
   const [season,setSeason]=useState("Todas"),[competition,setCompetition]=useState("Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||"");
-  const [viewMode,setViewMode]=useState("season"),[minMinutes,setMinMinutes]=useState(0);
+  const [viewMode,setViewMode]=useState("season"),[minMinutes,setMinMinutes]=useState(0),[positionFilter,setPositionFilter]=useState("Todas");
   const [seasonDisplay,setSeasonDisplay]=useState("all"),[bestMetric,setBestMetric]=useState("composite");
   const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("composite"),[sortDirection,setSortDirection]=useState("desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[page,setPage]=useState(0);
   const {rows,hasMore,loadMore,applyLocalRecord,refresh:refreshStats,busy,error,cached,refreshedAt}=useStatsRows(season,competition);
@@ -461,14 +462,26 @@ export default function Stats(){
   const stats=useMemo(()=>groupStatRows(rows.filter(r=>r.player_id)),[rows]);
   const seasonSummaries=useMemo(()=>buildSeasonSummaries(rows.filter(r=>r.player_id),teams),[rows,teams]);
   const competitions=useMemo(()=>[...new Set(rows.map(r=>r.competition))].filter(Boolean).sort(),[rows]);
+  const positionOptions=useMemo(()=>[
+    {value:"grupo:gk",label:"Porteros (GK)"},
+    {value:"grupo:def",label:"Defensas"},
+    {value:"grupo:mid",label:"Centrocampistas"},
+    {value:"grupo:att",label:"Atacantes"},
+    ...[...new Set(POSITION_OPTIONS)].map(value=>({value,label:value}))
+  ],[]);
+  const matchesPosition=value=>{
+    if(positionFilter==="Todas")return true;
+    const pos=normalizeHistoricalPosition(value);
+    return positionFilter.startsWith("grupo:")?positionGroup(pos)===positionFilter.slice(6):pos===positionFilter;
+  };
   const allCompetitionsRanked=useMemo(()=>{
     let rs=stats.map(r=>({record:r,player:byID.get(String(r.player_id))||null}));
     if(tab==="todos"){
       const ids=new Set(stats.map(r=>String(r.player_id)));
       rs=rs.concat(players.filter(p=>!ids.has(String(p.id))).map(p=>({record:null,player:p})));
     }
-    return sortStatsItems(rs,"competition",sort,sortDirection,columnConfig);
-  },[stats,players,tab,sort,sortDirection,byID,columnConfig]);
+    return sortStatsItems(rs.filter(({record,player})=>matchesPosition(record?.position||player?.position||player?.position_raw)),"competition",sort,sortDirection,columnConfig);
+  },[stats,players,tab,sort,sortDirection,byID,columnConfig,positionFilter]);
   const visible=useMemo(()=>{
     const q=normalizeLabel(search);
     if(!q)return allCompetitionsRanked;
@@ -489,11 +502,12 @@ export default function Stats(){
       const existing=new Set(seasonSummaries.map(s=>String(s.player_id)));
       if(seasonDisplay!=="current")mapped.push(...players.filter(p=>!existing.has(String(p.id))).map(player=>({summary:null,player})));
     }
-    const enough=mapped.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minMinutes:minMinutes===0);
+    const positioned=mapped.filter(({summary,player})=>matchesPosition(compositeIndex.get(String(summary?.player_id||"")+"|"+String(summary?.season||""))?.position||player?.position||player?.position_raw));
+    const enough=positioned.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minMinutes:minMinutes===0);
     const ranked=seasonDisplay==="best" ?
       (bestMetric==="composite"?bestSeasonByComposite(enough,compositeIndex):bestSeasonPerPlayer(enough,bestMetric,columnConfig)) : enough;
     return sort==="composite"?sortByComposite(ranked,compositeIndex,sortDirection):sortStatsItems(ranked,"season",sort,sortDirection,columnConfig);
-  },[seasonSummaries,byID,players,tab,minMinutes,sort,sortDirection,columnConfig,seasonDisplay,bestMetric,compositeIndex]);
+  },[seasonSummaries,byID,players,tab,minMinutes,sort,sortDirection,columnConfig,seasonDisplay,bestMetric,compositeIndex,positionFilter]);
   const seasonVisible=useMemo(()=>{
     const q=normalizeLabel(search);
     if(!q)return allSeasonsRanked;
@@ -699,6 +713,9 @@ export default function Stats(){
     </div>
     <div className="space-y-2 px-3 py-3 md:px-5">
       <StatsControlBar
+        position={positionFilter}
+        positionOptions={positionOptions}
+        onPosition={value=>{setPositionFilter(value);setPage(0);setBulkSelection(new Set());}}
         season={season}
         seasonOptions={options}
         onSeason={value=>{setSeason(value);setCompetition("Todas");setPage(0);}}
