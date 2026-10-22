@@ -158,3 +158,13 @@ test("Solo calcula con competiciones cubiertas y declara por qué excluye otras"
  assert.equal(observations[0].pAdjCoverage.covered,1);
  assert.ok(observations[0].values.def_actions_poss_adj_p90>0);
 });
+
+test("PAdj enlaza posesión pendiente si existe un único club exacto por nombre normalizado",()=>{
+ const pending=[{team_id:"",team_name:"Manchester City",season:"2018/2019",competition:"Premier League",team_possession_pct:67.9}];
+ const get=createPossessionLookup(pending,teams);
+ assert.equal(get({team_id:"city",team_name:"Manchester City",season:"2018/2019",competition:"Premier League"}),67.9);
+ assert.equal(get({team_name:"Manchester City",season:"2018/2019",competition:"Champions League"}),null);
+ assert.equal(createPossessionLookup(pending,[...teams,{id:"city2",name:"Manchester City"}])({team_name:"Manchester City",season:"2018/2019",competition:"Premier League"}),null);
+ const mismatched=[{...pending[0],team_id:"united"}];
+ assert.equal(createPossessionLookup(mismatched,teams)({team_id:"city",season:"2018/2019",competition:"Premier League"}),null);
+});

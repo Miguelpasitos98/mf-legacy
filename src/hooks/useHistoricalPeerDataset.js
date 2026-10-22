@@ -10,7 +10,7 @@ const FIELDS={
   PlayerHistoricalValuation:["id","player_id","season","fifa_fc_overall","transfermarkt_value_eur","fifa_fc_position","historical_position_override","competition_positions"],
   TeamSeasonMatches:["id","team_id","fotmob_team_id","season","competition","team_matches"],
   Team:["id","name","fotmob_id"],
-  TeamSeasonPossession:["id","team_id","fotmob_team_id","season","competition","team_possession_pct"],
+  TeamSeasonPossession:["id","team_id","team_name","fotmob_team_id","season","competition","team_possession_pct"],
   UnderstatSeasonRate:["id","player_id","season","team","team_key","xg_chain_p90","xg_buildup_p90"],
 };
 const limited = err => /rate limit|too many requests|429/i.test(String(err?.message||err)) ||
