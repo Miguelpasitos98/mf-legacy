@@ -65,9 +65,15 @@ function Avatar({name,photo,size="md"}) {
   return <div className={classes+" flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#e9f0f9] font-black text-[#31557b]"}>{photo&&!broken?<img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" onError={()=>setBroken(true)}/>:String(name||"?").slice(0,2).toUpperCase()}</div>;
 }
 function TeamBadge({teamName,logo}){const [broken,setBroken]=useState(false);return <span className="inline-flex max-w-[170px] items-center gap-2">{logo&&!broken?<img src={logo} alt="" className="h-5 w-5 object-contain" onError={()=>setBroken(true)}/>:<Shield size={16} className="text-slate-300"/>}<span className="truncate">{teamName||"Sin equipo"}</span></span>;}
+// View-only grouping. Calendar-year source records retain their original season
+// and are never rewritten, merged or silently converted during import.
+const displaySeason=raw=>{
+ const year=String(raw||"").trim();
+ return /^\\d{4}$/.test(year)?year+"/"+(Number(year)+1):year;
+};
 function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,onOpenSettings,onSetTeamMatches,onSetMetric,config}) {
   const queryClient=useQueryClient();
-  const seasons=useMemo(()=>[...new Set(stats.map(s=>s.season).filter(Boolean))].sort().reverse(),[stats]);
+  const seasons=useMemo(()=>[...new Set(stats.map(s=>displaySeason(s.season)).filter(Boolean))].sort().reverse(),[stats]);
   const {valuations:historicalValuations,loading:historicalLoading,refresh:historicalRefresh}=useHistoricalValuations(player?.id||stats[0]?.player_id);
   const {getTeamMatches,refresh:refreshTeamMatches}=useTeamMatchesLookup(stats);
   const [valuationImporterOpen,setValuationImporterOpen]=useState(false);
@@ -102,7 +108,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const [section,setSection]=useState("overview");
   const {snapshot:cfcSnapshot,status:cfcStatus}=useCraftedfcSnapshot(player?.id);
   const [season,setSeason]=useState("auto");
-  const activeSeason=season==="auto"?defaultSeason(stats,initialSeason):season;
+  const activeSeason=season==="auto"?displaySeason(defaultSeason(stats,initialSeason)):season;
   const [competition,setCompetition]=useState("Todas");
   const [scope,setScope]=useState("all");
   const [category,setCategory]=useState("Resumen");
@@ -135,7 +141,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   };
   const byTeam=useMemo(()=>new Map(teams.map(t=>[String(t.id),t])),[teams]);
   const uniqueRecords=useMemo(()=>groupStatRows(stats),[stats]);
-  const seasonRows=uniqueRecords.filter(s=>activeSeason==="Todas"||s.season===activeSeason);
+  const seasonRows=uniqueRecords.filter(s=>activeSeason==="Todas"||displaySeason(s.season)===activeSeason);
   const competitions=[...new Set(seasonRows.map(s=>s.competition))].sort();
   const shown=seasonRows.filter(r=>(scope==="all"||!nationalCompetition(r.competition))&&(competition==="Todas"||r.competition===competition)).map(r=>{
     const tm=getTeamMatches(r);
@@ -152,6 +158,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const line=id=>divider.has(id)?" border-r-[3px] border-r-blue-300":"";
   const allSeasons=activeSeason==="Todas";
   const partial=Object.values(sums).some(x=>x.partial)||ratingRows.length!==shown.length;
+  const calendarRows=shown.filter(r=>/^\\d{4}$/.test(String(r.season||"")));
   const inProgress=!allSeasons&&seasonActive(activeSeason);
   const totalsTitle=allSeasons?"Subtotal histórico (no total de carrera)":competition==="Todas"?"Subtotal de temporada":"Estadísticas de la competición";
   const beginMetricEdit=(r,name,field=null)=>{
@@ -256,6 +263,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <button type="button" title="Gestionar clubes de una o varias temporadas" onClick={()=>setTeamLinkTarget("bulk")} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-[#003399]">Gestionar clubes por año…</button>
             <span className="ml-auto rounded-full bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800">{shown.length} competiciones visibles</span>
           </div>
+          {calendarRows.length>0&&<p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Hay {calendarRows.length} registro(s) de año natural incluidos para facilitar la consulta. Se indica su año original en cada fila. Los subtotales son orientativos: no equivalen necesariamente a una temporada deportiva completa.</p>}
           <div className="mb-3 flex flex-wrap gap-1">
             <button onClick={()=>setSection("overview")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="overview"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Overview</button>
             <button onClick={()=>setSection("performance")} className={"rounded-lg px-3 py-1.5 text-xs font-bold "+(section==="performance"?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Performance</button>
@@ -301,7 +309,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <table className="w-full min-w-[720px] text-left text-xs">
               <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className={"px-3 py-3"+line("season_competition")}>Temporada / competición</th><th className={"px-3 py-3"+line("club")}>Equipo / selección</th><th className={"px-3 py-3"+line("appearances")}>PJ</th><th className={"px-3 py-3"+line("minutes")}>Min</th><th className={"whitespace-nowrap px-2 py-3"+line("team_matches")} title="Partidos disputados por el equipo en esta competición, a la fecha del registro; pulsa el dato para editarlo">PJ equipo</th><th className={"px-3 py-3"+line("rating")}>Nota</th>{selected.map(id=><th key={id} className={"whitespace-nowrap px-3 py-3"+line(id)}>{getColumn(config,id)?.name||metricLabel(id)}</th>)}</tr></thead>
               <tbody>{shown.length?shown.slice().sort((a,b)=>b.season.localeCompare(a.season)||(num(b.minutes)||num(b.appearances)||0)-(num(a.minutes)||num(a.appearances)||0)||a.competition.localeCompare(b.competition)).map((r,i)=><tr key={r.id||r.external_record_id||i} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className={"px-3 py-3 font-semibold"+line("season_competition")}>{r.season}<div className="font-normal text-slate-500">{r.competition}</div>{r._sourceRows>1&&<span className="text-[10px] text-blue-700">Fuentes consolidadas: {r._sourceRows}</span>}</td>
+                <td className={"px-3 py-3 font-semibold"+line("season_competition")}>{displaySeason(r.season)}<div className="font-normal text-slate-500">{r.competition}{/^\\d{4}$/.test(String(r.season||""))&&<span className="ml-1 text-amber-700" title="El origen utiliza año natural; visualización agrupada sin modificar los datos">· año natural {r.season}</span>}</div>{r._sourceRows>1&&<span className="text-[10px] text-blue-700">Fuentes consolidadas: {r._sourceRows}</span>}</td>
                 <td className={"px-3 py-3"+line("club")}>{teamCell(r)}</td>
                 <td className={"px-3 py-3"+line("appearances")}>{valueButton(r,"Partidos",r.appearances,0,"appearances")}</td><td className={"px-3 py-3"+line("minutes")}>{valueButton(r,"Minutos",r.minutes,0,"minutes")}</td><td className={"px-2 py-3"+line("team_matches")}><button type="button" onClick={()=>editTeamMatches(r)} disabled={!r.id} aria-label={"Editar partidos del equipo de "+r.competition+" "+r.season} title="Editar partidos disputados por el equipo en esta competición" className="whitespace-nowrap rounded-md border border-transparent px-2 py-1 font-semibold text-[#003399] hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400">{r.team_matches==null?"Añadir +":show(r.team_matches)}{r._teamMatchesSource==="team"&&<span className="ml-1 text-[9px] text-emerald-600" title="PJ equipo importado a nivel de club">club</span>}</button></td><td className={"px-3 py-3"+line("rating")}>{valueButton(r,"Nota FotMob",r.rating,2,"rating")}</td>
                 {selected.map(id=><td key={id} className={"px-3 py-3 font-semibold"+line(id)}>{getColumn(config,id)?.kind==="raw"?valueButton(r,columnMetricName(r,id),columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??0):<span title="Calculado automáticamente a partir de las estadísticas originales">{show(columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??0)}{columnValue(r,"competition",id,config)!==null&&getColumn(config,id)?.unit?" "+getColumn(config,id).unit:""}</span>}</td>)}
