@@ -33,7 +33,7 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
  const composite=result?.composite;
  const role=historicalRole(position);
  const totals=useMemo(()=>aggregate(shown,["goals","assists","xg","xa","shots","appearances","minutes"]),[shown]);
- const advanced=useMemo(()=>advancedTotals(shown),[shown]);
+ const advanced=useMemo(()=>advancedTotals(shown,{includeSeasonRates:competition==="Todas"}),[shown,competition]);
  const summary=name=>totals[name]?.value??null;
  const selectedValuation=season==="Todas"?null:historicalValuations.find(v=>String(v.season)===String(season));
  const normalizedValue=selectedValuation?.transfermarkt_value_eur!=null?formatEur(selectedValuation.transfermarkt_value_eur):"—";

@@ -16,27 +16,27 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave,def
  const baseName=String(defaultName||"").trim().replace(/\s*\/\s*90$/i,"");
  const storedName=per90?baseName+" /90":baseName;
  const [recordId,setRecordId]=useState("");
- const [form,setForm]=useState({value:"",sourceMinutes:"",won:"",contested:"",name:"",unit:"total"});
+ const [form,setForm]=useState({value:"",sourceMinutes:"",won:"",contested:"",name:"",unit:"per90",scope:"season"});
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const sorted=useMemo(()=>[...records].filter(r=>r.id).sort((a,b)=>String(b.season).localeCompare(String(a.season))||
   String(a.competition).localeCompare(String(b.competition))),[records]);
  const selected=sorted.find(r=>String(r.id)===recordId)||sorted[0]||null;
  const hasValue=(r,n)=>number(r,n)!=="";
- const status=r=>mode==="chain"?(hasValue(r,"xG Chain")&&hasValue(r,"Understat minutes")?"Con datos":"Incompleto"):
- mode==="buildup"?(hasValue(r,"xG Buildup")&&hasValue(r,"Understat minutes")?"Con datos":"Incompleto"):
+ const status=r=>mode==="chain"?(hasValue(r,"xG Chain /90")||hasValue(r,"xG Chain season /90")||(hasValue(r,"xG Chain")&&hasValue(r,"Understat minutes"))?"Con datos":"Incompleto"):
+ mode==="buildup"?(hasValue(r,"xG Buildup /90")||hasValue(r,"xG Buildup season /90")||(hasValue(r,"xG Buildup")&&hasValue(r,"Understat minutes"))?"Con datos":"Incompleto"):
  mode==="ground"?(hasValue(r,"Ground duels won")&&hasValue(r,"Ground duels contested")?"Con datos":"Incompleto"):
  mode==="other"?"":hasValue(r,simpleNames[mode]||"",["appearances","minutes","rating"].includes(mode)?mode:null)?"Con datos":"Sin datos";
  useEffect(()=>{setRecordId("");setError("");},[mode]);
  useEffect(()=>{
   if(!selected)return;
   setForm({
-   value:mode==="chain"||mode==="buildup"?number(selected,mode==="chain"?"xG Chain":"xG Buildup"):
+   value:mode==="chain"||mode==="buildup"?number(selected,(mode==="chain"?"xG Chain":"xG Buildup")+" season /90"):
     mode==="other"?number(selected,storedName):number(selected,simpleNames[mode]||"",["appearances","minutes","rating"].includes(mode)?mode:null),
    sourceMinutes:number(selected,"Understat minutes"),
    won:number(selected,"Ground duels won"),
    contested:number(selected,"Ground duels contested"),
-   unit:"total",name:mode==="other"?baseName:""
+   unit:"per90",scope:"season",name:mode==="other"?baseName:""
   });
   setError("");
  },[selected?.id,mode,storedName]);
@@ -63,26 +63,33 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave,def
   <form onSubmit={submit} className="w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl">
    <div className="flex items-start justify-between gap-2">
     <div><h3 className="text-base font-black text-[#123456]">Añadir o editar · {label}</h3>
-     <p className="mt-1 text-xs text-slate-500">MF LEGACY · Solo se modifica la competición que selecciones</p>
+     <p className="mt-1 text-xs text-slate-500">MF LEGACY · Registro manual con ámbito explícito</p>
     </div><button disabled={busy} onClick={onClose} type="button" aria-label="Cerrar" className="rounded p-2 hover:bg-slate-100"><X size={18}/></button>
    </div>
-   {selected?<label className="block text-xs font-semibold text-slate-700">Temporada y competición
+   {selected?<label className="block text-xs font-semibold text-slate-700">Temporada y registro de referencia
     <select value={selected.id} disabled={busy} onChange={e=>setRecordId(e.target.value)}
      className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm">
      {sorted.map((r,i)=><option key={r.id} value={r.id}>{r.season} · {r.competition} · {r.team_name||"Club no indicado"} · {status(r)}{sorted.some((x,j)=>j!==i&&x.season===r.season&&x.competition===r.competition)?" · "+String(r.external_record_id||r.id).slice(-9):""}</option>)}
     </select>
    </label>:<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">No hay competiciones con registros guardados en estos filtros. Cambia la temporada o el ámbito para introducir datos.</p>}
    {selected&&<div className="space-y-3">
-     <p className="text-[11px] font-medium text-blue-800">Estado de esta competición: {status(selected)}. Los cambios no afectarán a las demás competiciones.</p>
+     <p className="text-[11px] font-medium text-blue-800">Registro seleccionado: {status(selected)}. Los datos globales se identifican como temporada completa.</p>
      {(mode==="chain"||mode==="buildup")&&<>
-       <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">Introduce el total de la competición y sus minutos de Understat. Si solamente conoces el valor /90, elige esa opción: se reconstruirá un total derivado y quedará registrado en el historial.</p>
+       <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">Puedes introducir directamente el dato por 90 minutos. No se necesitan minutos para guardar una tasa ya calculada. El dato de temporada completa no se atribuye a Liga ni Champions.</p>
+       <label className="block text-xs font-semibold text-slate-700">Ámbito del dato
+        <select value={form.scope} onChange={e=>setForm(p=>({...p,scope:e.target.value,unit:e.target.value==="season"?"per90":p.unit,value:""}))} className="mt-1 w-full rounded-lg border border-slate-200 p-2.5 text-sm">
+         <option value="season">Temporada completa (todas las competiciones)</option>
+         <option value="competition">Solo la competición seleccionada</option>
+        </select>
+       </label>
        <label className="block text-xs font-semibold text-slate-700">Dato que tienes
-        <select value={form.unit} onChange={e=>{set("unit",e.target.value);set("value","");}} className="mt-1 w-full rounded-lg border border-slate-200 p-2.5 text-sm">
-         <option value="total">Total de xG de la competición</option><option value="per90">Valor por 90 minutos</option>
+        <select value={form.unit} onChange={e=>setForm(p=>({...p,unit:e.target.value,value:""}))} className="mt-1 w-full rounded-lg border border-slate-200 p-2.5 text-sm">
+         <option value="per90">Valor por 90 minutos</option>
+         {form.scope==="competition"&&<option value="total">Total de la competición</option>}
         </select>
        </label>
        {valueInput(form.unit==="per90"?"Valor /90":"Valor total","value","1,25")}
-       {valueInput("Minutos Understat (misma fuente)","sourceMinutes","2700",true)}
+       {form.unit==="total"&&valueInput("Minutos Understat (misma fuente)","sourceMinutes","2700",true)}
      </>}
      {mode==="ground"&&<>
        <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">Para calcular un porcentaje fiable necesitamos los duelos terrestres ganados y disputados. No se puede completar a partir de un porcentaje aislado.</p>

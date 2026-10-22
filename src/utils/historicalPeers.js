@@ -1,3 +1,4 @@
+import {advancedTotals} from "./statsAdvanced.js";
 // MF LEGACY — historical peer comparison, independent of FotMob percentile columns.
 // This module never writes data, and never uses external provider percentiles.
 // Population: one season per player, all club competitions, same current-position archetype.
@@ -219,6 +220,10 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     for(const [metric,names] of Object.entries(PER90))
       values[metric]=alignedPer90(records,names,
         metric==="xg_chain_p90"||metric==="xg_buildup_p90"?"Understat minutes":null);
+    // A genuine season-wide /90 overrides competition-derived Understat totals.
+    const directRates=advancedTotals(records);
+    if(directRates.xg_chain_p90!==null)values.xg_chain_p90=directRates.xg_chain_p90;
+    if(directRates.xg_buildup_p90!==null)values.xg_buildup_p90=directRates.xg_buildup_p90;
     // Prefer a complete, verified source PAdj series if it already exists;
     // otherwise calculate our own 50%-possession-normalised metric.
     // Never combine an adjusted numerator with missing minutes/competitions.
