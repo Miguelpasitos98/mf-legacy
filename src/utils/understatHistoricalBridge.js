@@ -87,3 +87,34 @@ export async function enrichImportedUnderstat(base44,playerId,fotmobId,onProgres
  }
  return {seasons:source.length,updated,metricsAdded,ambiguous,unmatched,source:"Understat · dataset local"};
 }
+
+/**
+ * Indicadores de temporada independientes de las filas de competición FotMob.
+ * Una temporada puede tener varios clubes: los totales y minutos Understat
+ * se ponderan; nunca se promedian las tasas por /90 ni se inventa cobertura.
+ */
+export function seasonUnderstatRates(rows=[]){
+ const bySeason=new Map();
+ for(const row of rows){
+  if(row.record_kind!=="understat_summary")continue;
+  const season=txt(row.season),minutes=n(row.minutes);
+  if(!/^\\d{4}\/\\d{4}$/.test(season)||!(minutes>0))continue;
+  const metrics=Array.isArray(row.metrics)?row.metrics:[];
+  const find=name=>metrics.find(m=>norm(m.name)===norm(name));
+  const chain=find("xGChain"),buildup=find("xGBuildup");
+  if(!chain&&!buildup)continue;
+  const key=txt(row.fotmob_player_id)+"|"+season;
+  if(!txt(row.fotmob_player_id))continue;
+  if(!bySeason.has(key))bySeason.set(key,{fotmob_player_id:txt(row.fotmob_player_id),season,chain:0,buildup:0,chainMinutes:0,buildupMinutes:0,sourceRows:0});
+  const state=bySeason.get(key);state.sourceRows++;
+  if(n(chain?.value)!==null){state.chain+=n(chain.value);state.chainMinutes+=minutes;}
+  if(n(buildup?.value)!==null){state.buildup+=n(buildup.value);state.buildupMinutes+=minutes;}
+ }
+ return [...bySeason.values()].map(x=>({
+  fotmob_player_id:x.fotmob_player_id,season:x.season,
+  ...(x.chainMinutes>0?{xg_chain_p90:x.chain*90/x.chainMinutes}:{}),
+  ...(x.buildupMinutes>0?{xg_buildup_p90:x.buildup*90/x.buildupMinutes}:{}),
+  sourceRows:x.sourceRows,
+  source_scope:"Understat · ligas cubiertas (valor de temporada en MF Legacy)"
+ }));
+}
