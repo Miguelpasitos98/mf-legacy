@@ -181,3 +181,17 @@ test("Inter 2023/24: enlaza posesión Serie A aun si Team se llama Inter Milan",
  assert.ok(Math.abs(detail.value-123*50/(100-57.2)*90/2283)<1e-10);
  assert.equal(get({...row,competition:"Champions League"}),null);
 });
+
+test("Militao 2022/23: LaLiga de FotMob coincide con posesion LaLiga EA Sports",()=>{
+ const madrid=[{id:"rm",name:"Real Madrid CF"}];
+ const possessions=[{team_id:"rm",team_name:"Real Madrid CF",season:"2022/2023",competition:"LaLiga EA Sports",team_possession_pct:61.1}];
+ const lookup=createPossessionLookup(possessions,madrid);
+ const row={team_id:"rm",team_name:"Real Madrid",season:"2022/2023",competition:"LaLiga",minutes:2703,metrics:[{name:"Defensive actions",value:226}]};
+ assert.equal(lookup(row),61.1);
+ const total=(r,n)=>r.metrics.find(m=>n.includes(m.name))?.value??null;
+ const detail=possessionAdjustedDefActionsDetail([row,{...row,competition:"Copa del Rey",minutes:525}],total,lookup);
+ assert.equal(detail.covered,1);
+ assert.equal(detail.total,2);
+ assert.ok(Math.abs(detail.value-226*50/(100-61.1)*90/2703)<1e-10);
+ assert.equal(lookup({...row,competition:"Champions League"}),null);
+});
