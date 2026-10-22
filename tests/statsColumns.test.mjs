@@ -73,3 +73,15 @@ test("las preferencias antiguas reciben indicadores GK sin borrar sus columnas",
  assert.deepEqual(clean.columns.season.Portería.slice(0,2),["saves","cleansheets"]);
  assert.ok(clean.columns.season.Portería.includes("calc_goals_prevented_p90"));
 });
+
+test("Goals prevented de FotMob alimenta GPrev y GPrev/90 sin cambiar otras métricas",()=>{
+ const config=initialConfig();
+ const league={player_id:"courtois",season:"2023/2024",competition:"LaLiga",minutes:332,appearances:4,metrics:[{name:"Goals prevented",value:2.3}]};
+ const champions={...league,competition:"Champions League",minutes:90,appearances:1,metrics:[{name:"Goals prevented",value:1.1}]};
+ assert.equal(columnValue(league,"competition","calc_goals_prevented",config),2.3);
+ assert.ok(Math.abs(columnValue(league,"competition","calc_goals_prevented_p90",config)-2.3*90/332)<1e-12);
+ const summary=buildSeasonSummaries([league,champions],[])[0];
+ assert.ok(Math.abs(columnValue(summary,"season","calc_goals_prevented",config)-3.4)<1e-12);
+ assert.ok(Math.abs(columnValue(summary,"season","calc_goals_prevented_p90",config)-3.4*90/422)<1e-12);
+ assert.equal(columnValue({...league,metrics:[]},"competition","calc_goals_prevented",config),null);
+});
