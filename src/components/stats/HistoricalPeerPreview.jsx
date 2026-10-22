@@ -194,7 +194,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
               </tr>
             </thead>
             <tbody>{displayedRows.map(item=><tr className={"border-t border-slate-100 "+(item.value===null?"bg-slate-50 text-slate-400":"hover:bg-slate-50")} key={item.key}>
-              <td className={"px-3 py-2.5 font-semibold "+(item.value===null?"text-slate-400":"text-slate-800")}>{item.name}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
+              <td className={"px-3 py-2.5 font-semibold "+(item.value===null?"text-slate-400":"text-slate-800")}>{item.name}{result.role==="GK"&&item.key==="xg_buildup_p90"&&item.value===null&&<span className="mt-1 block max-w-[290px] text-[10px] font-normal italic leading-snug text-slate-400">Sin datos · peso redistribuido: pases largos precisos /90 (60 %) y pases precisos /90 (40 %)</span>}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right font-semibold tabular-nums text-slate-800">
                 {onSetMetric&&!NON_EDITABLE_COMPOSITE.has(item.key)?
                   <button type="button"
