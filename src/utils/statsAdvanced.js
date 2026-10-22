@@ -5,7 +5,8 @@ const key = s => String(s||"").toLowerCase().replace(/%/g,"percent").replace(/[^
 const metric = (record,name) => numeric((record.metrics||[]).find(m=>key(m.name)===key(name))?.value);
 export function advancedTotals(records=[],{includeSeasonRates=true}={}){
   const seasons=new Set(records.map(r=>r.season));
-  const seasonRates=includeSeasonRates&&seasons.size===1?records.map(r=>({chain:metric(r,"xG Chain season /90"),buildup:metric(r,"xG Buildup season /90")})):[];
+  const clubs=new Set(records.map(r=>String(r.team_id||r.fotmob_team_id||r.team_name||"").trim()).filter(Boolean));
+  const seasonRates=includeSeasonRates&&seasons.size===1&&clubs.size<=1?records.map(r=>({chain:metric(r,"xG Chain season /90"),buildup:metric(r,"xG Buildup season /90")})):[];
   const seasonChain=seasonRates.find(r=>r.chain!==null)?.chain??null;
   const seasonBuildup=seasonRates.find(r=>r.buildup!==null)?.buildup??null;
   let chain=0,buildup=0,chainMinutes=0,buildupMinutes=0,chainRows=0,buildupRows=0,duelsWon=0,duelsTotal=0,duelRows=0;
