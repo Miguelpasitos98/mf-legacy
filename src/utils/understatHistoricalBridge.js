@@ -5,7 +5,23 @@
 const txt=v=>String(v??"").trim();
 const norm=v=>txt(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
 const n=v=>v===null||v===undefined||v===""?null:Number.isFinite(Number(v))?Number(v):null;
-const understatLeague=v=>["epl","premierleague","englishpremierleague"].includes(norm(v));
+const leagueCode=v=>{
+ const x=norm(v);
+ if(["epl","premierleague","englishpremierleague"].includes(x))return "epl";
+ if(["laliga","laligasantander","laligaeasports","spanishlaliga","primeradivision"].includes(x))return "laliga";
+ if(["bundesliga","germanbundesliga"].includes(x))return "bundesliga";
+ if(["seriea","italianseriea"].includes(x))return "seriea";
+ if(["ligue1","frenchligue1"].includes(x))return "ligue1";
+ if(["rfpl","russianpremierleague","premierligarussia"].includes(x))return "rfpl";
+ return "";
+};
+const clubCode=v=>{
+ const x=norm(v);
+ if(["rasenballsportleipzig","rbleipzig","leipzig"].includes(x))return "rbleipzig";
+ if(["atleticomadrid","atleticodemadrid","atletimadrid"].includes(x))return "atleticomadrid";
+ if(["psg","parissaintgermain"].includes(x))return "parissaintgermain";
+ return x;
+};
 const asRows=r=>Array.isArray(r)?r:r?.items||r?.data||r?.results||r?.entities||[];
 const metricNames={
  assists:"Assists",goals:"Goals",npg:"Non-penalty goals",
@@ -14,25 +30,27 @@ const metricNames={
 };
 const archiveMark="Understat · exportación manual, identidad Understat no verificada";
 export function providerMetricBridge(row){
- if(row?.record_kind!=="understat_summary"||!understatLeague(row.competition))return null;
+ if(row?.record_kind!=="understat_summary"||!leagueCode(row.competition))return null;
  const mins=n(row.minutes);
  if(mins===null||mins<30)return null; // ignore 1-minute anomalous season
- if(!txt(row.fotmob_team_id)||!txt(row.fotmob_player_id))return null;
+ if(!txt(row.fotmob_player_id)||(!txt(row.fotmob_team_id)&&!txt(row.team_name)))return null;
  if(!Array.isArray(row.metrics)||!row.metrics.length)return null;
  const sourceMetrics=row.metrics.filter(m=>Object.hasOwn(metricNames,m.name)&&n(m.value)!==null);
  const metrics=sourceMetrics.map(m=>({name:metricNames[m.name],value:n(m.value),
   per90:n(m.per90)??n(m.value)*90/mins,percentile:null,
-  source:"Understat",provider_minutes:mins,verification_status:"manual_identity_unverified"}));
+  source:"Understat",provider_minutes:mins,verification_status:txt(row.status)||"identity_unverified"}));
  metrics.push({name:"Understat minutes",value:mins,
-  source:"Understat",provider_minutes:mins,verification_status:"manual_identity_unverified"});
+  source:"Understat",provider_minutes:mins,verification_status:txt(row.status)||"identity_unverified"});
  return {...row,metrics};
 }
 export function eligibleUnderstatSeason(provider,season){
- if(!provider||!season||!understatLeague(provider.competition))return false;
+ if(!provider||!season||!leagueCode(provider.competition))return false;
  return txt(provider.fotmob_player_id)===txt(season.fotmob_player_id)&&
   txt(provider.season)===txt(season.season)&&
-  txt(provider.fotmob_team_id)===txt(season.fotmob_team_id)&&
-  norm(season.competition)==="premierleague"&&
+  (txt(provider.fotmob_team_id)&&txt(season.fotmob_team_id)?
+    txt(provider.fotmob_team_id)===txt(season.fotmob_team_id):
+    Boolean(txt(provider.team_name)&&txt(season.team_name)&&clubCode(provider.team_name)===clubCode(season.team_name)))&&
+  leagueCode(season.competition)===leagueCode(provider.competition)&&
   n(season.minutes)>0;
 }
 export function enrichUnderstatSeason(season,provider){
@@ -67,5 +85,5 @@ export async function enrichImportedUnderstat(base44,playerId,fotmobId,onProgres
   updated++;metricsAdded+=next.added;
   onProgress?.("Enlazando estadísticas Understat",i+1,source.length);
  }
- return {seasons:source.length,updated,metricsAdded,ambiguous,unmatched,source:"Understat manual"};
+ return {seasons:source.length,updated,metricsAdded,ambiguous,unmatched,source:"Understat · dataset local"};
 }
