@@ -107,6 +107,10 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const [scope,setScope]=useState("clubs");
   const [category,setCategory]=useState("Resumen");
   const [teamLinkTarget,setTeamLinkTarget]=useState(null);
+  const [nationalTarget,setNationalTarget]=useState(null);
+  const [nationalChoice,setNationalChoice]=useState("");
+  const [nationalError,setNationalError]=useState("");
+  const [nationalBusy,setNationalBusy]=useState(false);
   const [teamMatchesTarget,setTeamMatchesTarget]=useState(null);
   const [teamMatchesValue,setTeamMatchesValue]=useState("");
   const [metricTarget,setMetricTarget]=useState(null);
@@ -166,7 +170,10 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   };
   const teamCell=r=>{
     const info=resolveTeam(r,teams,uniqueRecords);
-    if(info.status==="national")return <span className="text-slate-500">Selección nacional</span>;
+    if(nationalCompetition(r.competition)){
+      const name=info.team?.name||"Selección sin vincular";
+      return <button type="button" onClick={()=>{setNationalTarget(r);setNationalChoice("");setNationalError("");}} className="text-left text-xs font-semibold text-blue-800 hover:underline" title="Vincular selección nacional">{name} {info.team?"✓":"✎"}</button>;
+    }
     const team=info.team;
     const suggested=info.status==="suggested";
     const name=team?.name||r.team_name||"Asignar club";
@@ -280,7 +287,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           <div className="mb-3 flex flex-wrap gap-2">{CAT_TABS.map(x=><button key={x} onClick={()=>setCategory(x)} className={"rounded-lg px-3 py-2 text-xs font-bold "+(category===x?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{x}</button>)}</div>
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[720px] text-left text-xs">
-              <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className={"px-3 py-3"+line("season_competition")}>Temporada / competición</th><th className={"px-3 py-3"+line("club")}>Club en esa temporada</th><th className={"px-3 py-3"+line("appearances")}>PJ</th><th className={"px-3 py-3"+line("minutes")}>Min</th><th className={"whitespace-nowrap px-2 py-3"+line("team_matches")} title="Partidos disputados por el equipo en esta competición, a la fecha del registro; pulsa el dato para editarlo">PJ equipo</th><th className={"px-3 py-3"+line("rating")}>Nota</th>{selected.map(id=><th key={id} className={"whitespace-nowrap px-3 py-3"+line(id)}>{getColumn(config,id)?.name||metricLabel(id)}</th>)}</tr></thead>
+              <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className={"px-3 py-3"+line("season_competition")}>Temporada / competición</th><th className={"px-3 py-3"+line("club")}>Equipo / selección</th><th className={"px-3 py-3"+line("appearances")}>PJ</th><th className={"px-3 py-3"+line("minutes")}>Min</th><th className={"whitespace-nowrap px-2 py-3"+line("team_matches")} title="Partidos disputados por el equipo en esta competición, a la fecha del registro; pulsa el dato para editarlo">PJ equipo</th><th className={"px-3 py-3"+line("rating")}>Nota</th>{selected.map(id=><th key={id} className={"whitespace-nowrap px-3 py-3"+line(id)}>{getColumn(config,id)?.name||metricLabel(id)}</th>)}</tr></thead>
               <tbody>{shown.length?shown.slice().sort((a,b)=>b.season.localeCompare(a.season)||(num(b.minutes)||num(b.appearances)||0)-(num(a.minutes)||num(a.appearances)||0)||a.competition.localeCompare(b.competition)).map((r,i)=><tr key={r.id||r.external_record_id||i} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className={"px-3 py-3 font-semibold"+line("season_competition")}>{r.season}<div className="font-normal text-slate-500">{r.competition}</div>{r._sourceRows>1&&<span className="text-[10px] text-blue-700">Fuentes consolidadas: {r._sourceRows}</span>}</td>
                 <td className={"px-3 py-3"+line("club")}>{teamCell(r)}</td>
@@ -319,6 +326,36 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           {teamMatchesError&&<p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{teamMatchesError}</p>}
           <div className="flex justify-end gap-2"><button type="button" onClick={()=>setTeamMatchesTarget(null)} disabled={teamMatchesBusy} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Cancelar</button><button type="submit" disabled={teamMatchesBusy} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{teamMatchesBusy?"Guardando…":"Guardar PJ equipo"}</button></div>
         </form>
+      </div>}
+      {nationalTarget&&<div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Vincular selección nacional">
+        <div className="w-full max-w-lg space-y-3 rounded-xl bg-white p-5 shadow-xl">
+          <h3 className="text-base font-black text-[#0e2844]">Vincular selección nacional</h3>
+          <p className="text-xs text-slate-600">{nationalTarget.season} · {nationalTarget.competition}. Solo cambia la selección asociada, no las estadísticas.</p>
+          <select value={nationalChoice} onChange={e=>setNationalChoice(e.target.value)} className="w-full rounded border p-2 text-sm">
+            <option value="">Elegir selección existente…</option>
+            {teams.filter(t=>t.id&&t.name&&(/national|internation|selecci|nacional/i.test([t.type,t.category,t.team_type,t.kind].join(" "))||/argentina|spain|españa|france|francia|brazil|brasil|england|germany|alemania|portugal|italia|uruguay|colombia|mexico|méxico|morocco|marruecos|netherlands|u[- ]?(17|20|21|23)|sub[- ]?(17|20|21|23)/i.test(t.name))).sort((a,b)=>a.name.localeCompare(b.name,"es")).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <p className="text-[11px] text-amber-800">Comprueba si corresponde a absoluta, Sub-20 o Sub-23. Si no existe la selección en la lista, no vincules un club.</p>
+          {nationalError&&<p role="alert" className="text-xs text-red-700">{nationalError}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" disabled={nationalBusy} onClick={()=>setNationalTarget(null)} className="rounded border px-3 py-2 text-xs">Cancelar</button>
+            <button type="button" disabled={nationalBusy||!nationalChoice} onClick={async()=>{
+              setNationalBusy(true);setNationalError("");
+              try{
+                const chosen=teams.find(t=>String(t.id)===nationalChoice);
+                if(!chosen)throw Error("Selección no encontrada.");
+                const current=await base44.entities.PlayerSeasonStats.get(nationalTarget.id);
+                if(!current||current.season!==nationalTarget.season||current.competition!==nationalTarget.competition||String(current.player_id)!==String(nationalTarget.player_id))throw Error("La identidad del registro cambió; vuelve a abrirlo.");
+                const patch={team_id:String(chosen.id),team_name:chosen.name,fotmob_team_id:chosen.fotmob_id||null};
+                await base44.entities.PlayerSeasonStats.update(current.id,patch);
+                setNationalTarget(null);
+                queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
+                window.location.reload();
+              }catch(e){setNationalError(e?.message||"Error al vincular.");}
+              finally{setNationalBusy(false);}
+            }} className="rounded bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">{nationalBusy?"Guardando…":"Vincular selección"}</button>
+          </div>
+        </div>
       </div>}
       {teamLinkTarget&&<TeamLinkPicker season={activeSeason} records={stats} teams={teams} initialRecord={teamLinkTarget==="bulk"?null:teamLinkTarget} onClose={()=>setTeamLinkTarget(null)} onApply={onLinkTeams}/>}
       <HistoricalSingleEntryImporter open={valuationImporterOpen} onClose={()=>setValuationImporterOpen(false)} player={player} fotmobPlayerId={fotmobPlayerId} fm26Uid={player?.fm26_uid||""} stats={stats} teams={teams} onSaved={change=>{
