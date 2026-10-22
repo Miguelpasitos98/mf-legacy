@@ -115,7 +115,7 @@ export function seasonUnderstatRates(rows=[]){
  for(const row of rows){
   if(row.record_kind!=="understat_summary"||row.status!=="dataset_identity_confirmed")continue;
   const season=txt(row.season),minutes=n(row.minutes);
-  if(!/^\d{4}\/\\d{4}$/.test(season)||!(minutes>0))continue;
+  if(!/^\d{4}\/\d{4}$/.test(season)||!(minutes>0))continue;
   const metrics=Array.isArray(row.metrics)?row.metrics:[];
   const find=name=>metrics.find(m=>norm(m.name)===norm(name));
   const chain=find("xGChain"),buildup=find("xGBuildup");
