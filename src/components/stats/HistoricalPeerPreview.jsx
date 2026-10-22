@@ -65,6 +65,8 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
     try{return compareHistoricalObservation(observation,data.observations,10);}catch(e){console.error("Error Composite de temporada",season,e);return {calculationError:e.message||"Error calculando Composite"};}
   },[data,playerId,season]);
   const previewRows=result?.rows||[];
+  // Keep unavailable indicators visible but grouped at the bottom, without affecting calculation.
+  const displayedRows=[...previewRows].sort((a,b)=>Number(a.value===null)-Number(b.value===null));
   const missingUnderstat=previewRows.some(r=>(r.key==="xg_chain_p90"||r.key==="xg_buildup_p90")&&r.value===null);
   const isThin=previewRows.some(r=>r.provisional);
   const validCount=previewRows.filter(r=>r.percentile!==null).length;
@@ -191,8 +193,8 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
                 <th className="bg-[#d3e0f2] px-3 py-2.5 text-right">Aporta</th>
               </tr>
             </thead>
-            <tbody>{previewRows.map(item=><tr className="border-t border-slate-100 hover:bg-slate-50" key={item.key}>
-              <td className="px-3 py-2.5 font-semibold text-slate-800">{item.name}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
+            <tbody>{displayedRows.map(item=><tr className={"border-t border-slate-100 "+(item.value===null?"bg-slate-50 text-slate-400":"hover:bg-slate-50")} key={item.key}>
+              <td className={"px-3 py-2.5 font-semibold "+(item.value===null?"text-slate-400":"text-slate-800")}>{item.name}{result.role==="GK"&&item.key==="xg_buildup_p90"&&item.value===null&&<span className="mt-1 block max-w-[290px] text-[10px] font-normal italic leading-snug text-slate-400">Sin datos · peso redistribuido: pases largos precisos /90 (60 %) y pases precisos /90 (40 %)</span>}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right font-semibold tabular-nums text-slate-800">
                 {onSetMetric&&!NON_EDITABLE_COMPOSITE.has(item.key)?
                   <button type="button"
@@ -206,7 +208,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PercentileBar item={item}/></td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PositionBar item={item}/></td>
               <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">{item.n} / {item.nPlayers}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">{item.weight===null?"—":(item.weight>0?"+":"")+item.weight+" %"}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">{item.value===null&&item.transferred===0&&item.baseWeight>0?<span className="text-slate-400">{item.baseWeight} %</span>:<><span>{item.weight===null?"—":(item.weight>0?"+":"")+Number(item.weight.toFixed(1))+" %"}</span>{item.transferred>0&&<span className="block text-[10px] text-slate-400">base {item.baseWeight} %</span>}</>}</td>
               <td className={"bg-indigo-50/50 px-3 py-2.5 text-right text-sm font-black tabular-nums "+(item.contribution<0?"text-rose-700":"text-emerald-700")}>
                 {item.contribution===null?"—":(item.contribution>0?"+":"")+show(item.contribution,2)}
               </td>
