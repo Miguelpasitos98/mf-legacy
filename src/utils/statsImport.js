@@ -69,6 +69,11 @@ export function normalizeRecord(item) {
   const teamMatches=asNum(rawTeamMatches);
   if(rawTeamMatches!==null&&rawTeamMatches!==undefined&&rawTeamMatches!==""&&(!Number.isInteger(teamMatches)||teamMatches<1||teamMatches>200))throw Error("team_matches debe ser un entero entre 1 y 200.");
   const value = (field) => asNum(item[field]) ?? metricValue(metrics, field);
+  // Source calendars may mix a year (2022) with a football season (2022/2023).
+  // Never infer the club or move a record solely because an English competition appears.
+  const compKey=normalizeLabel(competition),teamKey=normalizeLabel(item.team_name);
+  const countryClubMismatch=/^(championsleague|facup|eflcup|communityshield|uefasupercup)$/.test(compKey)&&
+    /^(riverplate|bocajuniors|racingclub|independiente|sanlorenzo)/.test(teamKey);
   const rec = {
     external_record_id: recordKey({...item, fotmob_player_id:p, season, competition}),
     player_id: asText(item.base44_player_id || item.player_id_base44),
@@ -88,7 +93,7 @@ export function normalizeRecord(item) {
     metrics,
     source:asText(item.source) || "FotMob · archivo importado",
     verification_status:asText(item.verification_status) || "pendiente_revision",
-    review_status:"pending",
+    review_status:countryClubMismatch?"pending_team_review":"pending",
   };
   return rec;
 }
