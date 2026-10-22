@@ -34,18 +34,24 @@ export function createOverviewManualChanges(record,mode,form,note){
   entries=[{name,field,value}];
  }else if(mode==="chain"||mode==="buildup"){
   const label=mode==="chain"?"xG Chain":"xG Buildup";
-  const minutes=valid(form.sourceMinutes,"Minutos Understat");
-  integer(minutes,"Minutos Understat");
-  if(minutes<=0)throw Error("Los minutos Understat deben ser mayores que cero.");
   const entered=valid(form.value,label);
-  const total=form.unit==="per90"?entered*minutes/90:entered;
-  const otherName=mode==="chain"?"xG Buildup":"xG Chain";
-  const otherValue=valueOf(record,otherName);
-  if((mode==="buildup"&&otherValue!==null&&total>otherValue+1e-8)||
-     (mode==="chain"&&otherValue!==null&&otherValue>total+1e-8))
-     throw Error("xG Buildup no puede superar xG Chain para la misma competición. Revisa la fuente y los minutos.");
-  const provenance=form.unit==="per90"?sourceNote+" · Total derivado de valor /90 introducido y minutos de la misma fuente":sourceNote;
-  entries=[{name:label,value:total,sourceNote:provenance},{name:"Understat minutes",value:minutes}];
+  const seasonScope=form.scope==="season";
+  if(seasonScope&&form.unit!=="per90")throw Error("El dato global de temporada debe introducirse por 90 minutos.");
+  if(form.unit==="per90"){
+   // Direct source rate: do not fabricate a numerator or Understat minutes.
+   const name=label+(seasonScope?" season /90":" /90");
+   entries=[{name,value:entered,sourceNote:sourceNote+(seasonScope?" · Temporada completa, sin desglose por competición":" · Tasa /90 directa")}];
+  }else{
+   const minutes=valid(form.sourceMinutes,"Minutos Understat");
+   integer(minutes,"Minutos Understat");
+   if(minutes<=0)throw Error("Los minutos Understat deben ser mayores que cero.");
+   const otherName=mode==="chain"?"xG Buildup":"xG Chain";
+   const otherValue=valueOf(record,otherName);
+   if((mode==="buildup"&&otherValue!==null&&entered>otherValue+1e-8)||
+      (mode==="chain"&&otherValue!==null&&otherValue>entered+1e-8))
+     throw Error("xG Buildup no puede superar xG Chain para la misma competición.");
+   entries=[{name:label,value:entered},{name:"Understat minutes",value:minutes}];
+  }
  }else if(mode==="ground"){
   const won=valid(form.won,"Duelos terrestres ganados");
   const contested=valid(form.contested,"Duelos terrestres disputados");
