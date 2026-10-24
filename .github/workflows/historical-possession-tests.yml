@@ -1,0 +1,30 @@
+name: Historical possession pipeline tests
+
+on:
+  pull_request:
+    paths:
+      - "scripts/possession/**"
+      - "src/utils/teamPossession.js"
+      - "src/utils/historicalJson.js"
+      - "src/utils/historicalValuation.js"
+      - ".github/workflows/historical-possession-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run offline converter and coverage tests
+        run: python -m unittest discover -s scripts/possession -p "test_*.py" -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate Python output with the actual MF Legacy importer
+        run: node --test scripts/possession/test_compatibility.mjs

@@ -1,0 +1,20 @@
+{
+  "purpose": "Limited research samples captured 2026-10-22; not evidence of permission for bulk automated use. No synthetic possession values.",
+  "responses": [
+    {
+      "file": "serie_a_2025_2026.json",
+      "source_url": "https://www.fotmob.com/api/data/leagueseasondeepstats?id=55&season=27044&type=teams&stat=possession_percentage_team",
+      "fetched_at": "2026-10-22T18:28:12.832843+00:00"
+    },
+    {
+      "file": "serie_a_2016_2017.json",
+      "source_url": "https://www.fotmob.com/api/data/leagueseasondeepstats?id=55&season=10692&type=teams&stat=possession_percentage_team",
+      "fetched_at": "2026-10-22T18:32:12.131815+00:00"
+    },
+    {
+      "file": "mls_2026.json",
+      "source_url": "https://www.fotmob.com/api/data/leagueseasondeepstats?id=130&season=29580&type=teams&stat=possession_percentage_team",
+      "fetched_at": "2026-10-22T18:32:12.289451+00:00"
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "verified_at": "2026-10-22",
+  "source_url": "https://www.fotmob.com/api/data/allLeagues?locale=en&country=ESP",
+  "note": "Provider IDs verified against directory. Historical coverage only investigated for Serie A and MLS. Multiple MF names in one entry require explicit selection, never auto-merged.",
+  "leagues": [
+    {
+      "mf_names": [
+        "Eredivisie"
+      ],
+      "fotmob_id": 57,
+      "fotmob_name": "Eredivisie",
+      "country_code": "NED",
+      "page_url": "https://www.fotmob.com/leagues/57/overview/eredivisie"
+    },
+    {
+      "mf_names": [
+        "Liga Profesional"
+      ],
+      "fotmob_id": 112,
+      "fotmob_name": "Liga Profesional",
+      "country_code": "ARG",
+      "page_url": "https://www.fotmob.com/leagues/112/overview/liga-profesional"
+    },
+    {
+      "mf_names": [
+        "Saudi Pro League"
+      ],
+      "fotmob_id": 536,
+      "fotmob_name": "Saudi Pro League",
+      "country_code": "KSA",
+      "page_url": "https://www.fotmob.com/leagues/536/overview/saudi-pro-league"
+    },
+    {
+      "mf_names": [
+        "Eliteserien"
+      ],
+      "fotmob_id": 59,
+      "fotmob_name": "Eliteserien",
+      "country_code": "NOR",
+      "page_url": "https://www.fotmob.com/leagues/59/overview/eliteserien"
+    },
+    {
+      "mf_names": [
+        "Austrian Bundesliga"
+      ],
+      "fotmob_id": 38,
+      "fotmob_name": "Bundesliga",
+      "country_code": "AUT",
+      "page_url": "https://www.fotmob.com/leagues/38/overview/bundesliga"
+    },
+    {
+      "mf_names": [
+        "Campeonato Brasileiro Série A",
+        "Série A"
+      ],
+      "fotmob_id": 268,
+      "fotmob_name": "Série A",
+      "country_code": "BRA",
+      "page_url": "https://www.fotmob.com/leagues/268/overview/serie"
+    },
+    {
+      "mf_names": [
+        "Primeira Liga"
+      ],
+      "fotmob_id": 61,
+      "fotmob_name": "Liga Portugal",
+      "country_code": "POR",
+      "page_url": "https://www.fotmob.com/leagues/61/overview/liga-portugal"
+    },
+    {
+      "mf_names": [
+        "EFL Championship",
+        "Sky Bet Championship"
+      ],
+      "fotmob_id": 48,
+      "fotmob_name": "Championship",
+      "country_code": "ENG",
+      "page_url": "https://www.fotmob.com/leagues/48/overview/championship"
+    },
+    {
+      "mf_names": [
+        "Turkish Super League"
+      ],
+      "fotmob_id": 71,
+      "fotmob_name": "Süper Lig",
+      "country_code": "TUR",
+      "page_url": "https://www.fotmob.com/leagues/71/overview/super-lig"
+    },
+    {
+      "mf_names": [
+        "Super League Greece"
+      ],
+      "fotmob_id": 135,
+      "fotmob_name": "Super League 1",
+      "country_code": "GRE",
+      "page_url": "https://www.fotmob.com/leagues/135/overview/super-league-1"
+    },
+    {
+      "mf_names": [
+        "Ligue 1"
+      ],
+      "fotmob_id": 53,
+      "fotmob_name": "Ligue 1",
+      "country_code": "FRA",
+      "page_url": "https://www.fotmob.com/leagues/53/overview/ligue-1"
+    },
+    {
+      "mf_names": [
+        "MLS"
+      ],
+      "fotmob_id": 130,
+      "fotmob_name": "MLS",
+      "country_code": "USA",
+      "page_url": "https://www.fotmob.com/leagues/130/overview/mls"
+    },
+    {
+      "mf_names": [
+        "Bundesliga"
+      ],
+      "fotmob_id": 54,
+      "fotmob_name": "Bundesliga",
+      "country_code": "GER",
+      "page_url": "https://www.fotmob.com/leagues/54/overview/bundesliga"
+    },
+    {
+      "mf_names": [
+        "Premier League"
+      ],
+      "fotmob_id": 47,
+      "fotmob_name": "Premier League",
+      "country_code": "ENG",
+      "page_url": "https://www.fotmob.com/leagues/47/overview/premier-league"
+    },
+    {
+      "mf_names": [
+        "Serie A"
+      ],
+      "fotmob_id": 55,
+      "fotmob_name": "Serie A",
+      "country_code": "ITA",
+      "page_url": "https://www.fotmob.com/leagues/55/overview/serie"
+    },
+    {
+      "mf_names": [
+        "LaLiga EA Sports"
+      ],
+      "fotmob_id": 87,
+      "fotmob_name": "LaLiga",
+      "country_code": "ESP",
+      "page_url": "https://www.fotmob.com/leagues/87/overview/laliga"
+    }
+  ]
+}
