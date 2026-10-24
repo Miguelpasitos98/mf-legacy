@@ -32,13 +32,18 @@ export function advancedTotals(records=[],{includeSeasonRates=true}={}){
     if(direct.length===1&&records.length===1)return direct[0].rate;
     if(direct.length){
       // A multi-competition /90 requires aligned denominators; never average rates.
-      if(direct.length!==records.length||direct.some(r=>!(r.minutes>0)))return null;
+      if(direct.some(r=>!(r.minutes>0)))return null;
+      // Dato de ámbito parcial (p. ej. solo LaLiga). Se expone para consulta,
+      // nunca se presenta como cobertura completa de todas las competiciones.
       const sumMinutes=direct.reduce((acc,r)=>acc+r.minutes,0);
       return direct.reduce((acc,r)=>acc+r.rate*r.minutes,0)/sumMinutes;
     }
     return rows&&minutes>0?total*90/minutes:null;
   };
   return {
+    understat_partial_coverage: (directChain.length>0&&directChain.length<records.length)||
+      (directBuildup.length>0&&directBuildup.length<records.length)||
+      ((chainRows>0||buildupRows>0)&&Math.max(chainRows,buildupRows)<records.length),
     xg_chain_p90:rate(seasonChain,directChain,chain,chainMinutes,chainRows),
     xg_buildup_p90:rate(seasonBuildup,directBuildup,buildup,buildupMinutes,buildupRows),
     ground_duels_won_pct:duelRows&&duelsTotal>0?duelsWon*100/duelsTotal:null,
