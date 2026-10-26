@@ -1,5 +1,5 @@
 import React, {useMemo,useState} from "react";
-import { Search } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 
 function SearchableSort({value,options,onChange}){
   const [open,setOpen]=useState(false);
@@ -43,6 +43,8 @@ export default function StatsControlBar({
   sort = "composite",
   sortOptions = [],
   onSort = () => {},
+  onRefresh = () => {},
+  refreshing = false,
   position = "Todas",
   positionOptions = [],
   onPosition = () => {},
@@ -89,7 +91,7 @@ export default function StatsControlBar({
             {positionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
-        <label className="field searchfield">
+        <label className="field searchfield mf-statsbar-search-compact">
           BUSCAR JUGADOR, CLUB O ID
           <div className="searchbox">
             <Search size={13} aria-hidden="true" />
@@ -104,6 +106,12 @@ export default function StatsControlBar({
           ORDENAR
           <SearchableSort value={sort} options={sortOptions} onChange={onSort}/>
         </label>
+        <div className="field">
+          <span className="text-[10px] font-semibold uppercase text-transparent select-none" aria-hidden="true">Actualizar</span>
+          <button type="button" onClick={onRefresh} disabled={refreshing} title="Actualizar estadísticas y Composite desde Base44" className="flex h-[34px] items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-blue-200 bg-blue-50 px-3 text-[11px] font-bold text-blue-900 hover:bg-blue-100 disabled:opacity-50">
+            <RefreshCw size={13} className={refreshing?"animate-spin":""}/> Actualizar datos
+          </button>
+        </div>
         {viewMode === "season" && (
           <label className="field">
             MÍNIMO DE MINUTOS
