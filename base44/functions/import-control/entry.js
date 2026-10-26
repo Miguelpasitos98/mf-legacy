@@ -58,7 +58,7 @@ export default async function(req) {
         source_results:Object.fromEntries(sources.map(s=>[s,{status:"pending"}])),
         completed_sources:[],received_candidates:0,
         retry_count:action==="retry"?1:0,
-        ...(automatic?{last_error:"Vinculación automática por nombre único; las cifras seguirán sujetas a validación."}:{})
+        ...(automatic?{source_results:{...Object.fromEntries(sources.map(s=>[s,{status:"pending"}])),identity:{status:"automatic_exact_name_unique",needs_value_review:true}}}:{})
       });
       return reply({ok:true,job:{id:job.id,status:job.status,player_name:job.player_name,fotmob_player_id:pid}});
     }
