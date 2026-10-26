@@ -27,12 +27,13 @@ test("xG Buildup se puede introducir por separado sin inventar xG Chain",()=>{
  assert.equal(result.xg_buildup_p90,.36);
  assert.equal(result.buildupRows,1);
 });
-test("Valor xG Chain /90 con denominador reconstruye el total trazablemente",()=>{
+test("Valor xG Chain /90 conserva la tasa directa sin reconstruir un total",()=>{
  const r={...record,metrics:[]};
  const all=changes("chain",{value:"0,9",sourceMinutes:"1200",unit:"per90"},r);
  const result=applyManualStatChanges(r,all);
- assert.equal(result.update.metrics.find(m=>m.name==="xG Chain").value,12);
- assert.match(result.update.manual_metric_history[0].source_note,/derivado/i);
+ assert.equal(result.update.metrics.find(m=>m.name==="xG Chain /90").value,.9);
+ assert.equal(result.update.metrics.some(m=>m.name==="xG Chain"||m.name==="Understat minutes"),false);
+ assert.match(result.update.manual_metric_history[0].source_note,/Tasa \/90 directa/i);
 });
 test("Duelos terrestres guardan denominador, numerador y porcentaje en una sola operación",()=>{
  const update=applyManualStatChanges(record,changes("ground",{won:"11",contested:"28"})).update;

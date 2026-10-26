@@ -117,14 +117,17 @@ test("No se calcula PAdj si falta acciones, minutos o porcentaje, ni se divide p
  assert.equal(possessionAdjustedDefActions([{minutes:90}],action,()=>100),null);
  assert.equal(possessionAdjustedDefActions([{minutes:90}],action,()=>null),null);
 });
-test("Historial CM utiliza posesión para PAdj y exige cubrir todas las competiciones",()=>{
+test("Historial CM calcula PAdj sobre cobertura explícita de competiciones",()=>{
  const players=[{id:"p",name:"Test CM",position:"CM"}];
  const stats=[
   {id:"one",player_id:"p",team_id:"city",team_name:"Manchester City",season:"2018/2019",competition:"Premier League",minutes:900,appearances:10,metrics:[{name:"Defensive actions",value:30}]},
   {id:"two",player_id:"p",team_id:"city",team_name:"Manchester City",season:"2018/2019",competition:"Champions League",minutes:450,appearances:5,metrics:[{name:"Defensive actions",value:12}]}
  ];
  const build=teamPossessions=>buildHistoricalObservations({players,stats,teams,teamPossessions});
- assert.equal(build([{...entry,team_possession_pct:67.9}])[0].values.def_actions_poss_adj_p90,null);
+ const partial=build([{...entry,team_possession_pct:67.9}])[0];
+ assert.ok(partial.values.def_actions_poss_adj_p90>0);
+ assert.equal(partial.pAdjCoverage.covered,1);
+ assert.equal(partial.pAdjCoverage.total,2);
  const value=build([{...entry,team_possession_pct:67.9},{...entry,competition:"Champions League",team_possession_pct:60.1}])[0].values.def_actions_poss_adj_p90;
  assert.ok(value>0&&Number.isFinite(value));
 });

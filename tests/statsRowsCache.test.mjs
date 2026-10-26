@@ -74,5 +74,7 @@ test("El STATS reutiliza React Query al volver y no invalida solo por cerrar imp
   assert.match(page,/onClick=\{\(\)=>setUnifiedOpen\(false\)\}/);
   assert.match(page,/<ImportUnified onImported=\{importComplete\}/);
   assert.match(imported,/onImported\?\.\(\)/);
-  assert.match(page,/Actualizar datos/);
+  const control=readFileSync(new URL("../src/components/stats/StatsControlBar.jsx",import.meta.url),"utf8");
+  assert.match(control,/Actualizar datos/);
+  assert.match(page,/onRefresh=/);
 });

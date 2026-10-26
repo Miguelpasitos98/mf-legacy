@@ -38,7 +38,9 @@ test("la selección nacional no se confunde con un club",()=>{
  assert.equal(nationalCompetition("Copa America"),true);
  assert.equal(nationalCompetition("Club World Cup"),false);
  const row={...raphinha,team_name:"",fotmob_team_id:"",competition:"World Cup"};
- assert.equal(resolveTeam(row,clubs,[row,raphinha]).status,"national");
+ const resolution=resolveTeam(row,clubs,[row,raphinha]);
+ assert.equal(resolution.status,"national_unlinked");
+ assert.equal(resolution.team,null);
 });
 test("los subtotales exponen métricas faltantes",()=>{
  const result=aggregate([detailed,{...detailed,competition:"Champions League",metrics:[]}],["goals","xa"]);

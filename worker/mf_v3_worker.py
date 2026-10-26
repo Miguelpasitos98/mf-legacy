@@ -64,133 +64,158 @@ def studio_import(root: Path):
     return profile, fotmob_client, team_resolution
 
 
+def metric_values(metric):
+    """Provider totals, percentages and rates; never synthesize one from another."""
+    name = text(metric.get("name"))
+    raw_name = name.casefold()
+    value = number(metric.get("value"))
+    fmt = text(metric.get("stat_format")).casefold()
+    per90_label = bool(re.search(r"(?:/\s*90|per\s*90|por\s*90)", raw_name))
+    per_match = bool(re.search(r"(?:per\s*(?:match|game)|por\s*partido|/\s*match)", raw_name))
+    percentage = fmt in {"percent", "percentage"} or "%" in name
+    signed = norm(name) in {"goals prevented", "goles evitados"}
+    unit = "percentage" if percentage else "per90" if per90_label else "per_match" if per_match else "total"
+    if value is not None and (value >= 0 or signed) and (not percentage or 0 <= value <= 100):
+        yield unit, value
+    rate = number(metric.get("per90"))
+    # FotMob repeats ratings, appearances, starts and minutes in its per90 slot.
+    non_rates = {"rating", "fotmob rating", "matches", "appearances", "started", "minutes", "minutes played"}
+    if not percentage and not per90_label and not per_match and norm(name) not in non_rates and rate is not None and (rate >= 0 or signed):
+        yield "per90", rate
+
+
 def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
-                  max_candidates=300):
+                  max_candidates=6000):
     profile, client, resolver = studio_import(root)
+    if not callable(getattr(resolver,'resolve_stats_team',None)):
+        raise RuntimeError('Falta la reparación de Studio: ejecuta worker/apply_studio_patch.py con su ruta.')
     cache = client.player_cache_path(root, pid)
     network_count = 0
     if not cache.exists():
         if not allow_network or request_limit < 1:
-            return [], report("unavailable", "Sin perfil local; consulta externa desactivada.")
+            return [], report("unavailable", "Caché de perfil ausente; consulta externa desactivada.")
+        network_count += 1
         data = client.fetch_profile(pid)
         client.save_json(cache, data)
-        network_count += 1
     bundle = profile.load_profile_bundle(cache)
-    if bundle["player"]["fotmob_player_id"] != pid:
+    if text(bundle["player"]["fotmob_player_id"]) != pid:
         raise ValueError("El perfil de FotMob pertenece a otro jugador.")
     assignments = resolver.load_assignments(root)
-    out, errors, skipped = [], 0, 0
-    missing_cache = unresolved_team = empty_metrics = incompatible_cache = 0
-    fetched = 0
-    options = list(bundle["season_options"])
-    # Recent seasons first on a first run: scarce bounded requests must not be
-    # consumed by obsolete seasons when a player has a long career.
-    options.sort(key=lambda o: (text(o.get("season")), text(o.get("season_id"))), reverse=True)
+    out, diagnostics = [], []
+    options = sorted(bundle["season_options"], key=lambda o: (text(o.get("season")), text(o.get("season_id"))), reverse=True)
+    seen = set()
     for option in options:
-        if len(out) >= max_candidates:
-            break
         sid = option["season_id"]
+        diag = {"season": option["season"], "competition": option["competition"],
+                "season_id": sid, "tournament_id": text(option.get("tournament_id"))}
+        diagnostics.append(diag)
+        if not option["competition"] or not text(option.get("tournament_id")):
+            diag.update(status="competition_unidentified", reason="El perfil no identifica la competición con ID oficial.")
+            continue
+        identity=(option["season"], text(option.get("tournament_id")))
+        if identity in seen:
+            diag.update(status="duplicate_option", reason="Misma temporada e ID oficial ya procesados.")
+            continue
+        seen.add(identity)
         file = client.stat_cache_path(root, pid, sid)
         raw = None
-        if file.exists():
-            data = profile.read_json(file)
-            meta = data.get("_mf_legacy_meta") if isinstance(data, dict) else None
-            if meta and (text(meta.get("player_id")) != pid
-                         or text(meta.get("season")) != option["season"]
-                         or text(meta.get("competition")) != option["competition"]
-                         or text(meta.get("season_id")) != sid):
-                errors += 1
-                incompatible_cache += 1
-                continue
-            raw = data.get("payload") if meta else data
-        elif allow_network and network_count < request_limit:
-            if network_count:
-                time.sleep(2.0)
-            try:
+        try:
+            if file.exists():
+                data = profile.read_json(file)
+                meta = data.get("_mf_legacy_meta")
+                if not isinstance(meta,dict) or not meta:
+                    diag.update(status="incompatible_response", reason="Caché antigua sin metadatos de identidad: no se atribuyen estadísticas por posición de archivo.")
+                    continue
+                if meta and (text(meta.get("player_id")) != pid
+                             or text(meta.get("season")) != option["season"]
+                             or text(meta.get("competition")) != option["competition"]
+                             or text(meta.get("season_id")) != sid
+                             or (meta.get("tournament_id") and text(meta["tournament_id"]) != text(option.get("tournament_id")))):
+                    diag.update(status="incompatible_response", reason="Identidad de caché incompatible con el perfil actual.")
+                    continue
+                raw = data.get("payload") if meta else data
+            elif sid == next((o["season_id"] for o in bundle["season_options"]), None):
+                # The profile can embed the first tournament; no new request needed.
+                data=profile.read_json(cache)
+                raw=data.get("firstSeasonStats")
+            if raw is None and not file.exists() and allow_network and network_count < request_limit:
+                if network_count:
+                    time.sleep(2.0)
+                network_count += 1  # Failed requests also consume the budget.
                 raw = client.fetch_stats(pid, sid, option.get("is_first", False))
-                network_count += 1
-                fetched += 1
                 client.save_json(file, {"_mf_legacy_meta": {
-                    "player_id":pid, "season":option["season"],
-                    "competition":option["competition"],"season_id":sid}, "payload":raw})
-            except Exception:
-                errors += 1
+                    "player_id":pid, "season":option["season"], "competition":option["competition"],
+                    "season_id":sid,"tournament_id":text(option.get("tournament_id"))}, "payload":raw})
+            if raw is None and not file.exists():
+                diag.update(status="cache_absent", reason="Caché ausente; no se dispone de playerStats local.")
                 continue
-        if not isinstance(raw, dict):
-            skipped += 1
-            missing_cache += 1
-            continue
-        detail = {"fotmob_player_id":pid,"season":option["season"],
-                  "competition":option["competition"],
-                  "fotmob_tournament_id":option.get("tournament_id", ""),
-                  "profile_season_id":sid}
-        tid, tname, _, _ = resolver.resolve_career_team(detail, bundle, [], assignments)
-        if not tid:
-            # Safe fallback: exactly one club ID in career for this season.
-            # Never infer national-team tournaments from a club career.
-            competition = norm(option.get("competition"))
-            international = any(word in competition for word in (
-                "world cup", "euro qualification", "european championship",
-                "nations league", "copa america", "afcon", "africa cup",
-                "international friendly", "friendly international", "gold cup",
-                "qualifiers", "eliminatorias", "mundial", "selecciones"))
-            matches = {(text(c.get("fotmob_team_id")), text(c.get("team_name")))
-                       for c in (bundle.get("career") or [])
-                       if text(c.get("season")) == text(option.get("season"))
-                       and text(c.get("fotmob_team_id")) and text(c.get("team_name"))
-                       and not c.get("is_national_team")}
-            ids = {item[0] for item in matches}
-            if not international and len(ids) == 1:
-                tid = next(iter(ids))
-                names = {item[1] for item in matches}
-                if len(names) == 1:
-                    tname = next(iter(names))
-                else:
-                    tid = ""
-        if not tid:
-            skipped += 1
-            unresolved_team += 1
-            continue
-        parsed = profile.extract_stat_details(raw, player_id=pid,
-                        season=option["season"],competition=option["competition"],
-                        team_id=tid,team_name=tname,
-                        tournament_id=option.get("tournament_id",""),profile_season_id=sid)
-        conflicts = {norm(c) for c in parsed.get("conflicts") or []}
-        before = len(out)
-        for m in parsed.get("metrics") or []:
-            name = text(m.get("name"))
-            if not name or norm(name) in conflicts:
+            if not isinstance(raw, dict) or not any(k in raw for k in ("statsSection", "topStatCard")):
+                diag.update(status="incompatible_response", reason="Respuesta sin bloques playerStats reconocibles.")
                 continue
-            for key,unit in (("value","total"),("per90","per90")):
-                val = number(m.get(key))
-                if val is None or val < 0:
-                    continue
-                # Never interpret an explicitly labelled rate as a total.
-                lower_name=norm(name)
-                is_rate=bool(re.search(r"(?:/\s*90|per\s*90|por\s*90)",lower_name))
-                if key=="per90" and (is_rate or "%" in name):
-                    continue
-                real_unit = ("percentage" if "%" in name else "per90" if is_rate else unit) if key=="value" else unit
-                if real_unit=="percentage" and val>100:
-                    continue
-                out.append({"source":"fotmob","kind":"metric","season":option["season"],
-                    "competition":option["competition"],"fotmob_team_id":tid,"team_name":tname,
-                    "metric_name":name,"metric_unit":real_unit,"value":val,
-                    "evidence_url":"https://www.fotmob.com/players/"+pid,
-                    "source_record_id":sid+":"+norm(name)+":"+real_unit,
-                    "verification_status":"unverified"})
-                if len(out)>=max_candidates:
-                    break
-            if len(out)>=max_candidates:
-                break
-        if len(out) == before:
-            empty_metrics += 1
-    return out,report("complete" if out else "unavailable",
-        "Candidatos: "+str(len(out))+"; cachés/competiciones omitidas: "+str(skipped)+
-        "; sin payload: "+str(missing_cache)+"; club sin identificar: "+str(unresolved_team)+
-        "; sin metricas: "+str(empty_metrics)+"; cache incompatible: "+str(incompatible_cache)+
-        "; errores: "+str(errors)+"; peticiones FotMob: "+str(network_count)+
-        ". Valores sujetos a revisión.")
+            if (raw.get('playerId') is not None and text(raw['playerId'])!=pid
+                    or raw.get('seasonId') is not None and text(raw['seasonId'])!=sid):
+                diag.update(status="incompatible_response", reason="El payload declara otra identidad de jugador o de entrada estadística.")
+                continue
+            parsed = profile.extract_stat_details(raw, player_id=pid, season=option["season"],
+                competition=option["competition"], tournament_id=option.get("tournament_id",""), profile_season_id=sid)
+            conflict_key=lambda value: norm(value)+( " pct" if "%" in value else "")
+            conflicts = {conflict_key(c) for c in parsed.get("conflicts") or []}
+            metrics = [m for m in parsed.get("metrics") or [] if text(m.get("name")) and conflict_key(m["name"]) not in conflicts]
+            diag["recovered_metrics"] = len(metrics)
+            if not metrics:
+                diag.update(status="no_statistics", reason="El proveedor no ofrece estadísticas numéricas utilizables.")
+                continue
+            detail = {"fotmob_player_id":pid,"season":option["season"],"competition":option["competition"],
+                      "fotmob_tournament_id":option.get("tournament_id", ""),"profile_season_id":sid}
+            tid,tname,evidence,possible = resolver.resolve_stats_team(detail,bundle,raw,assignments)
+            diag.update(fotmob_team_id=tid, team_name=tname, team_evidence=evidence,
+                        possible_teams=possible, conflicts=sorted(conflicts))
+            if not tid:
+                diag.update(status="team_unidentified", reason=evidence or "Sin evidencia de un único equipo; pendiente de conciliación.")
+                continue
+            by_name={norm(m['name']):m.get('value') for m in metrics}
+            if (number(by_name.get('started')) is not None and number(by_name.get('matches')) is not None
+                    and by_name['started']>by_name['matches']):
+                diag.update(status="pending_reconciliation", reason="Titularidades superiores a partidos: el payload es contradictorio; no se proponen valores.")
+                continue
+            national_leagues={'9806','9807','9808'}
+            career_leagues={text(c.get('fotmob_tournament_id')) for c in bundle.get('career',[])
+                            if c.get('is_national_team') and c.get('season')==option['season']}
+            if text(option.get('tournament_id')) in national_leagues and career_leagues & national_leagues and text(option.get('tournament_id')) not in career_leagues:
+                diag.update(status="pending_reconciliation", reason="La división de Nations League difiere entre statSeasons y careerHistory; no se cambia ni se asume competición.")
+                continue
+            batch=[]
+            for m in metrics:
+                name=text(m["name"])
+                for unit,val in metric_values(m):
+                    batch.append({"source":"fotmob","kind":"metric","season":option["season"],
+                        "competition":option["competition"],"fotmob_team_id":tid,"team_name":tname,
+                        "fotmob_tournament_id":text(option.get("tournament_id")),
+                        "is_national_team":bool(next((c.get("is_national_team") for c in bundle.get("career",[]) if text(c.get("fotmob_team_id"))==tid),False)),
+                        "metric_name":name,"metric_unit":unit,"value":val,
+                        **({"derivation":text(m['derivation'])} if m.get('derivation') else {}),
+                        **({"percentile":m['percentile_per90' if unit=='per90' else 'percentile']}
+                           if number(m.get('percentile_per90' if unit=='per90' else 'percentile')) is not None
+                           and 0 <= m['percentile_per90' if unit=='per90' else 'percentile'] <= 100 else {}),
+                        "evidence_url":"https://www.fotmob.com/players/"+pid,
+                        "source_record_id":option["season"]+":"+text(option.get("tournament_id"))+":"+tid+":"+norm(name)+":"+unit,
+                        "verification_status":"unverified"})
+            # Do not cut a season in half when the bounded result is full.
+            if len(out)+len(batch)>max_candidates:
+                diag.update(status="candidate_limit", reason="Límite alcanzado; temporada completa conservada para otro lote.")
+                continue
+            out.extend(batch)
+            diag.update(status="pending_review", candidates=len(batch), reason="Estadísticas recuperadas; requieren verificación y aprobación.")
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            diag.update(status="incompatible_response", reason=type(exc).__name__+": "+str(exc)[:160])
+    from collections import Counter
+    counts=dict(Counter(d["status"] for d in diagnostics))
+    state=report("complete" if out else "unavailable",
+        f"Candidatos: {len(out)}; recuperadas: {counts.get('pending_review',0)}; caché ausente: {counts.get('cache_absent',0)}; "
+        f"equipo pendiente: {counts.get('team_unidentified',0)}; incompatibles: {counts.get('incompatible_response',0)}; "
+        f"peticiones FotMob: {network_count}. Pendientes de revisión.")
+    state.update(counts=counts,diagnostics=diagnostics,network_requests=network_count)
+    return out,state
 
 
 def studio_understat(root: Path, pid: str, max_candidates=300):
@@ -245,6 +270,7 @@ def studio_understat(root: Path, pid: str, max_candidates=300):
                 continue
             out.append({"source":"understat","kind":"metric",
                 "season":season,"competition":comp,"fotmob_team_id":tid,"team_name":tname,
+                "fotmob_tournament_id":tournament_id,"is_national_team":False,
                 "metric_name":name,"metric_unit":"total","value":val,
                 "evidence_url":"https://understat.com/",
                 "source_record_id":text(observation.get("observation_id"))+":"+name+":total",
@@ -254,6 +280,7 @@ def studio_understat(root: Path, pid: str, max_candidates=300):
             if rate is not None and rate>=0 and len(out)<max_candidates:
                 out.append({"source":"understat","kind":"metric",
                     "season":season,"competition":comp,"fotmob_team_id":tid,"team_name":tname,
+                    "fotmob_tournament_id":tournament_id,"is_national_team":False,
                     "metric_name":name,"metric_unit":"per90","value":rate,
                     "evidence_url":"https://understat.com/",
                     "source_record_id":text(observation.get("observation_id"))+":"+name+":per90",
@@ -304,7 +331,7 @@ def historical_dataset(path_value: str, pid: str, source: str, max_candidates=30
     return out,report("complete" if out else "unavailable",str(len(out))+" valores históricos encontrados.")
 
 
-def collect(root: Path, pid: str, sources: list[str], max_candidates=300):
+def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offline=False):
     if not valid_pid(pid):
         raise ValueError("ID FotMob inválido.")
     if not root.is_dir():
@@ -314,7 +341,7 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=300):
         try:
             if source=="fotmob":
                 candidates,state=studio_fotmob(root,pid,
-                    allow_network=os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK")=="1",
+                    allow_network=not offline and os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK")=="1",
                     request_limit=max(0,min(15,int(os.getenv("MF_V3_MAX_FOTMOB_REQUESTS","0")))),
                     max_candidates=max_candidates)
             elif source=="understat":
@@ -343,19 +370,27 @@ def call(action: str, **kwargs):
     request=Request(url,data=content,method="POST",headers={
         "Content-Type":"application/json","Accept":"application/json",
         "X-MF-Worker-Token":token,"User-Agent":"MF-Legacy-V3-Worker/0.2"})
-    try:
-        with urlopen(request,timeout=50) as response:
-            result=json.load(response)
-    except HTTPError as exc:
-        detail=exc.read(1000).decode("utf-8","replace")
-        raise RuntimeError("Base44 rechazó la operación: HTTP "+str(exc.code)+": "+detail) from exc
+    for attempt in range(4):
+        try:
+            with urlopen(request,timeout=50) as response:
+                result=json.load(response)
+            break
+        except HTTPError as exc:
+            if exc.code==429 and attempt<3:
+                # A rejected rate-limited request has not committed. Candidate
+                # keys also make submit retries idempotent; never replay timeouts.
+                wait=number(exc.headers.get("Retry-After")) or 10
+                time.sleep(max(1,min(60,wait))+0.25)
+                continue
+            detail=exc.read(1000).decode("utf-8","replace")
+            raise RuntimeError("Base44 rechazó la operación: HTTP "+str(exc.code)+": "+detail) from exc
     if not result.get("ok"):
         raise RuntimeError(text(result.get("error","Respuesta inesperada.")))
     return result
 
 
-def run_once(root: Path, max_candidates=300) -> bool:
-    assigned=call("claim",worker_id=os.getenv("HOSTNAME","mf-v3-python"))["job"]
+def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
+    assigned=call("claim",worker_id=os.getenv("HOSTNAME","mf-v3-python"),**({"job_id":job_id} if job_id else {}))["job"]
     if not assigned:
         return False
     jid,claim=assigned["id"],assigned["claim_id"]
@@ -381,11 +416,15 @@ def main():
     parser=argparse.ArgumentParser(description="MF Legacy V3 worker para Base44")
     parser.add_argument("--once",action="store_true",help="Procesar como máximo un trabajo y salir")
     parser.add_argument("--dry-run",metavar="FOTMOB_ID",help="Leer fuentes locales sin tocar Base44")
-    parser.add_argument("--max-candidates",type=int,default=300)
+    parser.add_argument("--max-candidates",type=int,default=6000)
+    parser.add_argument("--job-id",help="Procesar solo el trabajo indicado, sin reclamar otros jugadores")
+    parser.add_argument("--output",type=Path,help="Guardar diagnóstico completo y candidatos locales para revisión")
     parser.add_argument("--check-config",action="store_true",help="Comprobar la configuración sin descargar datos ni reclamar trabajos")
     args=parser.parse_args()
     root=Path(os.getenv("MF_STUDIO_ROOT","")).expanduser().resolve()
-    limit=max(1,min(1500,args.max_candidates))
+    limit=max(1,min(6000,args.max_candidates))
+    if args.job_id and not re.fullmatch(r'[a-f0-9]{24}',args.job_id,re.I):
+        parser.error('ID de trabajo inválido.')
     if args.check_config:
         required={
             "studio_instalado":(root/"app"/"profile.py").exists() and (root/"app"/"fotmob_client.py").exists(),
@@ -393,6 +432,10 @@ def main():
             "secreto_local_configurado":len(os.getenv("MF_V3_WORKER_TOKEN",""))>=32,
             "python_compatible":sys.version_info>=(3,10),
         }
+        try:
+            required['studio_parser_compatible']=callable(getattr(studio_import(root)[2],'resolve_stats_team',None))
+        except (ImportError,FileNotFoundError):
+            required['studio_parser_compatible']=False
         print(json.dumps({"ready":all(required.values()),"comprobaciones":required,
             "consultas_nuevas_limitadas":os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK")=="1",
             "peticiones_maximas_por_trabajo":os.getenv("MF_V3_MAX_FOTMOB_REQUESTS","0"),
@@ -400,16 +443,20 @@ def main():
         if not all(required.values()):sys.exit(2)
         return
     if args.dry_run:
-        records,states=collect(root,args.dry_run,["fotmob","understat","fifa","market"],limit)
+        records,states=collect(root,args.dry_run,["fotmob","understat","fifa","market"],limit,offline=True)
+        if args.output:
+            args.output.parent.mkdir(parents=True,exist_ok=True)
+            args.output.write_text(json.dumps({"fotmob_player_id":args.dry_run,
+                "sources":states,"candidates":records},ensure_ascii=False,indent=2),encoding="utf-8")
         print(json.dumps({"fotmob_player_id":args.dry_run,"total_candidates":len(records),
               "sources":states,"sample":records[:4]},indent=2,ensure_ascii=False))
         return
     if args.once:
-        run_once(root,limit)
+        run_once(root,limit,args.job_id)
         return
     while True:
         try:
-            found=run_once(root,limit)
+            found=run_once(root,limit,args.job_id)
             if not found:time.sleep(30)
         except KeyboardInterrupt:
             break

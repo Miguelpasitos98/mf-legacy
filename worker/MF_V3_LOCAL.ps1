@@ -1,7 +1,11 @@
 param(
   [switch]$Configurar,
   [switch]$UnaVez,
-  [switch]$Comprobar
+  [switch]$Comprobar,
+  [switch]$SoloLocal,
+  [string]$Diagnosticar,
+  [string]$Salida,
+  [string]$Trabajo
 )
 $ErrorActionPreference="Stop"
 $homeDir=Join-Path $env:APPDATA "MF_Legacy_V3"
@@ -43,6 +47,15 @@ function Ejecutar {
  $config=LeerConfig
  if(!(Test-Path (Join-Path $config.studio_root "app\profile.py"))){throw "No se localiza MF Legacy Studio: $($config.studio_root)"}
  if(!(Test-Path $workerPath)){throw "Falta mf_v3_worker.py junto al lanzador."}
+ if($Diagnosticar){
+  if($Diagnosticar -notmatch '^\d{1,15}$'){throw "ID FotMob no valido."}
+  $env:MF_STUDIO_ROOT=$config.studio_root
+  $diagnosticArgs=@($workerPath,"--dry-run",$Diagnosticar)
+  if($Salida){$diagnosticArgs+=@("--output",$Salida)}
+  & python @diagnosticArgs
+  if($LASTEXITCODE -ne 0){throw "El diagnostico local fallo."}
+  return
+ }
  if(!(Test-Path $tokenPath)){throw "No se encuentra el secreto local cifrado. Repite la configuracion."}
  $secure=(Get-Content $tokenPath -Raw).Trim()|ConvertTo-SecureString
  $ptr=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
@@ -54,9 +67,11 @@ function Ejecutar {
  $env:MF_STUDIO_ROOT=$config.studio_root
  # Pide solo los datos nuevos de un jugador solicitado explícitamente.
  # Consulta limitado a ocho recursos por trabajo. No es una extracción masiva.
- $env:MF_V3_ALLOW_FOTMOB_NETWORK="1"
- $env:MF_V3_MAX_FOTMOB_REQUESTS="8"
+ $requestLimit=if($SoloLocal){0}elseif($null -ne $config.max_requests){[Math]::Max(0,[Math]::Min(15,[int]$config.max_requests))}else{8}
+ $env:MF_V3_ALLOW_FOTMOB_NETWORK=if($requestLimit -gt 0){"1"}else{"0"}
+ $env:MF_V3_MAX_FOTMOB_REQUESTS=[string]$requestLimit
  $pythonArgs=@($workerPath)
+ if($Trabajo){$pythonArgs+=@("--job-id",$Trabajo)}
  if($UnaVez){$pythonArgs+= "--once"}
  elseif($Comprobar){$pythonArgs+="--check-config"}
  $pythonExe=Get-Command python -ErrorAction SilentlyContinue
