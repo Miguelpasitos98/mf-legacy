@@ -52,42 +52,6 @@ export default async function(req) {
       });
       return reply({ok:true,pid});
     }
-    // Primeras importaciones: el jugador aún no existe en Player.
-    // Alta mínima explícita; nunca se reutiliza una identidad por coincidencia difusa.
-    if (action==="create-and-start") {
-      const pid=str(body.fotmob_player_id);
-      const name=str(body.player_name).replace(/\s+/g," ");
-      const sources=[...new Set(Array.isArray(body.sources)?body.sources:[])];
-      if (!/^\d{1,15}$/.test(pid))return bad("Introduce un ID FotMob numérico válido.");
-      if (name.length<3||name.length>120||/[<>\r\n]/.test(name))return bad("Introduce el nombre completo del jugador (3-120 caracteres).");
-      if (body.confirmed!==true)return bad("Debes confirmar que el nombre y el ID corresponden al mismo futbolista.",409);
-      if (!sources.length||sources.some(s=>!SOURCE_SET.has(s)))return bad("Selecciona fuentes válidas.");
-      const backlinks=rows(await db.PlayerFotmobLink.filter({fotmob_player_id:pid},undefined,30));
-      if (backlinks.length)return bad("Ese ID FotMob ya está vinculado a una ficha. Selecciona el jugador existente en lugar de crear otro.",409);
-      const priorStats=rows(await db.PlayerSeasonStats.filter({fotmob_player_id:pid},undefined,10));
-      if (priorStats.length)return bad("Ya existen estadísticas asociadas a ese ID FotMob. Revisa la vinculación antes de crear una ficha.",409);
-      // Previene duplicados accidentales; homónimos se revisan manualmente.
-        const escaped=name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-      const sameName=rows(await db.Player.filter({name:{$regex:"^"+escaped+"$",$options:"i"}},undefined,30));
-      if (sameName.some(p=>normal(p.name)===normal(name)) && body.confirm_homonym!==true)
-        return reply({ok:false,requires_homonym_confirmation:true,error:"Hay un jugador con el mismo nombre. Comprueba si es otra persona antes de crear la ficha.",matches:sameName.filter(p=>normal(p.name)===normal(name)).slice(0,10).map(p=>({id:p.id,name:p.name}))},409);
-      const player=await db.Player.create({name});
-      if(!player?.id)return bad("No se pudo registrar la ficha mínima.",500);
-      await db.PlayerFotmobLink.create({player_id:player.id,fotmob_player_id:pid,
-        player_name:name,verification:"manual",
-        note:"Alta de un jugador nuevo: identidad y URL de FotMob confirmadas manualmente por administrador; resto de atributos pendientes de extracción/verificación"});
-      const now=new Date().toISOString();
-      const job=await db.ImportJob.create({
-        job_key:"mfv3:new:"+pid+":"+crypto.randomUUID(),player_id:player.id,
-        player_name:name,fotmob_player_id:pid,sources,status:"queued",progress:0,
-        requested_at:now,phase:"Jugador nuevo registrado: pendiente de extracción desde Studio",
-        source_results:Object.fromEntries(sources.map(s=>[s,{status:"pending"}])),
-        completed_sources:[],received_candidates:0,retry_count:0,
-        worker_version:"mfv3-new-player-v1"
-      });
-      return reply({ok:true,created_player:true,player:{id:player.id,name:player.name},
-        job:{id:job.id,status:job.status,player_name:name,fotmob_player_id:pid}});
-    }
     if (action === "start" || action === "retry") {
       const playerId = str(body.player_id);
       if (!/^[a-f0-9]{24}$/i.test(playerId)) return bad("ID interno de jugador no válido.");
