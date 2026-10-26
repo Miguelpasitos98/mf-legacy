@@ -389,15 +389,20 @@ export default function ImportUnified({onImported}) {
       .map(r=>String(r.kind==="season"?r.player_fotmob_id:r.fotmob_id)).filter(Boolean))];
     if(playerIds.length!==1)throw Error("Este archivo contiene varios jugadores o no identifica uno solo. Usa revisión manual.");
     const pid=playerIds[0];
-    const [linkResponse,playersResponse,teamsResponse]=await Promise.all([
+    const [linkResponse,teamsResponse]=await Promise.all([
       base44.entities.PlayerFotmobLink.filter({fotmob_player_id:pid},{limit:10}),
-      loadAllPlayers(),
       base44.entities.Team.list({limit:500}),
     ]);
     const existingLinks=rowsFromResponse(linkResponse);
     if(existingLinks.length>1)throw Error("Hay varios vínculos de jugador: revisión manual obligatoria.");
-    const localPlayers=rowsFromResponse(playersResponse);
     const localTeams=rowsFromResponse(teamsResponse);
+    // Existing confirmed links MUST NOT require Player.list(skip): some Base44
+    // catalogues ignore the offset, returning the first page repeatedly.
+    const linkedPlayer=existingLinks[0]?.player_id
+      ?await base44.entities.Player.get(String(existingLinks[0].player_id)):null;
+    let localPlayers=linkedPlayer?[linkedPlayer]:[];
+    if(existingLinks.length && (!linkedPlayer||String(linkedPlayer.id)!==String(existingLinks[0].player_id)))
+      throw Error("El vínculo FotMob apunta a una ficha inexistente; requiere revisión.");
     const normalized=playerNameKey;
     let linkedId=existingLinks[0]?.player_id||"";
     if(linkedId&&!localPlayers.some(p=>String(p.id)===String(linkedId)))
@@ -409,6 +414,9 @@ export default function ImportUnified({onImported}) {
         throw Error("El vínculo FotMob apunta a un jugador con nombre distinto. Se evita importar sobre la ficha equivocada.");
     }
     if(!linkedId){
+      // Without a confirmed link, never infer uniqueness from an incomplete
+      // Player catalogue. Require the explicit linking workflow instead.
+      throw Error("Jugador sin vínculo FotMob. Selecciona su ficha existente para vincularlo antes de importar.");
       const identityRow=safeRows.find(r=>r.kind==="player"&&String(r.fotmob_id)===pid);
       if(!identityRow?.name)throw Error("Falta la identidad del jugador en el JSON.");
       const candidates=localPlayers.filter(p=>normalized(p.name)===normalized(identityRow.name));
