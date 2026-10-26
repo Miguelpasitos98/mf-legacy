@@ -17,16 +17,23 @@ const statusText=e=>String(e?.message||e||"Error de conexión.");
 const normalize=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 // Read every persisted observation. A single 500-row request silently hid older data.
 async function listAllPossessions(){
- const all=[],seen=new Set(),pageSize=250,maxRecords=10000;
- for(let skip=0;skip<maxRecords;skip+=pageSize){
-  const response=await base44.entities.TeamSeasonPossession.list({limit:pageSize,skip,sort:"-updated_date"});
+ const all=[],seenIds=new Set(),seenCursors=new Set(),pageSize=250,maxRecords=10000;
+ let cursor=null;
+ for(let pageIndex=0;pageIndex<Math.ceil(maxRecords/pageSize);pageIndex++){
+  // The Base44 SDK supports cursor pagination, NOT skip on entity.list().
+  const response=await base44.entities.TeamSeasonPossession.list(
+   cursor?{limit:pageSize,cursor}:{limit:pageSize,sort:"-updated_date"});
   const page=unpack(response);
   if(!Array.isArray(page))throw Error("Respuesta de posesión inválida.");
   for(const record of page){
-   if(!record?.id||seen.has(String(record.id)))throw Error("Paginación de posesiones inconsistente. No se sustituye la lista actual.");
-   seen.add(String(record.id));all.push(record);
+   if(!record?.id||seenIds.has(String(record.id)))throw Error("La paginación devolvió registros repetidos. No se sustituye la lista actual.");
+   seenIds.add(String(record.id));all.push(record);
   }
-  if(page.length<pageSize)return all;
+  if(!response?.has_more)return all;
+  const next=response?.next_cursor;
+  if(!next||next===cursor||seenCursors.has(next)||!page.length)
+   throw Error("Base44 indicó más registros pero no proporcionó un cursor válido.");
+  seenCursors.add(next);cursor=next;
  }
  throw Error("Hay más de 10.000 registros. No se puede mostrar un historial incompleto.");
 }
