@@ -129,7 +129,7 @@ export default function ImportCenter(){
       });
       if(!r?.data?.ok)throw Error(r?.data?.error||"No se pudo aprobar la temporada");
       setNotice((r.data.created_season?"Nueva temporada creada en STATS. ":"Temporada existente completada. ")+
-        (r.data.new_metrics||0)+" métricas incorporadas; los datos anteriores se han conservado.");
+        (r.data.new_metrics||0)+" observaciones incorporadas; los datos anteriores se han conservado.");
       setReviewedGroups(v=>({...v,[group.key]:false}));
       await refresh();
     }catch(e){setError(reason(e));}finally{setBusy(false);}
@@ -320,3 +320,4 @@ export default function ImportCenter(){
     </section>}
   </div>;
 }
+
