@@ -3,9 +3,9 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
-from worker.mf_v3_worker import number, valid_pid, historical_dataset, collect, call
+from worker.mf_v3_worker import number, valid_pid, historical_dataset, collect, call, studio_fotmob
 
 
 class WorkerContractTests(unittest.TestCase):
@@ -60,6 +60,55 @@ class WorkerContractTests(unittest.TestCase):
         with patch.dict(os.environ,{"MF_V3_WORKER_URL":"","MF_V3_WORKER_TOKEN":""}):
             with self.assertRaises(EnvironmentError):
                 call("claim")
+
+    def test_new_player_creates_profile_and_stats_cache_when_explicitly_allowed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            root.joinpath("app").mkdir()
+            profile=MagicMock()
+            client=MagicMock()
+            resolver=MagicMock()
+            client.player_cache_path.side_effect=lambda r,p: r/"datos"/"perfiles_fotmob"/(p+".json")
+            client.stat_cache_path.side_effect=lambda r,p,s: r/"datos"/"estadisticas_fotmob"/(p+"_"+s+".json")
+            def write_file(path,data):
+                path.parent.mkdir(parents=True,exist_ok=True)
+                path.write_text(json.dumps(data),encoding="utf-8")
+            client.save_json.side_effect=write_file
+            client.fetch_profile.return_value={"id":795179}
+            client.fetch_stats.return_value={"statsSection": {"items":[]}}
+            profile.load_profile_bundle.return_value={
+                "player":{"fotmob_player_id":"795179"},
+                "season_options":[{"season":"2024/2025","competition":"Premier League",
+                    "season_id":"2-0","tournament_id":"47","is_first":False}],
+                "career":[{"season":"2024/2025","fotmob_team_id":"9825","team_name":"Arsenal"}],
+            }
+            resolver.load_assignments.return_value={}
+            resolver.resolve_career_team.return_value=("9825","Arsenal","unico_club",[])
+            profile.extract_stat_details.return_value={"conflicts":[],"metrics":[{"name":"Clearances","value":111,"per90":3.2}]}
+            with patch("worker.mf_v3_worker.studio_import",return_value=(profile,client,resolver)):
+                result,status=studio_fotmob(root,"795179",allow_network=True,request_limit=2)
+            self.assertEqual(client.fetch_profile.call_count,1)
+            self.assertEqual(client.fetch_stats.call_count,1)
+            self.assertTrue((root/"datos"/"perfiles_fotmob"/"795179.json").exists())
+            self.assertTrue((root/"datos"/"estadisticas_fotmob"/"795179_2-0.json").exists())
+            self.assertEqual(len(result),2)
+            self.assertEqual(result[0]["metric_name"],"Clearances")
+            self.assertEqual(result[0]["value"],111)
+            self.assertEqual(result[0]["verification_status"],"unverified")
+            self.assertEqual(status["status"],"complete")
+
+    def test_new_player_does_not_fetch_if_network_disabled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            profile=MagicMock()
+            client=MagicMock()
+            resolver=MagicMock()
+            client.player_cache_path.side_effect=lambda r,p: r/"datos"/"perfiles_fotmob"/(p+".json")
+            with patch("worker.mf_v3_worker.studio_import",return_value=(profile,client,resolver)):
+                records,status=studio_fotmob(root,"795179",allow_network=False,request_limit=2)
+            self.assertEqual(records,[])
+            self.assertEqual(status["status"],"unavailable")
+            client.fetch_profile.assert_not_called()
 
 
 if __name__=="__main__":
