@@ -31,6 +31,7 @@ export default async function(req) {
     const body = await req.json();
     const action = str(body.action || "start");
     const db = base44.asServiceRole.entities;
+    if(action === "health")return reply({ok:true,coordinator:"ready",worker_credentials_configured:String(Deno.env.get("MF_V3_WORKER_TOKEN")||"").length>=32});
     if (action === "start" || action === "retry") {
       const playerId = str(body.player_id);
       if (!/^[a-f0-9]{24}$/i.test(playerId)) return bad("ID interno de jugador no válido.");
