@@ -34,7 +34,7 @@ const playerNameCandidates = (players,name) => {
 async function findExactPlayersByName(name){
   const normalized=playerNameKey(name);
   if(!normalized)return [];
-  const escaped=String(name).trim().replace(/[.*+?^${}()|[\]\\]/g,"\\// Base44 lists may be capped;");
+  const escaped=String(name).trim().replace(/[^\\p{L}\\p{N}\\s'\\-]/gu,"");
   const variants=[{name:String(name).trim()},{name:{$regex:"(?i)^"+escaped+"$"}}];
   const matches=new Map();
   let success=false;
