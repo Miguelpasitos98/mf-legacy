@@ -292,9 +292,54 @@ export default function ImportCenter(){
     {selectedJobData&&<section className="rounded-xl bg-white border border-slate-200 p-5 mt-4">
       <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Revisión · {selectedJobData.player_name}</h2><button onClick={()=>setSelectedJob("")} className="text-sm text-slate-500 underline">Cerrar</button></div>
       <p className="text-xs text-slate-500 my-2">Solo las observaciones verificadas y con coincidencia exacta se pueden aplicar. Las demás quedan disponibles para investigación.</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 my-3">{(selectedJobData.sources||[]).map(s=><div key={s} className="border border-slate-200 rounded-md p-2 text-sm"><strong>{SOURCES.find(x=>x.id===s)?.label||s}:</strong> {selectedJobData.source_results?.[s]?.status==="complete"?"Revisada":selectedJobData.source_results?.[s]?.status==="error"?"Error":selectedJobData.source_results?.[s]?.status==="unavailable"?"Sin datos archivados disponibles":"Pendiente"}<div className="text-xs text-slate-500">{selectedJobData.source_results?.[s]?.note||""}</div></div>)}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 my-3">{(selectedJobData.sources||[]).map(s=><div key={s} className="border border-slate-200 rounded-md p-2 text-sm"><strong>{SOURCES.find(x=>x.id===s)?.label||s}:</strong> {selectedJobData.source_results?.[s]?.status==="complete"?"Datos recibidos":selectedJobData.source_results?.[s]?.status==="error"?"Error":selectedJobData.source_results?.[s]?.status==="unavailable"?"Sin datos archivados disponibles":"Pendiente"}<div className="text-xs text-slate-500">{selectedJobData.source_results?.[s]?.note||""}</div></div>)}</div>
       {selectedJobData.worker_version==="base44-cache-v1"&&selectedJobData.status==="completed"&&(selectedJobData.received_candidates||0)===0&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 my-3 text-sm"><strong>El análisis de caché ha finalizado, pero no había datos previos.</strong><p>Para este jugador selecciona «Solicitar datos NUEVOS desde Studio (PC)» tras arrancar el trabajador local. No necesitas importar un JSON manualmente.</p></div>}
-      <div className="space-y-2">{!candidateRows.length?<p className="text-sm text-slate-500">Este trabajo aún no ha recibido observaciones.</p>:candidateRows.map(c=><div key={c.id} className="flex flex-wrap gap-3 items-center justify-between border rounded-lg p-3">
+      {seasonGroups.length>0&&<section className="mt-4 space-y-3" aria-label="Primeras temporadas disponibles">
+        <h3 className="font-semibold text-[#003399]">Temporadas detectadas · Revisión por lote</h3>
+        <p className="text-xs text-slate-600">Revisa cada temporada y su perfil original antes de aprobarla. Se crearán las competiciones ausentes o se rellenarán únicamente métricas vacías; nunca se reemplazarán cifras existentes.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {seasonGroups.map(group=>{
+            const pending=group.items.filter(c=>c.review_status==="pending");
+            const blocked=group.items.some(c=>!["pending","applied"].includes(c.review_status)||c.verification_status==="conflict");
+            const evidence=group.items.find(c=>c.evidence_url)?.evidence_url;
+            return <div key={group.key} className="border border-slate-200 rounded-lg p-3 space-y-2">
+              <div className="flex flex-wrap justify-between gap-2 text-sm">
+                <strong>{group.season} · {group.team} · {group.competition}</strong>
+                <span className="text-xs text-slate-600">{group.source} · {group.items.length} datos · {pending.length} pendientes</span>
+              </div>
+              <p className="text-xs text-slate-500">FotMob equipo: {group.teamId||"ID desconocido"}</p>
+              {evidence&&<a href={evidence} rel="noopener noreferrer" target="_blank" className="text-xs text-[#003399] underline">Revisar evidencia original</a>}
+              <details className="border rounded-md px-3 py-2">
+                <summary className="cursor-pointer text-xs font-semibold">Ver las {group.items.length} observaciones y valores</summary>
+                <div className="mt-2 text-xs space-y-1 max-h-56 overflow-y-auto">
+                  {group.items.map(c=><div key={c.id} className="flex justify-between gap-2 border-b py-1">
+                    <span>{c.metric_name}</span><span className="font-medium tabular-nums whitespace-nowrap">{c.value} {c.metric_unit}</span>
+                  </div>)}
+                </div>
+              </details>
+              {blocked?<p className="text-xs text-amber-800">Esta temporada contiene datos en conflicto o descartados. Usa la revisión individual.</p>:
+                !pending.length?<p className="text-xs font-semibold text-emerald-700">Datos de esta fuente ya aplicados.</p>:
+                <>
+                  <label className="flex gap-2 text-xs items-start">
+                    <input type="checkbox" className="mt-0.5" checked={!!reviewedGroups[group.key]}
+                      onChange={e=>setReviewedGroups(v=>({...v,[group.key]:e.target.checked}))}/>
+                    He revisado los valores, la fuente, el club y la competición, y apruebo su incorporación.
+                  </label>
+                  <button type="button" disabled={busy||coordinator!=="ready"||selectedJobData.status!=="review"||
+                    !reviewedGroups[group.key]||!group.teamId||!evidence}
+                    onClick={()=>approveSeason(group)}
+                    className="rounded-lg bg-[#003399] text-white px-3 py-2 text-xs font-semibold disabled:opacity-40">
+                    Crear o completar temporada en STATS
+                  </button>
+                </>}
+            </div>;
+          })}
+        </div>
+      </section>}
+      {!candidateRows.length&&<p className="text-sm text-slate-500">Este trabajo aún no ha recibido observaciones.</p>}
+      {candidateRows.length>0&&<details className="mt-4">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-700">Revisión individual de los {candidateRows.length} valores y candidatos FIFA/mercado</summary>
+      <div className="space-y-2 mt-3">{candidateRows.map(c=><div key={c.id} className="flex flex-wrap gap-3 items-center justify-between border rounded-lg p-3">
         <div className="text-sm"><strong>{c.kind==="metric"?c.metric_name:c.kind==="overall"?"Overall FIFA/FC":"Valor de mercado"}</strong> · {c.value} {c.metric_unit||""}
           <div className="text-xs text-slate-500">{c.source} · {c.season} · {c.competition||c.fifa_edition||c.as_of_date||""}</div>
           <div className="text-xs text-slate-500">Evidencia: {c.verification_status} · {c.review_status}</div>
@@ -306,6 +351,7 @@ export default function ImportCenter(){
           <button disabled={busy||coordinator!=="ready"} onClick={()=>review("reject",c.id)} className="text-red-700 underline">Descartar</button>
         </div>}
       </div>)}</div>
+      </details>}
     </section>}
   </div>;
 }
