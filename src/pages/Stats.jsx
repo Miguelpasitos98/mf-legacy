@@ -1,3 +1,4 @@
+import {nationalLinkPlan} from "@/utils/nationalAutoLink";
 import {POSITION_OPTIONS,normalizeHistoricalPosition,positionGroup} from "@/utils/historicalPositions.js";
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -135,6 +136,30 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const [nationalBusy,setNationalBusy]=useState(false);
   const [nationalLinks,setNationalLinks]=useState({});
   const [nationalTeams,setNationalTeams]=useState([]);
+  const nationalAutoBusy=useRef(false);
+  useEffect(()=>{
+    if(nationalAutoBusy.current||!player?.country_id||!nationalTeams.length||!stats.length)return;
+    const plan=nationalLinkPlan({player,records:stats,nationalTeams});
+    if(!plan.length)return;
+    let cancelled=false;
+    nationalAutoBusy.current=true;
+    (async()=>{
+      try{
+        for(const item of plan){
+          if(cancelled)break;
+          const current=await base44.entities.PlayerSeasonStats.get(item.id);
+          if(String(current.player_id)!==String(item.player_id)||current.season!==item.season||
+            current.competition!==item.competition||current.national_team_id||current.national_country_id)continue;
+          await base44.entities.PlayerSeasonStats.update(item.id,item.patch);
+          if(!cancelled)setNationalLinks(old=>({...old,[String(item.id)]:item.patch}));
+        }
+        if(!cancelled){queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});queryClient.invalidateQueries({queryKey:STATS_ROWS_KEY});}
+      }catch(error){console.warn("Vinculación automática de selecciones pendiente",error);}
+      finally{nationalAutoBusy.current=false;}
+    })();
+    return ()=>{cancelled=true;};
+  },[player?.id,player?.country_id,stats,nationalTeams,queryClient]);
+
   useEffect(()=>{let live=true;base44.entities.NationalTeam.list({limit:500}).then(result=>{if(live)setNationalTeams(Array.isArray(result)?result:result?.items||result?.data||[]);}).catch(()=>{});return()=>{live=false;};},[]);
   const [teamMatchesTarget,setTeamMatchesTarget]=useState(null);
   const [teamMatchesValue,setTeamMatchesValue]=useState("");
