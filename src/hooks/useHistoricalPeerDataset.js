@@ -35,7 +35,7 @@ const queuedRead=fn=>{
 };
 const retryAfterMs=error=>{
  const message=String(error?.message||"");
- const match=message.match(/retry\\s+after\\s+(\\d+(?:\\.\\d+)?)\\s*s(?:ec(?:onds?)?)?\\b/i);
+ const match=message.match(/retry\s+after\s+(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?)?)?\b/i);
  const headers=error?.response?.headers;
  const header=typeof headers?.get==="function"?headers.get("retry-after"):headers?.["retry-after"];
  const seconds=match?Number(match[1]):Number(header);
