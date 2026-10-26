@@ -383,3 +383,8 @@
   background: #d8e2ef;
   flex: none;
 }
+/* Compact STATS toolbar: reserve room for update action beside metric search. */
+.mf-statsbar .searchfield.mf-statsbar-search-compact { flex: 1 1 280px; min-width: 170px; max-width: 560px; }
+.mf-statsbar .filters > .field:has(.sort) { flex: 0 0 auto; }
+.mf-statsbar .filters > .field .sort { min-width: 138px; width: 160px; }
+@media (max-width: 760px) { .mf-statsbar .searchfield.mf-statsbar-search-compact { max-width: none; } }
