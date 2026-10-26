@@ -80,7 +80,13 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
         raise ValueError("El perfil de FotMob pertenece a otro jugador.")
     assignments = resolver.load_assignments(root)
     out, errors, skipped = [], 0, 0
-    for option in bundle["season_options"]:
+    missing_cache = unresolved_team = empty_metrics = incompatible_cache = 0
+    fetched = 0
+    options = list(bundle["season_options"])
+    # Recent seasons first on a first run: scarce bounded requests must not be
+    # consumed by obsolete seasons when a player has a long career.
+    options.sort(key=lambda o: (text(o.get("season")), text(o.get("season_id"))), reverse=True)
+    for option in options:
         if len(out) >= max_candidates:
             break
         sid = option["season_id"]
@@ -94,6 +100,7 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                          or text(meta.get("competition")) != option["competition"]
                          or text(meta.get("season_id")) != sid):
                 errors += 1
+                incompatible_cache += 1
                 continue
             raw = data.get("payload") if meta else data
         elif allow_network and network_count < request_limit:
@@ -102,6 +109,7 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
             try:
                 raw = client.fetch_stats(pid, sid, option.get("is_first", False))
                 network_count += 1
+                fetched += 1
                 client.save_json(file, {"_mf_legacy_meta": {
                     "player_id":pid, "season":option["season"],
                     "competition":option["competition"],"season_id":sid}, "payload":raw})
@@ -110,21 +118,45 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                 continue
         if not isinstance(raw, dict):
             skipped += 1
+            missing_cache += 1
             continue
         detail = {"fotmob_player_id":pid,"season":option["season"],
                   "competition":option["competition"],
                   "fotmob_tournament_id":option.get("tournament_id", ""),
                   "profile_season_id":sid}
         tid, tname, _, _ = resolver.resolve_career_team(detail, bundle, [], assignments)
-        # No team = no safe staging: never merge league/national or two clubs.
+        if not tid:
+            # Safe fallback: exactly one club ID in career for this season.
+            # Never infer national-team tournaments from a club career.
+            competition = norm(option.get("competition"))
+            international = any(word in competition for word in (
+                "world cup", "euro qualification", "european championship",
+                "nations league", "copa america", "afcon", "africa cup",
+                "international friendly", "friendly international", "gold cup",
+                "qualifiers", "eliminatorias", "mundial", "selecciones"))
+            matches = {(text(c.get("fotmob_team_id")), text(c.get("team_name")))
+                       for c in (bundle.get("career") or [])
+                       if text(c.get("season")) == text(option.get("season"))
+                       and text(c.get("fotmob_team_id")) and text(c.get("team_name"))
+                       and not c.get("is_national_team")}
+            ids = {item[0] for item in matches}
+            if not international and len(ids) == 1:
+                tid = next(iter(ids))
+                names = {item[1] for item in matches}
+                if len(names) == 1:
+                    tname = next(iter(names))
+                else:
+                    tid = ""
         if not tid:
             skipped += 1
+            unresolved_team += 1
             continue
         parsed = profile.extract_stat_details(raw, player_id=pid,
                         season=option["season"],competition=option["competition"],
                         team_id=tid,team_name=tname,
                         tournament_id=option.get("tournament_id",""),profile_season_id=sid)
         conflicts = {norm(c) for c in parsed.get("conflicts") or []}
+        before = len(out)
         for m in parsed.get("metrics") or []:
             name = text(m.get("name"))
             if not name or norm(name) in conflicts:
@@ -151,8 +183,12 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                     break
             if len(out)>=max_candidates:
                 break
+        if len(out) == before:
+            empty_metrics += 1
     return out,report("complete" if out else "unavailable",
         "Candidatos: "+str(len(out))+"; cachés/competiciones omitidas: "+str(skipped)+
+        "; sin payload: "+str(missing_cache)+"; club sin identificar: "+str(unresolved_team)+
+        "; sin metricas: "+str(empty_metrics)+"; cache incompatible: "+str(incompatible_cache)+
         "; errores: "+str(errors)+"; peticiones FotMob: "+str(network_count)+
         ". Valores sujetos a revisión.")
 
