@@ -483,8 +483,15 @@ export default function Stats(){
   })();return()=>{mounted=false;};},[]);
   // Avoid first painting an incomplete page with unknown players/teams or
   // unstable ranks. Keep a fully cached dataset immediately available.
-  const waitingForCompleteData=(!cached||(busy&&hasMore))&&!error ||
-    !pq.data&&!pq.isError || !tq.data&&!tq.isError;
+  const waitingForCompleteData=(
+    ((!cached||(busy&&hasMore))&&!error) ||
+    (!pq.data&&!pq.isError) ||
+    (!tq.data&&!tq.isError) ||
+    // The initial screenshot has all 769 stats records already, but the
+    // historical Composite dataset is still loading. Never publish an
+    // apparent ranking without its requested ranking metric.
+    (viewMode==="season"&&sort==="composite"&&!peerError&&!peerDataset)
+  );
   const players=pq.data||[],teams=tq.data||[];
   const byID=useMemo(()=>new Map(players.map(p=>[String(p.id),p])),[players]);
   const byTeam=useMemo(()=>new Map(teams.map(t=>[String(t.id),t])),[teams]);
