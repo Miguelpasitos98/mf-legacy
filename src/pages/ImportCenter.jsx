@@ -78,7 +78,7 @@ export default function ImportCenter(){
     setBusy(true);setError("");setNotice("");
     try{
       await base44.functions.invoke("import-review",{action,candidate_id});
-      setNotice(action==="approve"?"Candidato incorporado sin reemplazar valores existentes.":"Candidato descartado.");
+      setNotice(action==="approve"?"Candidato incorporado sin reemplazar valores existentes.":action==="verify"?"Se ha registrado tu verificación de la fuente. Ya puedes aplicar el dato.":"Candidato descartado.");
       await refresh();
     }catch(e){setError(reason(e));}
     finally{setBusy(false);}
@@ -145,6 +145,7 @@ export default function ImportCenter(){
           {c.evidence_url&&<a className="text-xs text-blue-800 underline" href={c.evidence_url} target="_blank" rel="noopener noreferrer">Consultar fuente</a>}
         </div>
         {c.review_status==="pending"&&<div className="flex items-center gap-3 text-sm">
+          {c.verification_status!=="verified"&&c.evidence_url&&<button disabled={busy} onClick={()=>review("verify",c.id)} className="text-amber-800 underline">He verificado la fuente</button>}
           <button disabled={busy||c.verification_status!=="verified"} onClick={()=>review("approve",c.id)} className="text-[#003399] underline disabled:opacity-30">Aplicar</button>
           <button disabled={busy} onClick={()=>review("reject",c.id)} className="text-red-700 underline">Descartar</button>
         </div>}
