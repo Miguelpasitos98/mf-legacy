@@ -198,7 +198,7 @@ export default function ImportCenter(){
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <label className="text-sm font-medium">Nombre completo del jugador
-          <input value={newPlayerName} onChange={e=>{setNewPlayerName(e.target.value);setNewIdentityConfirmed(false);}}
+          <input value={newPlayerName} onChange={e=>{setNewPlayerName(e.target.value);setNewIdentityConfirmed(false);setHomonymMatches([]);setHomonymConfirmed(false);}}
             maxLength={120} placeholder="Nombre oficial del futbolista" className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 font-normal"/>
         </label>
         <label className="text-sm font-medium">ID de FotMob
@@ -206,7 +206,7 @@ export default function ImportCenter(){
             const value=e.target.value.trim();
             const fromUrl=/^https:\/\/(?:www\.)?fotmob\.com\/players\/(\d{1,15})(?:[/?#]|$)/i.exec(value);
             setNewFotmobId(fromUrl?fromUrl[1]:value.replace(/[^0-9]/g,"").slice(0,15));
-            setNewIdentityConfirmed(false);
+            setNewIdentityConfirmed(false);setHomonymMatches([]);setHomonymConfirmed(false);
           }}
             maxLength={300} placeholder="ID numérico o pega la URL de FotMob" className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 font-normal"/>
         </label>
@@ -225,7 +225,17 @@ export default function ImportCenter(){
         <input type="checkbox" checked={newIdentityConfirmed} onChange={e=>setNewIdentityConfirmed(e.target.checked)} className="mt-1"/>
         He comprobado personalmente que el nombre y el ID de FotMob corresponden a este mismo futbolista y que no está registrado en MF Legacy.
       </label>
+      {homonymMatches.length>0&&<div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
+        <strong className="text-sm text-amber-950">Ya existe un jugador con este nombre</strong>
+        <p className="text-xs text-amber-900">Revisa estas fichas antes de continuar. Si se trata de la misma persona, utiliza «Jugador ya registrado» y vincula su FotMob. Si realmente es otro futbolista, puedes crear un homónimo diferente.</p>
+        <ul className="text-xs text-amber-950 list-disc ml-5">{homonymMatches.map(p=><li key={p.id}>{p.name} · ficha {p.id}</li>)}</ul>
+        <label className="text-xs flex gap-2 items-start">
+          <input type="checkbox" checked={homonymConfirmed} onChange={e=>setHomonymConfirmed(e.target.checked)}/>
+          Confirmo que se trata de un futbolista diferente y quiero crear otra ficha con este nombre.
+        </label>
+      </div>}
       <button type="button" disabled={coordinator!=="ready"||busy||newPlayerName.trim().length<3||
+        (homonymMatches.length>0&&!homonymConfirmed)||
         !/^\d{1,15}$/.test(newFotmobId)||!newIdentityConfirmed||!selectedSources.length}
         onClick={createNewPlayer}
         className="rounded-lg bg-[#003399] text-white px-5 py-3 text-sm font-semibold disabled:opacity-40">
