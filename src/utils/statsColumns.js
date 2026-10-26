@@ -147,7 +147,7 @@ export const rowValues=(row,mode)=>{
    const stat=row?.totals?.[id];
    // A formula using an incomplete aggregated metric must not assert a valid ratio.
    values[id]=id==="rating"?row?.ratingPartial?null:row?.weightedRating:stat?.partial?null:stat?.value??null;
-  }else values[id]=metricsValue(row,id);
+  }else values[id]=id==="minutes"?statNum(row.minutes):metricsValue(row,id);
  }
  return values;
 };
@@ -175,7 +175,7 @@ export function columnValue(row,mode,id,config){
     if(direct.available&&(!p90||direct.totals.minutes>0))
      return p90?direct.totals.goals_prevented*90/direct.totals.minutes:direct.totals.goals_prevented;
    }else{
-    const direct=metricsValue(row,"goals_prevented"),minutes=metricsValue(row,"minutes");
+    const direct=metricsValue(row,"goals_prevented"),minutes=statNum(row.minutes);
     if(direct!==null&&(!p90||minutes>0))return p90?direct*90/minutes:direct;
    }
   }
