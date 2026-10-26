@@ -16,7 +16,7 @@ async function verifiedLink(db, playerId) {
   const pid = unique[0];
   const backlinks = rows(await db.PlayerFotmobLink.filter({fotmob_player_id:pid},undefined,30));
   if (backlinks.some(row=>str(row.player_id)!==playerId)) throw Error("El ID FotMob está asociado a otro jugador.");
-  const allowed = new Set(["verified","confirmed","manual","automatic_exact_name_unique"]);
+  const allowed = new Set(["verified","confirmed","manual","manual_confirmada","confirmada","automatic_exact_name_unique"]);
   const approved = exact.some(r=>allowed.has(str(r.verification).toLowerCase()));
   if (!approved) throw Error("La vinculación FotMob necesita revisión.");
   return {pid, automatic:exact.every(r=>str(r.verification).toLowerCase()==="automatic_exact_name_unique")};
