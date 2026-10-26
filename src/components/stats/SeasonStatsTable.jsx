@@ -20,6 +20,9 @@ const labels={ga:"G + A",gaper90:"G + A /90",xgaper90:"xG + xA /90",xga:"xG + xA
 const shortSeason=s=>String(s||"").replace(/^(\d{4})[/-](\d{4})$/,(_,start,end)=>start+"/"+end.slice(-2));
 const fmt=(v,d=0)=>v===null||v===undefined||v===""||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
 const dec=k=>["xg","xa","xga","gaper90","xgaper90","goalsper90","assistsper90","xgper90","xaper90"].includes(k);
+const GK_OFFENSE=new Set(["goals","assists","ga","gaper90","goalsper90","assistsper90","xg","xa","xga","xgper90","xaper90","xgaper90","shots","shotsontarget","chancescreated","bigchancescreated"]);
+const goalkeeper=p=>/^(GK|POR|G)$/i.test(String(p?.position||p?.position_raw||"").trim());
+
 function PlayerPhoto({player,name}){
  const src=player?.card_photo_url||player?.cardPhotoUrl||player?.photo_url||player?.photoUrl;
  const [broken,setBroken]=useState(false);
@@ -87,7 +90,8 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
        const coverage=formulaCoverage(summary,"season",k,config);
        const partial=coverage?coverage.available<coverage.total:summary.totals[k]?.partial;
        const hint=coverage?coverage.available+" de "+coverage.total+" competiciones · "+coverage.minutes.toLocaleString("es-ES")+" minutos disponibles para esta fórmula":partial?"Subtotal parcial: faltan estadísticas":undefined;
-       return <td key={k} className={"px-2 py-2 text-right"+line(k)} title={hint}>{fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
+       const missingKeeperOffense=value===null&&goalkeeper(player)&&GK_OFFENSE.has(k);
+       return <td key={k} className={"px-2 py-2 text-right"+line(k)} title={missingKeeperOffense?"0 visual por ausencia de dato ofensivo del portero; no es una estadística confirmada.":hint}>{missingKeeperOffense?<span className="text-slate-400">0<sup>†</sup></span>:fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
       })}
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
@@ -96,5 +100,6 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
     </tbody>
    </table>
   </div>
+  <p className="px-3 py-2 text-[10px] text-slate-500">† En porteros, 0 visual indica un dato ofensivo no disponible; no es un cero estadístico y no interviene en cálculos ni en el Composite.</p>
  </div>;
 }
