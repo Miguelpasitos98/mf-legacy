@@ -76,14 +76,16 @@ export default function ImportUnified({onImported}) {
         const user=await base44.auth.me();
         if(!live)return;
         setIsAdmin(user?.role==="admin");
-        const [rawLinks,rawTeams,rawPlayers]=await Promise.all([
+        // Keep authorization independent from catalogue/network errors.
+        const [rawLinks,rawTeams,playersResult]=await Promise.all([
           base44.entities.PlayerFotmobLink.list({limit:500}),
           base44.entities.Team.list({limit:500}),
-          loadAllPlayers()
+          loadAllPlayers().then(rows=>({rows,error:null})).catch(error=>({rows:[],error}))
         ]);
         if(!live)return;
         setLinks(new Map(rowsFromResponse(rawLinks).filter(x=>x.fotmob_player_id&&x.player_id&&(/manual_confirmada|confirmada|verified|manual|confirmed|automatic_exact_name_unique/i.test(x.verification||""))).map(x=>[String(x.fotmob_player_id),String(x.player_id)])));
-        setAllTeams(rowsFromResponse(rawTeams));setAllPlayers(rowsFromResponse(rawPlayers));
+        setAllTeams(rowsFromResponse(rawTeams));setAllPlayers(playersResult.rows);
+        if(playersResult.error)setError("No se pudo completar el catálogo de jugadores: "+playersResult.error.message+". No se crearán fichas hasta comprobar la identidad.");
         setTeamLinks(new Map(rowsFromResponse(rawTeams).filter(x=>Number(x.fotmob_id)>0&&x.id).map(x=>[String(x.fotmob_id),String(x.id)])));
       } catch(e){if(live){setError("No se pudieron consultar las vinculaciones de Base44: "+e.message);setIsAdmin(false);}}
     })();
@@ -100,6 +102,23 @@ export default function ImportUnified({onImported}) {
     const sameName=playerNameCandidates(allPlayers,row.name);
     return {pid,name:row.name,role:row.archetype,existing:sameName};
   },[batch,links,allPlayers]);
+  useEffect(()=>{
+    const row=batch?.records?.find(r=>r.kind==="player");
+    if(!row?.name||!row.fotmob_id||links.has(String(row.fotmob_id)))return;
+    let active=true;
+    // Exact normalized name may be missing from a partial Base44 catalogue.
+    // This read-only lookup never creates an FM26 Player or guesses an identity.
+    base44.entities.Player.filter({name:row.name},{limit:20}).then(response=>{
+      if(!active)return;
+      const matches=rowsFromResponse(response).filter(p=>playerNameKey(p.name)===playerNameKey(row.name));
+      if(matches.length)setAllPlayers(old=>{
+        const all=new Map(old.map(p=>[String(p.id),p]));
+        matches.forEach(p=>all.set(String(p.id),p));
+        return [...all.values()];
+      });
+    }).catch(()=>{});
+    return ()=>{active=false;};
+  },[batch,links]);
   const normalizeTeamName = value => String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/gi,"").toLowerCase();
   const resolveTeam = row => {
     if(row.kind!=="season")return "";
