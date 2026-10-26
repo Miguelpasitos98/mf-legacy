@@ -147,7 +147,8 @@ export default async function(req) {
       if(group.some(c=>c.verification_status==="conflict"))return bad("Hay métricas en conflicto; requiere conciliación.",409);
       if(action==="verify-season") {
         if(group.some(c=>!str(c.evidence_url).startsWith("https://")))return bad("Hay métricas sin evidencia.",409);
-        for(const c of group)await db.ImportCandidate.update(c.id,{verification_status:"verified",review_note:"Temporada verificada expresamente por administrador"});
+        await db.ImportCandidate.updateMany({id:{$in:group.map(c=>c.id)},job_id:item.job_id,review_status:"pending"},
+          {$set:{verification_status:"verified",review_note:"Temporada verificada expresamente por administrador"}});
         return reply({ok:true,status:"verified",candidates:group.length});
       }
       if(action==="approve-season"&&(data.confirm_source_reviewed!==true||group.some(c=>!str(c.evidence_url).startsWith("https://"))))return bad("Confirma que has revisado identidad, equipo, competición y evidencias de toda la temporada.",409);
@@ -170,7 +171,9 @@ export default async function(req) {
         }
       } else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
       if(grouped) {
-        for(let i=0;i<group.length;i+=10)await Promise.all(group.slice(i,i+10).filter(c=>c.review_status==="pending").map(c=>db.ImportCandidate.update(c.id,{review_status:"applied",verification_status:"verified",review_note:"Temporada aprobada; se completaron únicamente campos vacíos"})));
+        const pending=group.filter(c=>c.review_status==="pending");
+        if(pending.length)await db.ImportCandidate.updateMany({id:{$in:pending.map(c=>c.id)},job_id:item.job_id,review_status:"pending"},
+          {$set:{review_status:"applied",verification_status:"verified",review_note:"Temporada aprobada; se completaron únicamente campos vacíos"}});
         await conclude(db,job);
         return reply({ok:true,status:"applied",operation:plan.operation,candidates:group.length,
           season_id:plan.target_id,created_season:plan.operation==="create",new_metrics:plan.operation==="unchanged"?0:group.filter(c=>c.review_status==="pending").length});
@@ -197,3 +200,4 @@ export default async function(req) {
     return reply({ok:true,status:"applied"});
   } catch(e){console.error("import-review",e);return bad(e?.message||"Error interno.",500);}
 }
+
