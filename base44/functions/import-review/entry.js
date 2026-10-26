@@ -42,6 +42,11 @@ export default async function(req) {
       await conclude(db,job);
       return reply({ok:true,status:"rejected"});
     }
+    if(action==="verify") {
+      if(!str(item.evidence_url).startsWith("https://"))return bad("La observación no tiene una fuente consultable.",409);
+      await db.ImportCandidate.update(item.id,{verification_status:"verified",review_note:"Verificada expresamente por un administrador tras revisar la evidencia"});
+      return reply({ok:true,status:"verified"});
+    }
     if(action!=="approve")return bad("Acción desconocida.");
     if(item.verification_status!=="verified"||!str(item.evidence_url).startsWith("https://"))return bad("No se pueden aplicar valores sin evidencia verificada.",409);
     const player=await db.Player.get(item.player_id);
