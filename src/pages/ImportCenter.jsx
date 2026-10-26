@@ -182,9 +182,49 @@ export default function ImportCenter(){
       <button onClick={refresh} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 bg-white hover:bg-slate-100"><RefreshCw size={16}/>Actualizar</button>
     </div>
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"MF Legacy tiene ahora un motor nativo dentro de Base44 para preparar y sincronizar primeras temporadas. La obtención automática de estadísticas nuevas desde fuentes externas sigue pendiente de un acceso autorizado; Studio queda como respaldo.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones no es accesible. No se admiten solicitudes hasta restaurar el coordinador."}</div>
+    <section className="rounded-xl bg-white border-2 border-[#003399] p-5 mb-5 space-y-3">
+      <div className="flex flex-wrap justify-between gap-2">
+        <div><h2 className="font-semibold text-lg text-[#003399]">Nuevo jugador · Primera importación</h2>
+          <p className="text-sm text-slate-600">Para futbolistas que todavía NO existen en MF Legacy. No necesitas crearlos antes ni importar un JSON.</p></div>
+        <span className="rounded-full bg-blue-50 text-[#003399] px-3 py-1 text-xs h-fit font-semibold">Desde Studio (PC)</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <label className="text-sm font-medium">Nombre completo del jugador
+          <input value={newPlayerName} onChange={e=>{setNewPlayerName(e.target.value);setNewIdentityConfirmed(false);}}
+            maxLength={120} placeholder="Nombre oficial del futbolista" className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 font-normal"/>
+        </label>
+        <label className="text-sm font-medium">ID de FotMob
+          <input value={newFotmobId} onChange={e=>{setNewFotmobId(e.target.value.replace(/[^0-9]/g,""));setNewIdentityConfirmed(false);}}
+            maxLength={15} inputMode="numeric" placeholder="ID numérico del perfil de FotMob" className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 font-normal"/>
+        </label>
+      </div>
+      {/^\d{1,15}$/.test(newFotmobId)&&<a className="inline-block text-sm text-[#003399] underline"
+        href={"https://www.fotmob.com/players/"+newFotmobId} rel="noopener noreferrer" target="_blank">
+        Comprobar el perfil original de FotMob
+      </a>}
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
+        {SOURCES.map(s=><label key={s.id} className="text-sm flex items-center gap-2">
+          <input type="checkbox" checked={selectedSources.includes(s.id)}
+            onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}
+        </label>)}
+      </div>
+      <label className="flex gap-2 items-start text-sm text-slate-700">
+        <input type="checkbox" checked={newIdentityConfirmed} onChange={e=>setNewIdentityConfirmed(e.target.checked)} className="mt-1"/>
+        He comprobado personalmente que el nombre y el ID de FotMob corresponden a este mismo futbolista y que no está registrado en MF Legacy.
+      </label>
+      <button type="button" disabled={coordinator!=="ready"||busy||newPlayerName.trim().length<3||
+        !/^\d{1,15}$/.test(newFotmobId)||!newIdentityConfirmed||!selectedSources.length}
+        onClick={createNewPlayer}
+        className="rounded-lg bg-[#003399] text-white px-5 py-3 text-sm font-semibold disabled:opacity-40">
+        {busy?"Registrando…":"Crear jugador nuevo y solicitar extracción"}
+      </button>
+      <p className="text-xs text-slate-500">Se crea una ficha mínima y una vinculación FotMob, sin inventar atributos de FM26 ni sobrescribir fichas existentes.
+        Las primeras temporadas quedan pendientes de tu revisión. FotMob permite consultas puntuales limitadas;
+        Understat y los históricos FIFA/Transfermarkt solo estarán disponibles si Studio ya dispone de esos datos verificados.</p>
+    </section>
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
-        <h2 className="font-semibold text-lg">Nueva importación</h2>
+        <h2 className="font-semibold text-lg">Jugador ya registrado · Añadir datos</h2>
         <Link to="/import-native" className="block rounded-lg bg-[#003399] text-white px-4 py-3 text-sm font-semibold text-center">Abrir motor WEB V3 · Importar primeras temporadas</Link>
         <p className="text-xs text-slate-600">Procesa estadísticas estructuradas dentro de Base44; no requiere que el Studio esté abierto. Los proveedores externos todavía no se consultan automáticamente.</p>
         <div className="relative">
