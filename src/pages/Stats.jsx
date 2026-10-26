@@ -124,7 +124,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const activeSeason=season==="auto"?seasonForView(stats.find(r=>r.season===defaultSeason(stats,initialSeason))||stats[0]||{}):season;
   const [competition,setCompetition]=useState("Todas");
   const [scope,setScope]=useState("all");
-  const [category,setCategory]=useState("Resumen");
+  const [category,setCategory]=useState(()=>/^(GK|POR|G)$/i.test(String(player?.position||player?.position_raw||"").trim())?"Portería":"Resumen");
   const [teamLinkTarget,setTeamLinkTarget]=useState(null);
   const [nationalTarget,setNationalTarget]=useState(null);
   const [nationalChoice,setNationalChoice]=useState("");
