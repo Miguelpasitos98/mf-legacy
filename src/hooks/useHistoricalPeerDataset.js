@@ -17,14 +17,41 @@ const limited = err => /rate limit|too many requests|429/i.test(String(err?.mess
   err?.status === 429 || err?.response?.status === 429;
 const timeout = err => /query timed out|timeout|timed out|504|gateway timeout/i.test(String(err?.message||err)) || err?.status===504;
 const PAGE_SIZE={Player:300,PlayerSeasonStats:120,PlayerHistoricalValuation:250,TeamSeasonMatches:250,Team:200,TeamSeasonPossession:250,UnderstatSeasonRate:250};
+// The 140 entity_list/minute quota is shared with every screen and import
+// for this caller; the server's Retry after is authoritative.
+let nextReadAt=0;
+let previousRead=Promise.resolve();
+const queuedRead=fn=>{
+ const run=previousRead.catch(()=>{}).then(async()=>{
+   const now=Date.now();
+   const pause=Math.max(0,nextReadAt-now);
+   if(pause)await sleep(pause);
+   // Budget a little under the app-wide quota even if screens share the client.
+   nextReadAt=Date.now()+650;
+   return fn();
+ });
+ previousRead=run.then(()=>{},()=>{});
+ return run;
+};
+const retryAfterMs=error=>{
+ const message=String(error?.message||"");
+ const match=message.match(/retry\s+after\s+(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?)?)?\b/i);
+ const headers=error?.response?.headers;
+ const header=typeof headers?.get==="function"?headers.get("retry-after"):headers?.["retry-after"];
+ const seconds=match?Number(match[1]):Number(header);
+ return Number.isFinite(seconds)&&seconds>0?Math.min(120000,seconds*1000+1200):null;
+};
 async function readPage(query){
-  // Retry ONLY the unsuccessful page. Never restart the entire population
-  // or silently return a truncated dataset after a temporary timeout.
-  for(let i=0;i<3;i++){
-    try{return await query();}
+  // Retry only the failed page, retaining all previously completed pages.
+  for(let i=0;i<6;i++){
+    try{return await queuedRead(query);}
     catch(error){
-      if((!limited(error)&&!timeout(error))||i===2)throw error;
-      await sleep(limited(error)?[2500,6000][i]:[500,1500][i]);
+      if((!limited(error)&&!timeout(error))||i===5)throw error;
+      const pause=limited(error)
+       ?Math.max(retryAfterMs(error)??0,Math.min(60000,8000*(i+1)))
+       :[600,1800,3500,6000,10000][i];
+      if(limited(error))nextReadAt=Math.max(nextReadAt,Date.now()+pause);
+      await sleep(pause);
     }
   }
 }
