@@ -23,7 +23,7 @@ from urllib.error import HTTPError
 from typing import Any
 
 SCOPED_FIELDS = {"goals", "assists", "shots", "key_passes", "xG", "xA",
-                 "npxG", "xGChain", "xGBuildup", "npxG_per90", "xG_per90", "xA_per90"}
+                 "npxG", "xGChain", "xGBuildup"}
 
 
 def text(value: Any) -> str:
@@ -133,8 +133,12 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                 val = number(m.get(key))
                 if val is None or val < 0:
                     continue
-                # Preserve published percentages as percentages, not counts.
-                real_unit = "percentage" if key=="value" and "%" in name else unit
+                # Never interpret an explicitly labelled rate as a total.
+                lower_name=norm(name)
+                is_rate=bool(re.search(r"(?:/\s*90|per\s*90|por\s*90)",lower_name))
+                if key=="per90" and (is_rate or "%" in name):
+                    continue
+                real_unit = ("percentage" if "%" in name else "per90" if is_rate else unit) if key=="value" else unit
                 if real_unit=="percentage" and val>100:
                     continue
                 out.append({"source":"fotmob","kind":"metric","season":option["season"],
