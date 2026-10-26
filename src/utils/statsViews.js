@@ -91,7 +91,7 @@ export const groupStatRows=(rows)=>{
   const ordered=[...pack].sort((a,b)=>(b.metrics?.length||0)-(a.metrics?.length||0));
   const first={...ordered[0]};
   for(const r of ordered){
-   for(const field of ["team_id","fotmob_team_id","team_name","appearances","minutes","rating","team_matches"]){
+   for(const field of ["team_id","fotmob_team_id","team_name","national_team_id","national_country_id","appearances","minutes","rating","team_matches"]){
     if((first[field]===null||first[field]===undefined||first[field]==="")&&r[field]!==null&&r[field]!==undefined&&r[field]!=="")first[field]=r[field];
    }
   }
