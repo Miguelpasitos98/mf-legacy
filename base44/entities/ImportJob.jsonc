@@ -61,6 +61,28 @@
     "retry_count": {
       "type": "integer",
       "default": 0
+    },
+    "claim_id": {
+      "type": "string"
+    },
+    "worker_id": {
+      "type": "string"
+    },
+    "heartbeat_at": {
+      "type": "string"
+    },
+    "lease_expires_at": {
+      "type": "string"
+    },
+    "received_candidates": {
+      "type": "integer",
+      "default": 0
+    },
+    "completed_sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "required": [
