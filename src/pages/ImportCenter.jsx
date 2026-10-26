@@ -22,6 +22,8 @@ export default function ImportCenter(){
   const [selectedPlayer,setSelectedPlayer]=useState(null);
   const [search,setSearch]=useState("");
   const [selectedSources,setSelectedSources]=useState(SOURCES.map(x=>x.id));
+  const [fotmobDraft,setFotmobDraft]=useState("");
+  const [identityConfirmed,setIdentityConfirmed]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
@@ -93,6 +95,17 @@ export default function ImportCenter(){
     }catch(e){setError(reason(e));}
     finally{setBusy(false);}
   };
+  const linkManually=async()=>{
+    if(!player||!/^[0-9]{1,15}$/.test(fotmobDraft)||!identityConfirmed)return;
+    setBusy(true);setError("");setNotice("");
+    try{
+      await base44.functions.invoke("import-control",{action:"link",player_id:player.id,
+        fotmob_player_id:fotmobDraft,confirmed:true});
+      const result=await base44.entities.PlayerFotmobLink.filter({player_id:player.id},undefined,30);
+      setLinks(responseRows(result));setNotice("Identificador FotMob registrado. Ya puedes procesar fuentes históricas existentes.");
+      setFotmobDraft("");setIdentityConfirmed(false);
+    }catch(e){setError(reason(e));}finally{setBusy(false);}
+  };
   const scanCache=async()=>{
     if(!player||!linked)return;
     setBusy(true);setError("");setNotice("");
@@ -135,6 +148,17 @@ export default function ImportCenter(){
         </div>
         {selection&&player&&<div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm"><strong>Seleccionado: {player.name}</strong><button type="button" onClick={()=>{setSelection("");setSelectedPlayer(null);setSearch("");setLinks([]);}} className="ml-3 text-blue-800 underline">Cambiar</button></div>}
         {selection&&<p className="text-sm text-slate-600">FotMob: <strong>{fotmob||"Sin vínculo único"}</strong>{linked?" · Vinculación registrada":" · Requiere revisión"}</p>}
+        {player&&!linked&&links.length===0&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2">
+          <p className="text-sm font-semibold">Vincular identificador FotMob</p>
+          <p className="text-xs text-slate-600">Introduce el ID numérico que hayas comprobado en el perfil o exportación original. No se buscará ni deducirá por nombre.</p>
+          <input type="text" inputMode="numeric" aria-label="ID FotMob verificado" maxLength={15}
+            value={fotmobDraft} onChange={e=>setFotmobDraft(e.target.value.replace(/[^0-9]/g,""))}
+            placeholder="Ej. 276738" className="w-full border rounded-md px-3 py-2 text-sm"/>
+          <label className="flex gap-2 items-start text-xs"><input type="checkbox" checked={identityConfirmed} onChange={e=>setIdentityConfirmed(e.target.checked)}/>
+            He comprobado que el ID corresponde exactamente al jugador seleccionado.</label>
+          <button type="button" onClick={linkManually} disabled={coordinator!=="ready"||busy||!identityConfirmed||!/^[0-9]{1,15}$/.test(fotmobDraft)}
+            className="px-4 py-2 bg-[#003399] text-white rounded-md text-sm disabled:opacity-40">Guardar vinculación</button>
+        </div>
         <h3 className="font-semibold text-sm">Fuentes</h3>
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-3 rounded-lg bg-[#003399] text-white font-semibold disabled:opacity-40">Procesar datos históricos ya guardados</button>
