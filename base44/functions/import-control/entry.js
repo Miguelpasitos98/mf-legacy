@@ -69,8 +69,8 @@ export default async function(req) {
       // Previene duplicados accidentales; homónimos se revisan manualmente.
         const escaped=name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
       const sameName=rows(await db.Player.filter({name:{$regex:"^"+escaped+"$",$options:"i"}},undefined,30));
-      if (sameName.some(p=>normal(p.name)===normal(name)))
-        return bad("Ya existe un jugador con ese nombre. Comprueba si es la misma persona y utiliza el buscador de jugadores existentes.",409);
+      if (sameName.some(p=>normal(p.name)===normal(name)) && body.confirm_homonym!==true)
+        return reply({ok:false,requires_homonym_confirmation:true,error:"Hay un jugador con el mismo nombre. Comprueba si es otra persona antes de crear la ficha.",matches:sameName.filter(p=>normal(p.name)===normal(name)).slice(0,10).map(p=>({id:p.id,name:p.name}))},409);
       const player=await db.Player.create({name});
       if(!player?.id)return bad("No se pudo registrar la ficha mínima.",500);
       await db.PlayerFotmobLink.create({player_id:player.id,fotmob_player_id:pid,
