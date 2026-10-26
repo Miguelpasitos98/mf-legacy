@@ -74,7 +74,7 @@ export default function ImportCenter(){
     setBusy(true);setError("");setNotice("");
     try{
       const resp=await base44.functions.invoke("import-control",{action,...payload});
-      setNotice(action==="start"?"Trabajo creado. Se ejecutará cuando el trabajador seguro esté conectado.":action==="retry"?"Trabajo en cola de nuevo.":"Trabajo cancelado.");
+      setNotice(action==="start"?"Trabajo creado. Se ejecutará cuando el trabajador seguro esté conectado.":action==="retry"?"Trabajo en cola de nuevo.":action==="release-stale"?"Concesión caducada liberada; ya puedes reintentar.":"Trabajo cancelado.");
       if(resp?.data?.job?.id)setSelectedJob(resp.data.job.id);
       await refresh();
     }catch(e){setError(reason(e));}
@@ -136,6 +136,7 @@ export default function ImportCenter(){
             <td className="py-3 space-x-2">
               <button onClick={()=>setSelectedJob(j.id)} className="text-[#003399] underline">Ver detalles</button>
               {ACTIVE.includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("cancel",{job_id:j.id})} className="text-amber-800 underline">Cancelar</button>}
+              {j.status==="running"&&j.lease_expires_at&&Date.now()>new Date(j.lease_expires_at).getTime()&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("release-stale",{job_id:j.id})} className="text-amber-800 underline">Liberar bloqueo</button>}
               {["failed","cancelled"].includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar</button>}
             </td>
           </tr>)}</tbody>
