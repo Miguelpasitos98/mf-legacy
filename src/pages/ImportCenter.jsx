@@ -89,7 +89,7 @@ export default function ImportCenter(){
     setBusy(true);setError("");setNotice("");
     try{
       const resp=await base44.functions.invoke("import-control",{action,...payload});
-      setNotice(action==="start"?"Trabajo creado. Se ejecutará cuando el trabajador seguro esté conectado.":action==="retry"?"Trabajo en cola de nuevo.":action==="release-stale"?"Concesión caducada liberada; ya puedes reintentar.":"Trabajo cancelado.");
+      setNotice(action==="start"?"Solicitud de extracción nueva registrada. Tu MF Legacy Studio la ejecutará cuando INICIAR_TRABAJADOR_V3.bat esté activo en tu ordenador.":action==="retry"?"Trabajo en cola de nuevo.":action==="release-stale"?"Concesión caducada liberada; ya puedes reintentar.":"Trabajo cancelado.");
       if(resp?.data?.job?.id)setSelectedJob(resp.data.job.id);
       await refresh();
     }catch(e){setError(reason(e));}
@@ -135,7 +135,7 @@ export default function ImportCenter(){
       <div><h1 className="text-2xl font-bold tracking-tight">Centro de importaciones <span className="text-[#003399]">V3</span></h1><p className="text-sm text-slate-600">FotMob · Understat · FIFA / EA FC · Mercado histórico</p></div>
       <button onClick={refresh} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 bg-white hover:bg-slate-100"><RefreshCw size={16}/>Actualizar</button>
     </div>
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"Puedes procesar ahora los datos ya archivados en Base44, sin servidor externo. Para obtener nuevos datos de proveedores hacen falta fuentes autorizadas y un trabajador configurado.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones todavía no está publicado o no es accesible. Se muestra el historial, pero no se aceptan nuevas solicitudes."}</div>
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"Para jugadores sin historial, utiliza «Solicitar datos NUEVOS desde Studio». No requiere una API comercial, pero necesitas el trabajador Python encendido en tu PC y las fuentes permitidas/configuradas. Si está apagado, el trabajo seguirá en cola.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones no es accesible. No se admiten solicitudes hasta restaurar el coordinador."}</div>
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
         <h2 className="font-semibold text-lg">Nueva importación</h2>
@@ -163,10 +163,10 @@ export default function ImportCenter(){
         </div>}
         <h3 className="font-semibold text-sm">Fuentes</h3>
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
-        <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-3 rounded-lg bg-[#003399] text-white font-semibold disabled:opacity-40">Procesar datos históricos ya guardados</button>
-        <button disabled={coordinator!=="ready"||!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Poner en cola para trabajador externo</button>
+        <button disabled={coordinator!=="ready"||!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg bg-[#003399] text-white font-semibold disabled:opacity-40">Solicitar datos NUEVOS desde Studio (PC)</button>
+        <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
-        <p className="text-xs text-slate-500">La identidad se vuelve a validar en el servidor; no se crean nuevos jugadores ni se altera FM26.</p>
+        <p className="text-xs text-slate-500">Primera importación: el trabajador de tu PC consulta el perfil y las temporadas disponibles con los límites configurados. FIFA/FC y valores de mercado solo se completan desde catálogos históricos verificados. No se altera FM26.</p>
       </section>
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
         <h2 className="font-semibold text-lg">Control de integridad</h2>
@@ -174,7 +174,7 @@ export default function ImportCenter(){
         <div className="flex items-start gap-3 text-sm"><Database className="text-[#003399] shrink-0"/><p>La sincronización conserva las entradas verificadas, correcciones manuales y diferencias entre competiciones.</p></div>
         <p className="text-xs text-slate-600">Cero es un valor válido; una métrica ausente no se convierte en cero. Las respuestas incompletas se conservan como pendientes de revisar.</p>
         <Link to="/import-unified" className="text-sm text-[#003399] underline">Importar el primer JSON del jugador desde MF Legacy Studio</Link>
-        <p className="text-xs text-slate-600">El procesador de caché no descarga temporadas nuevas: solo completa datos previamente almacenados. No pongas un trabajo en la cola externa hasta configurar su trabajador.</p>
+        <p className="text-xs text-slate-600">El botón de caché no descarga temporadas nuevas. Para primeras importaciones, enciende el trabajador V3 desde tu PC y utiliza el botón principal «Solicitar datos NUEVOS desde Studio».</p>
       </section>
     </div>
     {error&&<p role="alert" className="my-3 rounded-lg bg-red-50 border border-red-200 text-red-800 p-3 text-sm">{error}</p>}
