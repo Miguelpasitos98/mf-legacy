@@ -62,6 +62,13 @@ export default async function(req) {
       });
       return reply({ok:true,job:{id:job.id,status:job.status,player_name:job.player_name,fotmob_player_id:pid}});
     }
+    if (action==="release-stale") {
+      const job=await db.ImportJob.get(str(body.job_id));
+      if(!job)return bad("Trabajo no encontrado.",404);
+      if(job.status!=="running"||!job.lease_expires_at||Date.now()<=new Date(job.lease_expires_at).getTime())return bad("El trabajo sigue activo o no tiene vencimiento confirmado.",409);
+      await db.ImportJob.update(job.id,{status:"failed",phase:"Trabajador sin respuesta; reintento manual disponible",last_error:"La concesión de procesamiento caducó",finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
+      return reply({ok:true,status:"failed"});
+    }
     if (action==="cancel") {
       const job=await db.ImportJob.get(str(body.job_id));
       if (!job) return bad("Trabajo no encontrado.",404);
