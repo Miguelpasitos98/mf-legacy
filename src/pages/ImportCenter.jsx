@@ -135,10 +135,12 @@ export default function ImportCenter(){
       <div><h1 className="text-2xl font-bold tracking-tight">Centro de importaciones <span className="text-[#003399]">V3</span></h1><p className="text-sm text-slate-600">FotMob · Understat · FIFA / EA FC · Mercado histórico</p></div>
       <button onClick={refresh} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 bg-white hover:bg-slate-100"><RefreshCw size={16}/>Actualizar</button>
     </div>
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"Para jugadores sin historial, utiliza «Solicitar datos NUEVOS desde Studio». No requiere una API comercial, pero necesitas el trabajador Python encendido en tu PC y las fuentes permitidas/configuradas. Si está apagado, el trabajo seguirá en cola.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones no es accesible. No se admiten solicitudes hasta restaurar el coordinador."}</div>
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"MF Legacy tiene ahora un motor nativo dentro de Base44 para preparar y sincronizar primeras temporadas. La obtención automática de estadísticas nuevas desde fuentes externas sigue pendiente de un acceso autorizado; Studio queda como respaldo.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones no es accesible. No se admiten solicitudes hasta restaurar el coordinador."}</div>
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
         <h2 className="font-semibold text-lg">Nueva importación</h2>
+        <Link to="/import-native" className="block rounded-lg bg-[#003399] text-white px-4 py-3 text-sm font-semibold text-center">Abrir motor WEB V3 · Importar primeras temporadas</Link>
+        <p className="text-xs text-slate-600">Procesa estadísticas estructuradas dentro de Base44; no requiere que el Studio esté abierto. Los proveedores externos todavía no se consultan automáticamente.</p>
         <div className="relative">
           <Search size={16} className="absolute top-3 left-3 text-slate-400"/>
           <input aria-label="Buscar jugador por nombre" autoComplete="off" value={search} onChange={e=>{setSearch(e.target.value);setSelection("");setSelectedPlayer(null);setLinks([]);setSearchOpen(true);}} onFocus={()=>setSearchOpen(true)} placeholder="Escribe el nombre del jugador (ej. Rüdiger)..." className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2"/>
@@ -163,21 +165,20 @@ export default function ImportCenter(){
         </div>}
         <h3 className="font-semibold text-sm">Fuentes</h3>
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
-        <button disabled={coordinator!=="ready"||!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg bg-[#003399] text-white font-semibold disabled:opacity-40">Solicitar datos NUEVOS desde Studio (PC)</button>
+        <button disabled={coordinator!=="ready"||!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Solicitar extracción desde Studio (alternativa local)</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <p className="text-xs text-slate-500">Primera importación: el trabajador de tu PC consulta el perfil y las temporadas disponibles con los límites configurados. FIFA/FC y valores de mercado solo se completan desde catálogos históricos verificados. No se altera FM26.</p>
       </section>
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
         <h2 className="font-semibold text-lg">Control de integridad</h2>
-        <Link to="/import-native" className="block rounded-lg bg-blue-50 border border-blue-200 text-[#003399] px-4 py-3 text-sm font-semibold">Abrir motor web V3 · Primeras temporadas sin Studio</Link>
-        <p className="text-xs text-slate-600">El motor web ya normaliza y crea nuevas temporadas desde registros estructurados. La obtención directa desde proveedores todavía requiere fuentes autorizadas.</p>
+        <p className="text-xs text-slate-600">El motor web ya normaliza y crea temporadas desde registros estructurados. La obtención directa de datos nuevos requiere fuentes con acceso autorizado.</p>
         <div className="flex items-start gap-3 text-sm"><ShieldCheck className="text-[#003399] shrink-0"/><p>La información se guarda inicialmente como candidata. Solo se aplica cuando hay evidencia e identificación exacta.</p></div>
         <div className="flex items-start gap-3 text-sm"><Database className="text-[#003399] shrink-0"/><p>La sincronización conserva las entradas verificadas, correcciones manuales y diferencias entre competiciones.</p></div>
         <p className="text-xs text-slate-600">Cero es un valor válido; una métrica ausente no se convierte en cero. Las respuestas incompletas se conservan como pendientes de revisar.</p>
         <a href="https://github.com/Miguelpasitos98/mf-legacy/tree/main/worker" target="_blank" rel="noopener noreferrer" className="block text-sm text-[#003399] underline">Trabajador local de Studio (respaldo para extracciones nuevas)</a>
         <Link to="/import-unified" className="text-sm text-slate-600 underline">Importador JSON anterior (opcional)</Link>
-        <p className="text-xs text-slate-600">El botón de caché no descarga temporadas nuevas. Para primeras importaciones, enciende el trabajador V3 desde tu PC y utiliza el botón principal «Solicitar datos NUEVOS desde Studio».</p>
+        <p className="text-xs text-slate-600">El motor web permite crear primeras temporadas. El trabajador local sigue disponible como respaldo para consultas puntuales sujetas a los permisos del proveedor.</p>
       </section>
     </div>
     {error&&<p role="alert" className="my-3 rounded-lg bg-red-50 border border-red-200 text-red-800 p-3 text-sm">{error}</p>}
