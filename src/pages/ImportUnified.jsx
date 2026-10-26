@@ -144,10 +144,19 @@ export default function ImportUnified({onImported}) {
         return;
       }
       let playerId=suggestedPlayerId;
-      const latestPlayers=await loadAllPlayers();
-      if(latestPlayers.length)setAllPlayers(latestPlayers);
-      if(playerId && !latestPlayers.some(p=>String(p.id)===playerId))throw Error("El jugador seleccionado ya no existe.");
-      const matches=playerNameCandidates(latestPlayers,identity.name);
+      // An explicitly selected existing Player only needs an exact ID lookup.
+      // Base44 skip pagination may repeat page one; never make linking depend on it.
+      let matches=[];
+      if(playerId){
+        const chosen=await base44.entities.Player.get(playerId);
+        if(!chosen||String(chosen.id)!==String(playerId))throw Error("El jugador seleccionado ya no existe.");
+        if(!playerNameCandidates([chosen],identity.name).length)
+          throw Error("La ficha elegida no coincide con el nombre del JSON; revisa la identidad.");
+      }else{
+        // Fail closed on potential duplicates when catalog pagination is unavailable.
+        // Do not create minimal Players without a complete catalog.
+        throw Error("Selecciona primero la ficha existente. La creación de fichas mínimas requiere verificar el catálogo completo.");
+      }
       if(!playerId){
         if(matches.length>0)throw Error("Existe una ficha con nombre igual o compatible. Selecciónala antes de crear otra para evitar duplicados.");
         if(!identity.name?.trim())throw Error("El JSON no trae el nombre del jugador.");
