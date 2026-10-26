@@ -21,7 +21,8 @@ async function allRows(entity,query) {
 }
 export function metricPlan(item,player,existing,teamLink={}) {
   if(!/^\d{1,15}$/.test(str(item.fotmob_team_id))||!str(item.competition)||!str(item.metric_name))throw Error("Falta identidad de competición/equipo/métrica.");
-  if(typeof item.value!=="number"||!Number.isFinite(item.value)||item.value<0)throw Error("Valor no válido.");
+  const signedMetric=["goals prevented","goles evitados"].includes(norm(item.metric_name));
+  if(typeof item.value!=="number"||!Number.isFinite(item.value)||(item.value<0&&!signedMetric))throw Error("Valor no válido.");
   if(!["total","per90","percentage","per_match"].includes(item.metric_unit))throw Error("Unidad no admitida.");
   if(item.metric_unit==="percentage"&&item.value>100)throw Error("Porcentaje fuera de rango.");
   const sameComp=r=>competitionKey(r.competition)===competitionKey(item.competition)
@@ -44,16 +45,20 @@ export function metricPlan(item,player,existing,teamLink={}) {
   if(!empty(old[key])&&Number(old[key])!==item.value)throw Error("Existe un valor distinto. No se sobrescribe.");
   const field=key==="value"?({"matches":"appearances","appearances":"appearances","minutes":"minutes","minutes played":"minutes","rating":"rating","fotmob rating":"rating"}[norm(item.metric_name)]):null;
   if(field&&target&&!empty(target[field])&&Number(target[field])!==item.value)throw Error("Existe un resumen distinto. No se sobrescribe.");
-  if(empty(old[key])) {
+  const pctKey=key==="per90"?"percentile_per90":"percentile";
+  const addPercentile=typeof item.percentile==="number"&&empty(old[pctKey]);
+  const metricChanged=empty(old[key])||addPercentile;
+  if(metricChanged) {
     const metric={...old,name:old.name||item.metric_name,[key]:item.value,
       source:old.source||item.source,verification_status:old.verification_status||"verified",
       ...(item.derivation&&!old.derivation?{derivation:item.derivation}:{}),
+      ...(typeof item.percentile==="number"&&empty(old[key==="per90"?"percentile_per90":"percentile"])?{[key==="per90"?"percentile_per90":"percentile"]:item.percentile}:{}),
       ...(key==="value"?{unit:item.metric_unit}:{})};
     if(idx<0)metrics.push(metric);else metrics[idx]=metric;
   }
   const summary=field&&empty(target?.[field])?{[field]:item.value}:{};
   if(target) {
-    const patch={...summary,...(empty(old[key])?{metrics}:{})};
+    const patch={...summary,...(metricChanged?{metrics}:{})};
     return {operation:Object.keys(patch).length?"update":"unchanged",target_id:target.id,record:patch};
   }
   if(!str(item.fotmob_tournament_id)||typeof item.is_national_team!=="boolean")throw Error("La primera importación requiere ID de competición y ámbito club/selección.");
@@ -131,7 +136,7 @@ export default async function(req) {
     const links=await allRows(db.PlayerFotmobLink,{player_id:item.player_id});
     const backlinks=await allRows(db.PlayerFotmobLink,{fotmob_player_id:item.fotmob_player_id});
     if(!links.length||!links.every(l=>str(l.fotmob_player_id)===str(item.fotmob_player_id))
-      ||!links.some(l=>["manual","verified","confirmed","automatic_exact_name_unique"].includes(str(l.verification)))
+      ||!links.some(l=>["manual","verified","confirmed","manual_confirmada","confirmada","automatic_exact_name_unique"].includes(str(l.verification)))
       ||backlinks.some(l=>str(l.player_id)!==item.player_id))return bad("La vinculación FotMob ya no es única y verificada.",409);
     if(item.kind==="metric") {
       const grouped=action.endsWith("-season");
@@ -192,4 +197,3 @@ export default async function(req) {
     return reply({ok:true,status:"applied"});
   } catch(e){console.error("import-review",e);return bad(e?.message||"Error interno.",500);}
 }
-
