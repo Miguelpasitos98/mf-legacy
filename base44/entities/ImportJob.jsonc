@@ -1,0 +1,94 @@
+{
+  "name": "ImportJob",
+  "type": "object",
+  "properties": {
+    "job_key": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "player_name": {
+      "type": "string"
+    },
+    "fotmob_player_id": {
+      "type": "string"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "review",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "default": "queued"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "progress": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "source_results": {
+      "type": "object"
+    },
+    "requested_at": {
+      "type": "string"
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "finished_at": {
+      "type": "string"
+    },
+    "last_error": {
+      "type": "string"
+    },
+    "worker_version": {
+      "type": "string"
+    },
+    "retry_count": {
+      "type": "integer",
+      "default": 0
+    }
+  },
+  "required": [
+    "job_key",
+    "player_id",
+    "sources",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
