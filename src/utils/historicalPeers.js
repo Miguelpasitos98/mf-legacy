@@ -2,7 +2,7 @@ import {advancedTotals} from "./statsAdvanced.js";
 // MF LEGACY — historical peer comparison, independent of FotMob percentile columns.
 // This module never writes data, and never uses external provider percentiles.
 // Population: one season per player, all club competitions, same current-position archetype.
-import { groupStatRows, nationalCompetition, minutesForDisplay } from "./statsViews.js";
+import { groupStatRows, nationalCompetition, minutesForDisplay, statNum } from "./statsViews.js";
 import { metricName, WEIGHTS_BY_ROLE, calculateCompositeMF } from "./compositeEngine.js";
 import {ballSecurityFromRecords} from "./ballSecurity.js";
 import {createPossessionLookup,possessionAdjustedDefActionsDetail} from "./teamPossession.js";
@@ -163,7 +163,7 @@ function teamMatchesLookup(matches=[]){
 const playShare=(records, lookup)=>{
   let mins=0,denominator=0;
   for(const r of records){
-    const m=minutesForDisplay(r).value,tm=safeTeamMatches(r,lookup);
+    const m=statNum(r.minutes),tm=safeTeamMatches(r,lookup);
     if(m===null||m<0||tm===null)continue;
     mins+=m;denominator+=tm*90;
   }
