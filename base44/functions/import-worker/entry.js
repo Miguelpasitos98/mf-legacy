@@ -90,20 +90,41 @@ export default async function(req) {
       const candidates=body.candidates;
       if(!Array.isArray(candidates)||candidates.length===0||candidates.length>25)return fail("Se permiten entre 1 y 25 candidatos.");
       const normalized=candidates.map(x=>validate(x,job));
-      let created=0,unchanged=0,conflict=0;
+      const rowsByKey=new Map();
       for(const item of normalized) {
         const keySource=[job.id,item.source,item.kind,item.season,item.competition,item.fotmob_team_id,item.metric_name,item.metric_unit,item.fifa_edition,item.as_of_date,item.source_record_id].join("|");
         const candidate_key="mfv3:"+job.id+":"+(await digest(keySource));
-        const old=rows(await db.ImportCandidate.filter({candidate_key},undefined,3));
-        if(old.length>1)throw Error("Candidatos duplicados; detener para revisar.");
-        if(old.length) {
-          if(old[0].value===item.value)unchanged++;
-          else {conflict++;await db.ImportCandidate.update(old[0].id,{verification_status:"conflict",review_note:"El proveedor ha enviado cifras contradictorias para la misma identidad. Revisar sin sobrescribir."});}
+        if(rowsByKey.has(candidate_key)) {
+          if(rowsByKey.get(candidate_key).value!==item.value)throw Error("Lote con valores contradictorios.");
           continue;
         }
-        await db.ImportCandidate.create({...item,candidate_key,job_id:job.id,player_id:job.player_id,
+        rowsByKey.set(candidate_key,{...item,candidate_key,job_id:job.id,player_id:job.player_id,
           fotmob_player_id:job.fotmob_player_id,review_status:"pending",received_at:new Date().toISOString()});
-        created++;
+      }
+      const received=rows(await db.ImportCandidate.filter({candidate_key:{$in:[...rowsByKey.keys()]}},undefined,100));
+      const originals=new Map();
+      for(const old of received) {
+        if(originals.has(old.candidate_key))throw Error("Candidatos duplicados almacenados: requiere revisión.");
+        originals.set(old.candidate_key,old);
+      }
+      let created=0,unchanged=0,conflict=0;
+      const fresh=[];
+      for(const [key,item] of rowsByKey) {
+        const existing=originals.get(key);
+        if(!existing)fresh.push(item);
+        else if(existing.value===item.value)unchanged++;
+        else {conflict++;await db.ImportCandidate.update(existing.id,{verification_status:"conflict",review_note:"El proveedor ha enviado cifras contradictorias; no se ha reemplazado el valor."});}
+      }
+      if(fresh.length) {
+        try {
+          await db.ImportCandidate.bulkCreate(fresh);
+        } catch(e) {
+          // A failed network response may hide a successful commit. Re-read
+          // identifiers and DO NOT replay unconfirmed bulk writes.
+          const check=rows(await db.ImportCandidate.filter({candidate_key:{$in:fresh.map(x=>x.candidate_key)}},undefined,100));
+          if(check.length!==fresh.length)throw Error("Lote no confirmado: revisar sin reintentar escrituras ambiguas. "+e.message);
+        }
+        created=fresh.length;
       }
       await db.ImportJob.update(job.id,{received_candidates:(job.received_candidates||0)+created,
         phase:"Recibidas "+created+" nuevas observaciones; pendientes de validación"});
