@@ -38,6 +38,8 @@ export default function HistoricalValuationsTable({
   fallbackPosition = "",
 }) {
   const [editing, setEditing] = useState(null);
+  const [inlineEdit,setInlineEdit]=useState(null);
+  const [inlineValue,setInlineValue]=useState("");
   const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
   const [savingId, setSavingId] = useState("");
@@ -70,6 +72,45 @@ export default function HistoricalValuationsTable({
     } finally {
       setSavingId("");
     }
+  };
+
+  const saveInline = async () => {
+    if(!inlineEdit||savingId)return;
+    const raw=inlineValue.trim().replace(",",".");
+    const n=Number(raw);
+    const overall=inlineEdit.field==="fifa_fc_overall";
+    if(!raw||!Number.isFinite(n)||
+      (overall&&(!Number.isInteger(n)||n<1||n>99))||
+      (!overall&&(n<0||n>1000))){
+      setError(overall?"Introduce un Overall entero de 1 a 99.":"Introduce el valor de Transfermarkt en millones de euros (por ejemplo, 4,5).");
+      return;
+    }
+    const value=overall?n:Math.round(n*1000000);
+    setSavingId(inlineEdit.id);setError("");
+    try{
+      const latest=await base44.entities.PlayerHistoricalValuation.get(inlineEdit.id);
+      if(!latest||String(latest.id)!==String(inlineEdit.id)||latest.season!==inlineEdit.season)
+        throw Error("La valoración ha cambiado o ya no existe. Actualiza la ficha.");
+      if(latest[inlineEdit.field]!==null&&latest[inlineEdit.field]!==undefined&&latest[inlineEdit.field]!=="")
+        throw Error("Este campo ya tiene un valor. Utiliza Editar para modificarlo.");
+      const patch={ [inlineEdit.field]:value,verification_status:"pending" };
+      if(!overall)patch.market_value_status="provisional";
+      await base44.entities.PlayerHistoricalValuation.update(inlineEdit.id,patch);
+      if(!patchHistoricalPeerCache(queryClient,"PlayerHistoricalValuation",inlineEdit.id,patch))
+        queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
+      setInlineEdit(null);setInlineValue("");
+      onRefresh?.();
+    }catch(e){setError(e?.message||"No se pudo guardar el valor.");}
+    finally{setSavingId("");}
+  };
+  const renderEmptyInput=(record,field,label)=>{
+    const active=inlineEdit?.id===record.id&&inlineEdit?.field===field;
+    if(!active)return <button type="button" disabled={!!savingId||busy} title={"Añadir "+label+" a "+record.season} onClick={()=>{setInlineEdit({id:record.id,season:record.season,field});setInlineValue("");setError("");}} className="whitespace-nowrap rounded border border-dashed border-blue-200 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-50">+ Añadir</button>;
+    return <div className="flex min-w-[130px] items-center gap-1">
+      <input type="text" inputMode="decimal" autoFocus aria-label={label+" de "+record.season} placeholder={field==="transfermarkt_value_eur"?"M€ (ej. 4,5)":"1–99"} value={inlineValue} disabled={!!savingId} onChange={e=>setInlineValue(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")void saveInline();if(e.key==="Escape"){setInlineEdit(null);setInlineValue("");}}} className="w-24 rounded border border-blue-300 px-2 py-1 text-xs"/>
+      <button type="button" onClick={()=>void saveInline()} disabled={!!savingId} className="rounded bg-blue-700 px-2 py-1 text-white" title="Guardar valor">✓</button>
+      <button type="button" onClick={()=>{setInlineEdit(null);setInlineValue("");}} disabled={!!savingId} className="rounded px-1 py-1 text-slate-500" title="Cancelar">×</button>
+    </div>;
   };
 
   const openEdit = (record) => {
@@ -149,12 +190,13 @@ export default function HistoricalValuationsTable({
             Valoraciones historicas
           </h3>
           <p className="mt-0.5 text-[11px] text-slate-500">
-            Una fila por temporada: Overall FIFA/FC, valor de Transfermarkt y la posicion historica que decide el arquetipo del Composite.
+            Una fila por temporada: pulsa + Añadir en Overall o Transfermarkt vacíos para introducir el dato directamente. Transfermarkt se introduce en M€ y queda pendiente de verificar.
           </p>
         </div>
         {loading && <Loader2 size={14} className="animate-spin text-slate-400" />}
       </div>
 
+      {error && <p role="alert" className="mb-3 rounded bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
       {valuations.length > 0 && (
         <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
@@ -199,10 +241,10 @@ export default function HistoricalValuationsTable({
                     {v.fifa_edition || "—"}
                   </td>
                   <td className="px-3 py-2 font-bold text-[#003399]">
-                    {v.fifa_fc_overall ?? "—"}
+                    {v.fifa_fc_overall === null || v.fifa_fc_overall === undefined || v.fifa_fc_overall === "" ? renderEmptyInput(v,"fifa_fc_overall","Overall FIFA/FC") : v.fifa_fc_overall}
                   </td>
                   <td className="px-3 py-2 font-semibold text-slate-700">
-                    {formatEur(v.transfermarkt_value_eur)}
+                    {v.transfermarkt_value_eur === null || v.transfermarkt_value_eur === undefined || v.transfermarkt_value_eur === "" ? renderEmptyInput(v,"transfermarkt_value_eur","Valor de Transfermarkt") : formatEur(v.transfermarkt_value_eur)}
                   </td>
                   <td className="px-3 py-2">
                     {normalizeHistoricalPosition(v.fifa_fc_position) ? (
