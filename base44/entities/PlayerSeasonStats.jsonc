@@ -64,7 +64,9 @@
             "type": "number"
           },
           "percentile": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
           },
           "source": {
             "type": "string"
@@ -87,6 +89,11 @@
           },
           "derivation": {
             "type": "string"
+          },
+          "percentile_per90": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
           }
         }
       }
