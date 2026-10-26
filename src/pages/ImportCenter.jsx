@@ -17,6 +17,7 @@ export default function ImportCenter(){
   const [links,setLinks]=useState([]);
   const [jobs,setJobs]=useState([]);
   const [candidateRows,setCandidateRows]=useState([]);
+  const [preview,setPreview]=useState(null);
   const [selectedJob,setSelectedJob]=useState("");
   const [selection,setSelection]=useState("");
   const [selectedPlayer,setSelectedPlayer]=useState(null);
@@ -37,8 +38,12 @@ export default function ImportCenter(){
       const result=await base44.entities.ImportJob.list("-created_date",100);
       setJobs(responseRows(result));setLoaded(true);
       if(selectedJob){
-        const candidates=await base44.entities.ImportCandidate.filter({job_id:selectedJob},"-received_at",500);
-        setCandidateRows(responseRows(candidates));
+        const candidates=[];
+        for(let skip=0;skip<10000;skip+=100){
+          const page=responseRows(await base44.entities.ImportCandidate.filter({job_id:selectedJob},"id",100,skip));
+          candidates.push(...page);if(page.length<100)break;
+        }
+        setCandidateRows(candidates);
       }
     }catch(e){setError(reason(e));setLoaded(true);}
   },[selectedJob]);
@@ -52,6 +57,7 @@ export default function ImportCenter(){
     const timer=setInterval(()=>{if(document.visibilityState==="visible")refresh();},15000);
     return ()=>clearInterval(timer);
   },[refresh]);
+  useEffect(()=>{setCandidateRows([]);setPreview(null);setReviewedGroups({});},[selectedJob]);
   useEffect(()=>{
     setLinks([]);
     if(!selection)return;
@@ -156,7 +162,8 @@ export default function ImportCenter(){
   const review=async(action,candidate_id)=>{
     setBusy(true);setError("");setNotice("");
     try{
-      await base44.functions.invoke("import-review",{action,candidate_id});
+      const result=await base44.functions.invoke("import-review",{action,candidate_id});
+      if(action==="preview"||action==="preview-season"){setPreview(result.data);return;}
       setNotice(action==="approve"?"Candidato incorporado sin reemplazar valores existentes.":action==="verify"?"Se ha registrado tu verificación de la fuente. Ya puedes aplicar el dato.":"Candidato descartado.");
       await refresh();
     }catch(e){setError(reason(e));}
@@ -242,6 +249,14 @@ export default function ImportCenter(){
       <p className="text-xs text-slate-500 my-2">Para crear una primera temporada, comprueba la fuente y aprueba el lote de esa competición. Para valores individuales FIFA/mercado conserva la revisión específica. Los datos anteriores nunca se sobrescriben.</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 my-3">{(selectedJobData.sources||[]).map(s=><div key={s} className="border border-slate-200 rounded-md p-2 text-sm"><strong>{SOURCES.find(x=>x.id===s)?.label||s}:</strong> {selectedJobData.source_results?.[s]?.status==="complete"?"Datos recibidos":selectedJobData.source_results?.[s]?.status==="error"?"Error":selectedJobData.source_results?.[s]?.status==="unavailable"?"Sin datos archivados disponibles":"Pendiente"}<div className="text-xs text-slate-500">{selectedJobData.source_results?.[s]?.note||""}</div></div>)}</div>
       {selectedJobData.worker_version==="base44-cache-v1"&&selectedJobData.status==="completed"&&(selectedJobData.received_candidates||0)===0&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 my-3 text-sm"><strong>El análisis de caché ha finalizado, pero no había datos previos.</strong><p>Para este jugador selecciona «Solicitar datos NUEVOS desde Studio (PC)» tras arrancar el trabajador local. No necesitas importar un JSON manualmente.</p></div>}
+      {(selectedJobData.sources||[]).map(s=>(selectedJobData.source_results?.[s]?.diagnostics||[]).length>0&&<details key={s} className="my-3 border rounded p-2 text-sm"><summary>Diagnóstico por temporada · {s}</summary>
+        {(selectedJobData.source_results[s].diagnostics||[]).map((d,i)=><div key={i} className="border-t py-2">
+          <strong>{d.season} · {d.competition}</strong> · {d.team_name||"Equipo pendiente"}
+          <div>{({cache_absent:"Caché ausente",no_statistics:"Sin estadísticas disponibles",incompatible_response:"Respuesta incompatible",team_unidentified:"Equipo no identificado · pendiente de conciliación",competition_unidentified:"Competición no identificada",pending_review:"Estadísticas recuperadas · pendientes de revisión",candidate_limit:"Pendiente por límite de candidatos",pending_reconciliation:"Estadísticas pendientes de conciliación"})[d.status]||d.status} · {d.recovered_metrics||0} métricas</div>
+          <div className="text-slate-500">{d.reason}</div>
+        </div>)}
+      </details>)}
+      {preview&&<div className="my-3 border rounded p-3 text-sm"><strong>Escritura propuesta · {preview.plan?.operation}</strong><pre className="overflow-auto max-h-80 text-xs">{JSON.stringify(preview.plan||preview.candidate,null,2)}</pre><button className="underline" onClick={()=>setPreview(null)}>Cerrar vista previa</button></div>}
       {seasonGroups.length>0&&<section className="mt-4 space-y-3" aria-label="Primeras temporadas disponibles">
         <h3 className="font-semibold text-[#003399]">Temporadas detectadas · Revisión por lote</h3>
         <p className="text-xs text-slate-600">Revisa cada temporada y su perfil original antes de aprobarla. Se crearán las competiciones ausentes o se rellenarán únicamente métricas vacías; nunca se reemplazarán cifras existentes.</p>
@@ -257,6 +272,7 @@ export default function ImportCenter(){
               </div>
               <p className="text-xs text-slate-500">FotMob equipo: {group.teamId||"ID desconocido"}</p>
               {evidence&&<a href={evidence} rel="noopener noreferrer" target="_blank" className="text-xs text-[#003399] underline">Revisar evidencia original</a>}
+              <button disabled={busy} onClick={()=>review("preview-season",group.items.find(c=>c.review_status==="pending")?.id||group.items[0].id)} className="text-xs underline">Ver escritura propuesta de esta temporada</button>
               <details className="border rounded-md px-3 py-2">
                 <summary className="cursor-pointer text-xs font-semibold">Ver las {group.items.length} observaciones y valores</summary>
                 <div className="mt-2 text-xs space-y-1 max-h-56 overflow-y-auto">
@@ -289,12 +305,12 @@ export default function ImportCenter(){
         <summary className="cursor-pointer text-sm font-semibold text-slate-700">Revisión individual de los {candidateRows.length} valores y candidatos FIFA/mercado</summary>
       <div className="space-y-2 mt-3">{candidateRows.map(c=><div key={c.id} className="flex flex-wrap gap-3 items-center justify-between border rounded-lg p-3">
         <div className="text-sm"><strong>{c.kind==="metric"?c.metric_name:c.kind==="overall"?"Overall FIFA/FC":"Valor de mercado"}</strong> · {c.value} {c.metric_unit||""}
-          <div className="text-xs text-slate-500">{c.source} · {c.season} · {c.competition||c.fifa_edition||c.as_of_date||""}</div>
+          <div className="text-xs text-slate-500">{c.source} · {c.season} · {c.competition||c.fifa_edition||c.as_of_date||""} · {c.team_name||""}</div>
           <div className="text-xs text-slate-500">Evidencia: {c.verification_status} · {c.review_status}</div>
           {c.evidence_url&&<a className="text-xs text-blue-800 underline" href={c.evidence_url} target="_blank" rel="noopener noreferrer">Consultar fuente</a>}
         </div>
         {c.review_status==="pending"&&<div className="flex items-center gap-3 text-sm">
-          {c.verification_status!=="verified"&&c.evidence_url&&<button disabled={busy||coordinator!=="ready"} onClick={()=>review("verify",c.id)} className="text-amber-800 underline">He verificado la fuente</button>}
+          {c.verification_status!=="verified"&&c.verification_status!=="conflict"&&c.evidence_url&&<button disabled={busy||coordinator!=="ready"} onClick={()=>review("verify",c.id)} className="text-amber-800 underline">He verificado la fuente</button>}
           <button disabled={busy||coordinator!=="ready"||c.verification_status!=="verified"} onClick={()=>review("approve",c.id)} className="text-[#003399] underline disabled:opacity-30">Aplicar</button>
           <button disabled={busy||coordinator!=="ready"} onClick={()=>review("reject",c.id)} className="text-red-700 underline">Descartar</button>
         </div>}
