@@ -29,7 +29,8 @@ test("inconsistent repeated source labels are not silently merged",()=>{
 test("does not convert missing or invalid stats into zero",()=>{
  assert.equal(parseNumber(null),null);assert.equal(parseNumber(""),null);
  assert.equal(parseNumber("not available"),null);
- assert.equal(parseNumber("1,200"),1.2);
+ assert.equal(parseNumber("1,200"),null); // Locale-dependent thousands/decimal ambiguity
+ assert.equal(parseNumber("1,25"),1.25);
  const m=readMetrics({statsSection:{items:[{localizedTitleId:"clearances",title:"Clearances",statValue:null},{localizedTitleId:"interceptions",title:"Interceptions",statValue:"0"}]}},"fotmob");
  assert.equal(m.metrics.length,1);
  assert.equal(m.metrics[0].value,0);
