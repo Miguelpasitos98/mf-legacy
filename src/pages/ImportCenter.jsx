@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-react";
@@ -12,7 +12,8 @@ const responseRows=r=>Array.isArray(r)?r:r?.items||r?.data||r?.entities||[];
 
 export default function ImportCenter(){
   const [players,setPlayers]=useState([]);
-  const [canLoadMore,setCanLoadMore]=useState(true);
+  const [searching,setSearching]=useState(false);
+  const [searchOpen,setSearchOpen]=useState(false);
   const [links,setLinks]=useState([]);
   const [jobs,setJobs]=useState([]);
   const [candidateRows,setCandidateRows]=useState([]);
@@ -36,15 +37,7 @@ export default function ImportCenter(){
       }
     }catch(e){setError(reason(e));setLoaded(true);}
   },[selectedJob]);
-  const loadPlayers=async(skip=0)=>{
-    try{
-      const result=responseRows(await base44.entities.Player.list("-created_date",500,skip,["id","name"]));
-      setPlayers(prev=>skip===0?result:[...prev,...result.filter(p=>!prev.some(x=>x.id===p.id))]);
-      setCanLoadMore(result.length===500);
-    }catch(e){setError(reason(e));}
-  };
   useEffect(()=>{
-    loadPlayers(0);
     base44.functions.invoke("import-control",{action:"health"})
       .then(resp=>setCoordinator(resp.data?.ok?"ready":"unavailable"))
       .catch(()=>setCoordinator("unavailable"));
@@ -63,7 +56,25 @@ export default function ImportCenter(){
       .catch(e=>{if(live)setError(reason(e));});
     return ()=>{live=false;};
   },[selection]);
-  const candidates=useMemo(()=>players.filter(p=>(p.name||"").toLocaleLowerCase().includes(search.toLocaleLowerCase())).slice(0,70),[players,search]);
+  useEffect(()=>{
+    const term=search.trim();
+    if(term.length<2){setPlayers([]);setSearching(false);return;}
+    let cancelled=false;
+    setSearching(true);
+    const timer=setTimeout(async()=>{
+      try{
+        // Server-side search: works beyond the first 500 players.
+        // Accent-tolerant for the most common Spanish/European names.
+        const safe=term.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+        const accents={a:"[aáàäâãå]",e:"[eéèëê]",i:"[iíìïî]",o:"[oóòöôõ]",u:"[uúùüû]",n:"[nñ]",c:"[cç]"};
+        const pattern=[...safe].map(ch=>accents[ch.toLowerCase()]||ch).join("");
+        const result=responseRows(await base44.entities.Player.filter({name:{$regex:pattern,$options:"i"}},"name",30));
+        if(!cancelled)setPlayers(result);
+      }catch(e){if(!cancelled){setError(reason(e));setPlayers([]);}}
+      finally{if(!cancelled)setSearching(false);}
+    },300);
+    return ()=>{cancelled=true;clearTimeout(timer);};
+  },[search]);
   const player=players.find(p=>p.id===selection);
   const candidateIds=[...new Set(links.map(l=>String(l.fotmob_player_id||"")).filter(Boolean))];
   const fotmob=candidateIds.length===1?candidateIds[0]:"";
@@ -99,12 +110,16 @@ export default function ImportCenter(){
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
         <h2 className="font-semibold text-lg">Nueva importación</h2>
-        <div className="relative"><Search size={16} className="absolute top-3 left-3 text-slate-400"/><input value={search} onChange={e=>{setSearch(e.target.value);setSelection("");}} placeholder="Buscar jugador..." className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2"/></div>
-        <select aria-label="Jugador" value={selection} onChange={e=>setSelection(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2">
-          <option value="">Seleccionar jugador existente</option>
-          {candidates.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        {canLoadMore&&<button className="text-sm text-[#003399] underline" onClick={()=>loadPlayers(players.length)}>Cargar más jugadores</button>}
+        <div className="relative">
+          <Search size={16} className="absolute top-3 left-3 text-slate-400"/>
+          <input aria-label="Buscar jugador por nombre" autoComplete="off" value={search} onChange={e=>{setSearch(e.target.value);setSelection("");setLinks([]);setSearchOpen(true);}} onFocus={()=>setSearchOpen(true)} placeholder="Escribe el nombre del jugador (ej. Rüdiger)..." className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2"/>
+          {search.trim().length>=2&&searchOpen&&<div role="listbox" aria-label="Resultados de jugadores" className="absolute z-30 top-full mt-1 w-full max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
+            {searching?<div className="p-3 text-sm text-slate-500">Buscando en todos los jugadores…</div>:
+            players.length?players.map(p=><button role="option" aria-selected={p.id===selection} key={p.id} type="button" onClick={()=>{setSelection(p.id);setSearch(p.name);setSearchOpen(false);}} className="block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 focus:bg-blue-50">{p.name}</button>):
+            <div className="p-3 text-sm text-slate-500">No se encontraron jugadores.</div>}
+          </div>}
+        </div>
+        {selection&&player&&<div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm"><strong>Seleccionado: {player.name}</strong><button type="button" onClick={()=>{setSelection("");setSearch("");setLinks([]);}} className="ml-3 text-blue-800 underline">Cambiar</button></div>}
         {selection&&<p className="text-sm text-slate-600">FotMob: <strong>{fotmob||"Sin vínculo único"}</strong>{linked?" · Vinculación registrada":" · Requiere revisión"}</p>}
         <h3 className="font-semibold text-sm">Fuentes</h3>
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
