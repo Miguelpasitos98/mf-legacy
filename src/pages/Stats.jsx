@@ -588,13 +588,21 @@ export default function Stats(){
     setPage(0);
   };
   const sortOptions=useMemo(()=>{
-    const list=[];
-    if(!["composite","rating","goals","assists","xg","xa","tackles","minutes","appearances","gaper90","xgaper90"].includes(sort))
-      list.push({value:sort,label:getColumn(columnConfig,sort)?.name||sort});
-    if(viewMode==="season")list.push({value:"composite",label:"Composite MF LEGACY"});
-    list.push({value:"rating",label:"Nota FotMob"},{value:"goals",label:"Goles"},{value:"assists",label:"Asistencias"},{value:"xg",label:"xG"},{value:"xa",label:"xA"},{value:"tackles",label:"Entradas"});
-    if(viewMode==="season")list.push({value:"minutes",label:"Minutos"},{value:"appearances",label:"Partidos"},{value:"gaper90",label:"G+A /90"},{value:"xgaper90",label:"xG+xA /90"});
-    return list;
+    // All supported raw and computed metrics, even when their columns are hidden.
+    const raw=RAW_METRICS.map(([value,label])=>({value,label:columnConfig.labels?.[value]||label,group:"Datos FotMob / temporada"}));
+    const computed=(columnConfig.computed||[]).map(({id,name})=>({value:id,label:name,group:"Indicadores calculados /90 y porcentajes"}));
+    const all=[
+      ...(viewMode==="season"?[{value:"composite",label:"Composite MF LEGACY",group:"Valoraciones"}]:[]),
+      ...raw,...computed,
+      {value:"player",label:"Jugador (nombre)",group:"Identificación"},
+      {value:"season",label:"Temporada",group:"Identificación"},
+      {value:"club",label:"Club",group:"Identificación"},
+      ...(viewMode==="competition"?[{value:"competition",label:"Competición",group:"Identificación"}]:[])
+    ];
+    const unique=new Map();
+    for(const item of all)if(!unique.has(item.value))unique.set(item.value,item);
+    if(!unique.has(sort))unique.set(sort,{value:sort,label:getColumn(columnConfig,sort)?.name||sort,group:"Actual"});
+    return [...unique.values()];
   },[sort,viewMode,columnConfig]);
   const bestOptions=useMemo(()=>[{value:"composite",label:"Composite MF LEGACY"},...bestCriteria.map(c=>({value:c.id,label:c.name}))],[bestCriteria]);
   const runBulkDelete=async kind=>{
