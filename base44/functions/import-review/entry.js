@@ -31,6 +31,7 @@ export function metricPlan(item,player,existing,teamLink={}) {
     ||norm(r.team_name)===norm(item.team_name)||(!str(r.fotmob_team_id)&&!str(r.team_name))));
   if(matches.length>1)throw Error("Hay varias filas para la misma temporada, club y competición.");
   const target=matches[0];
+  if(!target&&existing.some(r=>sameComp(r)&&!str(r.fotmob_team_id)))throw Error("Existe una fila de esta competición con equipo sin ID FotMob; concilia la identidad antes de crear otra.");
   if(target&&str(target.fotmob_team_id)&&str(target.fotmob_team_id)!==str(item.fotmob_team_id))throw Error("El nombre coincide pero el ID de equipo es distinto.");
   if(target&&str(target.fotmob_player_id)&&str(target.fotmob_player_id)!==str(item.fotmob_player_id))throw Error("La fila pertenece a otro ID FotMob.");
   if(target&&str(target.fotmob_tournament_id)&&str(item.fotmob_tournament_id)&&str(target.fotmob_tournament_id)!==str(item.fotmob_tournament_id))throw Error("Competiciones homónimas con distinto ID oficial.");
@@ -176,7 +177,7 @@ export default async function(req) {
           {$set:{review_status:"applied",verification_status:"verified",review_note:"Temporada aprobada; se completaron únicamente campos vacíos"}});
         await conclude(db,job);
         return reply({ok:true,status:"applied",operation:plan.operation,candidates:group.length,
-          season_id:plan.target_id,created_season:plan.operation==="create",new_metrics:plan.operation==="unchanged"?0:group.filter(c=>c.review_status==="pending").length});
+          season_id:plan.target_id,created_season:plan.operation==="create",new_metrics:plan.operation==="unchanged"?0:pending.length});
       }
     } else if(item.kind==="overall"||item.kind==="market_value") {
       if(action==="preview")return reply({ok:true,candidate:item,can_apply:item.verification_status==="verified"});
@@ -200,4 +201,3 @@ export default async function(req) {
     return reply({ok:true,status:"applied"});
   } catch(e){console.error("import-review",e);return bad(e?.message||"Error interno.",500);}
 }
-
