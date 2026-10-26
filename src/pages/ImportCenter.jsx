@@ -194,8 +194,13 @@ export default function ImportCenter(){
             maxLength={120} placeholder="Nombre oficial del futbolista" className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 font-normal"/>
         </label>
         <label className="text-sm font-medium">ID de FotMob
-          <input value={newFotmobId} onChange={e=>{setNewFotmobId(e.target.value.replace(/[^0-9]/g,""));setNewIdentityConfirmed(false);}}
-            maxLength={15} inputMode="numeric" placeholder="ID numérico del perfil de FotMob" className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 font-normal"/>
+          <input value={newFotmobId} onChange={e=>{
+            const value=e.target.value.trim();
+            const fromUrl=/^https:\/\/(?:www\.)?fotmob\.com\/players\/(\d{1,15})(?:[/?#]|$)/i.exec(value);
+            setNewFotmobId(fromUrl?fromUrl[1]:value.replace(/[^0-9]/g,"").slice(0,15));
+            setNewIdentityConfirmed(false);
+          }}
+            maxLength={300} placeholder="ID numérico o pega la URL de FotMob" className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 font-normal"/>
         </label>
       </div>
       {/^\d{1,15}$/.test(newFotmobId)&&<a className="inline-block text-sm text-[#003399] underline"
