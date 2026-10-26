@@ -258,7 +258,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             </nav>
             <button type="button" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-blue-100 hover:bg-white/10" onClick={onClose} aria-label="Cerrar informe"><X size={20}/></button>
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-blue-300/20 pt-3" aria-label="Herramientas de datos históricos">
+          <details className="mt-2 border-t border-blue-300/20 pt-2" aria-label="Herramientas de datos históricos"><summary className="w-fit cursor-pointer rounded border border-blue-400/40 px-2 py-1 text-[11px] font-semibold text-blue-100">Herramientas de datos históricos ▾ {historicalLoading?"":missingMarket.length?`("+"${missingMarket.length}+" valores pendientes")":""}</summary><div className="mt-2 flex flex-wrap items-center gap-2">
             <button type="button" onClick={copyMissingMarket} disabled={historicalLoading||!missingMarket.length}
               className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-50"
               title="Investigar solo las temporadas sin valor Transfermarkt"><Copy size={14} className="shrink-0"/> Completar valores ausentes <span className="rounded bg-emerald-200/70 px-1.5 py-0.5 tabular-nums">{historicalLoading?"…":missingMarket.length}</span></button>
@@ -274,9 +274,9 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
               {player&&<button type="button" onClick={()=>onPlayer(player.id)}
                 className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-blue-400/50 px-3 py-2 text-xs font-bold hover:bg-white/10">PLAYERS <ArrowRight size={14}/></button>}
             </div>
-          </div>
+          </div></details>
         </header>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+        <div className={"flex-1 overflow-y-auto "+(section==="craftedfc"?"p-2 sm:p-3":"p-4 sm:p-5")}>
           {copySeasonsStatus&&<p role="status" className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-900">{copySeasonsStatus}</p>}
           <div className="mb-4 flex flex-wrap items-end gap-3">
             <label className="text-xs font-bold text-slate-500">Temporada
