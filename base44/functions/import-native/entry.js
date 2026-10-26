@@ -97,9 +97,9 @@ export default async function(req){
   const time=new Date().toISOString(),sources=[...new Set(normalized.map(r=>r.provider))];
   const job=await db.ImportJob.create({
    job_key:"mfv3:native:"+playerId+":"+crypto.randomUUID(),player_id:playerId,player_name:player.name,
-   fotmob_player_id:pid,sources,status:fresh.length?"review":"completed",progress:100,
+   fotmob_player_id:pid,sources,status:fresh.length||changed.length?"review":"completed",progress:100,
    requested_at:time,started_at:time,finished_at:time,worker_version:"base44-web-native-v1",
-   phase:fresh.length?"Temporadas nuevas esperando revisión":"Ninguna temporada nueva; posible revisión de conflictos",
+   phase:fresh.length?"Temporadas nuevas esperando revisión":changed.length?"Cambios en los datos de origen: revisar conflictos":"Sin nuevas temporadas disponibles",
    source_results:Object.fromEntries(sources.map(s=>[s,{status:"complete",note:"Estructura normalizada y guardada como candidata"}])),
    received_candidates:fresh.length
   });
