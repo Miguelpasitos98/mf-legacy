@@ -50,10 +50,6 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
  const pageRows=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0).slice(page*50,(page+1)*50);
  const pageSelectable=pageRows.filter(({summary})=>summary).map(({summary})=>summary.id);
  return <div>
-  <div className="flex flex-wrap justify-between gap-2 border-b border-slate-100 px-3 py-2 text-[11px] text-slate-600">
-   <span>Composite MF LEGACY: mismo cálculo por arquetipo que en el desglose. Posiciones con * = respaldo provisional.</span>
-   <span>{peerLoading?"Calculando Composite…":peerError?"Comparación previa en caché · revisar sincronización":compositeBySeason.size?"Composite actualizado":"Pendiente"}</span>
-  </div>
   <div className="max-w-full overflow-x-auto">
    <table className="w-full min-w-[900px] text-left text-[11px]">
     <thead className="bg-[#003399] text-white"><tr>
