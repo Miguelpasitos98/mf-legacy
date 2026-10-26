@@ -9,7 +9,7 @@ export function alignedFormulaInputs(records,variables){
   const values={};
   let valid=true;
   for(const id of ids){
-   const n=id==="rating"?statNum(row.rating):metricsValue(row,id);
+   const n=id==="rating"||id==="minutes"?statNum(row[id]):metricsValue(row,id);
    if(n===null||!Number.isFinite(n)){valid=false;break;}
    if((id==="minutes"||id==="team_matches")&&n<=0){valid=false;break;}
    values[id]=n;
