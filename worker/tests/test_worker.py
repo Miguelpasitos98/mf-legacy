@@ -113,6 +113,7 @@ class WorkerContractTests(unittest.TestCase):
                 "career":[{"season":"2024/2025","fotmob_team_id":"100","team_name":"Club A"},
                           {"season":"2023/2024","fotmob_team_id":"100","team_name":"Club A"}]}
             resolver.resolve_career_team.return_value=("", "", "unknown", [])
+            client.fetch_profile.return_value={"id":309328}
             client.fetch_stats.return_value={"statsSection":{"items":[]}}
             client.save_json.side_effect=lambda p,d:p.write_text(json.dumps(d))
             profile.extract_stat_details.return_value={"conflicts":[],"metrics":[{"name":"Clearances","value":5}]}
