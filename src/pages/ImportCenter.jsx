@@ -27,6 +27,8 @@ export default function ImportCenter(){
   const [newPlayerName,setNewPlayerName]=useState("");
   const [newFotmobId,setNewFotmobId]=useState("");
   const [newIdentityConfirmed,setNewIdentityConfirmed]=useState(false);
+  const [homonymConfirmed,setHomonymConfirmed]=useState(false);
+  const [homonymMatches,setHomonymMatches]=useState([]);
   const [reviewedGroups,setReviewedGroups]=useState({});
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
@@ -112,17 +114,23 @@ export default function ImportCenter(){
     try{
       const resp=await base44.functions.invoke("import-control",{
         action:"create-and-start",player_name:name,fotmob_player_id:pid,
-        sources:selectedSources,confirmed:true
+        sources:selectedSources,confirmed:true,confirm_homonym:homonymConfirmed
       });
       const result=resp?.data||{};
       if(!result.ok||!result.player?.id||!result.job?.id)throw Error(result.error||"El servidor no confirmó la nueva ficha.");
       setSelectedJob(result.job.id);setCandidateRows([]);
       setSelection(result.player.id);setSelectedPlayer(result.player);setSearch(result.player.name);
       setNewPlayerName("");setNewFotmobId("");setNewIdentityConfirmed(false);
+      setHomonymConfirmed(false);setHomonymMatches([]);
       setNotice("Jugador nuevo creado con identidad FotMob confirmada y trabajo en cola. El PC recopilará sus observaciones y podrás aprobar las primeras temporadas.");
       const all=await base44.entities.ImportJob.list("-created_date",100);
       setJobs(responseRows(all));
-    }catch(e){setError(reason(e));}
+    }catch(e){
+      if(e?.response?.data?.requires_homonym_confirmation){
+        setHomonymMatches(e.response.data.matches||[]);setHomonymConfirmed(false);
+      }
+      setError(reason(e));
+    }
     finally{setBusy(false);}
   };
   const approveSeason=async(group)=>{
