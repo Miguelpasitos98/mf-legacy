@@ -24,6 +24,10 @@ export default function ImportCenter(){
   const [selectedSources,setSelectedSources]=useState(SOURCES.map(x=>x.id));
   const [fotmobDraft,setFotmobDraft]=useState("");
   const [identityConfirmed,setIdentityConfirmed]=useState(false);
+  const [newPlayerName,setNewPlayerName]=useState("");
+  const [newFotmobId,setNewFotmobId]=useState("");
+  const [newIdentityConfirmed,setNewIdentityConfirmed]=useState(false);
+  const [reviewedGroups,setReviewedGroups]=useState({});
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
@@ -35,7 +39,7 @@ export default function ImportCenter(){
       const result=await base44.entities.ImportJob.list("-created_date",100);
       setJobs(responseRows(result));setLoaded(true);
       if(selectedJob){
-        const candidates=await base44.entities.ImportCandidate.filter({job_id:selectedJob},"-received_at",200);
+        const candidates=await base44.entities.ImportCandidate.filter({job_id:selectedJob},"-received_at",500);
         setCandidateRows(responseRows(candidates));
       }
     }catch(e){setError(reason(e));setLoaded(true);}
@@ -85,6 +89,12 @@ export default function ImportCenter(){
   const linked=links.some(l=>["confirmed","verified","manual","automatic_exact_name_unique"].includes(String(l.verification||"").toLowerCase()))&&Boolean(fotmob);
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
+  const seasonGroups=Object.values(candidateRows.filter(c=>c.kind==="metric").reduce((acc,c)=>{
+    const k=[c.source,c.season,c.competition,c.fotmob_team_id].join("|");
+    if(!acc[k])acc[k]={key:k,source:c.source,season:c.season,competition:c.competition,
+      team:c.team_name,teamId:c.fotmob_team_id,items:[]};
+    acc[k].items.push(c);return acc;
+  },{})).sort((x,y)=>y.season.localeCompare(x.season)||x.team.localeCompare(y.team));
   const operate=async(action,payload)=>{
     setBusy(true);setError("");setNotice("");
     try{
@@ -94,6 +104,42 @@ export default function ImportCenter(){
       await refresh();
     }catch(e){setError(reason(e));}
     finally{setBusy(false);}
+  };
+  const createNewPlayer=async()=>{
+    const name=newPlayerName.trim(),pid=newFotmobId.trim();
+    if(!name||!/^\d{1,15}$/.test(pid)||!newIdentityConfirmed||!selectedSources.length)return;
+    setBusy(true);setError("");setNotice("");
+    try{
+      const resp=await base44.functions.invoke("import-control",{
+        action:"create-and-start",player_name:name,fotmob_player_id:pid,
+        sources:selectedSources,confirmed:true
+      });
+      const result=resp?.data||{};
+      if(!result.ok||!result.player?.id||!result.job?.id)throw Error(result.error||"El servidor no confirmó la nueva ficha.");
+      setSelectedJob(result.job.id);setCandidateRows([]);
+      setSelection(result.player.id);setSelectedPlayer(result.player);setSearch(result.player.name);
+      setNewPlayerName("");setNewFotmobId("");setNewIdentityConfirmed(false);
+      setNotice("Jugador nuevo creado con identidad FotMob confirmada y trabajo en cola. El PC recopilará sus observaciones y podrás aprobar las primeras temporadas.");
+      const all=await base44.entities.ImportJob.list("-created_date",100);
+      setJobs(responseRows(all));
+    }catch(e){setError(reason(e));}
+    finally{setBusy(false);}
+  };
+  const approveSeason=async(group)=>{
+    if(!reviewedGroups[group.key]||busy)return;
+    const first=group.items.find(c=>c.review_status==="pending");
+    if(!first)return;
+    setBusy(true);setError("");setNotice("");
+    try{
+      const r=await base44.functions.invoke("import-review",{
+        action:"approve-season",candidate_id:first.id,confirm_source_reviewed:true
+      });
+      if(!r?.data?.ok)throw Error(r?.data?.error||"No se pudo aprobar la temporada");
+      setNotice((r.data.created_season?"Nueva temporada creada en STATS. ":"Temporada existente completada. ")+
+        (r.data.new_metrics||0)+" métricas incorporadas; los datos anteriores se han conservado.");
+      setReviewedGroups(v=>({...v,[group.key]:false}));
+      await refresh();
+    }catch(e){setError(reason(e));}finally{setBusy(false);}
   };
   const linkManually=async()=>{
     if(!player||!/^[0-9]{1,15}$/.test(fotmobDraft)||!identityConfirmed)return;
