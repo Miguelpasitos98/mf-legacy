@@ -64,7 +64,7 @@ export default async function(req) {
     const db=client.asServiceRole.entities;
     const action=str(body.action);
     if(action==="claim") {
-      const waiting=rows(await db.ImportJob.filter({status:"queued"},{limit:10}));
+      const waiting=rows(await db.ImportJob.filter({status:"queued"},undefined,10));
       const job=waiting.sort((a,b)=>str(a.requested_at).localeCompare(str(b.requested_at)))[0];
       if(!job)return reply({ok:true,job:null});
       const claimId=crypto.randomUUID(),now=new Date();
@@ -94,7 +94,7 @@ export default async function(req) {
       for(const item of normalized) {
         const keySource=[job.id,item.source,item.kind,item.season,item.competition,item.fotmob_team_id,item.metric_name,item.metric_unit,item.fifa_edition,item.as_of_date,item.source_record_id].join("|");
         const candidate_key="mfv3:"+job.id+":"+(await digest(keySource));
-        const old=rows(await db.ImportCandidate.filter({candidate_key},{limit:3}));
+        const old=rows(await db.ImportCandidate.filter({candidate_key},undefined,3));
         if(old.length>1)throw Error("Candidatos duplicados; detener para revisar.");
         if(old.length) {
           if(old[0].value===item.value)unchanged++;
@@ -117,7 +117,7 @@ export default async function(req) {
         source_results[s]={status:["complete","unavailable","error","skipped"].includes(v.status)?v.status:"unavailable",
           note:str(v.note).slice(0,300)};
       }
-      const counts=rows(await db.ImportCandidate.filter({job_id:job.id},{limit:500})).length;
+      const counts=rows(await db.ImportCandidate.filter({job_id:job.id},undefined,500)).length;
       await db.ImportJob.update(job.id,{status:counts?"review":"completed",phase:counts?"Datos recibidos; revisar candidatos":"Sin nuevos datos verificables",progress:100,
         source_results,received_candidates:counts,finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
       return reply({ok:true,status:counts?"review":"completed",candidates:counts});
