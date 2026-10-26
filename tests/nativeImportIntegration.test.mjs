@@ -41,7 +41,7 @@ const api={
     const original=byType[name].find(x=>x.id===id);Object.assign(original,patch);return original;
    }
   }]))
- }};
+ }}};
 globalThis.__mfNativeTestApi=api;
 function reset(){
  seq=1;auth={role:"admin"};for(const key of Object.keys(byType))byType[key].length=0;
