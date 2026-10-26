@@ -51,7 +51,8 @@
       "enum": [
         "total",
         "per90",
-        "percentage"
+        "percentage",
+        "per_match"
       ]
     },
     "value": {
@@ -95,6 +96,15 @@
       "type": "string"
     },
     "received_at": {
+      "type": "string"
+    },
+    "fotmob_tournament_id": {
+      "type": "string"
+    },
+    "is_national_team": {
+      "type": "boolean"
+    },
+    "derivation": {
       "type": "string"
     }
   },
