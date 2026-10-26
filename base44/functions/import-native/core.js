@@ -15,6 +15,8 @@ export function parseNumber(value) {
  if(typeof value!=="string")return null;
  const s=value.trim().replace(/\u00a0/g," ").replace(/%$/,"").trim();
  if(!s||!/^[-+]?\d+(?:[.,]\d+)?$/.test(s))return null;
+ // A comma/dot and three trailing digits may denote thousands rather than a decimal.
+ if(/^\d{1,3}[,.]\d{3}$/.test(s))return null;
  const v=Number(s.replace(",","."));
  return Number.isFinite(v)?v:null;
 }
