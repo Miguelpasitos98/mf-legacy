@@ -771,6 +771,8 @@ export default function Stats(){
         sort={sort}
         sortOptions={sortOptions}
         onSort={changeSort}
+        refreshing={busy||peerLoading}
+        onRefresh={()=>{refreshStats();queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});}}
         minMinutes={minMinutes}
         onMinMinutes={value=>{setMinMinutes(value);setPage(0);}}
         viewMode={viewMode}
@@ -785,8 +787,8 @@ export default function Stats(){
         onCategory={label=>{setCategory(label);setPage(0);}}
       />
       <p className="sr-only">STAT COLUMNS</p>
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3"><div className="text-xs font-bold text-[#0d315b]">{viewMode==="season"?(seasonDisplay==="current"?"Ranking de la temporada actual (en curso)":seasonDisplay==="best"?"Mejor temporada finalizada por jugador · "+(bestMetric==="composite"?"Composite MF LEGACY":getColumn(columnConfig,bestMetric)?.name||bestMetric):"Ranking histórico · temporadas finalizadas"):"Detalle por competición"}</div><div className="flex flex-wrap items-center gap-2"><span role="status" className="text-[11px] text-slate-500">{busy?(cached?"Actualizando en segundo plano…":"Cargando estadísticas…"):cached?"En caché · acceso rápido":"Sin datos cargados"}{refreshedAt&&!busy?" · "+new Date(refreshedAt).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):""}</span><button type="button" onClick={()=>{refreshStats();queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});}} disabled={busy} title="Sincronizar estadísticas y Composite con Base44" className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[11px] font-bold text-blue-900 disabled:opacity-40"><RefreshCw size={13} className={busy?"animate-spin":""}/> Actualizar datos</button><p className="text-xs text-slate-500">{activeCount.toLocaleString("es")} filas · {rows.length} registros consultados {hasMore?"(cobertura parcial: hay más por cargar)":""}</p></div></div>
-      {viewMode==="season"&&(bulkSelection.size>0||bulkStatus)&&<div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-[#eef2f7] px-4 py-2">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {viewMode==="season"&&bulkSelection.size>0&&<div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-[#eef2f7] px-4 py-2">
         {bulkSelection.size>0&&<span className="text-[11px] font-black uppercase tracking-wider text-[#173B67]">{bulkSelection.size} seleccionado{bulkSelection.size===1?"":"s"}</span>}
         {bulkSelection.size>0&&!bulkConfirm&&<>
           {bulkSelection.size>1?<button type="button" onClick={()=>setCompareOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#003399] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#002777]"><ArrowLeftRight size={13}/> Comparar seleccionados</button>:<span className="text-[11px] text-slate-500">Selecciona dos o más temporadas para compararlas.</span>}
