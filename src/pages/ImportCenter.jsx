@@ -30,6 +30,7 @@ export default function ImportCenter(){
   const [notice,setNotice]=useState("");
   const [loaded,setLoaded]=useState(false);
   const [coordinator,setCoordinator]=useState("checking");
+  const [statsStatus,setStatsStatus]=useState({state:"idle",count:0});
 
   const refresh=useCallback(async()=>{
     try{
@@ -59,6 +60,15 @@ export default function ImportCenter(){
       .then(result=>{if(live)setLinks(responseRows(result));})
       .catch(e=>{if(live)setError(reason(e));});
     return ()=>{live=false;};
+  },[selection]);
+  useEffect(()=>{
+    if(!selection){setStatsStatus({state:"idle",count:0});return;}
+    let active=true;
+    setStatsStatus({state:"loading",count:0});
+    base44.entities.PlayerSeasonStats.filter({player_id:selection},undefined,200)
+      .then(result=>{if(active){const list=responseRows(result);setStatsStatus({state:list.length>=200?"partial":"ready",count:list.length});}})
+      .catch(()=>{if(active)setStatsStatus({state:"error",count:0});});
+    return()=>{active=false;};
   },[selection]);
   useEffect(()=>{
     if(selectedPlayer && search===selectedPlayer.name){setSearching(false);return;}
@@ -161,9 +171,8 @@ export default function ImportCenter(){
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"El trabajador Studio de tu PC puede solicitar estadísticas nuevas de FotMob para IDs confirmados, con un máximo de 8 peticiones por trabajo. Los resultados se revisan antes de guardarlos; Understat, FIFA y mercado dependen de catálogos verificados disponibles.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones no es accesible. No se admiten solicitudes hasta restaurar el coordinador."}</div>
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
-        <h2 className="font-semibold text-lg">Jugador ya registrado · Añadir datos</h2>
-        <Link to="/import-native" className="block rounded-lg bg-[#003399] text-white px-4 py-3 text-sm font-semibold text-center">Abrir motor WEB V3 · Importar primeras temporadas</Link>
-        <p className="text-xs text-slate-600">Procesa estadísticas estructuradas dentro de Base44; no requiere que el Studio esté abierto. Los proveedores externos todavía no se consultan automáticamente.</p>
+        <h2 className="font-semibold text-lg">1. Seleccionar jugador de PLAYERS</h2>
+        <p className="text-sm text-slate-600">Busca un futbolista que ya exista en PLAYERS, aunque todavía no tenga ninguna temporada en STATS. No se crearán fichas duplicadas.</p>
         <div className="relative">
           <Search size={16} className="absolute top-3 left-3 text-slate-400"/>
           <input aria-label="Buscar jugador por nombre" autoComplete="off" value={search} onChange={e=>{setSearch(e.target.value);setSelection("");setSelectedPlayer(null);setLinks([]);setSearchOpen(true);}} onFocus={()=>setSearchOpen(true)} placeholder="Escribe el nombre del jugador (ej. Rüdiger)..." className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2"/>
@@ -174,6 +183,7 @@ export default function ImportCenter(){
           </div>}
         </div>
         {selection&&player&&<div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm"><strong>Seleccionado: {player.name}</strong><button type="button" onClick={()=>{setSelection("");setSelectedPlayer(null);setSearch("");setLinks([]);}} className="ml-3 text-blue-800 underline">Cambiar</button></div>}
+        {selection&&<p className="text-sm font-medium text-[#003399]">{statsStatus.state==="loading"?"Comprobando temporadas en STATS…":statsStatus.state==="ready"?(statsStatus.count===0?"Sin temporadas en STATS · Primera importación":statsStatus.count+" registros en STATS · Puedes añadir temporadas que falten"):statsStatus.state==="partial"?"Más de 199 registros: recuento parcial":"No se pudo consultar STATS; no se han modificado datos."}</p>}
         {selection&&<p className="text-sm text-slate-600">FotMob: <strong>{fotmob||"Sin vínculo único"}</strong>{linked?" · Vinculación registrada":" · Requiere revisión"}</p>}
         {player&&!linked&&links.length===0&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2">
           <p className="text-sm font-semibold">Vincular identificador FotMob</p>
@@ -186,15 +196,16 @@ export default function ImportCenter(){
           <button type="button" onClick={linkManually} disabled={coordinator!=="ready"||busy||!identityConfirmed||!/^[0-9]{1,15}$/.test(fotmobDraft)}
             className="px-4 py-2 bg-[#003399] text-white rounded-md text-sm disabled:opacity-40">Guardar vinculación</button>
         </div>}
-        <h3 className="font-semibold text-sm">Fuentes</h3>
+        <h3 className="font-semibold text-sm">2. Fuentes para extraer estadísticas</h3>
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
-        <button disabled={coordinator!=="ready"||!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Solicitar extracción desde Studio (alternativa local)</button>
+        <button disabled={coordinator!=="ready"||!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">3. Importar nuevas temporadas a STATS desde Studio (PC)</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
-        {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
+        {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>
+        <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>}
         <p className="text-xs text-slate-500">Primera importación: el trabajador de tu PC consulta el perfil y las temporadas disponibles con los límites configurados. FIFA/FC y valores de mercado solo se completan desde catálogos históricos verificados. No se altera FM26.</p>
       </section>
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
-        <h2 className="font-semibold text-lg">Control de integridad</h2>
+        <h2 className="font-semibold text-lg">Protección de las estadísticas</h2>
         <p className="text-xs text-slate-600">El motor web ya normaliza y crea temporadas desde registros estructurados. La obtención directa de datos nuevos requiere fuentes con acceso autorizado.</p>
         <div className="flex items-start gap-3 text-sm"><ShieldCheck className="text-[#003399] shrink-0"/><p>La información se guarda inicialmente como candidata. Solo se aplica cuando hay evidencia e identificación exacta.</p></div>
         <div className="flex items-start gap-3 text-sm"><Database className="text-[#003399] shrink-0"/><p>La sincronización conserva las entradas verificadas, correcciones manuales y diferencias entre competiciones.</p></div>
