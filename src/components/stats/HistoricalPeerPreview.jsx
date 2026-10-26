@@ -52,6 +52,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const [manualMode,setManualMode]=useState(null);
   const [copyStatus,setCopyStatus]=useState("");
   const [showSensitivity,setShowSensitivity]=useState(false);
+  const [detailsOpen,setDetailsOpen]=useState(false);
   const {data,error,isFetching,refetch}=useHistoricalPeerDataset(main);
   const season=seasons.includes(picked)?picked:seasons.includes(initialSeason)?initialSeason:seasons[0]||"";
   // La posición histórica efectiva de la temporada decide el arquetipo; la
@@ -93,36 +94,27 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
     }
   };
   return (
-    <section className={(main?"mt-0 ":"mt-4 ")+"space-y-3 rounded-xl border-2 border-indigo-300 bg-[#f8faff] p-4 shadow-sm"}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h4 className="flex items-center gap-2 text-base font-black uppercase tracking-wide text-[#003399]">
-            <BarChart3 size={19}/> {main?"Composite MF LEGACY · vs nuestra base de datos":"vs jugadores MF LEGACY · vista previa"}
-          </h4>
-          <p className="mt-1 text-xs text-slate-600">
-            Percentiles propios por posición, calculados con todas las temporadas de clubes de nuestra base. La temporada se consolida entre competiciones antes de comparar. Nunca se utilizan los percentiles originales de FotMob.
-          </p>
-          {observation?.pAdjCoverage?.total>0&&observation.pAdjCoverage.covered<observation.pAdjCoverage.total&&<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Acciones defensivas ajustadas /90: cobertura parcial ({observation.pAdjCoverage.covered}/{observation.pAdjCoverage.total} competiciones, {show(observation.pAdjCoverage.minutesCovered,0)} minutos cubiertos). El resultado solo representa los partidos con acciones, minutos y posesión. {observation.pAdjCoverage.excluded.map(x=>x.competition+": "+x.reasons.map(reason=>reason==="team_possession"?"posesión de equipo":reason==="defensive_actions"?"acciones defensivas":"minutos").join(", ")).join("; ")}</div>}
-          {observation?.pAdjMethod==="mf_possession_50_experimental"&&<p className="mt-1 text-xs font-semibold text-amber-700">PAdj /90: cálculo experimental MF LEGACY normalizado al 50 % de posesión; no reproduce necesariamente la fórmula interna de CraftedFC.</p>}
+    <section className={(main?"mt-0 ":"mt-4 ")+"space-y-2 rounded-xl border border-indigo-300 bg-[#f8faff] p-2 sm:p-3 shadow-sm"}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <h4 className="flex items-center gap-1.5 text-xs font-black uppercase text-[#003399]"><BarChart3 size={16}/>{main?"Composite MF LEGACY":"Comparación MF LEGACY"}</h4>
+          <button type="button" aria-expanded={detailsOpen} onClick={()=>setDetailsOpen(v=>!v)} className="rounded border border-indigo-200 bg-white px-2 py-1 text-[10px] font-semibold text-blue-800" title="Información sobre metodología, cobertura y procedencia">ⓘ Detalles</button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {main&&<button type="button" onClick={copyMissingPrompt} disabled={!playerId||!season}
-            title="Copia las estadísticas vacías de todas las temporadas del jugador, separadas por temporada"
-            className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-50">
-            <ClipboardList size={15}/> Investigar estadísticas vacías · todas las temporadas
-          </button>}
-          <button type="button" onClick={()=>refetch()} disabled={isFetching||!playerId}
-            className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-50">
-            <RefreshCw size={15} className={isFetching?"animate-spin":""}/>
-            {isFetching?"Cargando base completa…":data?"Actualizar comparación":main?"Reintentar carga":"Calcular con nuestra BD"}
-          </button>
+        <div className="flex items-center gap-1.5">
+          {main&&<button type="button" onClick={copyMissingPrompt} disabled={!playerId||!season} title="Copiar estadísticas vacías de todas las temporadas" className="rounded border border-indigo-200 bg-white px-2 py-1.5 text-[11px] font-bold text-[#003399] disabled:opacity-50"><ClipboardList size={13} className="inline-block mr-1"/>Investigar vacías</button>}
+          <button type="button" onClick={()=>refetch()} disabled={isFetching||!playerId} title="Actualizar comparación" className="rounded border border-indigo-200 bg-white px-2 py-1.5 text-[11px] font-bold text-[#003399] disabled:opacity-50"><RefreshCw size={13} className={"inline-block mr-1 "+(isFetching?"animate-spin":"")}/>{isFetching?"Actualizando…":"Actualizar"}</button>
         </div>
       </div>
+      {detailsOpen&&<div className="rounded border border-indigo-100 bg-white p-2 text-[11px] leading-relaxed text-slate-700">
+        Percentiles propios por posición calculados con las temporadas de clubes de nuestra base de datos. Cada temporada se consolida entre competiciones antes de comparar; no se utilizan los percentiles originales de FotMob.
+        {observation?.pAdjCoverage?.total>0&&observation.pAdjCoverage.covered<observation.pAdjCoverage.total&&<p className="mt-1 text-amber-800">Acciones defensivas ajustadas /90: cobertura parcial ({observation.pAdjCoverage.covered}/{observation.pAdjCoverage.total} competiciones, {show(observation.pAdjCoverage.minutesCovered,0)} minutos). {observation.pAdjCoverage.excluded.map(x=>x.competition+": "+x.reasons.join(", ")).join("; ")}</p>}
+        {observation?.pAdjMethod==="mf_possession_50_experimental"&&<p className="mt-1 text-amber-800">PAdj /90 experimental MF LEGACY normalizado al 50 % de posesión; no reproduce necesariamente CraftedFC.</p>}
+      </div>}
       {copyStatus&&<p role="status" className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-900">{copyStatus}</p>}
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="text-xs font-bold text-slate-600">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-[11px] font-bold text-slate-600">
           Temporada
-          <select className="ml-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800"
+          <select className="ml-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-800"
             value={season} onChange={e=>setPicked(e.target.value)}>
             {seasons.map(s=><option value={s} key={s}>{s}</option>)}
           </select>
@@ -154,7 +146,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         Ni la posición histórica de esta temporada ni la posición actual del jugador se corresponden con ningún arquetipo. No se utilizará otra posición por aproximación.
       </p>}
       {data&&result&&!result.missing&&!result.calculationError&&<>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">
           {[
             ["Arquetipo",result.role],
             ["Temporadas comparables",result.population],
@@ -162,15 +154,17 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             ["Indicadores valorables",validCount+"/"+previewRows.length],
             ["Cobertura",result.composite?show(result.composite.coverage,1)+" %":"—"],
             ["Composite final",result.composite?show(result.composite.score,1):"—"],
-          ].map(([label,value],i,arr)=>{const final=i===arr.length-1;return <div className={"rounded-lg border p-3 "+(final?"border-indigo-300 bg-indigo-50":"border-slate-100 bg-white")} key={label}>
-            <div className="text-[10px] font-bold uppercase text-slate-500">{label}</div>
-            <div className={"mt-1 font-black tabular-nums "+(final?"text-2xl text-[#003399]":"text-lg text-[#003399]")}>
+          ].map(([label,value],i,arr)=>{const final=i===arr.length-1;return <div className={"rounded-md border px-2 py-1.5 "+(final?"border-indigo-300 bg-indigo-50":"border-slate-100 bg-white")} key={label}>
+            <div className="text-[9px] font-bold uppercase text-slate-500">{label}</div>
+            <div className={"font-black tabular-nums "+(final?"text-lg text-[#003399]":"text-sm text-[#003399]")}>
               {value}{final&&result.composite?<span className="text-xs font-normal text-slate-400"> /100</span>:null}
             </div>
           </div>;})}
         </div>
 
-        {result.composite&&<p className="text-[11px] text-slate-600">
+        <details className="rounded-md border border-amber-200 bg-amber-50/70 px-2 py-1.5 text-[11px] text-amber-900">
+          <summary className="cursor-pointer font-semibold">Avisos y cobertura ${(isThin?1:0)+(observation?.positionMixed?1:0)+(result.composite?.status==="partial"?1:0)+(result.players<10?1:0)+(result.composite?0:1)} · Ver detalles</summary>
+          <div className="mt-2 space-y-2">        {result.composite&&<p className="text-[11px] text-slate-600">
           Composite MF LEGACY · <strong>{result.composite.status==="partial"?"Parcial":"Calculado"}</strong> · vs {result.role} · {result.population} temporadas de {result.players} jugadores distintos · {result.composite.count}/{result.composite.total} indicadores.{" "}
           <span className="text-amber-700">{result.players<10?"Muestra reducida: índice experimental, no nota definitiva.":"Ponderaciones experimentales; no equivale al rating oficial CraftedFC."}</span>
         </p>}
@@ -183,12 +177,14 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         {observation?.positionMixed&&<p className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs text-violet-900">
           Las correcciones por competición de esta temporada no coinciden entre sí, así que el Composite usa la posición de referencia de la temporada. Puedes unificarlas o cambiarlas en «Valores históricos · temporada».
         </p>}
-        {result.composite?.score!==null&&sensitivity.length>0&&<div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-bold text-slate-700">¿Qué influye más en esta nota?</span>
+</div>
+        </details>
+        {result.composite?.score!==null&&sensitivity.length>0&&<div className="rounded-md border border-slate-200 bg-white px-2 py-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold text-slate-700">Impacto de los indicadores</span>
             <button type="button" onClick={()=>setShowSensitivity(v=>!v)}
               aria-expanded={showSensitivity}
-              className="rounded-md border border-blue-200 px-3 py-1.5 text-xs font-semibold text-[#003399] hover:bg-blue-50">
+              className="rounded-md border border-blue-200 px-2 py-1 text-[11px] font-semibold text-[#003399] hover:bg-blue-50">
               {showSensitivity?"Ocultar análisis":"Analizar nota"} <span aria-hidden="true">{showSensitivity?"▴":"▾"}</span>
             </button>
           </div>
@@ -204,13 +200,13 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           </div>}
         </div>}
         {missingUnderstat&&onSetMetric&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-900">Los xG Chain /90 y xG Buildup /90 que aparecen como «—» no están disponibles para esta temporada en las competiciones guardadas. <strong>No se rellenan con el snapshot global de CraftedFC.</strong> Puedes pulsar «Añadir +» e introducir cifras verificadas de Understat para la competición correspondiente.</p>}
-        <div className="max-h-[640px] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="max-h-[min(72vh,920px)] min-h-[320px] overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[980px] text-left text-xs">
             <thead className="sticky top-0 z-10 bg-[#e2eaf6] shadow-[0_1px_0_0_rgba(15,49,86,0.15)]">
               <tr>
-                <th className="px-3 py-2.5">Indicador</th>
-                <th className="bg-[#d3e0f2] px-3 py-2.5 text-right">Tu valor (temporada)</th>
-                <th className="min-w-[165px] bg-[#d3e0f2] px-3 py-2.5 text-right">vs {result.role}</th>
+                <th className="px-2 py-1.5">Indicador</th>
+                <th className="bg-[#d3e0f2] px-2 py-1.5 text-right">Tu valor (temporada)</th>
+                <th className="min-w-[165px] bg-[#d3e0f2] px-2 py-1.5 text-right">vs {result.role}</th>
                 <th className="min-w-[145px] bg-[#d3e0f2] px-3 py-2.5 text-right">Posición histórica</th>
                 <th className="px-3 py-2.5 text-right">Muestra (temp. / jugadores)</th>
                 <th className="px-3 py-2.5 text-right">Peso</th>
