@@ -170,10 +170,12 @@ export default function ImportCenter(){
       </section>
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
         <h2 className="font-semibold text-lg">Control de integridad</h2>
+        <Link to="/import-native" className="block rounded-lg bg-blue-50 border border-blue-200 text-[#003399] px-4 py-3 text-sm font-semibold">Abrir motor web V3 · Primeras temporadas sin Studio</Link>
+        <p className="text-xs text-slate-600">El motor web ya normaliza y crea nuevas temporadas desde registros estructurados. La obtención directa desde proveedores todavía requiere fuentes autorizadas.</p>
         <div className="flex items-start gap-3 text-sm"><ShieldCheck className="text-[#003399] shrink-0"/><p>La información se guarda inicialmente como candidata. Solo se aplica cuando hay evidencia e identificación exacta.</p></div>
         <div className="flex items-start gap-3 text-sm"><Database className="text-[#003399] shrink-0"/><p>La sincronización conserva las entradas verificadas, correcciones manuales y diferencias entre competiciones.</p></div>
         <p className="text-xs text-slate-600">Cero es un valor válido; una métrica ausente no se convierte en cero. Las respuestas incompletas se conservan como pendientes de revisar.</p>
-        <a href="https://github.com/Miguelpasitos98/mf-legacy/tree/main/worker" target="_blank" rel="noopener noreferrer" className="block text-sm text-[#003399] underline">Instalar el trabajador local de Studio (sin API de pago)</a>
+        <a href="https://github.com/Miguelpasitos98/mf-legacy/tree/main/worker" target="_blank" rel="noopener noreferrer" className="block text-sm text-[#003399] underline">Trabajador local de Studio (respaldo para extracciones nuevas)</a>
         <Link to="/import-unified" className="text-sm text-slate-600 underline">Importador JSON anterior (opcional)</Link>
         <p className="text-xs text-slate-600">El botón de caché no descarga temporadas nuevas. Para primeras importaciones, enciende el trabajador V3 desde tu PC y utiliza el botón principal «Solicitar datos NUEVOS desde Studio».</p>
       </section>
