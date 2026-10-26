@@ -30,6 +30,30 @@ const playerNameCandidates = (players,name) => {
       (query.split(" ").length>1 && query.split(" ").every(t=>n.split(" ").includes(t)));
   });
 };
+// Server-side indexed lookup: do not paginate the entire Player catalogue.
+async function findExactPlayersByName(name){
+  const normalized=playerNameKey(name);
+  if(!normalized)return [];
+  const escaped=String(name).trim().replace(/[^\p{L}\p{N}\s'\-]/gu,"");
+  const variants=[{name:String(name).trim()},{name:{$regex:"(?i)^"+escaped+"$"}}];
+  const matches=new Map();
+  let success=false;
+  for(const filter of variants){
+    try{
+      const result=rowsFromResponse(await base44.entities.Player.filter(filter,{limit:100}));
+      success=true;
+      for(const p of result){
+        if(p?.id&&playerNameKey(p.name)===normalized)matches.set(String(p.id),p);
+      }
+      if(result.length>=100)throw Error("Demasiadas coincidencias; comprueba la identidad manualmente.");
+    }catch(error){
+      if(filter===variants[0])throw error;
+      // If the SDK does not support regex, do not assume unique identity.
+      if(!success)throw error;
+    }
+  }
+  return [...matches.values()];
+}
 // Base44 lists may be capped; page through the catalogue, but fail closed if pagination
 // is ignored (same first record repeated) so a partial catalogue never creates duplicates.
 async function loadAllPlayers(){
@@ -108,9 +132,8 @@ export default function ImportUnified({onImported}) {
     let active=true;
     // Exact normalized name may be missing from a partial Base44 catalogue.
     // This read-only lookup never creates an FM26 Player or guesses an identity.
-    base44.entities.Player.filter({name:row.name},{limit:20}).then(response=>{
+    findExactPlayersByName(row.name).then(matches=>{
       if(!active)return;
-      const matches=rowsFromResponse(response).filter(p=>playerNameKey(p.name)===playerNameKey(row.name));
       if(matches.length)setAllPlayers(old=>{
         const all=new Map(old.map(p=>[String(p.id),p]));
         matches.forEach(p=>all.set(String(p.id),p));
@@ -414,38 +437,22 @@ export default function ImportUnified({onImported}) {
         throw Error("El vínculo FotMob apunta a un jugador con nombre distinto. Se evita importar sobre la ficha equivocada.");
     }
     if(!linkedId){
-      // Without a confirmed link, never infer uniqueness from an incomplete
-      // Player catalogue. Require the explicit linking workflow instead.
-      throw Error("Jugador sin vínculo FotMob. Selecciona su ficha existente para vincularlo antes de importar.");
-      const identityRow=safeRows.find(r=>r.kind==="player"&&String(r.fotmob_id)===pid);
-      if(!identityRow?.name)throw Error("Falta la identidad del jugador en el JSON.");
-      const candidates=localPlayers.filter(p=>normalized(p.name)===normalized(identityRow.name));
-      const possibleMatches=playerNameCandidates(localPlayers,identityRow.name);
-      if(candidates.length>1)throw Error("Varios jugadores tienen el mismo nombre; el archivo queda sin asociación automática para evitar duplicados.");
-      if(candidates.length===1){
-        // Unique exact full-name match only. Refuse conflicting external identities.
-        const candidate=String(candidates[0].id);
-        const otherLinks=rowsFromResponse(await base44.entities.PlayerFotmobLink.filter({player_id:candidate},{limit:10}));
-        if(otherLinks.some(l=>String(l.fotmob_player_id)!==pid))
-          throw Error("La ficha existente ya está asociada a otro ID FotMob; se mantiene intacta.");
-        linkedId=candidate;
-      }else{
-        if(possibleMatches.length)throw Error("Hay jugadores con nombres compatibles (por ejemplo nombre corto o apellido). Selecciona la ficha existente manualmente; no se creará un duplicado.");
-        const positions={ST:"DC",W:"EI",CAM:"CAM",CM:"CM",DM:"CDM",CB:"DFC",GK:"GK",WB:"LD",FB:"LD"};
-        const position=positions[identityRow.archetype];
-        if(!position)throw Error("La posición no está verificada para crear la ficha automáticamente.");
-        const created=await base44.entities.Player.create({
-          name:identityRow.name,position,
-          description:"Ficha mínima FotMob, sin atributos ni UID de FM26. Identidad externa pendiente de revisión.",
-        });
-        linkedId=String(created?.id||created?.data?.id||"");
-        if(!linkedId)throw Error("Se creó una ficha pero no se confirmó su ID. Revisa PLAYERS antes de reintentar.");
-      }
+      if(!snapshotName)throw Error("El JSON no identifica el nombre del jugador.");
+      const candidates=await findExactPlayersByName(snapshotName);
+      if(candidates.length!==1)throw Error(candidates.length
+        ?"Existen varias fichas con el mismo nombre. Selecciona la correcta manualmente."
+        :"No se localizó una ficha existente verificable. Revisa la vinculación manual; no se creará un duplicado.");
+      const candidate=candidates[0];
+      const conflicts=rowsFromResponse(await base44.entities.PlayerFotmobLink.filter({player_id:String(candidate.id)},{limit:10}));
+      if(conflicts.some(l=>String(l.fotmob_player_id)!==pid))
+        throw Error("La ficha encontrada ya pertenece a otro ID FotMob.");
+      linkedId=String(candidate.id);
       await base44.entities.PlayerFotmobLink.create({
-        fotmob_player_id:pid,player_id:linkedId,player_name:identityRow.name,
+        fotmob_player_id:pid,player_id:linkedId,player_name:snapshotName,
         verification:"automatic_exact_name_unique",
-        note:"Asociación automática por nombre completo único; ID externo procedente del JSON, sin validación independiente. FM26 sin cambios.",
+        note:"Coincidencia única por nombre normalizado en consulta exacta; FM26 sin modificaciones."
       });
+      localPlayers=[candidate];
     }
     let sourceReport=null;
     if(fullJson?.input){
