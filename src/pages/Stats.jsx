@@ -483,7 +483,7 @@ export default function Stats(){
   })();return()=>{mounted=false;};},[]);
   // Avoid first painting an incomplete page with unknown players/teams or
   // unstable ranks. Keep a fully cached dataset immediately available.
-  const waitingForCompleteData=(!cached||busy)&&!error ||
+  const waitingForCompleteData=(!cached||(busy&&hasMore))&&!error ||
     !pq.data&&!pq.isError || !tq.data&&!tq.isError;
   const players=pq.data||[],teams=tq.data||[];
   const byID=useMemo(()=>new Map(players.map(p=>[String(p.id),p])),[players]);
