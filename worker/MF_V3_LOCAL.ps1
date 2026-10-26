@@ -56,12 +56,16 @@ function Ejecutar {
  # Consulta limitado a ocho recursos por trabajo. No es una extracción masiva.
  $env:MF_V3_ALLOW_FOTMOB_NETWORK="1"
  $env:MF_V3_MAX_FOTMOB_REQUESTS="8"
- $args=@($workerPath)
- if($UnaVez){$args+= "--once"}
- elseif($Comprobar){$args+="--check-config"}
+ $pythonArgs=@($workerPath)
+ if($UnaVez){$pythonArgs+= "--once"}
+ elseif($Comprobar){$pythonArgs+="--check-config"}
+ $pythonExe=Get-Command python -ErrorAction SilentlyContinue
+ if(!$pythonExe){$pythonExe=Get-Command py -ErrorAction SilentlyContinue}
+ if(!$pythonExe){throw "Python no está disponible en PATH. Instala Python 3.10+ o añádelo a PATH."}
+ $pythonArgs=if($pythonExe.Name -eq "py.exe"){@("-3")+$pythonArgs}else{$pythonArgs}
  Write-Host "Trabajador de MF Legacy iniciado. Para detener, Ctrl+C." -ForegroundColor Cyan
  try{
-  & python @args
+  & $pythonExe.Source @pythonArgs
   if($LASTEXITCODE -ne 0){throw "El worker termino con error ($LASTEXITCODE)."}
  } finally {
   Remove-Item Env:MF_V3_WORKER_TOKEN -ErrorAction SilentlyContinue
