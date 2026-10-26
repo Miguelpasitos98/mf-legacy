@@ -24,11 +24,6 @@ export default function ImportCenter(){
   const [selectedSources,setSelectedSources]=useState(SOURCES.map(x=>x.id));
   const [fotmobDraft,setFotmobDraft]=useState("");
   const [identityConfirmed,setIdentityConfirmed]=useState(false);
-  const [newPlayerName,setNewPlayerName]=useState("");
-  const [newFotmobId,setNewFotmobId]=useState("");
-  const [newIdentityConfirmed,setNewIdentityConfirmed]=useState(false);
-  const [homonymConfirmed,setHomonymConfirmed]=useState(false);
-  const [homonymMatches,setHomonymMatches]=useState([]);
   const [reviewedGroups,setReviewedGroups]=useState({});
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
@@ -107,32 +102,6 @@ export default function ImportCenter(){
     }catch(e){setError(reason(e));}
     finally{setBusy(false);}
   };
-  const createNewPlayer=async()=>{
-    const name=newPlayerName.trim(),pid=newFotmobId.trim();
-    if(!name||!/^\d{1,15}$/.test(pid)||!newIdentityConfirmed||!selectedSources.length)return;
-    setBusy(true);setError("");setNotice("");
-    try{
-      const resp=await base44.functions.invoke("import-control",{
-        action:"create-and-start",player_name:name,fotmob_player_id:pid,
-        sources:selectedSources,confirmed:true,confirm_homonym:homonymConfirmed
-      });
-      const result=resp?.data||{};
-      if(!result.ok||!result.player?.id||!result.job?.id)throw Error(result.error||"El servidor no confirmó la nueva ficha.");
-      setSelectedJob(result.job.id);setCandidateRows([]);
-      setSelection(result.player.id);setSelectedPlayer(result.player);setSearch(result.player.name);
-      setNewPlayerName("");setNewFotmobId("");setNewIdentityConfirmed(false);
-      setHomonymConfirmed(false);setHomonymMatches([]);
-      setNotice("Jugador nuevo creado con identidad FotMob confirmada y trabajo en cola. El PC recopilará sus observaciones y podrás aprobar las primeras temporadas.");
-      const all=await base44.entities.ImportJob.list("-created_date",100);
-      setJobs(responseRows(all));
-    }catch(e){
-      if(e?.response?.data?.requires_homonym_confirmation){
-        setHomonymMatches(e.response.data.matches||[]);setHomonymConfirmed(false);
-      }
-      setError(reason(e));
-    }
-    finally{setBusy(false);}
-  };
   const approveSeason=async(group)=>{
     if(!reviewedGroups[group.key]||busy)return;
     const first=group.items.find(c=>c.review_status==="pending");
@@ -190,61 +159,6 @@ export default function ImportCenter(){
       <button onClick={refresh} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 bg-white hover:bg-slate-100"><RefreshCw size={16}/>Actualizar</button>
     </div>
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"El trabajador Studio de tu PC puede solicitar estadísticas nuevas de FotMob para IDs confirmados, con un máximo de 8 peticiones por trabajo. Los resultados se revisan antes de guardarlos; Understat, FIFA y mercado dependen de catálogos verificados disponibles.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones no es accesible. No se admiten solicitudes hasta restaurar el coordinador."}</div>
-    <section className="rounded-xl bg-white border-2 border-[#003399] p-5 mb-5 space-y-3">
-      <div className="flex flex-wrap justify-between gap-2">
-        <div><h2 className="font-semibold text-lg text-[#003399]">Nuevo jugador · Primera importación</h2>
-          <p className="text-sm text-slate-600">Para futbolistas que todavía NO existen en MF Legacy. No necesitas crearlos antes ni importar un JSON.</p></div>
-        <span className="rounded-full bg-blue-50 text-[#003399] px-3 py-1 text-xs h-fit font-semibold">Desde Studio (PC)</span>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <label className="text-sm font-medium">Nombre completo del jugador
-          <input value={newPlayerName} onChange={e=>{setNewPlayerName(e.target.value);setNewIdentityConfirmed(false);setHomonymMatches([]);setHomonymConfirmed(false);}}
-            maxLength={120} placeholder="Nombre oficial del futbolista" className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 font-normal"/>
-        </label>
-        <label className="text-sm font-medium">ID de FotMob
-          <input value={newFotmobId} onChange={e=>{
-            const value=e.target.value.trim();
-            const fromUrl=/^https:\/\/(?:www\.)?fotmob\.com\/players\/(\d{1,15})(?:[/?#]|$)/i.exec(value);
-            setNewFotmobId(fromUrl?fromUrl[1]:value.replace(/[^0-9]/g,"").slice(0,15));
-            setNewIdentityConfirmed(false);setHomonymMatches([]);setHomonymConfirmed(false);
-          }}
-            maxLength={300} placeholder="ID numérico o pega la URL de FotMob" className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 font-normal"/>
-        </label>
-      </div>
-      {/^\d{1,15}$/.test(newFotmobId)&&<a className="inline-block text-sm text-[#003399] underline"
-        href={"https://www.fotmob.com/players/"+newFotmobId} rel="noopener noreferrer" target="_blank">
-        Comprobar el perfil original de FotMob
-      </a>}
-      <div className="flex flex-wrap gap-x-5 gap-y-2">
-        {SOURCES.map(s=><label key={s.id} className="text-sm flex items-center gap-2">
-          <input type="checkbox" checked={selectedSources.includes(s.id)}
-            onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}
-        </label>)}
-      </div>
-      <label className="flex gap-2 items-start text-sm text-slate-700">
-        <input type="checkbox" checked={newIdentityConfirmed} onChange={e=>setNewIdentityConfirmed(e.target.checked)} className="mt-1"/>
-        He comprobado personalmente que el nombre y el ID de FotMob corresponden a este mismo futbolista y que no está registrado en MF Legacy.
-      </label>
-      {homonymMatches.length>0&&<div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
-        <strong className="text-sm text-amber-950">Ya existe un jugador con este nombre</strong>
-        <p className="text-xs text-amber-900">Revisa estas fichas antes de continuar. Si se trata de la misma persona, utiliza «Jugador ya registrado» y vincula su FotMob. Si realmente es otro futbolista, puedes crear un homónimo diferente.</p>
-        <ul className="text-xs text-amber-950 list-disc ml-5">{homonymMatches.map(p=><li key={p.id}>{p.name} · ficha {p.id}</li>)}</ul>
-        <label className="text-xs flex gap-2 items-start">
-          <input type="checkbox" checked={homonymConfirmed} onChange={e=>setHomonymConfirmed(e.target.checked)}/>
-          Confirmo que se trata de un futbolista diferente y quiero crear otra ficha con este nombre.
-        </label>
-      </div>}
-      <button type="button" disabled={coordinator!=="ready"||busy||newPlayerName.trim().length<3||
-        (homonymMatches.length>0&&!homonymConfirmed)||
-        !/^\d{1,15}$/.test(newFotmobId)||!newIdentityConfirmed||!selectedSources.length}
-        onClick={createNewPlayer}
-        className="rounded-lg bg-[#003399] text-white px-5 py-3 text-sm font-semibold disabled:opacity-40">
-        {busy?"Registrando…":"Crear jugador nuevo y solicitar extracción"}
-      </button>
-      <p className="text-xs text-slate-500">Se crea una ficha mínima y una vinculación FotMob, sin inventar atributos de FM26 ni sobrescribir fichas existentes.
-        Las primeras temporadas quedan pendientes de tu revisión. FotMob permite consultas puntuales limitadas;
-        Understat y los históricos FIFA/Transfermarkt solo estarán disponibles si Studio ya dispone de esos datos verificados.</p>
-    </section>
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
         <h2 className="font-semibold text-lg">Jugador ya registrado · Añadir datos</h2>
