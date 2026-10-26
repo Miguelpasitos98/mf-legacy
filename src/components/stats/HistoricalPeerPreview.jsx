@@ -163,7 +163,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         </div>
 
         <details className="rounded-md border border-amber-200 bg-amber-50/70 px-2 py-1.5 text-[11px] text-amber-900">
-          <summary className="cursor-pointer font-semibold">Avisos y cobertura ${(isThin?1:0)+(observation?.positionMixed?1:0)+(result.composite?.status==="partial"?1:0)+(result.players<10?1:0)+(result.composite?0:1)} · Ver detalles</summary>
+          <summary className="cursor-pointer font-semibold">Avisos y cobertura · Ver detalles</summary>
           <div className="mt-2 space-y-2">        {result.composite&&<p className="text-[11px] text-slate-600">
           Composite MF LEGACY · <strong>{result.composite.status==="partial"?"Parcial":"Calculado"}</strong> · vs {result.role} · {result.population} temporadas de {result.players} jugadores distintos · {result.composite.count}/{result.composite.total} indicadores.{" "}
           <span className="text-amber-700">{result.players<10?"Muestra reducida: índice experimental, no nota definitiva.":"Ponderaciones experimentales; no equivale al rating oficial CraftedFC."}</span>
