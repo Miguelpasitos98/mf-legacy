@@ -1,5 +1,7 @@
 # MF LEGACY V3 — Worker Python para Base44
 
+**Opción gratuita para Windows:** lee [COMO_ACTIVAR_SIN_PAGAR.md](COMO_ACTIVAR_SIN_PAGAR.md), ejecuta INSTALAR_TRABAJADOR_V3.bat una vez y después INICIAR_TRABAJADOR_V3.bat. El alojamiento en la nube es opcional, no un requisito.
+
 Estado: código preparado, no alojado ni activado. **No crea ni cambia registros STATS sin la revisión posterior del backend.**
 
 ## Componentes
