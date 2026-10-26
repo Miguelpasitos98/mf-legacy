@@ -1,3 +1,4 @@
+import {playPctFromTeamMatches} from "@/utils/statsPlayPct";
 import React,{useState} from "react";
 import {ArrowRight,Shield} from "lucide-react";
 import SortHeader from "@/components/stats/SortHeader";
@@ -40,7 +41,7 @@ function ClubBadge({summary,onTeam}){
   {(otherClubs.length>0||unresolvedTeams>0)&&<p className="mt-0.5 text-[10px] text-amber-700">{otherClubs.length>0?("+"+otherClubs.length+" club(es)"):""} {unresolvedTeams>0?("· "+unresolvedTeams+" competiciones sin club confirmado"):""}</p>}
  </div>;
 }
-export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="composite",sortDirection="desc",onSort=()=>{},globalRanks=new Map(),playerRanks=new Map(),compositeBySeason=new Map(),peerLoading=false,peerError=null,selection=new Set(),onToggleSelect=()=>{},onToggleSelectPage=()=>{}}){
+export default function SeasonStatsTable({items=[],category="Resumen",page=0,onOpen,onTeam,minimumMinutes=0,config=initialConfig(),sortKey="composite",sortDirection="desc",onSort=()=>{},globalRanks=new Map(),playerRanks=new Map(),compositeBySeason=new Map(),peerLoading=false,peerError=null,teamSeasonMatches=[],selection=new Set(),onToggleSelect=()=>{},onToggleSelectPage=()=>{}}){
  const columns=(config.columns?.season?.[category]||seasonColumns[category]||seasonColumns.Resumen).filter(k=>k!=="rating");
  const divider=new Set(config.dividers?.season?.[category]||[]);
  const line=id=>divider.has(id)?" border-r-[3px] border-r-blue-300":"";
@@ -86,12 +87,14 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
         <td className={"px-2 py-2 text-right font-extrabold tabular-nums "+(x?.score!=null?"text-[#003399]":"text-slate-400")} title={x?.score!=null?"Composite "+x.role+" · cobertura "+fmt(x.coverage,1)+"% · no es el Legacy Rating definitivo":peerError?"No se pudo sincronizar toda la base; se conserva la comparación cargada":peerLoading?"Calculando con la base completa":"Sin Composite calculable"}>{x?.score==null?"—":fmt(x.score,1)}</td>
       </>})()}
       {columns.map(k=>{
-       const value=columnValue(summary,"season",k,config);
+       const computed=columnValue(summary,"season",k,config);
+       const value=k==="playpct"&&computed===null?playPctFromTeamMatches(summary,teamSeasonMatches):computed;
        const coverage=formulaCoverage(summary,"season",k,config);
        const partial=coverage?coverage.available<coverage.total:summary.totals[k]?.partial;
        const hint=coverage?coverage.available+" de "+coverage.total+" competiciones · "+coverage.minutes.toLocaleString("es-ES")+" minutos disponibles para esta fórmula":partial?"Subtotal parcial: faltan estadísticas":undefined;
        const missingKeeperOffense=value===null&&goalkeeper(player)&&GK_OFFENSE.has(k);
-       return <td key={k} className={"px-2 py-2 text-right"+line(k)} title={missingKeeperOffense?"0 visual por ausencia de dato ofensivo del portero; no es una estadística confirmada.":hint}>{missingKeeperOffense?<span className="text-slate-400">0<sup>†</sup></span>:fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
+       const missingOffenseZero=value===null&&(k==="penaltygoals"||k==="ga")&&!missingKeeperOffense;
+       return <td key={k} className={"px-2 py-2 text-right"+line(k)} title={missingKeeperOffense||missingOffenseZero?"0 visual: estadística ausente, no es un cero confirmado.":hint}>{missingKeeperOffense||missingOffenseZero?<span className="text-slate-400">0<sup>†</sup></span>:fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
       })}
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
@@ -100,6 +103,6 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
     </tbody>
    </table>
   </div>
-  <p className="px-3 py-2 text-[10px] text-slate-500">† En porteros, 0 visual indica un dato ofensivo no disponible; no es un cero estadístico y no interviene en cálculos ni en el Composite.</p>
+  <p className="px-3 py-2 text-[10px] text-slate-500">† El cero visual en métricas ausentes (ofensivas de porteros, Pen y G + A) no es un cero estadístico y no se guarda ni interviene en cálculos o Composite.</p>
  </div>;
 }
