@@ -2,6 +2,14 @@ export const norm = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036
 // Metric keys retain the distinction between totals and percentages.
 export const metricNorm = name => norm(String(name??"").replace(/%/g,"percent"));
 export const statNum = v => v===null||v===undefined||v===""?null:Number.isFinite(Number(v))?Number(v):null;
+export const minutesForDisplay = record => {
+ const actual=statNum(record?.minutes);
+ if(actual!==null && actual>=0)return {value:actual,estimated:false};
+ const played=statNum(record?.appearances);
+ if(played!==null && Number.isInteger(played) && played>0 && played<=100)
+   return {value:played*90,estimated:true};
+ return {value:null,estimated:false};
+};
 export const nationalCompetition = name => {
  const x=norm(name);
  if(x.includes("clubworldcup")||x.includes("fifaclubworldcup"))return false;
@@ -44,7 +52,8 @@ export const resolveTeam=(record,teams,peers=[])=>{
 };
 export const metricsValue=(r,name)=>{
  if(!r)return null;
- if(["minutes","appearances","rating","team_matches"].includes(name))return statNum(r[name]);
+ if(name==="minutes")return minutesForDisplay(r).value;
+ if(["appearances","rating","team_matches"].includes(name))return statNum(r[name]);
  const aliases={goals:["goals","goles"],assists:["assists","asistencias"],xg:["xg","expectedgoals"],xa:["xa","expectedassists"],shots:["shots","tiros"],tackles:["tackles","entradas"],recoveries:["recoveries","recuperaciones"],shotsontarget:["shotsontarget","tirosapuerta"],goals_prevented:["goalsprevented","goals_prevented","golesevitados"],goalsconcededwhileonpitch:["goalsconcededwhileonpitch","goalsconceded","golesencajadosencampo"]};
  const candidate=(r.metrics||[]).find(m=>(aliases[name]||[metricNorm(name)]).includes(metricNorm(m.name)));
  return candidate?statNum(candidate.value):null;
