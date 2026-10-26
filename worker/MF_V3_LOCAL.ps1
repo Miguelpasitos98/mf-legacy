@@ -62,7 +62,7 @@ function Ejecutar {
  $pythonExe=Get-Command python -ErrorAction SilentlyContinue
  if(!$pythonExe){$pythonExe=Get-Command py -ErrorAction SilentlyContinue}
  if(!$pythonExe){throw "Python no está disponible en PATH. Instala Python 3.10+ o añádelo a PATH."}
- $pythonArgs=if($pythonExe.Name -eq "py.exe"){@("-3")+$pythonArgs}else{$pythonArgs}
+ if($pythonExe.Name -eq "py.exe"){$pythonArgs = @("-3") + $pythonArgs}
  Write-Host "Trabajador de MF Legacy iniciado. Para detener, Ctrl+C." -ForegroundColor Cyan
  try{
   & $pythonExe.Source @pythonArgs
