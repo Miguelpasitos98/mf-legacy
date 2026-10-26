@@ -15,6 +15,21 @@ const labelClass="mb-1 block text-xs font-bold uppercase tracking-wide text-slat
 const buttonClass="inline-flex items-center justify-center gap-2 rounded-lg bg-[#003399] px-4 py-2 text-sm font-semibold text-white disabled:opacity-45";
 const statusText=e=>String(e?.message||e||"Error de conexión.");
 const normalize=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+// Read every persisted observation. A single 500-row request silently hid older data.
+async function listAllPossessions(){
+ const all=[],seen=new Set(),pageSize=250,maxRecords=10000;
+ for(let skip=0;skip<maxRecords;skip+=pageSize){
+  const response=await base44.entities.TeamSeasonPossession.list({limit:pageSize,skip,sort:"-updated_date"});
+  const page=unpack(response);
+  if(!Array.isArray(page))throw Error("Respuesta de posesión inválida.");
+  for(const record of page){
+   if(!record?.id||seen.has(String(record.id)))throw Error("Paginación de posesiones inconsistente. No se sustituye la lista actual.");
+   seen.add(String(record.id));all.push(record);
+  }
+  if(page.length<pageSize)return all;
+ }
+ throw Error("Hay más de 10.000 registros. No se puede mostrar un historial incompleto.");
+}
 const sample=[{team_name:"Manchester City",season:"2018/2019",competition:"Premier League",team_possession_pct:67.9,source:"FBref",source_url:""}];
 
 export default function TeamPossession(){
@@ -31,8 +46,8 @@ export default function TeamPossession(){
  const refresh=async()=>{
   setLoading(true);
   try{
-   const response=await base44.entities.TeamSeasonPossession.list({limit:500,sort:"-updated_date"});
-   setRows(unpack(response));
+   const completeRows=await listAllPossessions();
+   setRows(completeRows);
    setError("");
   }catch(e){setError("No se pudo cargar la base de posesión: "+statusText(e));}
   finally{setLoading(false);}
@@ -184,7 +199,7 @@ export default function TeamPossession(){
     </div>
     {(notice||error)&&<div role="status" className={"rounded-xl border bg-white p-3 text-sm "+(error?"border-red-200 text-red-700":"border-green-200 text-slate-700")}>{error||notice}</div>}
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-     <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-extrabold text-slate-900">Registros guardados ({rows.length}{rows.length===500?"+":""}) · pendientes: {rows.filter(r=>!r.team_id).length}</h2><button className="inline-flex items-center gap-2 text-xs font-bold text-[#003399]" onClick={refresh} disabled={loading}><RefreshCw size={15}/> {loading?"Cargando…":"Actualizar"}</button></div>
+     <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-extrabold text-slate-900">Registros guardados ({rows.length}) · pendientes: {rows.filter(r=>!r.team_id).length}</h2><button className="inline-flex items-center gap-2 text-xs font-bold text-[#003399]" onClick={refresh} disabled={loading}><RefreshCw size={15}/> {loading?"Cargando…":"Actualizar"}</button></div>
      <input className={inputClass+" mb-3"} value={listFilter} onChange={e=>setListFilter(e.target.value)} placeholder="Filtrar por equipo, temporada o competición…" />
      <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
