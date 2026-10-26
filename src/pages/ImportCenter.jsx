@@ -114,7 +114,9 @@ export default function ImportCenter(){
       const result=response?.data||{};
       if(!result.ok)throw Error(result.error||"El análisis de cachés no pudo completarse");
       setSelectedJob(result.job_id||"");
-      setNotice("Datos ya guardados: "+(result.created||0)+" métricas nuevas propuestas, "+(result.already_staged||0)+" ya revisadas y "+(result.unmatched||0)+" registros sin coincidencia exacta. No se ha sobrescrito ninguna estadística.");
+      setNotice((result.created||0)===0&&(result.already_staged||0)===0
+        ? "Análisis finalizado sin datos: este jugador no tiene nuevas estadísticas archivadas que podamos aplicar. Necesita una primera importación de Studio o una fuente externa conectada. No se ha actualizado STATS."
+        : "Datos ya guardados: "+(result.created||0)+" métricas nuevas propuestas, "+(result.already_staged||0)+" ya registradas y "+(result.unmatched||0)+" registros sin coincidencia exacta. No se ha sobrescrito ninguna estadística.");
       await refresh();
     }catch(e){setError(reason(e));}finally{setBusy(false);}
   };
@@ -171,7 +173,8 @@ export default function ImportCenter(){
         <div className="flex items-start gap-3 text-sm"><ShieldCheck className="text-[#003399] shrink-0"/><p>La información se guarda inicialmente como candidata. Solo se aplica cuando hay evidencia e identificación exacta.</p></div>
         <div className="flex items-start gap-3 text-sm"><Database className="text-[#003399] shrink-0"/><p>La sincronización conserva las entradas verificadas, correcciones manuales y diferencias entre competiciones.</p></div>
         <p className="text-xs text-slate-600">Cero es un valor válido; una métrica ausente no se convierte en cero. Las respuestas incompletas se conservan como pendientes de revisar.</p>
-        <Link to="/import-unified" className="text-sm text-[#003399] underline">Acceder al importador JSON anterior</Link>
+        <Link to="/import-unified" className="text-sm text-[#003399] underline">Importar el primer JSON del jugador desde MF Legacy Studio</Link>
+        <p className="text-xs text-slate-600">El procesador de caché no descarga temporadas nuevas: solo completa datos previamente almacenados. No pongas un trabajo en la cola externa hasta configurar su trabajador.</p>
       </section>
     </div>
     {error&&<p role="alert" className="my-3 rounded-lg bg-red-50 border border-red-200 text-red-800 p-3 text-sm">{error}</p>}
@@ -184,11 +187,11 @@ export default function ImportCenter(){
           <tbody>{jobs.map(j=><tr key={j.id} className="border-b align-top">
             <td className="py-3 pr-3 font-medium">{j.player_name||j.player_id}<div className="text-xs font-normal text-slate-500 max-w-56">{j.phase}</div>{j.last_error&&<div className="text-xs text-red-700">{j.last_error}</div>}</td>
             <td className="pr-3 py-3">{(j.sources||[]).join(", ")}</td>
-            <td className="pr-3 py-3">{STATUS[j.status]||j.status}</td>
-            <td className="pr-3 py-3">{j.progress||0}%</td>
+            <td className="pr-3 py-3">{j.worker_version==="base44-cache-v1"&&j.status==="completed"&&(j.received_candidates||0)===0?"Sin datos nuevos":STATUS[j.status]||j.status}</td>
+            <td className="pr-3 py-3">{j.worker_version==="base44-cache-v1"?"Análisis "+(j.progress||0)+"%":(j.progress||0)+"%"}</td>
             <td className="pr-3 py-3">{fmt(j.requested_at||j.created_date)}</td>
             <td className="py-3 space-x-2">
-              <button onClick={()=>setSelectedJob(j.id)} className="text-[#003399] underline">Ver detalles</button>
+              <button onClick={()=>setSelectedJob(j.id)} className="text-[#003399] underline">Ver diagnóstico</button>
               {ACTIVE.includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("cancel",{job_id:j.id})} className="text-amber-800 underline">Cancelar</button>}
               {j.status==="running"&&j.lease_expires_at&&Date.now()>new Date(j.lease_expires_at).getTime()&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("release-stale",{job_id:j.id})} className="text-amber-800 underline">Liberar bloqueo</button>}
               {["failed","cancelled"].includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar</button>}
@@ -199,6 +202,8 @@ export default function ImportCenter(){
     {selectedJobData&&<section className="rounded-xl bg-white border border-slate-200 p-5 mt-4">
       <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Revisión · {selectedJobData.player_name}</h2><button onClick={()=>setSelectedJob("")} className="text-sm text-slate-500 underline">Cerrar</button></div>
       <p className="text-xs text-slate-500 my-2">Solo las observaciones verificadas y con coincidencia exacta se pueden aplicar. Las demás quedan disponibles para investigación.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 my-3">{(selectedJobData.sources||[]).map(s=><div key={s} className="border border-slate-200 rounded-md p-2 text-sm"><strong>{SOURCES.find(x=>x.id===s)?.label||s}:</strong> {selectedJobData.source_results?.[s]?.status==="complete"?"Revisada":selectedJobData.source_results?.[s]?.status==="error"?"Error":selectedJobData.source_results?.[s]?.status==="unavailable"?"Sin datos archivados disponibles":"Pendiente"}<div className="text-xs text-slate-500">{selectedJobData.source_results?.[s]?.note||""}</div></div>)}</div>
+      {selectedJobData.worker_version==="base44-cache-v1"&&selectedJobData.status==="completed"&&(selectedJobData.received_candidates||0)===0&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 my-3 text-sm"><strong>El análisis ha finalizado, pero no ha importado datos nuevos.</strong><p>Para este jugador necesitamos primero un archivo exportado de MF Legacy Studio o conectar una fuente autorizada.</p><Link to="/import-unified" className="inline-block mt-2 text-blue-800 underline">Ir a la primera importación JSON</Link></div>}
       <div className="space-y-2">{!candidateRows.length?<p className="text-sm text-slate-500">Este trabajo aún no ha recibido observaciones.</p>:candidateRows.map(c=><div key={c.id} className="flex flex-wrap gap-3 items-center justify-between border rounded-lg p-3">
         <div className="text-sm"><strong>{c.kind==="metric"?c.metric_name:c.kind==="overall"?"Overall FIFA/FC":"Valor de mercado"}</strong> · {c.value} {c.metric_unit||""}
           <div className="text-xs text-slate-500">{c.source} · {c.season} · {c.competition||c.fifa_edition||c.as_of_date||""}</div>
