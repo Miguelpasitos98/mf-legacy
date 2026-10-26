@@ -1,0 +1,120 @@
+{
+  "name": "NativeSeasonCandidate",
+  "type": "object",
+  "properties": {
+    "candidate_key": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "fotmob_player_id": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "fotmob",
+        "understat"
+      ]
+    },
+    "season": {
+      "type": "string"
+    },
+    "competition": {
+      "type": "string"
+    },
+    "fotmob_team_id": {
+      "type": "string"
+    },
+    "team_name": {
+      "type": "string"
+    },
+    "source_competition_id": {
+      "type": "string"
+    },
+    "source_record_id": {
+      "type": "string"
+    },
+    "evidence_url": {
+      "type": "string"
+    },
+    "source_checksum": {
+      "type": "string"
+    },
+    "appearances": {
+      "type": "number"
+    },
+    "minutes": {
+      "type": "number"
+    },
+    "rating": {
+      "type": "number"
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "applied",
+        "rejected",
+        "conflict"
+      ],
+      "default": "pending"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "review_note": {
+      "type": "string"
+    },
+    "received_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate_key",
+    "job_id",
+    "player_id",
+    "fotmob_player_id",
+    "provider",
+    "season",
+    "competition",
+    "team_name",
+    "source_record_id",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
