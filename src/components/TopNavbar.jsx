@@ -11,6 +11,7 @@ export default function TopNavbar() {
     { label: "SCHEDULE", path: "/schedule" },
     { label: "NEWS", path: "/news" },
     { label: "STATS", path: "/stats" },
+    { label: "IMPORT", path: "/import-center" },
     { label: "POSESIÓN", path: "/possession" },
     { label: "PLAYERS", path: "/players" },
     { label: "TEAMS", path: "/teams" },
