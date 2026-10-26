@@ -24,6 +24,7 @@ export default function ImportCenter(){
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
   const [loaded,setLoaded]=useState(false);
+  const [coordinator,setCoordinator]=useState("checking");
 
   const refresh=useCallback(async()=>{
     try{
@@ -42,7 +43,12 @@ export default function ImportCenter(){
       setCanLoadMore(result.length===500);
     }catch(e){setError(reason(e));}
   };
-  useEffect(()=>{loadPlayers(0);},[]);
+  useEffect(()=>{
+    loadPlayers(0);
+    base44.functions.invoke("import-control",{action:"health"})
+      .then(resp=>setCoordinator(resp.data?.ok?"ready":"unavailable"))
+      .catch(()=>setCoordinator("unavailable"));
+  },[]);
   useEffect(()=>{
     refresh();
     const timer=setInterval(()=>{if(document.visibilityState==="visible")refresh();},15000);
@@ -89,7 +95,7 @@ export default function ImportCenter(){
       <div><h1 className="text-2xl font-bold tracking-tight">Centro de importaciones <span className="text-[#003399]">V3</span></h1><p className="text-sm text-slate-600">FotMob · Understat · FIFA / EA FC · Mercado histórico</p></div>
       <button onClick={refresh} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 bg-white hover:bg-slate-100"><RefreshCw size={16}/>Actualizar</button>
     </div>
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>El coordinador y la revisión de datos están preparados. El trabajador externo aún necesita despliegue y credenciales: los trabajos en cola no se procesarán hasta activarlo.</div>
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"Coordinador disponible. El procesamiento automático requiere un trabajador externo activo y sus credenciales.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones todavía no está publicado o no es accesible. Se muestra el historial, pero no se aceptan nuevas solicitudes."}</div>
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
         <h2 className="font-semibold text-lg">Nueva importación</h2>
@@ -102,7 +108,7 @@ export default function ImportCenter(){
         {selection&&<p className="text-sm text-slate-600">FotMob: <strong>{fotmob||"Sin vínculo único"}</strong>{linked?" · Vinculación registrada":" · Requiere revisión"}</p>}
         <h3 className="font-semibold text-sm">Fuentes</h3>
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
-        <button disabled={!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg bg-[#003399] text-white font-semibold disabled:opacity-40">Añadir a cola de importación</button>
+        <button disabled={coordinator!=="ready"||!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg bg-[#003399] text-white font-semibold disabled:opacity-40">Añadir a cola de importación</button>
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <p className="text-xs text-slate-500">La identidad se vuelve a validar en el servidor; no se crean nuevos jugadores ni se altera FM26.</p>
       </section>
@@ -129,8 +135,8 @@ export default function ImportCenter(){
             <td className="pr-3 py-3">{fmt(j.requested_at||j.created_date)}</td>
             <td className="py-3 space-x-2">
               <button onClick={()=>setSelectedJob(j.id)} className="text-[#003399] underline">Ver detalles</button>
-              {ACTIVE.includes(j.status)&&<button disabled={busy} onClick={()=>operate("cancel",{job_id:j.id})} className="text-amber-800 underline">Cancelar</button>}
-              {["failed","cancelled"].includes(j.status)&&<button disabled={busy} onClick={()=>operate("retry",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar</button>}
+              {ACTIVE.includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("cancel",{job_id:j.id})} className="text-amber-800 underline">Cancelar</button>}
+              {["failed","cancelled"].includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar</button>}
             </td>
           </tr>)}</tbody>
         </table></div>}
@@ -145,9 +151,9 @@ export default function ImportCenter(){
           {c.evidence_url&&<a className="text-xs text-blue-800 underline" href={c.evidence_url} target="_blank" rel="noopener noreferrer">Consultar fuente</a>}
         </div>
         {c.review_status==="pending"&&<div className="flex items-center gap-3 text-sm">
-          {c.verification_status!=="verified"&&c.evidence_url&&<button disabled={busy} onClick={()=>review("verify",c.id)} className="text-amber-800 underline">He verificado la fuente</button>}
-          <button disabled={busy||c.verification_status!=="verified"} onClick={()=>review("approve",c.id)} className="text-[#003399] underline disabled:opacity-30">Aplicar</button>
-          <button disabled={busy} onClick={()=>review("reject",c.id)} className="text-red-700 underline">Descartar</button>
+          {c.verification_status!=="verified"&&c.evidence_url&&<button disabled={busy||coordinator!=="ready"} onClick={()=>review("verify",c.id)} className="text-amber-800 underline">He verificado la fuente</button>}
+          <button disabled={busy||coordinator!=="ready"||c.verification_status!=="verified"} onClick={()=>review("approve",c.id)} className="text-[#003399] underline disabled:opacity-30">Aplicar</button>
+          <button disabled={busy||coordinator!=="ready"} onClick={()=>review("reject",c.id)} className="text-red-700 underline">Descartar</button>
         </div>}
       </div>)}</div>
     </section>}
