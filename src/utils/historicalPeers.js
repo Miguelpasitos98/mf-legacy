@@ -2,7 +2,7 @@ import {advancedTotals} from "./statsAdvanced.js";
 // MF LEGACY — historical peer comparison, independent of FotMob percentile columns.
 // This module never writes data, and never uses external provider percentiles.
 // Population: one season per player, all club competitions, same current-position archetype.
-import { groupStatRows, nationalCompetition } from "./statsViews.js";
+import { groupStatRows, nationalCompetition, minutesForDisplay } from "./statsViews.js";
 import { metricName, WEIGHTS_BY_ROLE, calculateCompositeMF } from "./compositeEngine.js";
 import {ballSecurityFromRecords} from "./ballSecurity.js";
 import {createPossessionLookup,possessionAdjustedDefActionsDetail} from "./teamPossession.js";
@@ -87,7 +87,7 @@ const alignedPer90=(records,names,minutesSource=null)=>{
     const understat=candidate?.source==="Understat";
     const mins=understat
       ?(num(candidate.provider_minutes)??num(pickMetric(row,["Understat minutes"])?.value))
-      :minutesSource?num(pickMetric(row,[minutesSource])?.value):num(row.minutes);
+      :minutesSource?num(pickMetric(row,[minutesSource])?.value):minutesForDisplay(row).value;
     const value=metricTotal(row,names);
     if(mins===null || mins<=0 || value===null)continue;
     amount+=value;minutes+=mins;count++;
@@ -163,7 +163,7 @@ function teamMatchesLookup(matches=[]){
 const playShare=(records, lookup)=>{
   let mins=0,denominator=0;
   for(const r of records){
-    const m=num(r.minutes),tm=safeTeamMatches(r,lookup);
+    const m=minutesForDisplay(r).value,tm=safeTeamMatches(r,lookup);
     if(m===null||m<0||tm===null)continue;
     mins+=m;denominator+=tm*90;
   }
