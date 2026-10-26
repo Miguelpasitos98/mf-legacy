@@ -56,10 +56,10 @@ export default async function(req) {
     // Alta mínima explícita; nunca se reutiliza una identidad por coincidencia difusa.
     if (action==="create-and-start") {
       const pid=str(body.fotmob_player_id);
-      const name=str(body.player_name).replace(/\\s+/g," ");
+      const name=str(body.player_name).replace(/\s+/g," ");
       const sources=[...new Set(Array.isArray(body.sources)?body.sources:[])];
-      if (!/^\\d{1,15}$/.test(pid))return bad("Introduce un ID FotMob numérico válido.");
-      if (name.length<3||name.length>120||/[<>\\r\\n]/.test(name))return bad("Introduce el nombre completo del jugador (3-120 caracteres).");
+      if (!/^\d{1,15}$/.test(pid))return bad("Introduce un ID FotMob numérico válido.");
+      if (name.length<3||name.length>120||/[<>\r\n]/.test(name))return bad("Introduce el nombre completo del jugador (3-120 caracteres).");
       if (body.confirmed!==true)return bad("Debes confirmar que el nombre y el ID corresponden al mismo futbolista.",409);
       if (!sources.length||sources.some(s=>!SOURCE_SET.has(s)))return bad("Selecciona fuentes válidas.");
       const backlinks=rows(await db.PlayerFotmobLink.filter({fotmob_player_id:pid},undefined,30));
@@ -67,7 +67,7 @@ export default async function(req) {
       const priorStats=rows(await db.PlayerSeasonStats.filter({fotmob_player_id:pid},undefined,10));
       if (priorStats.length)return bad("Ya existen estadísticas asociadas a ese ID FotMob. Revisa la vinculación antes de crear una ficha.",409);
       // Previene duplicados accidentales; homónimos se revisan manualmente.
-      const escaped=name.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\\\$&");
+        const escaped=name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
       const sameName=rows(await db.Player.filter({name:{$regex:"^"+escaped+"$",$options:"i"}},undefined,30));
       if (sameName.some(p=>normal(p.name)===normal(name)))
         return bad("Ya existe un jugador con ese nombre. Comprueba si es la misma persona y utiliza el buscador de jugadores existentes.",409);
