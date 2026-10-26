@@ -346,9 +346,23 @@ def main():
     parser.add_argument("--once",action="store_true",help="Procesar como máximo un trabajo y salir")
     parser.add_argument("--dry-run",metavar="FOTMOB_ID",help="Leer fuentes locales sin tocar Base44")
     parser.add_argument("--max-candidates",type=int,default=300)
+    parser.add_argument("--check-config",action="store_true",help="Comprobar la configuración sin descargar datos ni reclamar trabajos")
     args=parser.parse_args()
     root=Path(os.getenv("MF_STUDIO_ROOT","")).expanduser().resolve()
     limit=max(1,min(1500,args.max_candidates))
+    if args.check_config:
+        required={
+            "studio_instalado":(root/"app"/"profile.py").exists() and (root/"app"/"fotmob_client.py").exists(),
+            "endpoint_https":os.getenv("MF_V3_WORKER_URL","").startswith("https://"),
+            "secreto_local_configurado":len(os.getenv("MF_V3_WORKER_TOKEN",""))>=32,
+            "python_compatible":sys.version_info>=(3,10),
+        }
+        print(json.dumps({"ready":all(required.values()),"comprobaciones":required,
+            "consultas_nuevas_limitadas":os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK")=="1",
+            "peticiones_maximas_por_trabajo":os.getenv("MF_V3_MAX_FOTMOB_REQUESTS","0"),
+            "nota":"No se realizaron solicitudes a proveedores ni se modificaron datos."},indent=2,ensure_ascii=False))
+        if not all(required.values()):sys.exit(2)
+        return
     if args.dry_run:
         records,states=collect(root,args.dry_run,["fotmob","understat","fifa","market"],limit)
         print(json.dumps({"fotmob_player_id":args.dry_run,"total_candidates":len(records),
