@@ -45,7 +45,7 @@ export const resolveTeam=(record,teams,peers=[])=>{
 export const metricsValue=(r,name)=>{
  if(!r)return null;
  if(["minutes","appearances","rating","team_matches"].includes(name))return statNum(r[name]);
- const aliases={goals:["goals","goles"],assists:["assists","asistencias"],xg:["xg","expectedgoals"],xa:["xa","expectedassists"],shots:["shots","tiros"],tackles:["tackles","entradas"],recoveries:["recoveries","recuperaciones"],shotsontarget:["shotsontarget","tirosapuerta"],goals_prevented:["goalsprevented","goals_prevented","golesevitados"]};
+ const aliases={goals:["goals","goles"],assists:["assists","asistencias"],xg:["xg","expectedgoals"],xa:["xa","expectedassists"],shots:["shots","tiros"],tackles:["tackles","entradas"],recoveries:["recoveries","recuperaciones"],shotsontarget:["shotsontarget","tirosapuerta"],goals_prevented:["goalsprevented","goals_prevented","golesevitados"],goalsconcededwhileonpitch:["goalsconcededwhileonpitch","goalsconceded","golesencajadosencampo"]};
  const candidate=(r.metrics||[]).find(m=>(aliases[name]||[metricNorm(name)]).includes(metricNorm(m.name)));
  return candidate?statNum(candidate.value):null;
 };
