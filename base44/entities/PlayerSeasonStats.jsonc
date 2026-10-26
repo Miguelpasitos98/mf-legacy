@@ -74,6 +74,19 @@
           },
           "verification_status": {
             "type": "string"
+          },
+          "per_match": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "total",
+              "percentage"
+            ]
+          },
+          "derivation": {
+            "type": "string"
           }
         }
       }
@@ -157,6 +170,12 @@
     "display_season": {
       "type": "string",
       "description": "Temporada deportiva mostrada YYYY/YYYY; override manual sin cambiar el a\u00f1o de origen ni external_record_id"
+    },
+    "fotmob_tournament_id": {
+      "type": "string"
+    },
+    "is_national_team": {
+      "type": "boolean"
     }
   },
   "required": [
