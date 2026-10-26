@@ -50,7 +50,7 @@ export default function ImportCenter(){
   useEffect(()=>{
     base44.functions.invoke("import-control",{action:"health"})
       .then(resp=>setCoordinator(resp.data?.ok?"ready":"unavailable"))
-      .catch(()=>setCoordinator("unavailable"));
+      .catch(e=>setCoordinator([401,403].includes(e?.response?.status)?"auth_required":"unavailable"));
   },[]);
   useEffect(()=>{
     refresh();
@@ -175,7 +175,8 @@ export default function ImportCenter(){
       <div><h1 className="text-2xl font-bold tracking-tight">Centro de importaciones <span className="text-[#003399]">V3</span></h1><p className="text-sm text-slate-600">FotMob · Understat · FIFA / EA FC · Mercado histórico</p></div>
       <button onClick={refresh} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 bg-white hover:bg-slate-100"><RefreshCw size={16}/>Actualizar</button>
     </div>
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"El trabajador Studio de tu PC puede solicitar estadísticas nuevas de FotMob para IDs confirmados, con un máximo de 8 peticiones por trabajo. Los resultados se revisan antes de guardarlos; Understat, FIFA y mercado dependen de catálogos verificados disponibles.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones no es accesible. No se admiten solicitudes hasta restaurar el coordinador."}</div>
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"El trabajador Studio de tu PC puede solicitar estadísticas nuevas de FotMob para IDs confirmados, con un máximo de 8 peticiones por trabajo. Los resultados se revisan antes de guardarlos; Understat, FIFA y mercado dependen de catálogos verificados disponibles.":coordinator==="auth_required"?"Inicia sesión con una cuenta de administrador para solicitar y revisar importaciones.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones no es accesible. No se admiten solicitudes hasta restaurar el coordinador."}</div>
+    {coordinator==="auth_required"&&<button className="bg-[#003399] text-white rounded-lg px-4 py-2 mb-4" onClick={()=>base44.auth.loginWithProvider("google",window.location.href)}>Iniciar sesión de administrador</button>}
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
         <h2 className="font-semibold text-lg">1. Seleccionar jugador de PLAYERS</h2>
