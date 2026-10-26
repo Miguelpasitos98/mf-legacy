@@ -17,6 +17,7 @@ import Stats from "@/pages/Stats";
 import ImportHistory from "@/pages/ImportHistory";
 import ImportUnified from "@/pages/ImportUnified";
 import ImportCenter from "@/pages/ImportCenter";
+import NativeImport from "@/pages/NativeImport";
 import TeamPossession from "@/pages/TeamPossession";
 
 const AuthenticatedApp = () => {
@@ -60,6 +61,7 @@ const AuthenticatedApp = () => {
         <Route path="/import-histories" element={<ImportHistory />} />
         <Route path="/import-unified" element={<ImportUnified />} />
         <Route path="/import-center" element={<ImportCenter />} />
+        <Route path="/import-native" element={<NativeImport />} />
       </Route>
 
       <Route path="*" element={<PageNotFound />} />
