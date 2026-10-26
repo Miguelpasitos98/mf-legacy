@@ -97,6 +97,32 @@ class WorkerContractTests(unittest.TestCase):
             self.assertEqual(result[0]["verification_status"],"unverified")
             self.assertEqual(status["status"],"complete")
 
+
+    def test_single_club_fallback_without_unsafe_multiclub_guess(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            root.joinpath("app").mkdir()
+            profile,client,resolver=MagicMock(),MagicMock(),MagicMock()
+            client.player_cache_path.side_effect=lambda r,p:r/"profile.json"
+            client.stat_cache_path.side_effect=lambda r,p,s:r/(s+".json")
+            profile.load_profile_bundle.return_value={
+                "player":{"fotmob_player_id":"309328"},
+                "season_options":[
+                    {"season":"2024/2025","competition":"Süper Lig","season_id":"club","tournament_id":"71"},
+                    {"season":"2023/2024","competition":"Nations League","season_id":"national","tournament_id":"9806"}],
+                "career":[{"season":"2024/2025","fotmob_team_id":"100","team_name":"Club A"},
+                          {"season":"2023/2024","fotmob_team_id":"100","team_name":"Club A"}]}
+            resolver.resolve_career_team.return_value=("", "", "unknown", [])
+            client.fetch_stats.return_value={"statsSection":{"items":[]}}
+            client.save_json.side_effect=lambda p,d:p.write_text(json.dumps(d))
+            profile.extract_stat_details.return_value={"conflicts":[],"metrics":[{"name":"Clearances","value":5}]}
+            with patch("worker.mf_v3_worker.studio_import",return_value=(profile,client,resolver)):
+                found,state=studio_fotmob(root,"309328",allow_network=True,request_limit=3)
+            self.assertEqual(len(found),1)
+            self.assertEqual(found[0]["fotmob_team_id"],"100")
+            self.assertIn("club sin identificar: 1",state["note"])
+            self.assertEqual(profile.extract_stat_details.call_count,1)
+
     def test_new_player_does_not_fetch_if_network_disabled(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
