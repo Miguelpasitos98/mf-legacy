@@ -32,6 +32,26 @@ export default async function(req) {
     const action = str(body.action || "start");
     const db = base44.asServiceRole.entities;
     if(action === "health")return reply({ok:true,coordinator:"ready",worker_credentials_configured:String(Deno.env.get("MF_V3_WORKER_TOKEN")||"").length>=32});
+    if (action==="link") {
+      const playerId=str(body.player_id);
+      const pid=str(body.fotmob_player_id);
+      if(!/^[a-f0-9]{24}$/i.test(playerId) || !/^\d{1,15}$/.test(pid))return bad("IDs de jugador no válidos.");
+      if(body.confirmed!==true)return bad("Debes confirmar que has contrastado el ID de FotMob.",409);
+      const player=await db.Player.get(playerId);
+      if(!player?.id)return bad("Jugador inexistente.",404);
+      const related=rows(await db.PlayerFotmobLink.filter({player_id:playerId},undefined,30));
+      if(related.length){
+        if(related.every(x=>str(x.fotmob_player_id)===pid))return reply({ok:true,already_linked:true,pid});
+        return bad("El jugador ya tiene otra vinculación FotMob. No se modifica automáticamente.",409);
+      }
+      const backlinks=rows(await db.PlayerFotmobLink.filter({fotmob_player_id:pid},undefined,30));
+      if(backlinks.some(x=>str(x.player_id)!==playerId))return bad("Este ID FotMob está vinculado a otro jugador.",409);
+      await db.PlayerFotmobLink.create({
+        player_id:playerId,fotmob_player_id:pid,player_name:player.name,
+        verification:"manual",note:"Vinculación explícita confirmada por administrador en Import V3"
+      });
+      return reply({ok:true,pid});
+    }
     if (action === "start" || action === "retry") {
       const playerId = str(body.player_id);
       if (!/^[a-f0-9]{24}$/i.test(playerId)) return bad("ID interno de jugador no válido.");
@@ -57,8 +77,7 @@ export default async function(req) {
         requested_at:now,phase:"Pendiente de recoger por el trabajador Python",
         source_results:Object.fromEntries(sources.map(s=>[s,{status:"pending"}])),
         completed_sources:[],received_candidates:0,
-        retry_count:action==="retry"?1:0,
-        ...(automatic?{source_results:{...Object.fromEntries(sources.map(s=>[s,{status:"pending"}])),identity:{status:"automatic_exact_name_unique",needs_value_review:true}}}:{})
+        retry_count:action==="retry"?1:0
       });
       return reply({ok:true,job:{id:job.id,status:job.status,player_name:job.player_name,fotmob_player_id:pid}});
     }
