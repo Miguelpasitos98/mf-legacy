@@ -24,7 +24,8 @@ function validate(input,job) {
   const value=input.value;
   if (!SOURCES.has(source)||!(job.sources||[]).includes(source)) throw Error("Fuente no solicitada.");
   if (!KINDS.has(kind)||!iso(season)) throw Error("Tipo o temporada no válido.");
-  if (typeof value!=="number"||!Number.isFinite(value)||value<0) throw Error("Valor numérico no válido.");
+  const signedMetric=kind==="metric"&&["goals prevented","goles evitados"].includes(str(input.metric_name).toLowerCase());
+  if (typeof value!=="number"||!Number.isFinite(value)||(value<0&&!signedMetric)) throw Error("Valor numérico no válido.");
   const comp=str(input.competition),teamId=str(input.fotmob_team_id);
   const teamName=str(input.team_name),name=str(input.metric_name);
   const sourceRecordId=str(input.source_record_id);
@@ -48,6 +49,7 @@ function validate(input,job) {
   return {...(input.fotmob_tournament_id?{fotmob_tournament_id:str(input.fotmob_tournament_id)}:{}),
     ...(typeof input.is_national_team==="boolean"?{is_national_team:input.is_national_team}:{}),
     ...(str(input.derivation)?{derivation:str(input.derivation).slice(0,300)}:{}),
+    ...(typeof input.percentile==="number"&&Number.isFinite(input.percentile)&&input.percentile>=0&&input.percentile<=100?{percentile:input.percentile}:{}),
     source,kind,season,competition:comp,fotmob_team_id:teamId,team_name:teamName,
     metric_name:name,metric_unit:unit,value,fifa_edition:str(input.fifa_edition),
     fifa_fc_position:str(input.fifa_fc_position),as_of_date:str(input.as_of_date),
@@ -69,7 +71,9 @@ export default async function(req) {
     const db=client.asServiceRole.entities;
     const action=str(body.action);
     if(action==="claim") {
-      const waiting=rows(await db.ImportJob.filter({status:"queued"},undefined,10));
+      if(body.job_id&&!/^[a-f0-9]{24}$/i.test(str(body.job_id)))return fail("ID de trabajo incorrecto.");
+      const waiting=body.job_id?[await db.ImportJob.get(str(body.job_id))].filter(j=>j?.status==="queued")
+        :rows(await db.ImportJob.filter({status:"queued"},undefined,10));
       const job=waiting.sort((a,b)=>str(a.requested_at).localeCompare(str(b.requested_at)))[0];
       if(!job)return reply({ok:true,job:null});
       const claimId=crypto.randomUUID(),now=new Date();
@@ -168,4 +172,3 @@ export default async function(req) {
     return fail("Acción desconocida.");
   } catch(e){console.error("import-worker",e);return fail(e?.message||"Error interno.",500);}
 }
-
