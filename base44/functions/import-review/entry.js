@@ -18,7 +18,7 @@ function withinSeason(season,date) {
   return date>=start&&date<=end;
 }
 async function conclude(db,job) {
-  const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},{limit:1}));
+  const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
   if(!pending.length)await db.ImportJob.update(job.id,{status:"completed",phase:"Candidatos revisados",progress:100});
 }
 export default async function(req) {
@@ -48,7 +48,7 @@ export default async function(req) {
     if(!player)return bad("El jugador ya no existe.",409);
     if(item.kind==="metric") {
       if(!str(item.fotmob_team_id)||!str(item.competition))return bad("Faltan identificadores de competición/equipo.",409);
-      const matches=rows(await db.PlayerSeasonStats.filter({player_id:item.player_id,season:item.season,competition:item.competition},{limit:30}))
+      const matches=rows(await db.PlayerSeasonStats.filter({player_id:item.player_id,season:item.season,competition:item.competition},undefined,30))
         .filter(r=>str(r.fotmob_team_id)===str(item.fotmob_team_id));
       if(matches.length!==1)return bad("No existe una única competición y club vinculados en STATS; revisar manualmente.",409);
       const target=matches[0],metrics=Array.isArray(target.metrics)?[...target.metrics]:[];
@@ -68,7 +68,7 @@ export default async function(req) {
       }
     } else if(item.kind==="overall"||item.kind==="market_value") {
       if(item.kind==="market_value"&&!withinSeason(item.season,str(item.as_of_date)))return bad("La fecha no corresponde a la temporada; revisión manual requerida.",409);
-      const existing=rows(await db.PlayerHistoricalValuation.filter({player_id:item.player_id,season:item.season},{limit:10}));
+      const existing=rows(await db.PlayerHistoricalValuation.filter({player_id:item.player_id,season:item.season},undefined,10));
       if(existing.length>1)return bad("Hay varias valoraciones para la misma temporada.",409);
       const isOverall=item.kind==="overall";
       const field=isOverall?"fifa_fc_overall":"transfermarkt_value_eur";
