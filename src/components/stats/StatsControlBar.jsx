@@ -1,6 +1,34 @@
-import React from "react";
+import React, {useMemo,useState} from "react";
 import { Search } from "lucide-react";
 
+function SearchableSort({value,options,onChange}){
+  const [open,setOpen]=useState(false);
+  const [query,setQuery]=useState("");
+  const normalized=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  const selected=options.find(o=>o.value===value);
+  const filtered=useMemo(()=>options.filter(o=>normalized(o.label+" "+o.group+" "+o.value).includes(normalized(query))),[options,query]);
+  const choose=item=>{onChange(item.value);setOpen(false);setQuery("");};
+  return <div className="relative min-w-[165px]">
+    <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={()=>setOpen(x=>!x)} className="sort flex w-full items-center justify-between gap-2 text-left" title="Buscar indicador para ordenar el ranking">
+      <span className="max-w-[180px] truncate">{selected?.label||"Elegir indicador"}</span><Search size={13}/>
+    </button>
+    {open&&<>
+      <button type="button" tabIndex={-1} aria-label="Cerrar búsqueda de indicadores" onClick={()=>setOpen(false)} className="fixed inset-0 z-[30] cursor-default bg-transparent"/>
+      <div className="absolute right-0 top-full z-[31] mt-1 w-[min(370px,90vw)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+        <label className="block border-b border-slate-100 p-2">
+          <span className="sr-only">Buscar estadística para ordenar</span>
+          <input autoFocus type="search" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Escape")setOpen(false);if(e.key==="Enter"&&filtered.length===1)choose(filtered[0]);}} placeholder="Buscar: paradas, xG, duelos, goles..." className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm" />
+        </label>
+        <div role="listbox" aria-label="Indicadores para ordenar" className="max-h-72 overflow-y-auto py-1">
+          {filtered.map(item=><button type="button" role="option" aria-selected={value===item.value} key={item.value} onClick={()=>choose(item)} className={"flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs hover:bg-blue-50 "+(value===item.value?"bg-blue-50 font-bold text-blue-800":"text-slate-700")}>
+            <span>{item.label}</span><span className="shrink-0 text-[10px] text-slate-400">{item.group}</span>
+          </button>)}
+          {!filtered.length&&<p className="p-4 text-xs text-slate-500">Sin indicadores coincidentes.</p>}
+        </div>
+      </div>
+    </>}
+  </div>;
+}
 // Barra de control compacta de STATS. Mantiene exactamente los mismos
 // controles, opciones y estados que tenía la página: solo cambia su presentación.
 export default function StatsControlBar({
@@ -74,9 +102,7 @@ export default function StatsControlBar({
         </label>
         <label className="field">
           ORDENAR
-          <select className="sort" value={sort} onChange={(event) => onSort(event.target.value)}>
-            {sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
+          <SearchableSort value={sort} options={sortOptions} onChange={onSort}/>
         </label>
         {viewMode === "season" && (
           <label className="field">
