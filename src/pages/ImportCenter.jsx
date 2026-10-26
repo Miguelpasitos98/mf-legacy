@@ -19,6 +19,7 @@ export default function ImportCenter(){
   const [candidateRows,setCandidateRows]=useState([]);
   const [selectedJob,setSelectedJob]=useState("");
   const [selection,setSelection]=useState("");
+  const [selectedPlayer,setSelectedPlayer]=useState(null);
   const [search,setSearch]=useState("");
   const [selectedSources,setSelectedSources]=useState(SOURCES.map(x=>x.id));
   const [busy,setBusy]=useState(false);
@@ -57,6 +58,7 @@ export default function ImportCenter(){
     return ()=>{live=false;};
   },[selection]);
   useEffect(()=>{
+    if(selectedPlayer && search===selectedPlayer.name){setSearching(false);return;}
     const term=search.trim();
     if(term.length<2){setPlayers([]);setSearching(false);return;}
     let cancelled=false;
@@ -74,8 +76,8 @@ export default function ImportCenter(){
       finally{if(!cancelled)setSearching(false);}
     },300);
     return ()=>{cancelled=true;clearTimeout(timer);};
-  },[search]);
-  const player=players.find(p=>p.id===selection);
+  },[search,selectedPlayer]);
+  const player=selectedPlayer?.id===selection?selectedPlayer:players.find(p=>p.id===selection);
   const candidateIds=[...new Set(links.map(l=>String(l.fotmob_player_id||"")).filter(Boolean))];
   const fotmob=candidateIds.length===1?candidateIds[0]:"";
   const linked=links.some(l=>["confirmed","verified","manual","automatic_exact_name_unique"].includes(String(l.verification||"").toLowerCase()))&&Boolean(fotmob);
@@ -112,14 +114,14 @@ export default function ImportCenter(){
         <h2 className="font-semibold text-lg">Nueva importación</h2>
         <div className="relative">
           <Search size={16} className="absolute top-3 left-3 text-slate-400"/>
-          <input aria-label="Buscar jugador por nombre" autoComplete="off" value={search} onChange={e=>{setSearch(e.target.value);setSelection("");setLinks([]);setSearchOpen(true);}} onFocus={()=>setSearchOpen(true)} placeholder="Escribe el nombre del jugador (ej. Rüdiger)..." className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2"/>
+          <input aria-label="Buscar jugador por nombre" autoComplete="off" value={search} onChange={e=>{setSearch(e.target.value);setSelection("");setSelectedPlayer(null);setLinks([]);setSearchOpen(true);}} onFocus={()=>setSearchOpen(true)} placeholder="Escribe el nombre del jugador (ej. Rüdiger)..." className="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2"/>
           {search.trim().length>=2&&searchOpen&&<div role="listbox" aria-label="Resultados de jugadores" className="absolute z-30 top-full mt-1 w-full max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
             {searching?<div className="p-3 text-sm text-slate-500">Buscando en todos los jugadores…</div>:
-            players.length?players.map(p=><button role="option" aria-selected={p.id===selection} key={p.id} type="button" onClick={()=>{setSelection(p.id);setSearch(p.name);setSearchOpen(false);}} className="block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 focus:bg-blue-50">{p.name}</button>):
+            players.length?players.map(p=><button role="option" aria-selected={p.id===selection} key={p.id} type="button" onClick={()=>{setSelection(p.id);setSelectedPlayer(p);setSearch(p.name);setSearchOpen(false);}} className="block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 focus:bg-blue-50">{p.name}</button>):
             <div className="p-3 text-sm text-slate-500">No se encontraron jugadores.</div>}
           </div>}
         </div>
-        {selection&&player&&<div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm"><strong>Seleccionado: {player.name}</strong><button type="button" onClick={()=>{setSelection("");setSearch("");setLinks([]);}} className="ml-3 text-blue-800 underline">Cambiar</button></div>}
+        {selection&&player&&<div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm"><strong>Seleccionado: {player.name}</strong><button type="button" onClick={()=>{setSelection("");setSelectedPlayer(null);setSearch("");setLinks([]);}} className="ml-3 text-blue-800 underline">Cambiar</button></div>}
         {selection&&<p className="text-sm text-slate-600">FotMob: <strong>{fotmob||"Sin vínculo único"}</strong>{linked?" · Vinculación registrada":" · Requiere revisión"}</p>}
         <h3 className="font-semibold text-sm">Fuentes</h3>
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
