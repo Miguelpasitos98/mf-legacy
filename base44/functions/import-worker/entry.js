@@ -6,7 +6,7 @@ const str=(x)=>String(x??"").trim();
 const rows=(v)=>Array.isArray(v)?v:v?.items||v?.data||v?.entities||[];
 const SOURCES=new Set(["fotmob","understat","fifa","market"]);
 const KINDS=new Set(["metric","overall","market_value"]);
-const UNITS=new Set(["total","per90","percentage"]);
+const UNITS=new Set(["total","per90","percentage","per_match"]);
 const iso=(v)=>/^\d{4}(\/\d{4})?$/.test(str(v));
 const secretEqual=(a,b)=>{
   const aa=new TextEncoder().encode(str(a)),bb=new TextEncoder().encode(str(b));
@@ -43,7 +43,12 @@ function validate(input,job) {
   }
   if (input.verification_status==="verified"&&!evidence) throw Error("No se pueden verificar datos sin evidencia.");
   const verification_status = input.verification_status==="verified"?"verified":"unverified";
-  return {source,kind,season,competition:comp,fotmob_team_id:teamId,team_name:teamName,
+  if(input.fotmob_tournament_id && !/^\d{1,15}$/.test(str(input.fotmob_tournament_id)))throw Error("ID de competición no válido.");
+  if(input.is_national_team!==undefined&&typeof input.is_national_team!=="boolean")throw Error("Ámbito de equipo no válido.");
+  return {...(input.fotmob_tournament_id?{fotmob_tournament_id:str(input.fotmob_tournament_id)}:{}),
+    ...(typeof input.is_national_team==="boolean"?{is_national_team:input.is_national_team}:{}),
+    ...(str(input.derivation)?{derivation:str(input.derivation).slice(0,300)}:{}),
+    source,kind,season,competition:comp,fotmob_team_id:teamId,team_name:teamName,
     metric_name:name,metric_unit:unit,value,fifa_edition:str(input.fifa_edition),
     fifa_fc_position:str(input.fifa_fc_position),as_of_date:str(input.as_of_date),
     evidence_url:evidence,source_record_id:sourceRecordId,verification_status};
@@ -136,9 +141,22 @@ export default async function(req) {
       for(const s of job.sources||[]) {
         const v=report[s]||{};
         source_results[s]={status:["complete","unavailable","error","skipped"].includes(v.status)?v.status:"unavailable",
-          note:str(v.note).slice(0,300)};
+          note:str(v.note).slice(0,300),
+          counts:Object.fromEntries(Object.entries(v.counts||{}).filter(([k,n])=>/^[a-z_]{1,45}$/.test(k)&&Number.isInteger(n)&&n>=0)),
+          diagnostics:(Array.isArray(v.diagnostics)?v.diagnostics:[]).slice(0,200).map(d=>({
+            season:str(d.season).slice(0,20),competition:str(d.competition).slice(0,140),
+            season_id:str(d.season_id).slice(0,20),tournament_id:str(d.tournament_id).slice(0,20),
+            status:str(d.status).slice(0,45),reason:str(d.reason).slice(0,250),
+            team_name:str(d.team_name).slice(0,140),fotmob_team_id:str(d.fotmob_team_id).slice(0,20),
+            recovered_metrics:Math.max(0,Math.trunc(Number(d.recovered_metrics)||0)),
+            candidates:Math.max(0,Math.trunc(Number(d.candidates)||0))
+          }))};
       }
-      const counts=rows(await db.ImportCandidate.filter({job_id:job.id},undefined,500)).length;
+      let counts=0;
+      for(let skip=0;skip<10000;skip+=100) {
+        const page=rows(await db.ImportCandidate.filter({job_id:job.id},"id",100,skip));
+        counts+=page.length;if(page.length<100)break;
+      }
       await db.ImportJob.update(job.id,{status:counts?"review":"completed",phase:counts?"Datos recibidos; revisar candidatos":"Sin nuevos datos verificables",progress:100,
         source_results,received_candidates:counts,finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
       return reply({ok:true,status:counts?"review":"completed",candidates:counts});
@@ -150,3 +168,4 @@ export default async function(req) {
     return fail("Acción desconocida.");
   } catch(e){console.error("import-worker",e);return fail(e?.message||"Error interno.",500);}
 }
+
