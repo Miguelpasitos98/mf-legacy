@@ -1,0 +1,134 @@
+{
+  "name": "ImportCandidate",
+  "type": "object",
+  "properties": {
+    "candidate_key": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "fotmob_player_id": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "fotmob",
+        "understat",
+        "fifa",
+        "market"
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "metric",
+        "overall",
+        "market_value"
+      ]
+    },
+    "season": {
+      "type": "string"
+    },
+    "competition": {
+      "type": "string"
+    },
+    "fotmob_team_id": {
+      "type": "string"
+    },
+    "team_name": {
+      "type": "string"
+    },
+    "metric_name": {
+      "type": "string"
+    },
+    "metric_unit": {
+      "type": "string",
+      "enum": [
+        "total",
+        "per90",
+        "percentage"
+      ]
+    },
+    "value": {
+      "type": "number"
+    },
+    "fifa_edition": {
+      "type": "string"
+    },
+    "fifa_fc_position": {
+      "type": "string"
+    },
+    "as_of_date": {
+      "type": "string"
+    },
+    "evidence_url": {
+      "type": "string"
+    },
+    "source_record_id": {
+      "type": "string"
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "unverified",
+        "conflict"
+      ],
+      "default": "unverified"
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "applied",
+        "skipped",
+        "rejected"
+      ],
+      "default": "pending"
+    },
+    "review_note": {
+      "type": "string"
+    },
+    "received_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate_key",
+    "job_id",
+    "player_id",
+    "source",
+    "kind",
+    "season",
+    "value",
+    "verification_status",
+    "review_status"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
