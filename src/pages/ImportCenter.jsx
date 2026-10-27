@@ -16,6 +16,8 @@ const fmt=x=>x?new Date(x).toLocaleString("es-ES"):"—";
 const queuedTooLong=job=>job?.status==="queued"&&!job.started_at&&Number.isFinite(Date.parse(job.requested_at||job.created_date))&&Date.now()-Date.parse(job.requested_at||job.created_date)>120000;
 const reason=e=>e?.response?.data?.error||e?.message||"Error inesperado";
 const responseRows=r=>Array.isArray(r)?r:r?.items||r?.data||r?.entities||[];
+const missingFotmobCaches=job=>(job?.source_results?.fotmob?.diagnostics||[]).filter(d=>["cache_absent","candidate_limit"].includes(d.status)).length;
+const retryableSources=job=>Object.entries(job?.source_results||{}).some(([source,r])=>["partial","error"].includes(r.status)||(r.diagnostics||[]).some(d=>["consulta_pendiente","error_temporal"].includes(d.status)||source==="fotmob"&&["cache_absent","candidate_limit"].includes(d.status)));
 
 export default function ImportCenter(){
   const cache=useQueryClient();
@@ -286,13 +288,14 @@ export default function ImportCenter(){
               {ACTIVE.includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("cancel",{job_id:j.id})} className="text-amber-800 underline">Cancelar</button>}
               {j.status==="running"&&j.lease_expires_at&&Date.now()>new Date(j.lease_expires_at).getTime()&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("release-stale",{job_id:j.id})} className="text-amber-800 underline">Liberar bloqueo</button>}
               {["failed","cancelled"].includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar</button>}
-              {!ACTIVE.includes(j.status)&&Object.values(j.source_results||{}).some(r=>["partial","error"].includes(r.status))&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry-pending",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar fuentes pendientes</button>}
+              {!ACTIVE.includes(j.status)&&retryableSources(j)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry-pending",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">{missingFotmobCaches(j)>0?`Recuperar ${missingFotmobCaches(j)} entradas FotMob pendientes`:"Reintentar fuentes pendientes"}</button>}
             </td>
           </tr>)}</tbody>
         </table></div>}
     </section>
     {selectedJobData&&<section className="rounded-xl bg-white border border-slate-200 p-5 mt-4">
       <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Revisión · {selectedJobData.player_name}</h2><button onClick={()=>setSelectedJob("")} className="text-sm text-slate-500 underline">Cerrar</button></div>
+      {missingFotmobCaches(selectedJobData)>0&&<div className="my-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950"><strong>Extracción FotMob incompleta:</strong> quedan {missingFotmobCaches(selectedJobData)} entradas históricas sin recuperar. Las peticiones anteriores ya alcanzaron el límite por trabajo. <button type="button" disabled={busy||coordinator!=="ready"||ACTIVE.includes(selectedJobData.status)} onClick={()=>operate("retry-pending",{job_id:selectedJobData.id,player_id:selectedJobData.player_id})} className="ml-2 font-semibold text-[#003399] underline disabled:opacity-40">Recuperar temporadas pendientes</button><p className="mt-1 text-xs">El trabajador del PC descargará más entradas dentro del presupuesto de consultas del nuevo trabajo; conservará las temporadas existentes.</p></div>}
       {queuedTooLong(selectedJobData)&&<p role="status" className="my-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">Este trabajo aún no ha comenzado: ningún trabajador de Studio lo ha recogido. Inicia o comprueba el trabajador Python en tu PC; esta solicitud seguirá en cola y no es necesario repetirla.</p>}
       <p className="text-xs text-slate-500 my-2">Para crear una primera temporada, comprueba la fuente y aprueba el lote de esa competición. Para valores individuales FIFA/mercado conserva la revisión específica. Los datos anteriores nunca se sobrescriben.</p>
       {selectedJobData.status==="completed"&&candidateRows.length>0&&<p className="text-sm font-semibold text-emerald-700">Revisión completada · {candidateRows.filter(c=>c.review_status==="applied").length} candidatos aplicados.</p>}
