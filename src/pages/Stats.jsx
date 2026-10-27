@@ -657,12 +657,10 @@ export default function Stats(){
   const detailRequest=useRef(0);
   const updateMetric=async(record,change)=>{
     if(!record?.id)throw Error("El registro no tiene identificador válido.");
-    const filters=record.external_record_id?{external_record_id:record.external_record_id}:
-      {player_id:record.player_id,season:record.season,competition:record.competition};
-    const found=unpack(await base44.entities.PlayerSeasonStats.filter(filters,{limit:25}));
-    const exact=found.filter(r=>String(r.id)===String(record.id));
-    if(exact.length!==1)throw Error("Registro no encontrado o duplicado; vuelve a abrir la ficha.");
-    const current=exact[0];
+    // Leer por ID evita filtros con argumentos incompatibles con el SDK y
+    // garantiza que editamos el registro elegido en la ficha de temporada.
+    const current=await base44.entities.PlayerSeasonStats.get(record.id);
+    if(!current||String(current.id)!==String(record.id))throw Error("Registro no encontrado; vuelve a abrir la ficha.");
     if(String(current.player_id)!==String(record.player_id)||
       current.season!==record.season||current.competition!==record.competition)
       throw Error("La identidad del historial ha cambiado.");
