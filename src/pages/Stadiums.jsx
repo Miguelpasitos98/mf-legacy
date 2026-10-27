@@ -39,11 +39,12 @@ export default function Stadiums(){
   const [selected,setSelected]=useState(null),[form,setForm]=useState(null),[saving,setSaving]=useState(false),[error,setError]=useState("");
   const stadiums=useMemo(()=>toStadiums(rows(query.data),rows(countriesQuery.data),rows(leaguesQuery.data)),[query.data,countriesQuery.data,leaguesQuery.data]);
   const filtered=useMemo(()=>stadiums.filter(s=>
+    (mode!=="custom" || s.teams.some(t=>t.is_custom_club===true||t.isCustomClub===true))&&
     (!search||[s.name,...s.teams.map(t=>t.name)].some(v=>v.toLocaleLowerCase("es").includes(search.toLocaleLowerCase("es"))))&&
     (!city||s.city.toLocaleLowerCase("es").includes(city.toLocaleLowerCase("es")))&&
     (!country||s.country.toLocaleLowerCase("es").includes(country.toLocaleLowerCase("es")))&&
     (!capacity||(Number(s.capacity)||0)>=Number(capacity))
-  ),[stadiums,search,city,country,capacity]);
+  ),[stadiums,search,city,country,capacity,mode]);
   const grouped=useMemo(()=>Object.entries(filtered.reduce((acc,stadium)=>{
     const key=mode==="leagues"?(stadium.competition||"Sin competición"):(stadium.country||"Sin país");
     (acc[key] ||= []).push(stadium);return acc;
@@ -73,7 +74,7 @@ export default function Stadiums(){
   return <main className="min-h-full bg-[#F6F7F9] p-4 md:p-8">
     <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
       <div><div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#003399]"><Building2 size={17}/> MF Legacy · Stadiums</div><h1 className="mt-1 text-2xl font-extrabold text-slate-900">Estadios</h1><p className="mt-1 text-sm text-slate-500">Estadios vinculados a los equipos de MF Legacy · {stadiums.length} recintos registrados</p></div>
-      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1"><button onClick={()=>setMode("countries")} className={"rounded-lg px-4 py-2 text-xs font-bold "+(mode==="countries"?"bg-[#003399] text-white":"text-slate-600")}>Países</button><button onClick={()=>setMode("leagues")} className={"rounded-lg px-4 py-2 text-xs font-bold "+(mode==="leagues"?"bg-[#003399] text-white":"text-slate-600")}>Ligas</button></div>
+      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1"><button onClick={()=>setMode("countries")} className={"rounded-lg px-4 py-2 text-xs font-bold "+(mode==="countries"?"bg-[#003399] text-white":"text-slate-600")}>Países</button><button onClick={()=>setMode("leagues")} className={"rounded-lg px-4 py-2 text-xs font-bold "+(mode==="leagues"?"bg-[#003399] text-white":"text-slate-600")}>Ligas</button><button onClick={()=>setMode("custom")} className={"rounded-lg px-4 py-2 text-xs font-bold "+(mode==="custom"?"bg-[#003399] text-white":"text-slate-600")}>Mis clubes</button></div>
     </div>
     <div className="mb-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
       <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3"><Search size={15} className="text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Estadio o club" className="h-10 min-w-0 w-full bg-transparent text-xs outline-none"/></label>
