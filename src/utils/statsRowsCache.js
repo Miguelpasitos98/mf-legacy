@@ -6,6 +6,8 @@ export const STATS_ROWS_STALE_MS=30*60*1000;
 export const STATS_CACHE_GC_MS=3*60*60*1000;
 export const statsRowsKey=(season,competition)=>[...STATS_ROWS_KEY,season,competition];
 export const statsDetailKey=(kind,id)=>[...STATS_DETAIL_KEY,kind,String(id)];
+export const selectStatsRows=(rows,season,competition)=>season==="Todas"&&competition==="Todas"?rows
+  :rows.filter(r=>(season==="Todas"||r.season===season)&&(competition==="Todas"||r.competition===competition));
 export const flattenStatsPages=data=>{
   const ids=new Set();
   const all=[];
