@@ -130,7 +130,7 @@ class StudioTests(unittest.TestCase):
             with patch('worker.mf_v3_worker.studio_import',return_value=(self.profile,self.client,self.resolver)), patch.object(self.client,'fetch_stats',side_effect=OSError('Provider unavailable')) as fetch:
                 records,state=studio_fotmob(root,'309328',allow_network=True,request_limit=1)
             self.assertEqual(records,[]);self.assertEqual(fetch.call_count,1)
-            self.assertEqual(state['counts']['incompatible_response'],1)
+            self.assertEqual(state['counts']['cache_mismatch'],1)
             self.assertEqual(state['counts']['query_failed'],1)
             self.assertEqual(state['status'],'partial')
 

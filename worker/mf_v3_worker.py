@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
-from urllib.error import HTTPError
 import shutil
 from datetime import datetime, timezone
 import json
@@ -508,6 +507,7 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
                     state['status']='partial'
                 if requested is not None:candidates=[c for c in candidates if c['season'] in scoped(seasons)]
                 candidates=[c for c in candidates if not catalog().saved(pid,source,c['season'])]
+                state['note']=re.sub(r'Candidatos Understat: \d+',f'Candidatos Understat: {len(candidates)}',state['note'])
                 for d in state.get('diagnostics',[]):
                     if catalog().saved(pid,source,d['season']):d['status']='verificado_guardado'
                     else:catalog().state(pid,source,d['season'],'pendiente_verificacion',d)
