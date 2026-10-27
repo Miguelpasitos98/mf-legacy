@@ -154,6 +154,10 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                 profile_stale=False
             except HTTPError as error:
                 profile_refresh_error="Perfil FotMob HTTP "+str(error.code)
+                if error.code in (401,403,429):
+                    # No intentar otros recursos si el proveedor ha negado
+                    # acceso o indicado límite temporal.
+                    allow_network=False
                 if not cache.exists():
                     return [],{**report("partial",profile_refresh_error),
                         "coverage":{"total":0,"received":0,"unavailable":0,"pending":1,
