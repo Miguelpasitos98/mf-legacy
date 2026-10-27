@@ -140,6 +140,34 @@ function withinSeason(season,date) {
   const parsed=new Date(date+"T00:00:00Z");
   return !Number.isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===date&&date>=start&&date<=end;
 }
+// Utilizado al finalizar una extracción: solo aplica valores históricos contrastados.
+export async function applyVerifiedHistoricals(db,job) {
+  const result={applied:0,pending:0,created_stats:0,created_valuations:0,errors:[]};
+  if(job.status!=="review")return result;
+  const player=await db.Player.get(job.player_id);
+  if(!player)return result;
+  const links=await allRows(db.PlayerFotmobLink,{player_id:job.player_id});
+  const backlinks=await allRows(db.PlayerFotmobLink,{fotmob_player_id:job.fotmob_player_id});
+  const valid=new Set(["verified","confirmed","manual","manual_confirmada","confirmada","automatic_exact_name_unique"]);
+  if(!links.length||links.some(l=>str(l.fotmob_player_id)!==str(job.fotmob_player_id))||!links.some(l=>valid.has(str(l.verification).toLowerCase()))||backlinks.some(l=>str(l.player_id)!==job.player_id))return result;
+  const records=await allRows(db.ImportCandidate,{job_id:job.id});
+  const trusted=c=>c.review_status==="pending"&&c.verification_status==="verified"&&str(c.evidence_url).startsWith("https://")&&str(c.provenance?.archive_url).startsWith("https://")&&!!str(c.provenance?.sha256)&&str(c.player_id)===str(job.player_id)&&str(c.fotmob_player_id)===str(job.fotmob_player_id);
+  for(const item of records.filter(c=>trusted(c)&&["overall","market_value"].includes(c.kind))){
+    const p=item.provenance;
+    if(!p?.player_id||!p.identity_rule||(item.kind==="overall"&&(item.source!=="fifa"||p.rating_kind!=="launch_base"))||(item.kind==="market_value"&&(item.source!=="market"||p.value_kind!=="market_value")))continue;
+    try{
+      const existing=rows(await db.PlayerHistoricalValuation.filter({player_id:job.player_id,season:item.season},undefined,10));
+      if(existing.length>1)continue;
+      const plan=valuationPlan(item,existing[0]||null);
+      if(plan.operation==="create") {await db.PlayerHistoricalValuation.create({player_id:job.player_id,fotmob_player_id:job.fotmob_player_id,season:item.season,verification_status:"verified",...plan.record});result.created_valuations++;}
+      else if(plan.operation==="update")await db.PlayerHistoricalValuation.update(plan.target_id,plan.record);
+      await db.ImportCandidate.update(item.id,{review_status:"applied",review_note:"Autoaplicado: archivo contrastado y sin sobrescribir datos"});
+      result.applied++;
+    }catch(e){if(result.errors.length<8)result.errors.push(item.source+" "+item.season+": "+e.message);}
+  }
+  result.pending=records.length-result.applied;
+  return result;
+}
 async function conclude(db,job) {
   const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
   if(!pending.length)await db.ImportJob.update(job.id,{status:"completed",phase:"Candidatos revisados",progress:100});
