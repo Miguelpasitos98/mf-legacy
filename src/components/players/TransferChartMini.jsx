@@ -40,6 +40,16 @@ export default function TransferChartMini({ player, clubs = [] }) {
   const [draft, setDraft] = useState([]);
   const [error, setError] = useState("");
   useEffect(() => { setRows(readStored(id) ?? originalRows(player)); setOpen(false); }, [id]);
+  useEffect(() => {
+    const sync = (event) => {
+      if (event.type === "storage" && event.key !== storageKey(id)) return;
+      if (event.type === "mf-legacy-market-preview-updated" && String(event.detail?.playerId) !== String(id)) return;
+      setRows(readStored(id) ?? originalRows(player));
+    };
+    window.addEventListener("mf-legacy-market-preview-updated", sync);
+    window.addEventListener("storage", sync);
+    return () => { window.removeEventListener("mf-legacy-market-preview-updated", sync); window.removeEventListener("storage", sync); };
+  }, [id, player]);
   const data = useMemo(() => validRows(rows).map((r) => ({
     ...r, timestamp: new Date(r.date + "T12:00:00").getTime(),
     team: r.team || clubs.find((c) => String(c.id) === r.club_id)?.name || "",
