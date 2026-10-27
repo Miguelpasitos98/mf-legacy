@@ -73,6 +73,7 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave,def
     </select>
    </label>:<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">No hay competiciones con registros guardados en estos filtros. Cambia la temporada o el ámbito para introducir datos.</p>}
    {selected&&<div className="space-y-3">
+     {mode==="rating"&&<p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-900">Introduce la nota media de FotMob entre 0 y 10 para la competición elegida, no su percentil. El Composite calculará automáticamente el percentil histórico a partir de las notas de los jugadores comparables. La media de temporada se pondera con los partidos de cada competición.</p>}
      <p className="text-[11px] font-medium text-blue-800">Registro seleccionado: {status(selected)}. Los datos globales se identifican como temporada completa.</p>
      {(mode==="chain"||mode==="buildup")&&<>
        <p className="rounded-lg bg-blue-50 p-3 text-xs text-blue-800">Puedes introducir directamente el dato por 90 minutos. No se necesitan minutos para guardar una tasa ya calculada. El dato de temporada completa no se atribuye a Liga ni Champions.</p>
@@ -106,7 +107,7 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave,def
        </label>
        {valueInput(per90?"Valor por 90 minutos":"Valor","value")}
      </>}
-     {["goals","assists","xg","xa","shots","appearances","minutes","rating"].includes(mode)&&valueInput("Nuevo valor para esta competición","value")}
+     {["goals","assists","xg","xa","shots","appearances","minutes","rating"].includes(mode)&&valueInput(mode==="rating"?"Nota media FotMob (0–10)":"Nuevo valor para esta competición","value",mode==="rating"?"7,25":"0,00")}
      <p className="text-[11px] text-slate-500">Se guardarán únicamente las cifras modificadas, con registro del valor anterior y la fecha. No se alteran los demás datos del jugador.</p>
    </div>}
    {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-800">{error}</p>}
