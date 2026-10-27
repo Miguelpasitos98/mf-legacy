@@ -1633,6 +1633,10 @@ export default function Players() {
       setFm26ProgressLabel(`Importación completada · ${updated} actualizados · ${created} creados · ${failed} errores`);
       setFm26Message(`Completado: ${updated} actualizados, ${created} creados, ${failed} errores, ${fm26Preview.skipped} omitidos por ambigüedad o datos incompletos.${failures.length ? " Ejemplos de errores: " + failures.join(" | ") : ""}`);
       await loadData();
+      // Only dismiss a clean import; otherwise show failures/skipped rows for review.
+      if (failed === 0 && fm26Preview.skipped === 0) {
+        setFm26ImportOpen(false);
+      }
     } catch(error) { setFm26Error(error?.message || "Error inesperado"); }
     finally { setFm26Busy(false); }
   };
@@ -3094,7 +3098,7 @@ export default function Players() {
   }
 
   return (
-    <div className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
+    <div data-mf-players-scroll className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
       <div className="w-full">
 
         {/* HEADER */}
@@ -3217,6 +3221,12 @@ export default function Players() {
           </div>
         </div>
 
+        {!fm26ImportOpen && fm26Message?.startsWith("Completado:") && (
+          <div role="status" className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <span>{fm26Message}</span>
+            <button type="button" className="shrink-0 rounded-md p-1 hover:bg-emerald-100" aria-label="Ocultar resultado de importación" onClick={() => setFm26Message("")}><X size={15}/></button>
+          </div>
+        )}
         {/* ERROR */}
         {errorMessage && (
           <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

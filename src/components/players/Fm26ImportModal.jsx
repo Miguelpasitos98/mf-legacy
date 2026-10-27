@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import Fm26ClubPlayers from "./Fm26ClubPlayers";
 
@@ -87,6 +88,26 @@ export default function Fm26ImportModal({
 }) {
   const [copiedKey, setCopiedKey] = useState("");
 
+  // Un único scroll en el modal. Bloquea el desplazamiento de PLAYERS y de la página de fondo.
+  useEffect(() => {
+    if (!fm26ImportOpen) return undefined;
+    const playersScroller = document.querySelector("[data-mf-players-scroll]");
+    const html = document.documentElement;
+    const body = document.body;
+    const oldHtmlOverflow = html.style.overflow;
+    const oldBodyOverflow = body.style.overflow;
+    const oldPlayersOverflow = playersScroller?.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    if (playersScroller) playersScroller.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = oldHtmlOverflow;
+      body.style.overflow = oldBodyOverflow;
+      if (playersScroller) playersScroller.style.overflow = oldPlayersOverflow;
+    };
+  }, [fm26ImportOpen]);
+
+
   const handleCopyPlayerName = async (player, key) => {
     try {
       await navigator.clipboard.writeText(String(player?.name || ""));
@@ -99,10 +120,14 @@ export default function Fm26ImportModal({
 
   if (!fm26ImportOpen) return null;
 
-  return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={e => { if (e.target === e.currentTarget && !fm26Busy) setFm26ImportOpen(false); }}>
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-extrabold">Importar FM26 JSON</h2><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)}><X size={20}/></button></div>
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-2 backdrop-blur-[2px] sm:p-5" onMouseDown={e => { if (e.target === e.currentTarget && !fm26Busy && !fm26NationSaveBusy && !fm26CreateNationBusy) setFm26ImportOpen(false); }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="fm26-import-title" className="flex h-[calc(100dvh-1rem)] max-h-[850px] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:h-[calc(100dvh-2.5rem)]">
+        <header className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white px-4 py-4 sm:px-6">
+          <div><h2 id="fm26-import-title" className="text-lg font-extrabold text-slate-900">Importar FM26 JSON</h2><p className="text-xs text-slate-500">Importación de jugadores desde fmsave · Football Manager 2026</p></div>
+          <button type="button" aria-label="Cerrar importador" disabled={fm26Busy || fm26NationSaveBusy || fm26CreateNationBusy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"><X size={20}/></button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
         <p className="mb-4 text-sm text-slate-600">Carga un JSON de fmsave (players). Detectamos y agrupamos sus clubes, sugerimos coincidencias y te pedimos confirmar el equipo de destino de cada grupo. No modifica fotografías ni salarios anuales.</p>
         <input type="file" accept=".json,application/json" onChange={handleFm26File} disabled={fm26Busy} className="mb-4 w-full text-sm" />
         {fm26FileName && <p className="mb-3 text-xs text-slate-500">Archivo: {fm26FileName}</p>}
@@ -118,7 +143,7 @@ export default function Fm26ImportModal({
               <div className="mt-1 flex flex-wrap gap-2">{group.suggestions.length?group.suggestions.map(t=><button key={t.id} type="button" disabled={fm26Busy} onClick={()=>{setFm26ClubChoices(old=>({...old,[group.key]:String(t.id)}));setFm26CreatingClub("");}} className={`rounded-lg border px-3 py-1.5 text-xs ${String(picked?.id)===String(t.id)?"border-green-500 bg-green-50 font-bold":"border-slate-200 hover:bg-blue-50"}`}>{t.name} · {t.score}%</button>):<span className="text-xs text-slate-500">Sin coincidencias cercanas</span>}</div>
               <label className="mt-3 block text-xs font-semibold text-slate-600">Buscar otro equipo</label>
               <input disabled={fm26Busy} value={search} onChange={e=>setFm26ClubSearch(old=>({...old,[group.key]:e.target.value}))} placeholder="Buscar por nombre..." className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" />
-              {!!search.trim()&&<div className="mt-1 max-h-32 overflow-y-auto rounded-lg border">{matches.map(t=><button key={t.id} type="button" onClick={()=>{setFm26ClubChoices(old=>({...old,[group.key]:String(t.id)}));setFm26ClubSearch(old=>({...old,[group.key]:""}));setFm26CreatingClub("");}} className="block w-full border-b px-3 py-2 text-left text-xs hover:bg-blue-50">{t.name}</button>)}{!matches.length&&<p className="p-2 text-xs text-slate-500">No hay coincidencias</p>}</div>}
+              {!!search.trim()&&<div className="mt-1 rounded-lg border">{matches.map(t=><button key={t.id} type="button" onClick={()=>{setFm26ClubChoices(old=>({...old,[group.key]:String(t.id)}));setFm26ClubSearch(old=>({...old,[group.key]:""}));setFm26CreatingClub("");}} className="block w-full border-b px-3 py-2 text-left text-xs hover:bg-blue-50">{t.name}</button>)}{!matches.length&&<p className="p-2 text-xs text-slate-500">No hay coincidencias</p>}</div>}
               <div className="mt-2 flex flex-wrap gap-3"><button type="button" className="text-xs font-semibold text-blue-700 underline" onClick={()=>{setFm26CreatingClub(group.key);setFm26NewClubName(group.name);setFm26NewClubCountry("");setFm26NewClubLeague("");}}>Ninguno: crear equipo</button>{picked&&<button type="button" className="text-xs text-slate-500 underline" onClick={()=>setFm26ClubChoices(old=>{const next={...old};delete next[group.key];return next;})}>Quitar asociación</button>}</div>
               {fm26CreatingClub===group.key&&<div className="mt-3 space-y-2 rounded-lg border bg-slate-50 p-3"><p className="text-xs font-bold">Crear equipo en MF LEGACY</p><input value={fm26NewClubName} onChange={e=>setFm26NewClubName(e.target.value)} placeholder="Nombre del equipo" className="w-full rounded border p-2 text-sm"/><select className="w-full rounded border p-2 text-sm" value={fm26NewClubCountry} onChange={e=>setFm26NewClubCountry(e.target.value)}><option value="">Selecciona país</option>{countries.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select className="w-full rounded border p-2 text-sm" value={fm26NewClubLeague} onChange={e=>setFm26NewClubLeague(e.target.value)}><option value="">Selecciona liga</option>{fm26Leagues.map(l=><option key={l.id||l._id} value={l.id||l._id}>{l.name}</option>)}</select><div className="flex gap-2"><button type="button" disabled={fm26Busy} onClick={()=>handleCreateFm26Club(group)} className="rounded bg-[#003399] px-3 py-2 text-xs font-bold text-white">Crear y asociar</button><button type="button" disabled={fm26Busy} onClick={()=>setFm26CreatingClub("")} className="rounded border px-3 py-2 text-xs">Cancelar</button></div></div>}
             <Fm26ClubPlayers group={group} />
@@ -167,7 +192,7 @@ export default function Fm26ImportModal({
                 </div>
               );
             })()}
-            <div className="max-h-80 space-y-2 overflow-y-auto p-3">
+            <div className="space-y-2 p-3">
               {fm26Nations.filter(item=>!fm26NationOnlyPending || item.status==="unlinked" || item.status==="suggested" || item.status==="conflict").map(({id,main,secondary,examples,country,status,conflictDetail})=>{
                 const mapped=country;
                 const suggestion=FM26_NATION_ISO3[id] || "Sin referencia";
@@ -205,7 +230,7 @@ export default function Fm26ImportModal({
                     </div>
                   )}
                   <input type="text" disabled={fm26Busy||fm26NationSaveBusy||fm26CreateNationBusy} value={query} onChange={e=>setFm26NationSearch(old=>({...old,[id]:e.target.value}))} placeholder="Buscar país por nombre o código (BRA, España...)" className="mt-2 w-full rounded-lg border px-3 py-2 text-xs" />
-                  {!!query.trim()&&<div className="mt-1 max-h-40 overflow-y-auto rounded-lg border">{choices.length ? choices.map(country=><button key={country.id} type="button" disabled={fm26Busy||fm26NationSaveBusy||fm26CreateNationBusy} onClick={()=>{setFm26NationMapping(old=>({...old,[id]:String(country.id)}));setFm26NationSearch(old=>({...old,[id]:""}));setFm26NationSaveMessage("");}} className="flex w-full items-center justify-between border-b px-3 py-2 text-left text-xs hover:bg-blue-50"><span>{country.name}</span><span className="text-slate-400">{country.code}</span></button>):<p className="p-2 text-xs text-slate-500">No existe un país coincidente en MF LEGACY.</p>}</div>}
+                  {!!query.trim()&&<div className="mt-1 rounded-lg border">{choices.length ? choices.map(country=><button key={country.id} type="button" disabled={fm26Busy||fm26NationSaveBusy||fm26CreateNationBusy} onClick={()=>{setFm26NationMapping(old=>({...old,[id]:String(country.id)}));setFm26NationSearch(old=>({...old,[id]:""}));setFm26NationSaveMessage("");}} className="flex w-full items-center justify-between border-b px-3 py-2 text-left text-xs hover:bg-blue-50"><span>{country.name}</span><span className="text-slate-400">{country.code}</span></button>):<p className="p-2 text-xs text-slate-500">No existe un país coincidente en MF LEGACY.</p>}</div>}
                   {!!query.trim()&&!choices.length&&!mapped&&fm26CreatingNation!==id&&(
                     <button type="button" disabled={fm26Busy||fm26NationSaveBusy||fm26CreateNationBusy}
                       onClick={()=>{setFm26CreatingNation(id);setFm26NewNation({name:query.trim(),code:"",continent:"",flag:""});setFm26Error("");}}
@@ -252,10 +277,12 @@ export default function Fm26ImportModal({
           </div>
           <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={fm26CreateMissing} onChange={e=>setFm26CreateMissing(e.target.checked)}/> Crear jugadores que aún no existan</label>
         </div>}
-        {fm26Error && <p className="mb-3 text-sm text-red-700">{fm26Error}</p>}
-        {fm26Message && <p className="mb-3 text-sm text-slate-700">{fm26Message}</p>}
+        {fm26Error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{fm26Error}</p>}
+        {fm26Message && <p role="status" className="mb-3 text-sm text-slate-700">{fm26Message}</p>}
+        </div>
+        <footer className="shrink-0 border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
         {(fm26Busy || fm26ProgressTotal > 0) && (
-          <div className="sticky bottom-0 z-10 -mx-2 mb-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-[0_-10px_28px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-slate-700">
               <span>{fm26ProgressLabel || (fm26Busy ? "Importando jugadores..." : "Importación finalizada")}</span>
               <span>{Math.min(fm26ProgressCurrent, fm26ProgressTotal)}/{fm26ProgressTotal || 0}</span>
@@ -272,8 +299,13 @@ export default function Fm26ImportModal({
             </div>
           </div>
         )}
-        <div className="flex justify-end gap-2"><button type="button" disabled={fm26Busy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border px-4 py-2">Cerrar</button><button type="button" disabled={!fm26Preview || fm26Preview.unmapped > 0 || fm26Busy || fm26NationSaveBusy || fm26CreateNationBusy} onClick={handleFm26Import} className="rounded-lg bg-[#003399] px-4 py-2 font-semibold text-white disabled:opacity-40">{fm26Busy ? "Importando..." : "Confirmar importación"}</button></div>
-      </div>
-    </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" disabled={fm26Busy || fm26NationSaveBusy || fm26CreateNationBusy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">Cancelar</button>
+          <button type="button" disabled={!fm26Preview || fm26Preview.unmapped > 0 || fm26Busy || fm26NationSaveBusy || fm26CreateNationBusy} onClick={handleFm26Import} className="rounded-lg bg-[#003399] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{fm26Busy ? "Importando..." : "Confirmar importación"}</button>
+        </div>
+        </footer>
+      </section>
+    </div>,
+    document.body
   );
 }
