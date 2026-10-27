@@ -45,6 +45,7 @@ export default function ImportCenter(){
   const [coordinator,setCoordinator]=useState("checking");
   const [statsStatus,setStatsStatus]=useState({state:"idle",count:0});
   const refreshSequence=useRef(0),currentJob=useRef(selectedJob);
+  const autoProcessed=useRef(new Set());
   currentJob.current=selectedJob;
 
   const refresh=useCallback(async({forceCandidates=false}={})=>{
@@ -121,6 +122,23 @@ export default function ImportCenter(){
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const waitingForWorker=jobs.filter(queuedTooLong);
+  useEffect(()=>{
+    if(!selectedJobData||selectedJobData.status!=="review"||candidatesLoading||!candidateRows.length||autoProcessed.current.has(selectedJobData.id))return;
+    const candidate=candidateRows.find(c=>c.review_status==="pending"&&c.verification_status==="verified"&&["understat","fifa","market"].includes(c.source));
+    if(!candidate)return;
+    const jobId=selectedJobData.id;
+    autoProcessed.current.add(jobId);
+    base44.functions.invoke("import-review",{action:"auto-safe",candidate_id:candidate.id})
+      .then(async(response)=>{
+        const applied=Number(response?.data?.applied||0);
+        if(applied){
+          setNotice(`${applied} datos históricos contrastados incorporados automáticamente a STATS/valoraciones; el resto sigue pendiente de revisión.`);
+          await invalidateApplied();
+        }
+        await refresh({forceCandidates:true});
+      })
+      .catch(e=>setError("No se pudo completar la autoimportación de este trabajo: "+reason(e)));
+  },[selectedJobData?.id,selectedJobData?.status,candidatesLoading,candidateRows]);
   const seasonGroups=Object.values(candidateRows.filter(c=>c.kind==="metric").reduce((acc,c)=>{
     const k=[selectedJob,c.source,c.season,c.competition,c.fotmob_team_id].join("|");
     if(!acc[k])acc[k]={key:k,source:c.source,season:c.season,competition:c.competition,
