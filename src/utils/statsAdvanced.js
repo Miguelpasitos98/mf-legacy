@@ -3,6 +3,7 @@
 const numeric = v => v===null||v===undefined||v===""||!Number.isFinite(Number(v))?null:Number(v);
 const key = s => String(s||"").toLowerCase().replace(/%/g,"percent").replace(/[^a-z0-9]/g,"");
 const metric = (record,name) => numeric((record.metrics||[]).find(m=>key(m.name)===key(name))?.value);
+const metricPer90 = (record,name) => numeric((record.metrics||[]).find(m=>key(m.name)===key(name))?.per90);
 export function advancedTotals(records=[],{includeSeasonRates=true}={}){
   const seasons=new Set(records.map(r=>r.season));
   const clubs=new Set(records.map(r=>String(r.team_id||r.fotmob_team_id||r.team_name||"").trim()).filter(Boolean));
@@ -19,7 +20,7 @@ export function advancedTotals(records=[],{includeSeasonRates=true}={}){
     if(mins!==null&&mins>0&&xgb!==null&&xgb>=0 && (xgc===null||xgb<=xgc)){
       buildupMinutes+=mins;buildup+=xgb;buildupRows++;
     }
-    const chainRate=metric(r,"xG Chain /90"),buildupRate=metric(r,"xG Buildup /90");
+    const chainRate=metric(r,"xG Chain /90")??metricPer90(r,"xG Chain"),buildupRate=metric(r,"xG Buildup /90")??metricPer90(r,"xG Buildup");
     if(chainRate!==null)directChain.push({rate:chainRate,minutes:mins});
     if(buildupRate!==null)directBuildup.push({rate:buildupRate,minutes:mins});
     const won=metric(r,"Ground duels won"), total=metric(r,"Ground duels contested");

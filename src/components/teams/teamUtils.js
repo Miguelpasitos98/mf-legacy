@@ -58,6 +58,7 @@ export const emptyTeamForm = {
   kit3BadgeText: "",
   kitsOverviewUrl: "",
   dataSource: "Manual",
+  isCustomClub: false,
   isActive: true,
 };
 
@@ -303,6 +304,7 @@ export function mapTeamToForm(team) {
     kit3BadgeBg: team.kit3_badge_bg || team.kit3BadgeBg || "",
     kit3BadgeText: team.kit3_badge_text || team.kit3BadgeText || "",
     kitsOverviewUrl: team.kits_overview_url || team.kitsOverviewUrl || "",
+    isCustomClub: team.is_custom_club ?? team.isCustomClub ?? false,
     dataSource: team.data_source || team.dataSource || "Manual",
     isActive: team.is_active ?? team.isActive ?? true,
   };

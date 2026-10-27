@@ -22,6 +22,7 @@ const filter=(items,q)=>{
   ));
 };
 const db={
+  PlayerSeasonStats:{async filter(){return []; }},
   ImportJob:{
     async filter(q,sort,limit=50){return filter([...jobs.values()],q).slice(0,limit);},
     async get(id){return jobs.get(id);},

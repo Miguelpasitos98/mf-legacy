@@ -10,6 +10,13 @@ const metricId=x=>{
 };
 const empty=x=>x===undefined||x===null||x==="";
 const slug=x=>norm(x).replace(/ /g,"-");
+export function reviewedCurrentTeamLink(player,team,item){
+  const club=x=>norm(x).replace(/^(?:fc |cf )|(?: fc| cf)$/g,"").trim();
+  if(item.is_national_team!==false||!team?.id||player?.team_id!==team.id)return {};
+  if(!club(item.team_name)||club(item.team_name)!==club(team.name))return {};
+  if(!empty(team.fotmob_id)&&str(team.fotmob_id)!==str(item.fotmob_team_id))return {};
+  return {team_id:team.id};
+}
 const competitionKey=x=>({"super lig":"super lig","super league turkey":"super lig","ligue 1 uber eats":"ligue 1","english premier league":"premier league"}[norm(x)]||norm(x));
 async function allRows(entity,query) {
   const out=[];
@@ -53,13 +60,15 @@ export function metricPlan(item,player,existing,teamLink={}) {
     const metric={...old,name:old.name||item.metric_name,[key]:item.value,
       source:old.source||item.source,verification_status:old.verification_status||"verified",
       ...(item.derivation&&!old.derivation?{derivation:item.derivation}:{}),
+      ...(item.provenance&&!old.provenance?{provenance:item.provenance}:{}),
+      ...(item.provenance&&item.evidence_url&&!old.source_url?{source_url:item.evidence_url}:{}),
       ...(typeof item.percentile==="number"&&empty(old[key==="per90"?"percentile_per90":"percentile"])?{[key==="per90"?"percentile_per90":"percentile"]:item.percentile}:{}),
       ...(key==="value"?{unit:item.metric_unit}:{})};
     if(idx<0)metrics.push(metric);else metrics[idx]=metric;
   }
   const summary=field&&empty(target?.[field])?{[field]:item.value}:{};
   if(target) {
-    const patch={...summary,...(metricChanged?{metrics}:{})};
+    const patch={...summary,...Object.fromEntries(Object.entries(teamLink).filter(([key])=>empty(target[key]))),...(metricChanged?{metrics}:{})};
     return {operation:Object.keys(patch).length?"update":"unchanged",target_id:target.id,record:patch};
   }
   if(!str(item.fotmob_tournament_id)||typeof item.is_national_team!=="boolean")throw Error("La primera importación requiere ID de competición y ámbito club/selección.");
@@ -91,13 +100,45 @@ export function seasonPlan(items,player,existing,teamLink={}) {
   return {operation:created?"create":Object.keys(patch).length?"update":"unchanged",
     ...(created?{}:{target_id:targetId}),record:patch,candidates:items.length};
 }
+export function valuationPlan(item,old=null){
+  const overall=item.kind==="overall",field=overall?"fifa_fc_overall":"transfermarkt_value_eur";
+  if(!["overall","market_value"].includes(item.kind)||!Number.isInteger(item.value)||item.value<0||(overall&&(item.value<1||item.value>99)))throw Error("Valoración inválida.");
+  const match=/^(20\d{2})\/(20\d{2})$/.exec(item.season);
+  if(!match||+match[2]!==+match[1]+1)throw Error("Temporada histórica inválida.");
+  if(old&&!empty(old[field])&&Number(old[field])!==item.value)throw Error("Ya existe una valoración diferente; no se sobrescribe.");
+  const p=item.provenance||{},desired={};
+  if(overall){
+    const game=+match[2]%100,expected=(game<=23?"fifa ":"fc ")+game;
+    if(norm(item.fifa_edition).replace("ea sports ","")!==expected)throw Error("La edición FIFA/FC no corresponde a la temporada.");
+    if(old?.fifa_edition&&norm(old.fifa_edition).replace("ea sports ","")!==expected)throw Error("La edición existente es distinta.");
+    if(p.rating_kind&&p.rating_kind!=="launch_base"||p.mode&&p.mode!=="career")throw Error("Se requiere una valoración base de lanzamiento de Career Mode.");
+    if(p.revision_date&&(!p.release_date||p.revision_date>p.release_date))throw Error("La revisión es posterior al lanzamiento; no se importa como carta base.");
+    if(old?.fifa_fc_position&&item.fifa_fc_position&&old.fifa_fc_position!==item.fifa_fc_position)throw Error("Existe una posición FIFA diferente; se conserva para revisión.");
+    Object.assign(desired,{fifa_fc_overall:item.value,fifa_edition:item.fifa_edition,fifa_source_url:item.evidence_url,
+      ...(item.fifa_fc_position?{fifa_fc_position:item.fifa_fc_position}:{}),
+      ...(p.player_id?{fifa_source_player_id:p.player_id}:{}),...(p.revision?{fifa_source_revision:p.revision}:{}),
+      ...(p.revision_date?{fifa_source_date:p.revision_date}:{}),...(p.rating_kind?{fifa_rating_kind:p.rating_kind}:{})});
+  }else{
+    if(!withinSeason(item.season,str(item.as_of_date)))throw Error("La fecha no corresponde a la temporada.");
+    if(p.value_kind&&p.value_kind!=="market_value")throw Error("La fuente no es un valor de mercado histórico.");
+    if(old&&!empty(old[field])&&old.market_value_as_of&&old.market_value_as_of!==item.as_of_date)throw Error("La fecha existente es distinta; no se sobrescribe.");
+    Object.assign(desired,{transfermarkt_value_eur:item.value,market_value_as_of:item.as_of_date,transfermarkt_source_url:item.evidence_url,
+      ...(p.player_id?{market_source_player_id:p.player_id}:{}),...(p.selection_rule?{market_selection_rule:p.selection_rule}:{}),
+      ...(typeof p.provisional==="boolean"?{market_value_status:p.provisional?"provisional":"definitivo"}:{})});
+  }
+  const patch=Object.fromEntries(Object.entries(desired).filter(([key,value])=>!empty(value)&&empty(old?.[key])));
+  const source=overall?"fifa":"market";
+  if(item.provenance&&!old?.source_provenance?.[source])patch.source_provenance={...(old?.source_provenance||{}),[source]:item.provenance};
+  return {operation:old?(Object.keys(patch).length?"update":"unchanged"):"create",...(old?{target_id:old.id}:{}),record:patch};
+}
 function withinSeason(season,date) {
   if(!/^\d{4}(-\d{2}-\d{2})$/.test(date))return false;
   const match=/^(\d{4})(?:\/(\d{4}))?$/.exec(season);
   if(!match)return false;
   const start=match[2]?match[1]+"-07-01":match[1]+"-01-01";
   const end=match[2]?match[2]+"-06-30":match[1]+"-12-31";
-  return date>=start&&date<=end;
+  const parsed=new Date(date+"T00:00:00Z");
+  return !Number.isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===date&&date>=start&&date<=end;
 }
 async function conclude(db,job) {
   const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
@@ -161,6 +202,10 @@ export default async function(req) {
         if(teams.length>1)return bad("ID FotMob del equipo duplicado.",409);
         if(teams[0])Object.assign(teamLink,item.is_national_team
           ?{national_team_id:teams[0].id,national_country_id:teams[0].country_id}:{team_id:teams[0].id});
+        else if(item.is_national_team===false&&player.team_id){
+          const current=await db.Team.get(player.team_id);
+          Object.assign(teamLink,reviewedCurrentTeamLink(player,current,item));
+        }
       }
       let plan;
       try {plan=grouped?seasonPlan(group,player,existing,teamLink):metricPlan(item,player,existing,teamLink);}catch(e){return bad(e.message,409);}
@@ -180,21 +225,13 @@ export default async function(req) {
           season_id:plan.target_id,created_season:plan.operation==="create",new_metrics:plan.operation==="unchanged"?0:pending.length});
       }
     } else if(item.kind==="overall"||item.kind==="market_value") {
-      if(action==="preview")return reply({ok:true,candidate:item,can_apply:item.verification_status==="verified"});
-      if(item.kind==="market_value"&&!withinSeason(item.season,str(item.as_of_date)))return bad("La fecha no corresponde a la temporada; revisión manual requerida.",409);
       const existing=rows(await db.PlayerHistoricalValuation.filter({player_id:item.player_id,season:item.season},undefined,10));
       if(existing.length>1)return bad("Hay varias valoraciones para la misma temporada.",409);
-      const isOverall=item.kind==="overall";
-      const field=isOverall?"fifa_fc_overall":"transfermarkt_value_eur";
-      const old=existing[0]||null;
-      if(old&&!empty(old[field])&&Number(old[field])!==item.value)return bad("Ya existe una valoración diferente; no se sobrescribe.",409);
-      if(isOverall&&old&&old.fifa_edition&&old.fifa_edition!==item.fifa_edition)return bad("La edición FIFA/FC no coincide.",409);
-      const patch=isOverall?{fifa_fc_overall:item.value,fifa_edition:item.fifa_edition,fifa_source_url:item.evidence_url,
-        ...(item.fifa_fc_position&&!old?.fifa_fc_position?{fifa_fc_position:item.fifa_fc_position}:{})}
-        :{transfermarkt_value_eur:item.value,market_value_as_of:item.as_of_date,transfermarkt_source_url:item.evidence_url};
-      if(!old)await db.PlayerHistoricalValuation.create({player_id:item.player_id,fotmob_player_id:item.fotmob_player_id,season:item.season,
-        verification_status:"verified",...patch});
-      else if(empty(old[field]))await db.PlayerHistoricalValuation.update(old.id,patch);
+      let plan;
+      try{plan=valuationPlan(item,existing[0]||null);}catch(e){return bad(e.message,409);}
+      if(action==="preview")return reply({ok:true,candidate:item,plan,can_apply:item.verification_status==="verified"});
+      if(plan.operation==="create")await db.PlayerHistoricalValuation.create({player_id:item.player_id,fotmob_player_id:item.fotmob_player_id,season:item.season,verification_status:"verified",...plan.record});
+      else if(plan.operation==="update")await db.PlayerHistoricalValuation.update(plan.target_id,plan.record);
     } else return bad("Tipo no admitido.",409);
     await db.ImportCandidate.update(item.id,{review_status:"applied",review_note:"Aprobado por administrador, sin sustituir valores existentes"});
     await conclude(db,job);

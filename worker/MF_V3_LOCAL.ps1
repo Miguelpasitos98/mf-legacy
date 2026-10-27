@@ -2,6 +2,7 @@ param(
   [switch]$Configurar,
   [switch]$UnaVez,
   [switch]$Comprobar,
+  [switch]$SincronizarRevisiones,
   [switch]$SoloLocal,
   [string]$Diagnosticar,
   [string]$Salida,
@@ -48,6 +49,7 @@ function Registrar {
  Write-Host "Guardado cifrado mediante DPAPI para el usuario Windows actual." -ForegroundColor Green
 }
 function Ejecutar {
+ $env:PYTHONIOENCODING="utf-8"
  $config=LeerConfig
  if(!(Test-Path (Join-Path $config.studio_root "app\profile.py"))){throw "No se localiza MF Legacy Studio: $($config.studio_root)"}
  if(!(Test-Path $workerPath)){throw "Falta mf_v3_worker.py junto al lanzador."}
@@ -74,10 +76,13 @@ function Ejecutar {
  $requestLimit=if($SoloLocal){0}elseif($null -ne $config.max_requests){[Math]::Max(0,[Math]::Min(15,[int]$config.max_requests))}else{8}
  $env:MF_V3_ALLOW_FOTMOB_NETWORK=if($requestLimit -gt 0){"1"}else{"0"}
  $env:MF_V3_MAX_FOTMOB_REQUESTS=[string]$requestLimit
+ # Fixed public catalogue files are cached once; SoloLocal disables all reads.
+ $env:MF_V3_ALLOW_PUBLIC_ARCHIVES=if($SoloLocal){"0"}else{"1"}
  $pythonArgs=@($workerPath)
  if($Trabajo){$pythonArgs+=@("--job-id",$Trabajo)}
  if($UnaVez){$pythonArgs+= "--once"}
  elseif($Comprobar){$pythonArgs+="--check-config"}
+ elseif($SincronizarRevisiones){$pythonArgs+="--sync-reviews"}
  $pythonExe=Get-Command python -ErrorAction SilentlyContinue
  if(!$pythonExe){$pythonExe=Get-Command py -ErrorAction SilentlyContinue}
  if(!$pythonExe){throw "Python no está disponible en PATH. Instala Python 3.10+ o añádelo a PATH."}

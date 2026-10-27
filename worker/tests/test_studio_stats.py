@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from worker.mf_v3_worker import studio_import, studio_fotmob, metric_values, collect
+from worker.mf_v3_worker import studio_import, studio_fotmob, studio_understat, metric_values, collect
 
 ROOT=Path(os.environ.get('MF_STUDIO_ROOT',''))
 
@@ -35,6 +35,18 @@ class UnitsTests(unittest.TestCase):
 
 @unittest.skipUnless((ROOT/'app/profile.py').exists(),'Set MF_STUDIO_ROOT for Studio integration')
 class StudioTests(unittest.TestCase):
+    def test_understat_verified_candidates_have_exact_public_archive_and_new_row_summaries(self):
+        from worker.historical_sources import UNDERSTAT_ARCHIVES_BY_SHA
+        records,_=studio_understat(ROOT,'743533',existing_scopes=[])
+        verified=[r for r in records if r['verification_status']=='verified']
+        self.assertTrue(verified)
+        for row in verified:
+            self.assertEqual(row['provenance']['archive_url'],UNDERSTAT_ARCHIVES_BY_SHA[row['provenance']['sha256']])
+        self.assertTrue(all(r['verification_status']=='unverified' for r in records if ':manual:' in r['source_record_id']))
+        target=[r for r in records if r['season']=='2023/2024']
+        self.assertEqual(next(r['value'] for r in target if r['metric_name']=='Minutes'),2931)
+        old,_=studio_understat(ROOT,'743533',existing_scopes=[{'season':'2023/2024','fotmob_tournament_id':'87','fotmob_team_id':'8633'}])
+        self.assertFalse(any(r['metric_name'] in ('Minutes','Matches') for r in old if r['season']=='2023/2024'))
     @classmethod
     def setUpClass(cls):
         cls.profile,cls.client,cls.resolver=studio_import(ROOT)

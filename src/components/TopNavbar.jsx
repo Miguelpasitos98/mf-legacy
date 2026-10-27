@@ -8,8 +8,8 @@ export default function TopNavbar() {
 
   const footballNav = [
     { label: "SCORES", path: "/scores" },
-    { label: "SCHEDULE", path: "/schedule" },
-    { label: "NEWS", path: "/news" },
+    { label: "STADIUMS", path: "/schedule" },
+    { label: "KITS", path: "/news" },
     { label: "STATS", path: "/stats" },
     { label: "IMPORT", path: "/import-center" },
     { label: "POSESIÓN", path: "/possession" },
@@ -29,6 +29,7 @@ export default function TopNavbar() {
         {footballNav.map((item) => {
           const isActive =
             location.pathname === item.path ||
+            (item.path === "/schedule" && location.pathname.startsWith("/schedule/")) ||
             (item.path === "/countries" &&
               location.pathname.startsWith("/countries/")) ||
             (item.path === "/teams" &&

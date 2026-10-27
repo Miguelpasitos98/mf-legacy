@@ -68,7 +68,7 @@ export const TeamCard = React.memo(function TeamCard({
   );
 });
 
-export function CompetitionHeader({ competitionName, teams }) {
+export function CompetitionHeader({ competitionName, teams, league, onEdit }) {
   const competition = competitionDetails[competitionName] || { level: "Competition", logo: "" };
   const competitionLogo =
     teams.find((team) => team.competitionLogo)?.competitionLogo || competition.logo || "";
@@ -76,13 +76,13 @@ export function CompetitionHeader({ competitionName, teams }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 p-1">
+        <button type="button" disabled={!league || !onEdit} onClick={() => onEdit?.(league)} aria-label={`Editar competición ${competitionName}`} title="Editar competición" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 p-1 hover:bg-blue-50 disabled:cursor-default"> 
           {competitionLogo ? (
-            <img src={competitionLogo} alt={`${competitionName} logo`} className="h-full w-full object-contain" />
+            <img src={competitionLogo} alt="" className="h-full w-full object-contain" />
           ) : (
             <span className="text-[8px] font-black text-slate-700">FC</span>
           )}
-        </div>
+        </button>
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="text-sm font-bold text-slate-900">{competitionName || "Without competition"}</h3>
           <span className="text-xs text-slate-400">{competition.level}</span>

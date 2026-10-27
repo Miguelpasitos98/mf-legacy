@@ -84,7 +84,7 @@ const alignedPer90=(records,names,minutesSource=null)=>{
     const candidate=pickMetric(row,names);
     // Understat-only totals must be divided by Understat minutes even when
     // FotMob lists a different duration for the same competition.
-    const understat=candidate?.source==="Understat";
+    const understat=String(candidate?.source||"").toLowerCase()==="understat";
     const mins=understat
       ?(num(candidate.provider_minutes)??num(pickMetric(row,["Understat minutes"])?.value))
       :minutesSource?num(pickMetric(row,[minutesSource])?.value):minutesForDisplay(row).value;

@@ -6,6 +6,8 @@ Reparación publicada y verificada el 27/10/2026: 19 registros de Milan Škrinia
 
 ## Componentes
 
+La alimentación automática de Understat, FIFA/FC y mercado ya está implementada en `historical_sources.py`. El lanzador normal descarga una vez los archivos públicos permitidos y reutiliza SQLite y SHA-256. Consulta [fuentes, reglas temporales y prueba real](../docs/HISTORICAL_SOURCE_AUTOMATION.md). No requiere preparar catálogos JSON manualmente. `-SoloLocal` desactiva lecturas externas; `-SincronizarRevisiones` actualiza los estados guardados sin consultar proveedores.
+
 - Base44 \`ImportJob\`: solicitudes y progreso de los jugadores.
 - Base44 \`ImportCandidate\`: observaciones independientes (fuente, jugador, temporada, club, competición, valor, unidad, evidencia).
 - \`import-control\`: autorización del administrador, vinculación FotMob, crear, cancelar y reintentar.

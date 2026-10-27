@@ -15,6 +15,13 @@ export default function Layout() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
   const isTeamsPage = location.pathname.startsWith("/teams");
+  const isKitsPage = location.pathname === "/news";
+  const isStadiumsPage = location.pathname.startsWith("/schedule");
+  // El tema de un club solo puede aplicarse dentro de TEAMS.
+  // Al navegar a STADIUMS, KITS u otra sección, la barra lateral usa siempre el azul de MF LEGACY.
+  const sidebarTheme = isTeamsPage
+    ? teamTheme
+    : { primaryColor: "#003399", secondaryColor: "#FFFFFF" };
 
   // PERFIL INDIVIDUAL DE JUGADOR
   const isPlayerProfile =
@@ -56,9 +63,9 @@ export default function Layout() {
               <Sidebar
                 open={sidebarOpen}
                 onToggle={() => setSidebarOpen((o) => !o)}
-                backgroundColor={teamTheme.primaryColor}
+                backgroundColor={sidebarTheme.primaryColor}
                 accentColor="#FFFFFF"
-                secondaryColor={teamTheme.secondaryColor}
+                secondaryColor={sidebarTheme.secondaryColor}
               />
             )}
 
@@ -73,7 +80,7 @@ export default function Layout() {
                 className={
                   isPlayerProfile
                     ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
-                    : isTeamsPage
+                    : isTeamsPage || isKitsPage || isStadiumsPage
                       ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
                       : "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
                 }

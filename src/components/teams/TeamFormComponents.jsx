@@ -412,16 +412,16 @@ export function AddTeamModal({ form, setForm, countries, leagues, onClose, onSub
                 <FormField label="Logo *" hint="El logo se usa como identidad principal del club.">
                   <input type="text" value={form.logo} onChange={(event) => { updateField("logo", event.target.value); setLogoImageError(false); setLogoPalette([]); }} placeholder="https://..." className={inputClassName} required />
                 </FormField>
-                <div className="md:col-span-1">
+                <div className="md:col-span-2">
                   {logoPreviewUrl && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex flex-col gap-4 md:flex-row">
-                        <div className="relative flex min-h-[180px] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white md:w-56">
-                          <img src={logoPreviewUrl} alt="Logo preview" className="max-h-44 max-w-[90%] object-contain" onLoad={() => { setLogoImageError(false); const paletteImage = new Image(); paletteImage.crossOrigin = "anonymous"; paletteImage.onload = () => setLogoPalette(extractImagePalette(paletteImage)); paletteImage.onerror = () => setLogoPalette([]); paletteImage.src = logoPreviewUrl; }} onError={() => { setLogoImageError(true); setLogoPalette([]); }} />
+                      <div className="grid items-start gap-4 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
+                        <div className="relative flex h-56 w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-5">
+                          <img src={logoPreviewUrl} alt="Logo preview" className="max-h-40 max-w-full object-contain" onLoad={() => { setLogoImageError(false); const paletteImage = new Image(); paletteImage.crossOrigin = "anonymous"; paletteImage.onload = () => setLogoPalette(extractImagePalette(paletteImage)); paletteImage.onerror = () => setLogoPalette([]); paletteImage.src = logoPreviewUrl; }} onError={() => { setLogoImageError(true); setLogoPalette([]); }} />
                           <button type="button" onClick={() => setIsLogoZoomOpen(true)} className="absolute bottom-2 right-2 rounded-lg bg-slate-900/80 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-900">Ampliar imagen</button>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-2 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <h4 className="text-xs font-extrabold uppercase tracking-wide text-slate-800">Logo palette</h4>
                               <p className="mt-1 text-[11px] text-slate-500">Pulsa un color para asignarlo al campo seleccionado.</p>
@@ -435,9 +435,9 @@ export function AddTeamModal({ form, setForm, countries, leagues, onClose, onSub
                           {logoImageError ? (
                             <p className="text-xs text-red-600">No se pudo cargar la imagen. Comprueba que la URL sea pública y completa.</p>
                           ) : logoPalette.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="grid grid-cols-[repeat(auto-fill,minmax(58px,1fr))] gap-2">
                               {logoPalette.map((color) => (
-                                <button key={color} type="button" title={`Asignar ${color} a ${colorTarget}`} onClick={() => updateField(colorTarget === "primary" ? "primaryColor" : "secondaryColor", color)} className="group flex w-14 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 hover:border-[#003399]">
+                                <button key={color} type="button" title={`Asignar ${color} a ${colorTarget}`} onClick={() => updateField(colorTarget === "primary" ? "primaryColor" : "secondaryColor", color)} className="group flex min-w-0 flex-col items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 hover:border-[#003399]">
                                   <span className="h-8 w-8 rounded-md border border-slate-200" style={{ backgroundColor: color }} />
                                   <span className="text-[9px] font-semibold text-slate-500">{color}</span>
                                 </button>
@@ -544,6 +544,13 @@ export function AddTeamModal({ form, setForm, countries, leagues, onClose, onSub
                 </FormField>
                 <div className="grid gap-4 md:grid-cols-2">
                   {selectField("dataSource", "Data source", ["Manual", "Other"])}
+                  <FormField label="Club creado por mí">
+                    <label className="flex min-h-10 items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-950">
+                      <input type="checkbox" checked={Boolean(form.isCustomClub)} onChange={(event) => updateField("isCustomClub", event.target.checked)} />
+                      Es un club ficticio o creado por mí
+                    </label>
+                    <p className="mt-1 text-xs text-slate-500">Solo los clubes marcados aparecen en la galería «Mis clubes». No se marca automáticamente ningún equipo real.</p>
+                  </FormField>
                   <FormField label="Active club">
                     <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm text-slate-700">
                       <input type="checkbox" checked={form.isActive} onChange={(event) => updateField("isActive", event.target.checked)} /> Team is active

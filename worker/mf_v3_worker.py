@@ -218,77 +218,75 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
     return out,state
 
 
-def studio_understat(root: Path, pid: str, max_candidates=300):
+def studio_understat(root: Path, pid: str, max_candidates=300, existing_scopes=None):
     studio_import(root)
     from app.understat_observations import export_extension
     from app.profile import load_profile_bundle
     from app.fotmob_client import player_cache_path
-    cache = player_cache_path(root, pid)
-    if not cache.exists():
-        return [], report("unavailable", "No existe un perfil FotMob para conciliar clubes.")
-    bundle = load_profile_bundle(cache)
-    extension = export_extension(root, pid)
-    observations = extension.get("source_observations", [])
-    out = []
-    skipped = 0
+    from app.understat_bridge import contextual_team_match
+    cache=player_cache_path(root,pid)
+    if not cache.exists():return [],report("unavailable","No existe perfil FotMob para conciliar identidad y trayectoria.")
+    bundle=load_profile_bundle(cache)
+    observations=export_extension(root,pid).get("source_observations",[])
+    # Prefer the published dataset revision; older originals remain archived.
+    observations.sort(key=lambda o:bool(o.get("dataset_import")),reverse=True)
+    out=[];seen=set();diagnostics=[]
     for observation in observations:
-        if len(out)>=max_candidates:
-            break
-        if text(observation.get("player",{}).get("fotmob_player_id")) != pid:
-            skipped += 1
-            continue
-        team = observation.get("team") or {}
-        if team.get("multi_team"):
-            skipped += 1
-            continue
-        season = text(observation.get("season"))
-        comp_meta = observation.get("competition") or {}
-        tournament_id=text(comp_meta.get("fotmob_tournament_id"))
-        options=[x for x in bundle["season_options"] if
-                 x["season"]==season and x.get("tournament_id")==tournament_id]
-        if len(options)!=1:
-            skipped += 1
-            continue
-        comp=options[0]["competition"]
-        team_names={norm(n) for n in team.get("names",[]) if n}
-        possible={(text(c.get("fotmob_team_id")), text(c.get("team_name")))
-                for c in bundle["career"] if c.get("season")==season
-                and norm(c.get("team_name")) in team_names and c.get("fotmob_team_id")}
-        if team.get("fotmob_team_id"):
-            possible={p for p in possible if p[0]==text(team["fotmob_team_id"])}
-        if len(possible)!=1:
-            skipped += 1
-            continue
-        tid,tname=next(iter(possible))
-        stats=(observation.get("statistics") or {})
-        fields=stats.get("fields") or {}
-        for name,d in fields.items():
-            if name not in SCOPED_FIELDS:
-                continue
-            val = number(d.get("normalized_value",d.get("value")))
-            if val is None or val<0:
-                continue
-            out.append({"source":"understat","kind":"metric",
-                "season":season,"competition":comp,"fotmob_team_id":tid,"team_name":tname,
-                "fotmob_tournament_id":tournament_id,"is_national_team":False,
-                "metric_name":name,"metric_unit":"total","value":val,
-                "evidence_url":"https://understat.com/",
-                "source_record_id":text(observation.get("observation_id"))+":"+name+":total",
-                "verification_status":"unverified"})
-            per90=(stats.get("per90") or {}).get(name) or {}
-            rate=number(per90.get("value"))
-            if rate is not None and rate>=0 and len(out)<max_candidates:
-                out.append({"source":"understat","kind":"metric",
-                    "season":season,"competition":comp,"fotmob_team_id":tid,"team_name":tname,
-                    "fotmob_tournament_id":tournament_id,"is_national_team":False,
-                    "metric_name":name,"metric_unit":"per90","value":rate,
-                    "evidence_url":"https://understat.com/",
-                    "source_record_id":text(observation.get("observation_id"))+":"+name+":per90",
-                    "verification_status":"unverified"})
-            if len(out)>=max_candidates:
-                break
-    return out,report("complete" if out else "unavailable",
-        "Candidatos Understat: "+str(len(out))+"; observaciones sin coincidencia exacta: "+str(skipped))
+        team=observation.get("team") or {};season=text(observation.get("season"))
+        tid=text((observation.get("competition") or {}).get("fotmob_tournament_id"))
+        if text(observation.get("player",{}).get("fotmob_player_id"))!=pid or team.get("multi_team"):continue
+        names=team.get("names",[])
+        possible={(text(c.get("fotmob_team_id")),text(c.get("team_name")),text(c.get("competition"))) for c in bundle["career"]
+          if c.get("season")==season and text(c.get("fotmob_tournament_id"))==tid and c.get("fotmob_team_id")
+          and any(contextual_team_match(n,c.get("team_name"),tid,c.get("fotmob_team_id")) for n in names)}
+        teams={(x[0],x[1]) for x in possible}
+        if len(teams)!=1:continue
+        team_id,team_name=next(iter(teams));scope=(season,tid,team_id)
+        if scope in seen:continue
+        seen.add(scope)
+        options=[o for o in bundle['season_options'] if o['season']==season and text(o.get('tournament_id'))==tid]
+        comp=options[0]['competition'] if len(options)==1 else {'47':'Premier League','87':'LaLiga','54':'Bundesliga','55':'Serie A','53':'Ligue 1','63':'Russian Premier League'}.get(tid)
+        if not comp:continue
+        stats=observation.get('statistics') or {};fields=stats.get('fields') or {}
+        minutes=number((fields.get('time') or {}).get('normalized_value',(fields.get('time') or {}).get('value')))
+        if minutes is None or minutes<=0:continue
+        dataset=observation.get('dataset_source') or {};uid=text(observation.get('player',{}).get('understat_player_id'))
+        batch=[]
+        for original,label in [('xGChain','xG Chain'),('xGBuildup','xG Buildup')]:
+            d=fields.get(original) or {};total=number(d.get('normalized_value',d.get('value')))
+            if total is None or total<0:continue
+            chain=fields.get('xGChain') or {};chain_value=number(chain.get('normalized_value',chain.get('value')))
+            if original=='xGBuildup' and chain_value is not None and total>chain_value:continue
+            provenance={'provider':'understat_local_export' if observation.get('manual_import') else 'understat_archive','player_id':uid,'provider_minutes':minutes,
+                'scope':'league_team_season',
+                'sha256':text(dataset.get('sha256') or (d.get('provenance') or {}).get('file_sha256') or (d.get('provenance') or {}).get('content_sha256') or (d.get('provenance') or {}).get('raw_sha256'))}
+            archive_urls=__import__('worker.historical_sources' if __package__ else 'historical_sources',fromlist=['UNDERSTAT_ARCHIVES_BY_SHA']).UNDERSTAT_ARCHIVES_BY_SHA
+            if provenance['sha256'] in archive_urls:provenance['archive_url']=archive_urls[provenance['sha256']]
+            verified=bool(uid and provenance.get('archive_url') and not observation.get('manual_import'))
+            for unit,value in [('total',total),('per90',total*90/minutes)]:
+                batch.append({'source':'understat','kind':'metric','season':season,'competition':comp,
+                    'fotmob_team_id':team_id,'team_name':team_name,'fotmob_tournament_id':tid,'is_national_team':False,
+                    'metric_name':label,'metric_unit':unit,'value':value,'evidence_url':'https://understat.com/player/'+uid,
+                    'source_record_id':text(observation['observation_id'])+':'+original+':'+unit,
+                    'verification_status':'verified' if verified else 'unverified','provenance':provenance,
+                    **({'derivation':original+' * 90 / Understat minutes ('+str(minutes)+')'} if unit=='per90' else {})})
+        if batch:
+            batch.append({**batch[0],'metric_name':'Understat minutes','metric_unit':'total','value':minutes,
+                'source_record_id':text(observation['observation_id'])+':minutes:total'})
+            exists=existing_scopes is None or any(r.get('season')==season and text(r.get('fotmob_tournament_id'))==tid and text(r.get('fotmob_team_id'))==team_id for r in existing_scopes)
+            if not exists:
+                # A new Understat league row may use its OWN verified summaries.
+                # Never compare/replace existing FotMob minutes with this clock.
+                batch.append({**batch[0],'metric_name':'Minutes','metric_unit':'total','value':minutes,'source_record_id':text(observation['observation_id'])+':summary-minutes'})
+                games=number((fields.get('games') or {}).get('normalized_value',(fields.get('games') or {}).get('value')))
+                if games is not None and games.is_integer() and games>0:batch.append({**batch[0],'metric_name':'Matches','metric_unit':'total','value':games,'source_record_id':text(observation['observation_id'])+':summary-matches'})
+        if len(out)+len(batch)>max_candidates:break
+        out.extend(batch);diagnostics.append({'season':season,'competition':comp,'team_name':team_name,
+            'fotmob_team_id':team_id,'status':'pendiente_verificacion','candidates':len(batch),
+            'reason':'Liga/club/temporada exactos; tasas calculadas con minutos Understat, sin atribuirlas a copas o selección.'})
+    state=report('complete' if out else 'unavailable','Candidatos Understat: '+str(len(out))+'. Revisión requerida; cobertura de liga solamente.')
+    state['diagnostics']=diagnostics
+    return out,state
 
 
 def historical_dataset(path_value: str, pid: str, source: str, max_candidates=300):
@@ -331,12 +329,25 @@ def historical_dataset(path_value: str, pid: str, source: str, max_candidates=30
     return out,report("complete" if out else "unavailable",str(len(out))+" valores históricos encontrados.")
 
 
-def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offline=False):
+def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offline=False, force_pending=False, existing_scopes=None):
     if not valid_pid(pid):
         raise ValueError("ID FotMob inválido.")
     if not root.is_dir():
         raise FileNotFoundError("No existe MF_STUDIO_ROOT.")
     out,states=[],{}
+    import importlib
+    automation=importlib.import_module('worker.historical_sources' if __package__ else 'historical_sources')
+    catalogs=None
+    def catalog():
+        nonlocal catalogs
+        if catalogs is None:catalogs=automation.Catalogs(root,network=not offline and os.getenv('MF_V3_ALLOW_PUBLIC_ARCHIVES')=='1',force=force_pending)
+        return catalogs
+    def context():
+        profile,client,_=studio_import(root)
+        raw=profile.read_json(client.player_cache_path(root,pid));bundle=profile.load_profile_bundle(client.player_cache_path(root,pid))
+        if text(bundle['player']['fotmob_player_id'])!=pid:raise ValueError('Perfil de otro jugador')
+        seasons=sorted({o['season'] for o in bundle['season_options'] if re.fullmatch(r'20\d{2}/20\d{2}',o['season']) and int(o['season'][5:])==int(o['season'][:4])+1},reverse=True)
+        return bundle,raw,seasons
     for source in sources:
         try:
             if source=="fotmob":
@@ -345,17 +356,44 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
                     request_limit=max(0,min(15,int(os.getenv("MF_V3_MAX_FOTMOB_REQUESTS","0")))),
                     max_candidates=max_candidates)
             elif source=="understat":
-                candidates,state=studio_understat(root,pid,max_candidates=max_candidates)
+                bundle,raw,seasons=context()
+                try:catalog().understat(pid,bundle)
+                except Exception as prepare_error:
+                    # Existing verified Studio caches remain usable if refresh fails.
+                    candidates,state=studio_understat(root,pid,max_candidates=max_candidates,existing_scopes=existing_scopes)
+                    state['note']+=' Preparación: '+str(prepare_error)[:160]
+                    if not candidates:raise
+                else:candidates,state=studio_understat(root,pid,max_candidates=max_candidates,existing_scopes=existing_scopes)
+                candidates=[c for c in candidates if not catalog().saved(pid,source,c['season'])]
+                for d in state.get('diagnostics',[]):
+                    if catalog().saved(pid,source,d['season']):d['status']='verificado_guardado'
+                    else:catalog().state(pid,source,d['season'],'pendiente_verificacion',d)
+                supported={'47','87','54','55','53','63'}
+                for o in bundle['season_options']:
+                    if text(o.get('tournament_id')) not in supported:
+                        state.setdefault('diagnostics',[]).append({'season':o['season'],'competition':o['competition'],'status':'fuera_cobertura','reason':'Understat cubre ligas domésticas compatibles; no esta competición.'})
             elif source=="fifa":
-                candidates,state=historical_dataset(os.getenv("MF_V3_FIFA_JSON",""),pid,"fifa",max_candidates)
+                if os.getenv('MF_V3_FIFA_JSON'):candidates,state=historical_dataset(os.environ['MF_V3_FIFA_JSON'],pid,'fifa',max_candidates)
+                else:
+                    bundle,raw,seasons=context();candidates=catalog().fifa(pid,bundle,raw,seasons)[:max_candidates]
+                    state=report('partial' if len(candidates)<len(seasons) else 'complete',str(len(candidates))+' Overall de lanzamiento recuperados; no se usan actualizaciones posteriores.')
             elif source=="market":
-                candidates,state=historical_dataset(os.getenv("MF_V3_MARKET_JSON",""),pid,"market",max_candidates)
+                if os.getenv('MF_V3_MARKET_JSON'):candidates,state=historical_dataset(os.environ['MF_V3_MARKET_JSON'],pid,'market',max_candidates)
+                else:
+                    bundle,raw,seasons=context();candidates=catalog().market(pid,bundle,raw,seasons)[:max_candidates]
+                    state=report('partial' if len(candidates)<len(seasons) else 'complete',str(len(candidates))+' valoraciones históricas fechadas; regla último valor dentro de julio–junio.')
             else:
                 candidates,state=[],report("skipped","Fuente desconocida.")
+            if source in ('fifa','market') and catalogs:
+                catalogs.state(pid,source,'','dato_encontrado',{'candidates':len(candidates)})
+                state['diagnostics']=[{'season':d['season'],'status':d['state'],'reason':json.loads(d['details']).get('reason','Dato encontrado; revisar antes de guardar.'),'competition':d['edition']} for d in catalogs.diagnostics(pid,source)]
             out.extend(candidates)
             states[source]=state
         except Exception as exc:
-            states[source]=report("error",type(exc).__name__+": "+str(exc)[:160])
+            states[source]=report("unavailable" if source != "fotmob" and isinstance(exc,FileNotFoundError) else "error",type(exc).__name__+": "+str(exc)[:160])
+            failure='pendiente_verificacion' if isinstance(exc,ValueError) else 'consulta_pendiente' if 'modo sin red' in str(exc) else 'error_temporal'
+            states[source]['diagnostics']=[{'status':failure,'reason':str(exc)[:240]}]
+            if catalogs:catalogs.state(pid,source,'',failure,{'reason':str(exc)[:250]})
     return out,states
 
 
@@ -389,13 +427,23 @@ def call(action: str, **kwargs):
     return result
 
 
+def sync_reviews(root):
+    import importlib
+    Catalogs=importlib.import_module('worker.historical_sources' if __package__ else 'historical_sources').Catalogs
+    cache=Catalogs(root)
+    for job in cache.pending_jobs():
+        state=call('review-status',job_id=job['job_id'])
+        cache.apply_review_status(job['job_id'],job['pid'],state.get('groups',[]),state.get('finished',False))
+
 def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
     assigned=call("claim",worker_id=os.getenv("HOSTNAME","mf-v3-python"),**({"job_id":job_id} if job_id else {}))["job"]
     if not assigned:
         return False
     jid,claim=assigned["id"],assigned["claim_id"]
     try:
-        candidates,states=collect(root,assigned["fotmob_player_id"],assigned["sources"],max_candidates)
+        try:sync_reviews(root)
+        except Exception as review_error:print('Conciliación de revisión pendiente: '+str(review_error)[:150],file=sys.stderr)
+        candidates,states=collect(root,assigned["fotmob_player_id"],assigned["sources"],max_candidates,force_pending=assigned.get('retry_pending',False),existing_scopes=assigned.get('existing_stats'))
         total=len(candidates)
         for i in range(0,total,15):
             call("heartbeat",job_id=jid,claim_id=claim,
@@ -403,6 +451,8 @@ def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
             call("submit",job_id=jid,claim_id=claim,candidates=candidates[i:i+15])
             time.sleep(0.5)
         call("finish",job_id=jid,claim_id=claim,source_results=states)
+        import importlib
+        importlib.import_module('worker.historical_sources' if __package__ else 'historical_sources').Catalogs(root).track_job(jid,assigned['fotmob_player_id'])
         return True
     except Exception as exc:
         try:
@@ -420,6 +470,7 @@ def main():
     parser.add_argument("--job-id",help="Procesar solo el trabajo indicado, sin reclamar otros jugadores")
     parser.add_argument("--output",type=Path,help="Guardar diagnóstico completo y candidatos locales para revisión")
     parser.add_argument("--check-config",action="store_true",help="Comprobar la configuración sin descargar datos ni reclamar trabajos")
+    parser.add_argument("--sync-reviews",action="store_true",help="Conciliar revisiones aplicadas con el catálogo local, sin consultar proveedores")
     args=parser.parse_args()
     root=Path(os.getenv("MF_STUDIO_ROOT","")).expanduser().resolve()
     limit=max(1,min(6000,args.max_candidates))
@@ -450,6 +501,10 @@ def main():
                 "sources":states,"candidates":records},ensure_ascii=False,indent=2),encoding="utf-8")
         print(json.dumps({"fotmob_player_id":args.dry_run,"total_candidates":len(records),
               "sources":states,"sample":records[:4]},indent=2,ensure_ascii=False))
+        return
+    if args.sync_reviews:
+        sync_reviews(root)
+        print(json.dumps({'reviews_synced':True,'provider_requests':0}))
         return
     if args.once:
         run_once(root,limit,args.job_id)

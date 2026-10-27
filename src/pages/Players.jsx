@@ -1563,10 +1563,18 @@ export default function Players() {
     setFm26ProgressLabel("");
     setFm26Leagues([]);
     try {
-      const payload = JSON.parse(await file.text());
-      if (!Array.isArray(payload) || !payload.length) throw new Error("Se esperaba un JSON con una lista de jugadores.");
+      const content = (await file.text()).replace(/^\uFEFF/, "").trim();
+      if (!content) throw new Error("El archivo está completamente vacío. Exporta primero los jugadores desde fmsave FM26.");
+      const document = JSON.parse(content);
+      // Admitir tanto el array directo de fmsave como archivos con contenedor players.
+      const payload = Array.isArray(document) ? document
+        : Array.isArray(document?.players) ? document.players
+        : Array.isArray(document?.data?.players) ? document.data.players
+        : null;
+      if (!payload) throw new Error("Formato JSON no reconocido. Se necesita una lista de jugadores de fmsave FM26 o un objeto con la propiedad players.");
+      if (payload.length === 0) throw new Error(`El archivo «${file.name}» contiene 0 jugadores (JSON: []). No se ha importado nada. Comprueba que la exportación desde fmsave FM26 incluya jugadores.`);
       if (payload.length > 150000) throw new Error("El archivo supera 150.000 jugadores. Divide la exportación por clubes o ligas.");
-      if (!payload.some(p => p && p.positions && p.attributes && p.uid != null)) throw new Error("No parece una exportación 'players' de fmsave FM26.");
+      if (!payload.some(p => p && p.positions && p.attributes && p.uid != null)) throw new Error("El JSON contiene registros, pero ninguno incluye los campos uid, positions y attributes necesarios para importar jugadores desde fmsave FM26.");
       setFm26Import(payload);
       try {const result=await base44.entities.League.list();setFm26Leagues(Array.isArray(result)?result:(result?.data||[]));} catch(error) {console.warn("No se pudieron cargar las ligas disponibles",error);}
     } catch (err) { setFm26Error(err.message || "No se ha podido abrir el JSON"); }
@@ -1625,6 +1633,10 @@ export default function Players() {
       setFm26ProgressLabel(`Importación completada · ${updated} actualizados · ${created} creados · ${failed} errores`);
       setFm26Message(`Completado: ${updated} actualizados, ${created} creados, ${failed} errores, ${fm26Preview.skipped} omitidos por ambigüedad o datos incompletos.${failures.length ? " Ejemplos de errores: " + failures.join(" | ") : ""}`);
       await loadData();
+      // Only dismiss a clean import; otherwise show failures/skipped rows for review.
+      if (failed === 0 && fm26Preview.skipped === 0) {
+        setFm26ImportOpen(false);
+      }
     } catch(error) { setFm26Error(error?.message || "Error inesperado"); }
     finally { setFm26Busy(false); }
   };
@@ -3086,7 +3098,7 @@ export default function Players() {
   }
 
   return (
-    <div className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
+    <div data-mf-players-scroll className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
       <div className="w-full">
 
         {/* HEADER */}
@@ -3192,7 +3204,7 @@ export default function Players() {
             <button type="button" onClick={() => setSortBy(c => c === "age_youngest" ? "age_oldest" : "age_youngest")} className={`flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition ${sortBy === "age_youngest" || sortBy === "age_oldest" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Order by age" title="Order by age"><Cake size={14} /> {sortBy === "age_oldest" ? "Oldest" : "Youngest"}</button>
 
             <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkDeleteIds([]); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
-            <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Error(""); setFm26NationJustSaved(new Set()); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
+            <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Import(null); setFm26FileName(""); setFm26Message(""); setFm26Error(""); setFm26ProgressCurrent(0); setFm26ProgressTotal(0); setFm26ProgressLabel(""); setFm26NationJustSaved(new Set()); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
               <Upload size={16} /><span>Import FM26 JSON</span>
             </button>
 
@@ -3209,6 +3221,12 @@ export default function Players() {
           </div>
         </div>
 
+        {!fm26ImportOpen && fm26Message?.startsWith("Completado:") && (
+          <div role="status" className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <span>{fm26Message}</span>
+            <button type="button" className="shrink-0 rounded-md p-1 hover:bg-emerald-100" aria-label="Ocultar resultado de importación" onClick={() => setFm26Message("")}><X size={15}/></button>
+          </div>
+        )}
         {/* ERROR */}
         {errorMessage && (
           <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

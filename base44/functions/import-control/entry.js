@@ -7,6 +7,15 @@ const reply = (body, status = 200) => Response.json(body, {status, headers: {"Ca
 const bad = (message, code = 400) => reply({ok:false,error:message},code);
 const rows = (value) => Array.isArray(value) ? value : value?.items || value?.data || value?.entities || [];
 const normal = (v) => str(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+export function pendingSources(job){
+ return (job.sources||[]).filter(source=>{
+  const r=job.source_results?.[source]||{};
+  const diagnostics=r.diagnostics||[];
+  return ["error","partial"].includes(r.status)||r.status==="pending"||
+    r.status==="unavailable"&&(!diagnostics.length||!diagnostics.every(d=>d.status==="fuera_cobertura"))||
+    diagnostics.some(d=>["consulta_pendiente","error_temporal"].includes(d.status));
+ });
+}
 
 async function verifiedLink(db, playerId) {
   const related = rows(await db.PlayerFotmobLink.filter({player_id:playerId},undefined,30));
@@ -52,14 +61,16 @@ export default async function(req) {
       });
       return reply({ok:true,pid});
     }
-    if (action === "start" || action === "retry") {
+    if (action === "start" || action === "retry" || action === "retry-pending") {
       const playerId = str(body.player_id);
       if (!/^[a-f0-9]{24}$/i.test(playerId)) return bad("ID interno de jugador no válido.");
       const player = await db.Player.get(playerId);
       if (!player?.id) return bad("Jugador no encontrado.",404);
       const {pid,automatic} = await verifiedLink(db,playerId);
-      const sources = action==="retry"
-        ? [...new Set((await db.ImportJob.get(str(body.job_id)))?.sources||[])]
+      const previous=action!=="start"?await db.ImportJob.get(str(body.job_id)):null;
+      if(action==="retry-pending"&&(!previous||previous.player_id!==playerId||RUNNING.has(previous.status)))return bad("El trabajo no permite reintentar fuentes pendientes.",409);
+      const sources = action==="retry-pending"?pendingSources(previous):action==="retry"
+        ? [...new Set(previous?.sources||[])]
         : [...new Set(Array.isArray(body.sources)?body.sources:[])];
       if (sources.length===0 || sources.some(x=>!SOURCE_SET.has(x))) return bad("Fuentes solicitadas no válidas.");
       if (action==="retry") {
@@ -77,7 +88,7 @@ export default async function(req) {
         requested_at:now,phase:"Pendiente de recoger por el trabajador Python",
         source_results:Object.fromEntries(sources.map(s=>[s,{status:"pending"}])),
         completed_sources:[],received_candidates:0,
-        retry_count:action==="retry"?1:0
+        retry_count:action!=="start"?(previous?.retry_count||0)+1:0,retry_pending:action==="retry-pending"
       });
       return reply({ok:true,job:{id:job.id,status:job.status,player_name:job.player_name,fotmob_player_id:pid}});
     }
