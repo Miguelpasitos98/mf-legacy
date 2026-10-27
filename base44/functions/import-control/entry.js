@@ -11,10 +11,18 @@ export function pendingSources(job){
  return (job.sources||[]).filter(source=>{
   const r=job.source_results?.[source]||{};
   const diagnostics=r.diagnostics||[];
-  return ["error","partial"].includes(r.status)||r.status==="pending"||
+  return r.status==="error"||r.status==="pending"||r.status==="partial"&&!diagnostics.length||
     r.status==="unavailable"&&(!diagnostics.length||!diagnostics.every(d=>d.status==="fuera_cobertura"))||
-    diagnostics.some(d=>["consulta_pendiente","error_temporal"].includes(d.status)||source==="fotmob"&&["cache_absent","candidate_limit"].includes(d.status));
+    diagnostics.some(d=>["consulta_pendiente","error_temporal","cache_absent","candidate_limit","query_failed"].includes(d.status));
  });
+}
+export function pendingScopes(job){
+ const states=new Set(["consulta_pendiente","error_temporal","cache_absent","candidate_limit","query_failed"]);
+ return Object.fromEntries(pendingSources(job).map(source=>{
+  const diagnostics=job.source_results?.[source]?.diagnostics||[];
+  const unresolved=diagnostics.filter(d=>states.has(d.status));
+  return [source,unresolved.length&&unresolved.every(d=>d.season)?unresolved.map(d=>({season:d.season,season_id:d.season_id||"",tournament_id:d.tournament_id||"",competition:d.competition||""})):null];
+ }));
 }
 
 async function verifiedLink(db, playerId) {
@@ -61,22 +69,26 @@ export default async function(req) {
       });
       return reply({ok:true,pid});
     }
-    if (action === "start" || action === "retry" || action === "retry-pending" || action === "retry-fotmob") {
+    if (action === "start" || action === "retry" || action === "retry-pending" || action === "resume") {
       const playerId = str(body.player_id);
       if (!/^[a-f0-9]{24}$/i.test(playerId)) return bad("ID interno de jugador no válido.");
       const player = await db.Player.get(playerId);
       if (!player?.id) return bad("Jugador no encontrado.",404);
       const {pid,automatic} = await verifiedLink(db,playerId);
       const previous=action!=="start"?await db.ImportJob.get(str(body.job_id)):null;
-      if(["retry-pending","retry-fotmob"].includes(action)&&(!previous||previous.player_id!==playerId||RUNNING.has(previous.status)))return bad("El trabajo no permite reintentar fuentes pendientes.",409);
-      if(action==="retry-fotmob"&&(!(previous.sources||[]).includes("fotmob")||!(previous.source_results?.fotmob?.diagnostics||[]).some(d=>["cache_absent","candidate_limit"].includes(d.status))))return bad("No hay entradas pendientes de FotMob en este trabajo.",409);
-      const sources = action==="retry-fotmob"?["fotmob"]:action==="retry-pending"?pendingSources(previous):action==="retry"
+      if(action==="retry-pending"&&(!previous||previous.player_id!==playerId||RUNNING.has(previous.status)))return bad("El trabajo no permite reintentar fuentes pendientes.",409);
+      const sources = action==="retry-pending"?pendingSources(previous):["retry","resume"].includes(action)
         ? [...new Set(previous?.sources||[])]
         : [...new Set(Array.isArray(body.sources)?body.sources:[])];
       if (sources.length===0 || sources.some(x=>!SOURCE_SET.has(x))) return bad("Fuentes solicitadas no válidas.");
-      if (action==="retry") {
+      if (action==="retry"||action==="resume") {
         const old=await db.ImportJob.get(str(body.job_id));
-        if (!old || old.player_id!==playerId || !["failed","cancelled"].includes(old.status)) return bad("Solo se reintentan trabajos fallidos o cancelados.",409);
+        const expired=old?.status==="running"&&old.lease_expires_at&&old.lease_expires_at<new Date().toISOString();
+        if (!old || old.player_id!==playerId || !(["failed","cancelled"].includes(old.status)||action==="resume"&&expired)) return bad("Solo se reanudan trabajos interrumpidos o con concesión caducada.",409);
+        const other=rows(await db.ImportJob.filter({player_id:playerId},undefined,100)).some(j=>j.id!==old.id&&RUNNING.has(j.status));
+        if(other)return bad("Ya existe otra importación activa para este jugador.",409);
+        await db.ImportJob.update(old.id,{status:"queued",phase:"Reanudando el trabajo guardado",progress:0,requested_at:new Date().toISOString(),claim_id:"",lease_expires_at:"",last_error:"",retry_count:(old.retry_count||0)+1});
+        return reply({ok:true,job:{id:old.id,status:"queued",player_name:old.player_name,fotmob_player_id:pid,resumed:true}});
       }
       const active=rows(await db.ImportJob.filter({player_id:playerId},undefined,100));
       const running=active.find(j=>RUNNING.has(j.status));
@@ -89,7 +101,8 @@ export default async function(req) {
         requested_at:now,phase:"Pendiente de recoger por el trabajador Python",
         source_results:Object.fromEntries(sources.map(s=>[s,{status:"pending"}])),
         completed_sources:[],received_candidates:0,
-        retry_count:action==="retry-fotmob"?0:action!=="start"?(previous?.retry_count||0)+1:0,retry_pending:["retry-pending","retry-fotmob"].includes(action)
+        retry_count:action!=="start"?(previous?.retry_count||0)+1:0,retry_pending:action==="retry-pending",
+        ...(action==="retry-pending"?{retry_scopes:pendingScopes(previous)}:{})
       });
       return reply({ok:true,job:{id:job.id,status:job.status,player_name:job.player_name,fotmob_player_id:pid}});
     }
