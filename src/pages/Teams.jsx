@@ -743,30 +743,50 @@ export default function Teams() {
       </div>
 
       {activeFilter === "custom" && (
-        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-6">
+        <section className="mb-6">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-xl font-extrabold text-slate-900">Mis clubes · Galería de equipaciones</h2>
-              <p className="mt-1 text-sm text-slate-500">Escudo, primera, segunda y tercera camiseta. Solo clubes marcados como creados por ti.</p></div>
-            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-800">{teams.filter(t => t.isCustomClub).length} clubes</span>
+            <div>
+              <h2 className="text-xl font-extrabold text-slate-900">Mis clubes</h2>
+              <p className="mt-1 text-sm text-slate-500">Equipos creados por ti. Abre una ficha para consultar o editar su información.</p>
+            </div>
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+              {teams.filter(team => team.isCustomClub).length} clubes
+            </span>
           </div>
-          {!teams.some(t => t.isCustomClub) ? (
-            <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">Todavía no hay clubes marcados. Edita un equipo, activa «Club creado por mí» y añade las URLs de sus camisetas.</div>
+          {!teams.some(team => team.isCustomClub) ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+              <Shirt size={28} className="mx-auto mb-3 text-slate-300"/>
+              <p className="text-sm font-bold text-slate-800">Todavía no hay clubes creados por ti</p>
+              <p className="mt-2 text-xs text-slate-500">En la ficha de un club activa la casilla «Es un club ficticio o creado por mí».</p>
+            </div>
           ) : (
-            <div className="space-y-6">
-              {teams.filter(t => t.isCustomClub && (!search.trim() || t.name.toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es")))).sort((a,b)=>a.name.localeCompare(b.name,"es")).map(t => (
-                <article key={t.id} className="rounded-2xl border border-slate-200 p-4">
-                  <button type="button" onClick={()=>setSelectedTeam(t)} className="mb-4 text-left text-sm font-bold text-slate-900 hover:text-[#003399]">{t.name} <span className="font-normal text-slate-400">· Ver ficha</span></button>
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    {[{title:"Escudo",url:t.logo},{title:"Primera",url:t.kit1_photo_url||t.kit1PhotoUrl},{title:"Segunda",url:t.kit2_photo_url||t.kit2PhotoUrl},{title:"Tercera",url:t.kit3_photo_url||t.kit3PhotoUrl}].map(item=>(
-                      <div key={item.title} className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                        <div className="flex h-32 items-center justify-center bg-white p-3 sm:h-44">
-                          {item.url?<img src={normalizeImageUrl(item.url)} alt={item.title+" de "+t.name} loading="lazy" className="max-h-full max-w-full object-contain" />:<span className="text-xs text-slate-400">Sin imagen</span>}
-                        </div>
-                        <p className="border-t border-slate-100 px-2 py-2 text-center text-xs font-semibold text-slate-600">{item.title}</p>
-                      </div>
-                    ))}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {teams.filter(team => team.isCustomClub && (
+                !search.trim() || [team.name,team.country,team.city,team.competition]
+                  .some(value => String(value || "").toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es")))
+              )).sort((a,b)=>a.name.localeCompare(b.name,"es")).map(team => (
+                <button key={team.id} type="button" onClick={()=>handleTeamOpen(team)}
+                  className="group min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
+                  <div className="relative flex h-36 items-center justify-center overflow-hidden p-5"
+                    style={{background:\`linear-gradient(135deg, \${/^#[0-9a-f]{6}$/i.test(team.primaryColor||"")?team.primaryColor+"18":"#f8fafc"}, #ffffff)\`}}>
+                    {team.logo
+                      ? <img src={normalizeImageUrl(team.logo)} alt={team.name+" escudo"} loading="lazy" className="relative z-10 h-28 w-28 object-contain drop-shadow-sm"/>
+                      : <Shirt size={48} className="text-slate-300"/>}
                   </div>
-                </article>
+                  <div className="border-t border-slate-100 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-extrabold text-slate-900">{team.name}</h3>
+                        <p className="mt-1 truncate text-xs text-slate-500">{[team.city,team.country].filter(Boolean).join(" · ")}</p>
+                      </div>
+                      <span className="shrink-0 rounded-md bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-800">{team.shortName || "FC"}</span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                      <span className="truncate text-[11px] text-slate-500">{team.competition||"Sin competición"}</span>
+                      <span className="shrink-0 text-[11px] font-semibold text-[#003399]">Ver ficha</span>
+                    </div>
+                  </div>
+                </button>
               ))}
             </div>
           )}
