@@ -20,6 +20,40 @@ function kitTagStyle(team,key){
   const textColor=validKitHex(providedText)?providedText:validKitHex(team.secondary_color)?team.secondary_color:fallback;
   return {backgroundColor:bg,color:textColor,borderColor:bg,boxShadow:"0 2px 8px "+bg+"22"};
 }
+const COLOR_GROUPS=[
+  ["black","Negro"],["white","Blanco"],["gray","Gris"],["red","Rojo"],
+  ["orange","Naranja"],["yellow","Amarillo"],["green","Verde"],
+  ["turquoise","Turquesa"],["blue","Azul"],["purple","Morado"],
+  ["pink","Rosa"],["brown","Marrón"]
+];
+function kitColorCategory(hex){
+  if(!validKitHex(hex))return "unknown";
+  const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),delta=max-min;
+  if(max<0.16)return "black";
+  if(min>0.91&&delta<0.12)return "white";
+  if(delta<0.12)return "gray";
+  let hue=0;
+  if(max===r)hue=((g-b)/delta)%6;
+  else if(max===g)hue=(b-r)/delta+2;
+  else hue=(r-g)/delta+4;
+  hue=(hue*60+360)%360;
+  if(hue<13||hue>=345)return "red";
+  if(hue<40)return min>0.25&&max<0.7?"brown":"orange";
+  if(hue<68)return "yellow";
+  if(hue<162)return "green";
+  if(hue<190)return "turquoise";
+  if(hue<255)return "blue";
+  if(hue<290)return "purple";
+  return "pink";
+}
+const countKits=team=>KIT_FIELDS.filter(([key])=>Boolean(String(team[key]||"").trim())).length;
+function teamKitColors(team){
+  return [...new Set(KIT_FIELDS.filter(([key])=>String(team[key]||"").trim()).map(([key])=>{
+    const index=key.match(/^kit([123])_/)[1];
+    return kitColorCategory(team["kit"+index+"_badge_bg"]||team.primary_color);
+  }))];
+}
 function KitTag({team,kitKey,label,small=false}){
   return <span className={small?"inline-flex max-w-full items-center justify-center rounded-md border px-2 py-1 text-center text-[9px] font-extrabold uppercase leading-tight tracking-wide":"inline-flex max-w-full items-center justify-center rounded-lg border px-3 py-1.5 text-center text-[10px] font-extrabold uppercase tracking-wider sm:text-xs"} style={kitTagStyle(team,kitKey)}>{label}</span>;
 }
@@ -134,10 +168,19 @@ function ClubGallery({team,editing,setEditing,onSaved,onBack}){
 }
 export default function Kits(){
   const query=useTeamsQuery(),qc=useQueryClient();
-  const [search,setSearch]=useState(""),[editing,setEditing]=useState(null),[sort,setSort]=useState("name"),[selectedId,setSelectedId]=useState(null),[view,setView]=useState(()=>{try{return window.localStorage.getItem("mf-legacy-kits-view")==="compact"?"compact":"editorial";}catch{return "editorial";}});
+  const [search,setSearch]=useState(""),[editing,setEditing]=useState(null),[sort,setSort]=useState("name"),[groupMode,setGroupMode]=useState("none"),[colorFilter,setColorFilter]=useState("all"),[countFilter,setCountFilter]=useState("all"),[selectedId,setSelectedId]=useState(null),[view,setView]=useState(()=>{try{return window.localStorage.getItem("mf-legacy-kits-view")==="compact"?"compact":"editorial";}catch{return "editorial";}});
   const teams=useMemo(()=>{const rows=Array.isArray(query.data)?query.data:(query.data?.items||query.data?.data||query.data?.entities||[]);
     return rows.filter(t=>t.is_custom_club===true).filter(t=>String(t.name||"").toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es")))
       .sort((a,b)=>sort==="name"?String(a.name).localeCompare(String(b.name),"es"):String(b.created_date||"").localeCompare(String(a.created_date||"")));},[query.data,search,sort]);
+  const displayedTeams=useMemo(()=>teams.filter(team=>
+    (countFilter==="all"||countKits(team)===Number(countFilter))&&
+    (colorFilter==="all"||teamKitColors(team).includes(colorFilter))
+  ),[teams,colorFilter,countFilter]);
+  const showcaseGroups=useMemo(()=>{
+    if(groupMode==="count")return [1,2,3,0].map(n=>({id:String(n),title:n===0?"Sin equipaciones":n+" "+(n===1?"equipación":"equipaciones"),items:displayedTeams.filter(team=>countKits(team)===n)})).filter(group=>group.items.length);
+    if(groupMode==="color")return [...COLOR_GROUPS,["unknown","Color sin definir"]].map(([id,title])=>({id,title,items:displayedTeams.filter(team=>teamKitColors(team).includes(id))})).filter(group=>group.items.length);
+    return [{id:"all",title:"",items:displayedTeams}];
+  },[displayedTeams,groupMode]);
   const selectedTeam=teams.find(team=>team.id===selectedId);
   const changeView=(next)=>{setView(next);setSelectedId(null);setEditing(null);try{window.localStorage.setItem("mf-legacy-kits-view",next);}catch{/* storage opcional */}};
   const onSaved=async(stored)=>{
@@ -157,8 +200,30 @@ export default function Kits(){
       <button type="button" onClick={()=>changeView("editorial")} aria-pressed={view==="editorial"} className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold ${view==="editorial"?"border-[#003399] bg-[#003399] text-white":"border-slate-200 bg-white text-slate-600"}`}><Focus size={16}/>Escaparate</button>
       <button type="button" onClick={()=>changeView("compact")} aria-pressed={view==="compact"} className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold ${view==="compact"?"border-[#003399] bg-[#003399] text-white":"border-slate-200 bg-white text-slate-600"}`}><LayoutGrid size={16}/>Vista catálogo</button>
     </div>
+    {view==="editorial"&&!selectedTeam&&<div className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-3">
+      <label className="min-w-[155px] text-xs font-semibold text-slate-600">Agrupar escaparate
+        <select value={groupMode} onChange={e=>setGroupMode(e.target.value)} className="mt-1 block h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800">
+          <option value="none">Sin agrupar</option><option value="color">Por color</option><option value="count">Por nº de camisetas (1 → 3)</option>
+        </select>
+      </label>
+      <label className="min-w-[145px] text-xs font-semibold text-slate-600">Filtrar por color
+        <select value={colorFilter} onChange={e=>setColorFilter(e.target.value)} className="mt-1 block h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800">
+          <option value="all">Todos los colores</option>{COLOR_GROUPS.map(([key,name])=><option key={key} value={key}>{name}</option>)}<option value="unknown">Sin color definido</option>
+        </select>
+      </label>
+      <label className="min-w-[145px] text-xs font-semibold text-slate-600">Nº de camisetas
+        <select value={countFilter} onChange={e=>setCountFilter(e.target.value)} className="mt-1 block h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800">
+          <option value="all">Todas las cantidades</option><option value="1">1 camiseta</option><option value="2">2 camisetas</option><option value="3">3 camisetas</option><option value="0">Sin camisetas</option>
+        </select>
+      </label>
+      {(groupMode!=="none"||colorFilter!=="all"||countFilter!=="all")&&<button type="button" onClick={()=>{setGroupMode("none");setColorFilter("all");setCountFilter("all");}} className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600">Restablecer</button>}
+      <span className="ml-auto pb-1 text-xs text-slate-500">{displayedTeams.length} clubes</span>
+    </div>}
     {query.isLoading&&!query.data?<p className="rounded-xl bg-white p-8 text-center text-sm text-slate-500">Cargando clubes...</p>:query.error&&!query.data?<p className="rounded-xl bg-red-50 p-6 text-sm text-red-700">No se pudieron cargar los clubes. No se ha borrado ningún dato.</p>:teams.length===0?<div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><Shirt className="mx-auto mb-3 text-slate-300" size={34}/><h2 className="font-semibold text-slate-800">{search?"No hay coincidencias":"Todavía no hay clubes personalizados"}</h2><p className="mt-2 text-sm text-slate-500">En TEAMS, edita un club y marca «Es un club ficticio o creado por mí».</p><a href="/teams" className="mt-4 inline-block rounded-lg bg-[#003399] px-4 py-2 text-sm font-semibold text-white">Ir a TEAMS</a></div>:
-      view==="editorial" && !selectedTeam ? <div className="space-y-6">{teams.map(team=><EditorialClub key={team.id} team={team} onOpen={setSelectedId}/>)}</div> :
+      view==="editorial" && !selectedTeam ? <div className="space-y-7">{showcaseGroups.length===0?<p className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">No hay camisetas que coincidan con los filtros.</p>:showcaseGroups.map(group=><section key={group.id} className="space-y-4">
+        {group.title&&<div className="flex items-center gap-3"><h2 className="text-sm font-extrabold text-slate-800">{group.title}</h2><span className="text-xs text-slate-400">{group.items.length} clubes</span></div>}
+        {group.items.map(team=><EditorialClub key={group.id+"-"+team.id} team={team} onOpen={setSelectedId}/>)}
+      </section>)}</div> :
       selectedTeam?<ClubGallery key={selectedTeam.id} team={selectedTeam} editing={editing} setEditing={setEditing} onSaved={onSaved} onBack={()=>{setEditing(null);setSelectedId(null);}}/>:
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {teams.map(team=><button key={team.id} type="button" onClick={()=>{setEditing(null);setSelectedId(team.id);}} className="group min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg">
