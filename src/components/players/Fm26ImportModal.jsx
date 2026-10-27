@@ -307,8 +307,9 @@ export default function Fm26ImportModal({
             </div>
           </div>
         )}
+        {fm26Message?.startsWith("Completado:") && <p role="status" className="mb-2 text-xs font-semibold text-amber-700">La importación ha finalizado con incidencias u omisiones. Revisa el resumen antes de cerrar esta ventana.</p>}
         <div className="flex flex-wrap justify-end gap-2">
-          <button type="button" disabled={fm26Busy || fm26NationSaveBusy || fm26CreateNationBusy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">Cancelar</button>
+          <button type="button" disabled={fm26Busy || fm26NationSaveBusy || fm26CreateNationBusy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">{fm26Message?.startsWith("Completado:") ? "Cerrar resultados" : "Cancelar"}</button>
           <button type="button" disabled={!fm26Preview || fm26Preview.unmapped > 0 || fm26Busy || fm26NationSaveBusy || fm26CreateNationBusy} onClick={handleFm26Import} className="rounded-lg bg-[#003399] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{fm26Busy ? "Importando..." : "Confirmar importación"}</button>
         </div>
         </footer>
