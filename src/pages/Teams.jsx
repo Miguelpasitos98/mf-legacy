@@ -242,6 +242,7 @@ export default function Teams() {
     return teams
       .filter((team) => {
         if (activeFilter === "custom" && !team.isCustomClub) return false;
+        if (activeFilter === "countries" && team.isCustomClub) return false;
         if (!normalizedSearch) return true;
         return [team.name, team.country, team.competition, team.city]
           .filter(Boolean)
