@@ -1,21 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { parseMarketBulk } from "./MarketBulkImport";
-import { parseBirthDate } from "@/utils/playerDate";
 
 // Snapshot generado por scripts/build_market_dataset.py en el repositorio.
 const ROOT = "https://raw.githubusercontent.com/Miguelpasitos98/mf-legacy/main/public/data/market";
 const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 const dateOnly = s => String(s || "").slice(0,10);
-const normalizedBirthDate = value => {
-  const raw = String(value ?? "").trim();
-  const date = parseBirthDate(raw);
-  if (!date) return null;
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
 const savedKey = id => `mf-legacy-market-history-preview-v1:${id}`;
 const knownIds = player => [player?.transfermarkt_id,player?.transfermarktId,player?.tm_id,player?.tmId].map(String).filter(v => /^\d+$/.test(v));
 const bucket = id => String(Number(id) % 128).padStart(3,"0");
@@ -60,18 +50,12 @@ export default function HistoricalMarketLookup({ player }) {
   }
   function importRows(){
     if(!history?.length||!player?.id||!selected)return;
-    const playerRaw = player?.date_of_birth || player?.dateOfBirth || "";
-    const candidateRaw = selected.dob || "";
-    const playerDob=normalizedBirthDate(playerRaw);
-    const candidateDob=normalizedBirthDate(candidateRaw);
-    if(playerDob && candidateDob && playerDob!==candidateDob){
-      setError(`Las fechas no coinciden: MF Legacy ${playerRaw} (${playerDob}) y Transfermarkt ${candidateRaw} (${candidateDob}). Comprueba la ficha del jugador; no se importó nada.`);
+    if (!knownIds(player).includes(String(selected.id)) && normalize(player?.name) !== normalize(selected.name)) {
+      setError("El nombre seleccionado no coincide exactamente con el jugador de MF Legacy. Comprueba su ID y nombre antes de importar.");
       return;
     }
-    if ((playerRaw && !playerDob) || (candidateRaw && !candidateDob)) {
-      setError(`No se puede interpretar una fecha de nacimiento: MF Legacy "${playerRaw}" / Transfermarkt "${candidateRaw}". No se importó nada.`);
-      return;
-    }
+    // Las fechas de nacimiento de MF Legacy pueden estar editadas deliberadamente.
+    // La importación respeta esas modificaciones y no compara nacimientos.
     try {
       const old=window.localStorage.getItem(savedKey(player.id));
       const current=old===null?(Array.isArray(player.market_value_history)?player.market_value_history:[]):JSON.parse(old);
