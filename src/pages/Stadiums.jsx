@@ -1,6 +1,6 @@
 import React,{useMemo,useState} from "react";
 import {useQueryClient} from "@tanstack/react-query";
-import {Building2,Search,MapPin,Users,Save,X} from "lucide-react";
+import {Building2,Search,MapPin,Users,Save,X,LayoutGrid,Image as ImageIcon} from "lucide-react";
 import {useTeamsQuery,useCountriesQuery,useLeaguesQuery} from "@/hooks/useSharedData";
 import {base44} from "@/api/base44Client";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
@@ -9,6 +9,37 @@ import {RECORD_KEYS} from "@/api/recordQueries";
 const rows=data=>Array.isArray(data)?data:(data?.items||data?.data||data?.entities||[]);
 const safe=(v)=>String(v||"").trim();
 const digits=(v)=>v===null||v===undefined||v===""?"":String(v);
+const COLOR_GROUPS=["Azul","Rojo","Blanco","Negro","Verde","Amarillo","Naranja","Morado","Gris","Multicolor"];
+const COLOR_HEX={Azul:"#1a3a6e",Rojo:"#a50044",Blanco:"#e8e8e8",Negro:"#1a1a1a",Verde:"#1e7a3a",Amarillo:"#c9a227",Naranja:"#cc5500",Morado:"#5b2c87",Gris:"#555555",Multicolor:"#2c3e50"};
+function stadiumColor(team){
+  const hex=safe(team.primary_color||team.primaryColor);
+  if(!/^#[a-f\d]{6}$/i.test(hex))return "Multicolor";
+  const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),range=max-min;
+  if(max<52)return "Negro";
+  if(min>215&&range<35)return "Blanco";
+  if(range<36)return "Gris";
+  if(r>155&&g<r*.69&&b<r*.75)return "Rojo";
+  if(r>165&&g>95&&g<195&&b<90)return "Naranja";
+  if(r>155&&g>140&&b<125)return "Amarillo";
+  if(g>r*1.18&&g>b*1.05)return "Verde";
+  if(b>r*1.15&&b>g*1.08)return "Azul";
+  if(r>95&&b>r*.6&&g<r*.8)return "Morado";
+  return "Multicolor";
+}
+function StadiumCard({stadium,view,onClick}){
+  const photo=normalizeImageUrl(stadium.interior||stadium.exterior);
+  return <button type="button" onClick={onClick} className={"group relative block w-full overflow-hidden rounded-xl bg-slate-900 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg "+(view==="gallery"?"aspect-[4/3]":"aspect-[16/9]")}>
+    {photo?<img src={photo} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover"/>:<div className="absolute inset-0 flex items-center justify-center bg-slate-200"><Building2 size={42} className="text-slate-400"/></div>}
+    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/15 to-transparent"/>
+    <div className={"absolute inset-x-0 bottom-0 text-white "+(view==="gallery"?"p-2.5":"p-3.5")}>
+      <h3 className={"font-black leading-tight drop-shadow-sm "+(view==="gallery"?"truncate text-xs":"text-base")}>{stadium.name}</h3>
+      <p className="mt-1 flex flex-wrap items-center gap-2 text-[10px]"><span className="inline-flex items-center gap-1"><MapPin size={11}/>{[stadium.city,stadium.country].filter(Boolean).join(", ")||"Sin ubicación"}</span>{stadium.capacity&&<span className="inline-flex items-center gap-1"><Users size={11}/>{Number(stadium.capacity).toLocaleString("es-ES")}</span>}</p>
+      <div className="mt-1.5 flex flex-wrap gap-1">{stadium.teams.map(t=><span key={t.id} className="max-w-full truncate rounded bg-white/20 px-2 py-0.5 text-[10px] font-bold">{t.name}</span>)}</div>
+    </div>
+  </button>;
+}
+
 function toStadiums(teams,countries,leagues){
   const countryMap=new Map(countries.map(c=>[String(c.id),c]));
   const leagueMap=new Map(leagues.map(l=>[String(l.id),l]));
@@ -36,6 +67,7 @@ const formFor=(stadium)=>({name:stadium?.name||"",capacity:digits(stadium?.capac
 export default function Stadiums(){
   const query=useTeamsQuery(),countriesQuery=useCountriesQuery(),leaguesQuery=useLeaguesQuery(),qc=useQueryClient();
   const [search,setSearch]=useState(""),[city,setCity]=useState(""),[country,setCountry]=useState(""),[capacity,setCapacity]=useState(""),[mode,setMode]=useState("leagues");
+  const [view,setView]=useState("immersive"),[year,setYear]=useState(""),[color,setColor]=useState("");
   const [selected,setSelected]=useState(null),[form,setForm]=useState(null),[saving,setSaving]=useState(false),[error,setError]=useState("");
   const stadiums=useMemo(()=>toStadiums(rows(query.data),rows(countriesQuery.data),rows(leaguesQuery.data)),[query.data,countriesQuery.data,leaguesQuery.data]);
   const filtered=useMemo(()=>stadiums.filter(s=>
@@ -43,10 +75,12 @@ export default function Stadiums(){
     (!search||[s.name,...s.teams.map(t=>t.name)].some(v=>v.toLocaleLowerCase("es").includes(search.toLocaleLowerCase("es"))))&&
     (!city||s.city.toLocaleLowerCase("es").includes(city.toLocaleLowerCase("es")))&&
     (!country||s.country.toLocaleLowerCase("es").includes(country.toLocaleLowerCase("es")))&&
-    (!capacity||(Number(s.capacity)||0)>=Number(capacity))
-  ),[stadiums,search,city,country,capacity,mode]);
+    (!capacity||(Number(s.capacity)||0)>=Number(capacity))&&
+    (!year||(Number(s.built)||0)>=Number(year))&&
+    (!color||s.teams.some(t=>stadiumColor(t)===color))
+  ),[stadiums,search,city,country,capacity,year,color,mode]);
   const grouped=useMemo(()=>Object.entries(filtered.reduce((acc,stadium)=>{
-    const key=mode==="leagues"?(stadium.competition||"Sin competición"):(stadium.country||"Sin país");
+    const key=mode==="colors"?(stadium.teams.length?stadiumColor(stadium.teams[0]):"Multicolor"):mode==="leagues"?(stadium.competition||"Sin competición"):(stadium.country||"Sin país");
     (acc[key] ||= []).push(stadium);return acc;
   },{})).sort(([a],[b])=>a.localeCompare(b,"es")),[filtered,mode]);
   const open=(stadium)=>{setSelected(stadium);setForm(formFor(stadium));setError("");};
@@ -71,24 +105,27 @@ export default function Stadiums(){
     }catch(e){setError(e?.message||"No se pudo guardar el estadio. Revisa los equipos vinculados.");}
     finally{setSaving(false);}
   };
-  return <main className="min-h-full bg-[#F6F7F9] p-4 md:p-8">
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-      <div><div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#003399]"><Building2 size={17}/> MF Legacy · Stadiums</div><h1 className="mt-1 text-2xl font-extrabold text-slate-900">Estadios</h1><p className="mt-1 text-sm text-slate-500">Estadios vinculados a los equipos de MF Legacy · {stadiums.length} recintos registrados</p></div>
-      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1"><button onClick={()=>setMode("countries")} className={"rounded-lg px-4 py-2 text-xs font-bold "+(mode==="countries"?"bg-[#003399] text-white":"text-slate-600")}>Países</button><button onClick={()=>setMode("leagues")} className={"rounded-lg px-4 py-2 text-xs font-bold "+(mode==="leagues"?"bg-[#003399] text-white":"text-slate-600")}>Ligas</button><button onClick={()=>setMode("custom")} className={"rounded-lg px-4 py-2 text-xs font-bold "+(mode==="custom"?"bg-[#003399] text-white":"text-slate-600")}>Mis clubes</button></div>
+  return <main className="min-h-full bg-[#F6F7F9] p-4 md:p-6">
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <h1 className="text-lg font-black uppercase text-slate-900">ESTADIOS</h1>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center overflow-hidden rounded-lg border border-slate-200 bg-white">{[["colors","Colores"],["leagues","Ligas"],["countries","Países"],["custom","Mis clubes"]].map(([id,label])=><button key={id} type="button" onClick={()=>setMode(id)} className={"px-3 py-2 text-xs font-bold transition "+(mode===id?"bg-[#003399] text-white":"text-slate-600 hover:bg-slate-50")}>{label}</button>)}</div>
+        <div className="flex items-center overflow-hidden rounded-lg border border-slate-200 bg-white"><button type="button" onClick={()=>setView("gallery")} className={"inline-flex items-center gap-1 px-3 py-2 text-xs font-bold "+(view==="gallery"?"bg-[#003399] text-white":"text-slate-600")}><LayoutGrid size={13}/>Galería</button><button type="button" onClick={()=>setView("immersive")} className={"inline-flex items-center gap-1 px-3 py-2 text-xs font-bold "+(view==="immersive"?"bg-[#003399] text-white":"text-slate-600")}><ImageIcon size={13}/>Inmersiva</button></div>
+      </div>
     </div>
-    <div className="mb-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-      <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3"><Search size={15} className="text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Estadio o club" className="h-10 min-w-0 w-full bg-transparent text-xs outline-none"/></label>
-      <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Ciudad" className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs"/>
-      <input value={country} onChange={e=>setCountry(e.target.value)} placeholder="País" className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs"/>
-      <input type="number" min="0" value={capacity} onChange={e=>setCapacity(e.target.value)} placeholder="Capacidad mínima" className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs"/>
+    <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nombre o club" className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-xs"/>
+      <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Ciudad" className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-xs"/>
+      <input value={country} onChange={e=>setCountry(e.target.value)} placeholder="País" className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-xs"/>
+      <select value={color} onChange={e=>setColor(e.target.value)} className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-xs"><option value="">Todos los colores</option>{COLOR_GROUPS.map(c=><option key={c} value={c}>{c}</option>)}</select>
+      <input type="number" min="0" value={capacity} onChange={e=>setCapacity(e.target.value)} placeholder="Cap. mín." className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-xs"/>
+      <input type="number" min="0" value={year} onChange={e=>setYear(e.target.value)} placeholder="Año desde" className="h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-xs"/>
     </div>
-    {query.isLoading&&!query.data?<p className="p-8 text-center text-slate-500">Cargando estadios…</p>:query.error&&!query.data?<p className="p-8 text-center text-red-700">No se pudieron cargar los equipos.</p>:grouped.length===0?<div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">No hay estadios con estos filtros. Puedes registrar un estadio en la ficha de su equipo desde TEAMS.</div>:<div className="space-y-6">{grouped.map(([title,venues])=><section key={title}>
-      <div className="mb-3 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2"><h2 className="text-sm font-extrabold uppercase text-slate-800">{title}</h2><span className="text-xs text-slate-400">{venues.length}</span></div>
-      <div className="grid gap-4 lg:grid-cols-2">{venues.map(stadium=><button key={stadium.id} type="button" onClick={()=>open(stadium)} className="group relative flex aspect-[16/9] min-h-[210px] overflow-hidden rounded-xl border border-slate-200 bg-slate-900 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-        {stadium.interior||stadium.exterior?<img src={normalizeImageUrl(stadium.interior||stadium.exterior)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.015]"/>:<div className="absolute inset-0 flex items-center justify-center bg-slate-100"><Building2 size={54} className="text-slate-300"/></div>}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent"/>
-        <div className="relative mt-auto w-full p-4 text-white"><h3 className="text-lg font-extrabold">{stadium.name}</h3><div className="mt-1 flex flex-wrap items-center gap-3 text-[11px]"><span className="inline-flex items-center gap-1"><MapPin size={12}/>{[stadium.city,stadium.country].filter(Boolean).join(", ")||"Sin ubicación"}</span>{stadium.capacity&&<span className="inline-flex items-center gap-1"><Users size={12}/>{Number(stadium.capacity).toLocaleString("es-ES")}</span>}</div><div className="mt-2 flex flex-wrap gap-1">{stadium.teams.map(t=><span key={t.id} className="rounded bg-white/20 px-2 py-1 text-[10px] font-semibold">{t.name}</span>)}</div></div>
-      </button>)}</div>
+    {query.isLoading&&!query.data?<p className="p-8 text-center text-slate-500">Cargando estadios…</p>:query.error&&!query.data?<p className="p-8 text-center text-red-700">No se pudieron cargar los equipos.</p>:grouped.length===0?<div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">No hay estadios con estos filtros. Puedes registrar un estadio en la ficha de su equipo desde TEAMS.</div>:<div className="space-y-7">{grouped.map(([title,venues])=><section key={title}>
+      <div className="mb-3 flex items-center justify-between rounded-lg border border-slate-200 px-4 py-2" style={mode==="colors"?{background:COLOR_HEX[title]||"#64748b",color: ["Blanco","Amarillo"].includes(title)?"#111827":"#FFFFFF"}:{background:"#FFFFFF",color:"#1e293b"}}>
+        <h2 className="text-xs font-black uppercase tracking-wide">{title}</h2><span className="text-xs opacity-65">{venues.length}</span>
+      </div>
+      <div className={view==="gallery"?"grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5":"grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"}>{venues.map(stadium=><StadiumCard key={stadium.id} stadium={stadium} view={view} onClick={()=>open(stadium)}/>)}</div>
     </section>)}</div>}
     {selected&&form&&<div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-3 sm:p-6" onMouseDown={e=>{if(e.target===e.currentTarget&&!saving)setSelected(null);}}>
       <section role="dialog" aria-modal="true" aria-labelledby="stadium-editor-heading" className="my-auto w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl">
