@@ -8,6 +8,21 @@ import {RECORD_KEYS} from "@/api/recordQueries";
 import NormalizedKitImage from "@/components/teams/NormalizedKitImage";
 
 const KIT_FIELDS=[["kit3_photo_url","Tercera equipación"],["kit1_photo_url","Primera equipación"],["kit2_photo_url","Segunda equipación"]];
+const validKitHex = (value) => /^#[0-9a-f]{6}$/i.test(String(value || ""));
+function kitTagStyle(team,key){
+  const index=key.match(/^kit([123])_/)?.[1] || "1";
+  const providedBg=team["kit"+index+"_badge_bg"];
+  const providedText=team["kit"+index+"_badge_text"];
+  const bg=validKitHex(providedBg)?providedBg:(validKitHex(team.primary_color)?team.primary_color:"#133572");
+  const rgb=[1,3,5].map(i=>parseInt(bg.slice(i,i+2),16)/255).map(v=>v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4);
+  const luminance=rgb[0]*0.2126+rgb[1]*0.7152+rgb[2]*0.0722;
+  const fallback=luminance>0.28?"#111827":"#FFFFFF";
+  const textColor=validKitHex(providedText)?providedText:validKitHex(team.secondary_color)?team.secondary_color:fallback;
+  return {backgroundColor:bg,color:textColor,borderColor:bg,boxShadow:"0 2px 8px "+bg+"22"};
+}
+function KitTag({team,kitKey,label,small=false}){
+  return <span className={small?"inline-flex max-w-full items-center justify-center rounded-md border px-2 py-1 text-center text-[9px] font-extrabold uppercase leading-tight tracking-wide":"inline-flex max-w-full items-center justify-center rounded-lg border px-3 py-1.5 text-center text-[10px] font-extrabold uppercase tracking-wider sm:text-xs"} style={kitTagStyle(team,kitKey)}>{label}</span>;
+}
 function KitPicture({url,label,club}){
   const src=normalizeImageUrl(url);
   return <div className="flex h-52 items-center justify-center bg-gradient-to-b from-white to-slate-50 p-4 sm:h-64">
@@ -30,7 +45,7 @@ function EditorialClub({team,onOpen}){
           <div className={`flex w-full items-center justify-center ${key==="kit1_photo_url"?"h-64 sm:h-80":"h-52 sm:h-64"}`}>
             <NormalizedKitImage url={src} alt={label+" de "+team.name} className="drop-shadow-xl transition-transform duration-300 group-hover:scale-[1.03]"/>
           </div>
-          <span className="mt-3 text-center text-[10px] font-extrabold uppercase tracking-wider text-slate-500 sm:text-xs">{label}</span>
+          <div className="mt-3 flex w-full justify-center"><KitTag team={team} kitKey={key} label={label}/></div>
         </div>)}
       </div>
     </div>
@@ -70,7 +85,7 @@ function ClubGallery({team,editing,setEditing,onSaved,onBack}){
     <div className="grid items-center gap-3 p-4 md:grid-cols-3">
       {fields.map(field=><div key={field.key} className={`min-w-0 overflow-hidden rounded-xl border ${field.key==="kit1_photo_url"?"border-[#003399]/40 bg-blue-50/50 shadow-md md:z-10":"border-slate-200"}`}>
         <KitPicture key={field.url} url={field.url} club={team.name} label={field.label}/>
-        <div className="border-t border-slate-100 bg-white px-3 py-3"><p className="text-center text-xs font-bold text-slate-700">{field.label}</p>
+        <div className="border-t border-slate-100 bg-white px-3 py-3"><div className="flex justify-center"><KitTag team={team} kitKey={field.key} label={field.label}/></div>
           {editMode&&<label className="mt-3 block text-xs text-slate-600">URL de imagen
             <input className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-2 text-xs" placeholder="https://..." value={field.url} onChange={e=>setEditing(current=>({...current,values:{...current.values,[field.key]:e.target.value}}))}/></label>}
         </div>
@@ -121,7 +136,7 @@ export default function Kits(){
           <div className="grid grid-cols-3 gap-1 bg-slate-100 p-2">
             {KIT_FIELDS.map(([key,label])=><div key={key} className="min-w-0 bg-white">
               <div className="flex h-28 items-center justify-center p-1 sm:h-32"><NormalizedKitImage url={team[key]} alt={label}/></div>
-              <p className="truncate px-1 pb-2 text-center text-[10px] font-semibold text-slate-500">{label.split(" ")[0]}</p>
+              <div className="flex justify-center px-1 pb-2"><KitTag team={team} kitKey={key} label={label.split(" ")[0]} small/></div>
             </div>)}
           </div>
         </button>)}
