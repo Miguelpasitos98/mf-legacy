@@ -24,6 +24,7 @@ export default function ImportCenter(){
   const [searching,setSearching]=useState(false);
   const [searchOpen,setSearchOpen]=useState(false);
   const [links,setLinks]=useState([]);
+  const [linksState,setLinksState]=useState("idle");
   const [jobs,setJobs]=useState([]);
   const [candidateRows,setCandidateRows]=useState([]);
   const [preview,setPreview]=useState(null);
@@ -75,11 +76,12 @@ export default function ImportCenter(){
   useEffect(()=>{setCandidateRows([]);setCandidatesLoading(Boolean(selectedJob));setPreview(null);setReviewedGroups({});},[selectedJob]);
   useEffect(()=>{
     setLinks([]);
-    if(!selection)return;
+    if(!selection){setLinksState("idle");return;}
+    setLinksState("loading");
     let live=true;
     base44.entities.PlayerFotmobLink.filter({player_id:selection},undefined,30)
-      .then(result=>{if(live)setLinks(responseRows(result));})
-      .catch(e=>{if(live)setError(reason(e));});
+      .then(result=>{if(live){setLinks(responseRows(result));setLinksState("ready");}})
+      .catch(e=>{if(live){setLinksState("error");setError(reason(e));}});
     return ()=>{live=false;};
   },[selection]);
   useEffect(()=>{
@@ -209,8 +211,8 @@ export default function ImportCenter(){
         </div>
         {selection&&player&&<div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm"><strong>Seleccionado: {player.name}</strong><button type="button" onClick={()=>{setSelection("");setSelectedPlayer(null);setSearch("");setLinks([]);}} className="ml-3 text-blue-800 underline">Cambiar</button></div>}
         {selection&&<p className="text-sm font-medium text-[#003399]">{statsStatus.state==="loading"?"Comprobando temporadas en STATS…":statsStatus.state==="ready"?(statsStatus.count===0?"Sin temporadas en STATS · Primera importación":statsStatus.count+" registros en STATS · Puedes añadir temporadas que falten"):statsStatus.state==="partial"?"Más de 199 registros: recuento parcial":"No se pudo consultar STATS; no se han modificado datos."}</p>}
-        {selection&&<p className="text-sm text-slate-600">FotMob: <strong>{fotmob||"Sin vínculo único"}</strong>{linked?" · Vinculación registrada":" · Requiere revisión"}</p>}
-        {player&&!linked&&links.length===0&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2">
+        {selection&&<p className="text-sm text-slate-600">FotMob: <strong>{linksState==="loading"?"Comprobando vinculación…":linksState==="error"?"No se pudo comprobar el vínculo":fotmob||"Sin vínculo único"}</strong>{linksState==="ready"?(linked?" · Vinculación registrada":" · Requiere revisión"):""}</p>}
+        {player&&linksState==="ready"&&!linked&&links.length===0&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2">
           <p className="text-sm font-semibold">Vincular identificador FotMob</p>
           <p className="text-xs text-slate-600">Introduce el ID numérico que hayas comprobado en el perfil o exportación original. No se buscará ni deducirá por nombre.</p>
           <input type="text" inputMode="numeric" aria-label="ID FotMob verificado" maxLength={15}

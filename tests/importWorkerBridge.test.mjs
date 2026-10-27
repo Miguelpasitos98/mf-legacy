@@ -22,13 +22,14 @@ const filter=(items,q)=>{
   ));
 };
 const db={
+  PlayerSeasonStats:{async filter(){return []; }},
   ImportJob:{
     async filter(q,sort,limit=50){return filter([...jobs.values()],q).slice(0,limit);},
     async get(id){return jobs.get(id);},
     async update(id,patch){const row={...jobs.get(id),...patch};jobs.set(id,row);return row;}
   },
   ImportCandidate:{
-    async filter(q,sort,limit=50){return filter([...candidates.values()],q).slice(0,limit);},
+    async filter(q,sort,limit=50,skip=0){return filter([...candidates.values()],q).slice(skip,skip+limit);},
     async bulkCreate(batch){
       for(const item of batch){
         const id=nextId.toString(16).padStart(24,"0");nextId++;
@@ -107,4 +108,35 @@ test("no acepta envíos de un trabajo cancelado",async()=>{
   const response=await post({action:"submit",job_id:JOB_ID,claim_id:picked.claim_id,candidates:[observation]});
   assert.equal(response.status,409);
   assert.equal(candidates.size,0);
+});
+test("retains official competition, national scope and derivation in pending candidates",async()=>{
+  reset();const picked=await claim();
+  await post({action:"submit",job_id:JOB_ID,claim_id:picked.claim_id,candidates:[{
+    ...observation,fotmob_tournament_id:"50",is_national_team:true,
+    metric_unit:"percentage",value:50,derivation:"Four verified inputs"
+  }]});
+  const saved=[...candidates.values()][0];
+  assert.equal(saved.fotmob_tournament_id,"50");assert.equal(saved.is_national_team,true);
+  assert.equal(saved.derivation,"Four verified inputs");assert.equal(saved.review_status,"pending");
+});
+test("finish paginates more than 500 candidates and persists detailed diagnostics",async()=>{
+  reset();const picked=await claim();
+  for(let i=0;i<615;i++)candidates.set(String(i),{id:String(i),job_id:JOB_ID});
+  const response=await post({action:"finish",job_id:JOB_ID,claim_id:picked.claim_id,source_results:{
+    fotmob:{status:"complete",note:"Offline",counts:{cache_absent:39},diagnostics:[{
+      season:"2024/2025",competition:"Super Cup",status:"team_unidentified",reason:"Two possible clubs",recovered_metrics:27
+    }]}
+  }});
+  assert.equal(response.body.candidates,615);
+  const state=jobs.get(JOB_ID).source_results.fotmob;
+  assert.equal(state.counts.cache_absent,39);assert.equal(state.diagnostics[0].recovered_metrics,27);
+  assert.equal(state.diagnostics[0].status,"team_unidentified");
+});
+test("supports signed keeper metrics and claims only the requested job",async()=>{
+  reset();
+  const selected=await post({action:"claim",job_id:JOB_ID});
+  const response=await post({action:"submit",job_id:JOB_ID,claim_id:selected.body.job.claim_id,
+    candidates:[{...observation,metric_name:"Goals prevented",value:-.39,percentile:21}]});
+  assert.equal(response.body.created,1);assert.equal([...candidates.values()][0].value,-.39);
+  assert.equal([...candidates.values()][0].percentile,21);
 });
