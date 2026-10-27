@@ -780,7 +780,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   // Colores de las tarjetas de estadísticas (solo dependen del color del equipo).
   const statCardColors = useMemo(() => {
     const primaryColor = normalizeHexColor(team?.primary_color || team?.primaryColor, "#003399");
-    return { primaryColor, middleColor: darkenHex(primaryColor, 0.48) };
+    return { primaryColor, middleColor: "#F6F1EA" };
   }, [team?.primary_color, team?.primaryColor]);
 
   // Mapa de logos normalizado para la trayectoria (búsqueda O(1) por club).
