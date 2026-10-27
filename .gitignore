@@ -30,3 +30,11 @@ dist-ssr
 .env
 .vite
 base44/.app.jsonc
+
+# Local import investigation and review evidence (never publish app records)
+/worker/repair_baseline/
+/worker/.test-tmp/
+/worker/review/
+/worker/*-results*.txt
+/worker/diagnostico-skriniar.json
+**/__pycache__/

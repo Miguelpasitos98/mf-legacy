@@ -74,6 +74,7 @@ class WorkerContractTests(unittest.TestCase):
                 path.parent.mkdir(parents=True,exist_ok=True)
                 path.write_text(json.dumps(data),encoding="utf-8")
             client.save_json.side_effect=write_file
+            profile.read_json.side_effect=lambda path: json.loads(path.read_text(encoding="utf-8"))
             client.fetch_profile.return_value={"id":795179}
             client.fetch_stats.return_value={"statsSection": {"items":[]}}
             profile.load_profile_bundle.return_value={
@@ -83,7 +84,7 @@ class WorkerContractTests(unittest.TestCase):
                 "career":[{"season":"2024/2025","fotmob_team_id":"9825","team_name":"Arsenal"}],
             }
             resolver.load_assignments.return_value={}
-            resolver.resolve_career_team.return_value=("9825","Arsenal","unico_club",[])
+            resolver.resolve_stats_team.return_value=("9825","Arsenal","unico_club",[])
             profile.extract_stat_details.return_value={"conflicts":[],"metrics":[{"name":"Clearances","value":111,"per90":3.2}]}
             with patch("worker.mf_v3_worker.studio_import",return_value=(profile,client,resolver)):
                 result,status=studio_fotmob(root,"795179",allow_network=True,request_limit=2)
@@ -96,7 +97,6 @@ class WorkerContractTests(unittest.TestCase):
             self.assertEqual(result[0]["value"],111)
             self.assertEqual(result[0]["verification_status"],"unverified")
             self.assertEqual(status["status"],"complete")
-
 
     def test_single_club_fallback_without_unsafe_multiclub_guess(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -112,7 +112,8 @@ class WorkerContractTests(unittest.TestCase):
                     {"season":"2023/2024","competition":"Nations League","season_id":"national","tournament_id":"9806"}],
                 "career":[{"season":"2024/2025","fotmob_team_id":"100","team_name":"Club A"},
                           {"season":"2023/2024","fotmob_team_id":"100","team_name":"Club A"}]}
-            resolver.resolve_career_team.return_value=("", "", "unknown", [])
+            resolver.resolve_stats_team.side_effect=lambda d,b,p,a: ("100","Club A","unico_club",[]) if d["competition"]=="Süper Lig" else ("","","team_unresolved",[])
+            profile.read_json.side_effect=lambda path: json.loads(path.read_text(encoding="utf-8"))
             client.fetch_profile.return_value={"id":309328}
             client.fetch_stats.return_value={"statsSection":{"items":[]}}
             client.save_json.side_effect=lambda p,d:p.write_text(json.dumps(d))
@@ -121,8 +122,8 @@ class WorkerContractTests(unittest.TestCase):
                 found,state=studio_fotmob(root,"309328",allow_network=True,request_limit=3)
             self.assertEqual(len(found),1)
             self.assertEqual(found[0]["fotmob_team_id"],"100")
-            self.assertIn("club sin identificar: 1",state["note"])
-            self.assertEqual(profile.extract_stat_details.call_count,1)
+            self.assertEqual(state["counts"]["team_unidentified"],1)
+            self.assertEqual(profile.extract_stat_details.call_count,2)
 
     def test_new_player_does_not_fetch_if_network_disabled(self):
         with tempfile.TemporaryDirectory() as directory:

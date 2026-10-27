@@ -16,9 +16,9 @@ test("La experiencia por defecto se reduce a subida automática, progreso y resu
 });
 test("La importación automática no salta validación de IDs ni actualiza métricas previas",()=>{
  assert.match(source,/if\(existingLinks\.length>1\)throw Error/);
- assert.match(source,/if\(candidates\.length>1\)throw Error/);
- assert.match(source,/if\(otherLinks\.some/);
- assert.match(source,/if\(normalized\(player\.name\)!==normalized\(snapshotName\)\)/);
+ assert.match(source,/if\(candidates\.length!==1\)throw Error/);
+ assert.match(source,/if\(conflicts\.some\(l=>String\(l\.fotmob_player_id\)!==pid\)\)/);
+ assert.match(source,/if\(normalized\(player\.name\)!==normalized\(snapshotName\) && !playerNameCandidates/);
  assert.match(source,/assessHistoricalEnrichment\(old,x,x\.linkedId\)/);
  assert.match(source,/queue=sourcePlan\.filter\(r=>\["crear","enriquecer"\]\.includes\(r\.action\)\)/);
  assert.match(source,/analysis\.added\?"enriquecer":"existente"/);

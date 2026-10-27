@@ -38,7 +38,14 @@ test("la selección nacional no se confunde con un club",()=>{
  assert.equal(nationalCompetition("Copa America"),true);
  assert.equal(nationalCompetition("Club World Cup"),false);
  const row={...raphinha,team_name:"",fotmob_team_id:"",competition:"World Cup"};
- assert.equal(resolveTeam(row,clubs,[row,raphinha]).status,"national");
+ const resolution=resolveTeam(row,clubs,[row,raphinha]);
+ assert.equal(resolution.status,"national_unlinked");
+ assert.equal(resolution.team,null);
+});
+test("la selección con vínculo interno se muestra con su nombre sin usar un Team de club",()=>{
+ const record={player_id:"p",competition:"EURO",national_team_id:"sk",national_country_id:"country-sk",team_name:"Eslovaquia",fotmob_team_id:"8497"};
+ const result=resolveTeam(record,clubs);
+ assert.equal(result.status,"national");assert.equal(result.label,"Eslovaquia");assert.equal(result.team,null);
 });
 test("los subtotales exponen métricas faltantes",()=>{
  const result=aggregate([detailed,{...detailed,competition:"Champions League",metrics:[]}],["goals","xa"]);

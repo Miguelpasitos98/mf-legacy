@@ -59,7 +59,7 @@ test("El contenedor único calcula la clasificación y la tabla no la reordena l
  const table=readFileSync(new URL("../src/components/stats/SeasonStatsTable.jsx",import.meta.url),"utf8");
  assert.match(base,/sort==="composite"\?sortByComposite\(ranked,compositeIndex,sortDirection\)/);
  assert.match(base,/bestMetric==="composite"\?bestSeasonByComposite\(enough,compositeIndex\)/);
- assert.match(base,/\[bestMetric,setBestMetric\]=useState\("composite"\)/);
+ assert.match(base,/\[bestMetric,setBestMetric\]=useState\(savedView\.bestMetric\|\|"composite"\)/);
  assert.match(table,/const pageRows=items\.filter/);
  assert.match(table,/displaySeasonPosition\(x\?\.position\)/);
  assert.doesNotMatch(table,/sortKey==="composite"\?\[/);

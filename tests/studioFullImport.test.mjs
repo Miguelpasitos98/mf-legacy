@@ -34,7 +34,7 @@ test("Importa todas las secciones como registros fuente sin contaminar FIFA y Tr
  assert.equal(mv.market_value_eur,90000000);
  assert.equal(mv.status,"model_estimate");
  const understat=result.records.find(r=>r.record_kind==="understat_summary");
- assert.equal(understat.status,"manual_identity_unverified");
+ assert.equal(understat.status,"identity_unverified");
  assert.equal(understat.minutes,900);
  assert.equal(understat.appearances,12);
  assert.equal(understat.metrics.find(m=>m.name==="xG").per90,.2);
