@@ -215,7 +215,12 @@ export async function applyVerifiedHistoricals(db,job) {
         /euro u21|european under.?21/.test(norm(first.competition)))continue;
     const matching=teams.filter(t=>club(t.name)===club(first.team_name)&&
       (!t.fotmob_id||str(t.fotmob_id)===str(first.fotmob_team_id)));
-    if(matching.length!==1)continue;
+    // Si el club histórico no existe en TEAMS, conservar su identidad
+    // FotMob verificable sin inventar team_id. No aceptar coincidencias ambiguas
+    // ni un ID FotMob ya atribuido a otro equipo interno.
+    const alreadyAttributed=teams.some(t=>str(t.fotmob_id)===str(first.fotmob_team_id));
+    if(matching.length>1||(matching.length===0&&alreadyAttributed))continue;
+    const teamLink=matching.length===1?{team_id:matching[0].id}:{};
     try{
       const existing=await allRows(db.PlayerSeasonStats,{player_id:job.player_id,season:first.season});
       // Una cifra conflictiva (p. ej. minutos Understat frente a FotMob) NO
@@ -224,7 +229,7 @@ export async function applyVerifiedHistoricals(db,job) {
       const safe=[],rejected=[];
       for(const candidate of group){
         try{
-          seasonPlan([...safe,candidate],player,existing,{team_id:matching[0].id});
+          seasonPlan([...safe,candidate],player,existing,teamLink);
           safe.push(candidate);
         }catch(error){
           rejected.push({candidate,error:String(error.message||error).slice(0,140)});
@@ -234,7 +239,7 @@ export async function applyVerifiedHistoricals(db,job) {
         if(result.errors.length<8)result.errors.push("fotmob "+first.season+" "+first.competition+": sin métricas compatibles");
         continue;
       }
-      const plan=seasonPlan(safe,player,existing,{team_id:matching[0].id});
+      const plan=seasonPlan(safe,player,existing,teamLink);
       if(plan.operation==="create"){
         await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
         result.created_stats++;
