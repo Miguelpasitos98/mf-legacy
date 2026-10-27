@@ -198,25 +198,10 @@ export default async function(req) {
         const page=rows(await db.ImportCandidate.filter({job_id:job.id},"id",100,skip));
         counts+=page.length;if(page.length<100)break;
       }
-      await db.ImportJob.update(job.id,{status:counts?"review":"completed",phase:counts?"Candidatos recibidos; aplicación automática segura en curso":"Sin nuevos datos verificables",progress:100,
+      await db.ImportJob.update(job.id,{status:counts?"review":"completed",phase:counts?"Datos recibidos; revisar candidatos":"Sin nuevos datos verificables",progress:100,
         source_results,received_candidates:counts,finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
-      // El guardado seguro es parte del flujo normal, no una revisión manual
-      // posterior. Las métricas contradictorias o sin identidad quedan pendientes.
-      let automatic=null;
-      if(counts){
-        try{
-          const {applyVerifiedHistoricals}=await import("./reviewAuto.js");
-          automatic=await applyVerifiedHistoricals(db,{...job,status:"review"});
-          const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
-          await db.ImportJob.update(job.id,{
-            status:pending.length?"review":"completed",
-            phase:"Incorporados "+automatic.applied+" candidatos compatibles; "+
-              (pending.length?"otros necesitan revisión":"sin candidatos pendientes")});
-        }catch(error){
-          console.error("Conservados para revisión: error al aplicar candidatos",error);
-          await db.ImportJob.update(job.id,{phase:"Extracción terminada; aplicación automática pendiente de revisión"});
-        }
-      }
+      // La solicitud del usuario exige aprobación explícita de los datos.
+      // Recuperar y continuar bloques solo prepara candidatos; no escribe STATS.
       // Avanzar entre temporadas pendientes sin volver a solicitar todo el
       // historial. Un bloque es de hasta ocho consultas; se detiene si FotMob
       // rechaza o limita el acceso, si no hay respuestas útiles o al llegar
@@ -252,7 +237,7 @@ export default async function(req) {
         }catch(e){console.error("No se pudo encolar el siguiente bloque FotMob",e);}
       }
       return reply({ok:true,status:counts?"review":"completed",candidates:counts,
-        automatic,next_job_id,coverage:source_results.fotmob?.coverage||null});
+        automatic:null,next_job_id,coverage:source_results.fotmob?.coverage||null});
     }
     if(action==="fail") {
       await db.ImportJob.update(job.id,{status:"failed",phase:"Error de extracción",last_error:str(body.error).slice(0,350),finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
