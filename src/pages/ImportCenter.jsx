@@ -49,6 +49,8 @@ export default function ImportCenter(){
   const [coordinator,setCoordinator]=useState("checking");
   const [statsStatus,setStatsStatus]=useState({state:"idle",count:0});
   const refreshSequence=useRef(0),currentJob=useRef(selectedJob);
+  const autoAppliedJobs=useRef(new Set());
+  const [autoApplying,setAutoApplying]=useState(false);
   currentJob.current=selectedJob;
 
   const refresh=useCallback(async({forceCandidates=false}={})=>{
@@ -127,6 +129,26 @@ export default function ImportCenter(){
   const waitingForWorker=jobs.filter(queuedTooLong);
   const chainProgress=importProgressSummary(jobs,selectedJobData);
   const importCoverage=chainProgress?.coverage;
+  const reconcileExisting=async()=>{
+    if(!selectedJobData||autoApplying)return;
+    const root=selectedJobData.root_job_id||selectedJobData.id;
+    const chain=jobs.filter(j=>(j.id===root||j.root_job_id===root)&&["review","completed"].includes(j.status))
+      .sort((a,b)=>String(a.requested_at||"").localeCompare(String(b.requested_at||"")));
+    setAutoApplying(true);setError("");
+    let total=0,done=0;
+    try{
+      for(const job of chain){
+        if(autoAppliedJobs.current.has(job.id))continue;
+        const response=await base44.functions.invoke("import-review",{action:"auto-safe-job",job_id:job.id});
+        if(!response.data?.ok)throw Error(response.data?.error||"No se pudo incorporar el trabajo "+job.id);
+        total+=response.data.applied||0;done++;
+        autoAppliedJobs.current.add(job.id);
+      }
+      setNotice("Conciliación automática: "+total+" candidatos compatibles incorporados en STATS · "+done+" bloques procesados. Los conflictos permanecen pendientes.");
+      await invalidateApplied();await refresh({forceCandidates:true});
+    }catch(e){setError("La conciliación se ha detenido: "+reason(e)+". Los bloques anteriores permanecen guardados.");}
+    finally{setAutoApplying(false);}
+  };
   const seasonGroups=Object.values(candidateRows.filter(c=>c.kind==="metric").reduce((acc,c)=>{
     const k=[selectedJob,c.source,c.season,c.competition,c.fotmob_team_id].join("|");
     if(!acc[k])acc[k]={key:k,source:c.source,season:c.season,competition:c.competition,
