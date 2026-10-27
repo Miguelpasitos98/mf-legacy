@@ -162,7 +162,12 @@ async function conclude(db,job) {
 const stable=value=>JSON.stringify(value,(_key,v)=>v&&typeof v==="object"&&!Array.isArray(v)
   ?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
 const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(stable(value))))).map(x=>x.toString(16).padStart(2,"0")).join("");
-const includesPatch=(record,patch)=>Object.entries(patch).every(([key,value])=>stable(record?.[key])===stable(value));
+// Base44 materializes absent optional metric properties as null. Verify every
+// requested value recursively, while allowing these server-added properties.
+// Array length/order and explicit null/zero values remain significant.
+const includesPatch=(record,patch)=>Array.isArray(patch)?Array.isArray(record)&&record.length===patch.length&&patch.every((value,i)=>includesPatch(record[i],value))
+  :patch&&typeof patch==="object"?!!record&&typeof record==="object"&&Object.entries(patch).every(([key,value])=>includesPatch(record[key],value))
+  :record===patch;
 const candidateVersion=c=>Object.fromEntries(["id","job_id","player_id","fotmob_player_id","source","kind","season","competition","fotmob_team_id","fotmob_tournament_id","is_national_team","metric_name","metric_unit","value","percentile","derivation","fifa_edition","fifa_fc_position","as_of_date","evidence_url","source_record_id","verification_status","provenance"].map(k=>[k,c[k]]));
 export function historyValueRows(unit){
   return unit.all_items.map(c=>{
