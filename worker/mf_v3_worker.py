@@ -329,6 +329,12 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
         +(f" Perfil pendiente: {profile_refresh_error}." if profile_refresh_error else ""))
     state.update(counts=counts,diagnostics=diagnostics,network_requests=network_count,
                  successful_requests=successful_requests,coverage=coverage)
+    # Persistir el inventario local para poder reanudar tras un fallo de Base44.
+    manifest=root/"datos"/"cobertura_fotmob"/(pid+".json")
+    client.save_json(manifest,{
+        "schema":"mf_legacy_fotmob_coverage_v1","fotmob_player_id":pid,
+        "checked_at":datetime.now(timezone.utc).isoformat(),
+        "profile_stale":profile_stale,"summary":coverage,"competitions":diagnostics})
     return out,state
 
 
