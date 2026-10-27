@@ -131,3 +131,10 @@ test('fragment corruption prevents sporting writes before resumption',async()=>{
  f.data.ImportReviewPlanChunk[0].chunk_json+='changed';
  const resumed=await f.call('history-approve',{confirmed:true,batch_id:first.batch.id});assert.equal(resumed.batch.status,'partial');assert.equal(f.data.PlayerSeasonStats.length,3);
 });
+
+test('persistence accepts server-added null defaults, but rejects changed source values',async()=>{
+ const f=fixture();f.hooks.create=(name,saved)=>{if(name==='PlayerSeasonStats')saved.metrics=saved.metrics.map(m=>({value:null,percentile:null,provider_minutes:null,...m}));};
+ const result=await approve(f,await plan(f));assert.equal(result.batch.status,'completed');assert.equal(f.data.PlayerSeasonStats.length,1);
+ const changed=fixture();changed.hooks.create=(name,saved)=>{if(name==='PlayerSeasonStats')saved.metrics[0].per90=.99;};
+ const failed=await approve(changed,await plan(changed));assert.equal(failed.batch.status,'partial');assert.equal(changed.data.ImportCandidate[0].review_status,'pending');
+});
