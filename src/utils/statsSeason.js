@@ -1,5 +1,5 @@
 // Resúmenes de temporada derivados. No se guardan ni alteran registros FotMob.
-import {aggregate, groupStatRows, metricsValue, nationalCompetition, norm, resolveTeam, statNum} from "./statsViews.js";
+import {aggregate, groupStatRows, metricsValue, nationalCompetition, norm, resolveTeam, statNum, seasonActive} from "./statsViews.js";
 import {alignedFormulaInputs} from "./statsAligned.js";
 
 const SUM_KEYS=["appearances","minutes","goals","assists","xg","xa","shots","shotsontarget","xgot","tackles","recoveries","interceptions","clearances","cleansheets","chancescreated","bigchancescreated","accuratepasses","successfulcrosses","saves","goalsconcededwhileonpitch","totaldistancecovered","numberofsprints","xgexclpenalty","headedshots","walking","jogging","running","sprinting","accuratelongballs","linebreakingpasses","dribbles","duelswon","aerialswon","touches","touchesinoppositionbox","dispossessed","foulswon","foulscommitted","defensiveactions","blockedscoringattempt","possessionwonfinal3rd","dribbledpast","xgagainstwhileonpitch","yellowcards","redcards","penaltygoals","penaltiesawarded","started","team_matches","xgchain","xgbuildup","understatminutes","groundduelswon","groundduelscontested","psxgot_against","goals_conceded_from_shots","goals_prevented"];
@@ -75,6 +75,11 @@ export function seasonSummary(rows,teams=[]){
   // Identifica si hay competiciones incompletas, no afirma haber encontrado todas.
   partial:Object.values(totals).some(v=>v.partial), excludedCompetitions:allClubRecords.length-records.length
  };
+}
+// "Todas las temporadas" incluye también las que están en curso. Solo el modo
+// mejor temporada histórica excluye temporadas todavía sin finalizar.
+export function filterSeasonSummariesForDisplay(summaries,mode,now=new Date()){
+ return summaries.filter(summary=>mode==="current"?seasonActive(summary.season,now):mode==="best"?!seasonActive(summary.season,now):true);
 }
 export function buildSeasonSummaries(rows,teams=[]){
  const grouped=new Map();
