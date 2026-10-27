@@ -85,3 +85,12 @@ test("Goals prevented de FotMob alimenta GPrev y GPrev/90 sin cambiar otras mét
  assert.ok(Math.abs(columnValue(summary,"season","calc_goals_prevented_p90",config)-3.4*90/422)<1e-12);
  assert.equal(columnValue({...league,metrics:[]},"competition","calc_goals_prevented",config),null);
 });
+test('FotMob Goals prevented /90 se visualiza aunque falten minutos de la competición',()=>{
+ const keeper={player_id:'kepa',season:'2024/2025',competition:'Premier League',appearances:31,minutes:null,
+  metrics:[{name:'Goals prevented',value:2.13,per90:0.06870968111099734}]};
+ const config=initialConfig();
+ assert.equal(columnValue(keeper,'competition','calc_goals_prevented',config),2.13);
+ assert.equal(columnValue(keeper,'competition','calc_goals_prevented_p90',config),0.06870968111099734);
+ const negative={...keeper,metrics:[{name:'Goals prevented',value:-0.2,per90:-0.2}]};
+ assert.equal(columnValue(negative,'competition','calc_goals_prevented_p90',config),-0.2);
+});
