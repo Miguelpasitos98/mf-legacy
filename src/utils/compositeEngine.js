@@ -1,3 +1,4 @@
+import {normalizedMetricKey} from "./metricKey.js";
 // MF LEGACY Composite v1 — independent estimate, NOT CraftedFC's published Composite.
 // Weights transcribed from eight supplied CraftedFC Rating Breakdown screenshots
 // (2026-10-14). Only one example per archetype: never claim universal official weights.
@@ -18,7 +19,7 @@ export const normalizeRole=position=>{
   const v=String(position??"").trim().toUpperCase();
   return POSITION_TO_ROLE[v]||null; // Do not silently map DM or unknown positions to CM.
 };
-export const metricName=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/%/g,"percent").replace(/[^a-z0-9]/g,"");
+export const metricName=normalizedMetricKey;
 const METRIC_LABELS={
  npxg_p90:["xG excl. penalty","Non-penalty xG","np xG","npxG"],
  xa_p90:["xA","Expected assists"],xgot_p90:["xGOT"],shots_on_target_p90:["Shots on target"],
