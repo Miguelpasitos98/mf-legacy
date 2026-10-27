@@ -210,20 +210,40 @@ export async function applyVerifiedHistoricals(db,job) {
         !str(c.source_record_id)||str(c.player_id)!==str(job.player_id)||
         str(c.fotmob_player_id)!==str(job.fotmob_player_id)||
         c.is_national_team!==false||!str(c.fotmob_team_id)||!str(c.fotmob_tournament_id))||
-        !/^20\d{2}\/20\d{2}$/.test(first.season))continue;
+        !/^20\d{2}\/20\d{2}$/.test(first.season)||
+        ["288"].includes(str(first.fotmob_tournament_id))||
+        /euro u21|european under.?21/.test(norm(first.competition)))continue;
     const matching=teams.filter(t=>club(t.name)===club(first.team_name)&&
       (!t.fotmob_id||str(t.fotmob_id)===str(first.fotmob_team_id)));
     if(matching.length!==1)continue;
     try{
       const existing=await allRows(db.PlayerSeasonStats,{player_id:job.player_id,season:first.season});
-      const plan=seasonPlan(group,player,existing,{team_id:matching[0].id});
+      // Una cifra conflictiva (p. ej. minutos Understat frente a FotMob) NO
+      // debe bloquear las demás métricas oficiales de la misma competición.
+      // Validar cada candidato contra el lote virtual y mantener conflictos pendientes.
+      const safe=[],rejected=[];
+      for(const candidate of group){
+        try{
+          seasonPlan([...safe,candidate],player,existing,{team_id:matching[0].id});
+          safe.push(candidate);
+        }catch(error){
+          rejected.push({candidate,error:String(error.message||error).slice(0,140)});
+        }
+      }
+      if(!safe.length){
+        if(result.errors.length<8)result.errors.push("fotmob "+first.season+" "+first.competition+": sin métricas compatibles");
+        continue;
+      }
+      const plan=seasonPlan(safe,player,existing,{team_id:matching[0].id});
       if(plan.operation==="create"){
         await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
         result.created_stats++;
       }else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
-      await db.ImportCandidate.updateMany({id:{$in:group.map(c=>c.id)},job_id:job.id,review_status:"pending"},
-        {$set:{review_status:"applied",review_note:"Autoaplicado: FotMob ID confirmado, club/competición únicos, sin sustituir datos"}});
-      result.applied+=group.length;
+      await db.ImportCandidate.updateMany({id:{$in:safe.map(c=>c.id)},job_id:job.id,review_status:"pending"},
+        {$set:{review_status:"applied",review_note:"Autoaplicado: identidad verificada; valores conflictivos conservados aparte"}});
+      result.applied+=safe.length;
+      if(rejected.length&&result.errors.length<8)
+        result.errors.push("fotmob "+first.season+" "+first.competition+": "+rejected.length+" valores en conflicto, conservados para revisión");
     }catch(e){if(result.errors.length<8)result.errors.push("fotmob "+first.season+" "+first.competition+": "+e.message);}
   }
   result.pending=records.length-result.applied;
