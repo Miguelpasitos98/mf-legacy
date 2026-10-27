@@ -1,6 +1,6 @@
 import React,{useMemo,useState} from "react";
 import {useQueryClient} from "@tanstack/react-query";
-import {Shirt,Search,Save,ImageOff,ChevronDown,ArrowLeft} from "lucide-react";
+import {Shirt,Search,Save,ImageOff,ChevronDown,ArrowLeft,LayoutGrid,Focus} from "lucide-react";
 import {useTeamsQuery} from "@/hooks/useSharedData";
 import {base44} from "@/api/base44Client";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
@@ -14,6 +14,28 @@ function KitPicture({url,label,club}){
     {src&&!bad?<img src={src} alt={label+" de "+club} className="h-full w-full object-contain drop-shadow-sm" loading="lazy" onError={()=>setBad(true)}/>:
       <div className="flex flex-col items-center gap-2 text-slate-400"><ImageOff size={25}/><span className="text-xs">Sin imagen</span></div>}
   </div>;
+}
+function EditorialClub({team,onOpen}){
+  const primary=/^#[0-9a-f]{6}$/i.test(team.primary_color||"")?team.primary_color:"#15294a";
+  const images=KIT_FIELDS.map(([key,label])=>({key,label,src:normalizeImageUrl(team[key])}));
+  return <button type="button" onClick={()=>onOpen(team.id)} className="group relative w-full overflow-hidden rounded-3xl border border-slate-200 bg-white text-left shadow-sm transition hover:border-slate-300 hover:shadow-xl">
+    <div className="relative isolate overflow-hidden px-4 pb-6 pt-5 sm:px-8" style={{background:\`linear-gradient(150deg, \${primary}17, #ffffff 55%, \${primary}20)\`}}>
+      <div className="absolute -right-16 -top-28 h-80 w-80 rounded-full border-[65px] opacity-10" style={{borderColor:primary}} aria-hidden="true"/>
+      <div className="relative mb-4 flex items-center gap-3">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/90 p-2 shadow-sm">{team.logo?<img src={normalizeImageUrl(team.logo)} alt="" className="h-full w-full object-contain"/>:<Shirt className="text-slate-300"/>}</div>
+        <div className="min-w-0 flex-1"><h2 className="truncate text-lg font-black text-slate-900">{team.name}</h2><p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Colección de equipaciones</p></div>
+        <span className="hidden rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-700 sm:block">Ver colección</span>
+      </div>
+      <div className="relative grid grid-cols-[0.9fr_1.15fr_0.9fr] items-end gap-0 sm:gap-3">
+        {images.map(({key,label,src})=><div key={key} className={\`flex min-w-0 flex-col items-center \${key==="kit1_photo_url"?"relative z-10":"opacity-90"}\`}>
+          <div className={\`flex w-full items-center justify-center \${key==="kit1_photo_url"?"h-64 sm:h-80":"h-52 sm:h-64"}\`}>
+            {src?<img src={src} alt={label+" de "+team.name} loading="lazy" className="max-h-full max-w-full object-contain drop-shadow-xl transition-transform duration-300 group-hover:scale-[1.03]"/>:<Shirt size={46} className="text-slate-200"/>}
+          </div>
+          <span className="mt-3 text-center text-[10px] font-extrabold uppercase tracking-wider text-slate-500 sm:text-xs">{label}</span>
+        </div>)}
+      </div>
+    </div>
+  </button>;
 }
 function ClubGallery({team,editing,setEditing,onSaved,onBack}){
   const [saving,setSaving]=useState(false),[error,setError]=useState("");
@@ -64,11 +86,12 @@ function ClubGallery({team,editing,setEditing,onSaved,onBack}){
 }
 export default function Kits(){
   const query=useTeamsQuery(),qc=useQueryClient();
-  const [search,setSearch]=useState(""),[editing,setEditing]=useState(null),[sort,setSort]=useState("name"),[selectedId,setSelectedId]=useState(null);
+  const [search,setSearch]=useState(""),[editing,setEditing]=useState(null),[sort,setSort]=useState("name"),[selectedId,setSelectedId]=useState(null),[view,setView]=useState(()=>{try{return window.localStorage.getItem("mf-legacy-kits-view")==="compact"?"compact":"editorial";}catch{return "editorial";}});
   const teams=useMemo(()=>{const rows=Array.isArray(query.data)?query.data:(query.data?.items||query.data?.data||query.data?.entities||[]);
     return rows.filter(t=>t.is_custom_club===true).filter(t=>String(t.name||"").toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es")))
       .sort((a,b)=>sort==="name"?String(a.name).localeCompare(String(b.name),"es"):String(b.created_date||"").localeCompare(String(a.created_date||"")));},[query.data,search,sort]);
   const selectedTeam=teams.find(team=>team.id===selectedId);
+  const changeView=(next)=>{setView(next);setSelectedId(null);setEditing(null);try{window.localStorage.setItem("mf-legacy-kits-view",next);}catch{/* storage opcional */}};
   const onSaved=async(stored)=>{
     qc.setQueryData(RECORD_KEYS.Team,(previous)=>{
       if(Array.isArray(previous))return previous.map(t=>t.id===stored.id?{...t,...stored}:t);
@@ -82,7 +105,12 @@ export default function Kits(){
       <div><div className="mb-2 flex items-center gap-2 text-[#003399]"><Shirt size={19}/><span className="text-xs font-black uppercase tracking-widest">MF Legacy · Club design</span></div><h1 className="text-2xl font-extrabold text-slate-900">Galería de equipaciones</h1><p className="mt-1 text-sm text-slate-500">Las camisetas de tus clubes personalizados. Gestiona sus diseños sin salir de esta página.</p></div>
       <div className="flex flex-wrap gap-2"><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3"><Search size={16} className="text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar club..." className="h-10 w-44 bg-transparent text-sm outline-none"/></label><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3"><ChevronDown size={14}/><select value={sort} onChange={e=>setSort(e.target.value)} className="h-10 bg-transparent text-xs outline-none"><option value="name">Alfabético</option><option value="recent">Más recientes</option></select></label></div>
     </div>
+    <div className="mb-5 flex flex-wrap items-center gap-2" role="group" aria-label="Vista de camisetas">
+      <button type="button" onClick={()=>changeView("editorial")} aria-pressed={view==="editorial"} className={\`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold \${view==="editorial"?"border-[#003399] bg-[#003399] text-white":"border-slate-200 bg-white text-slate-600"}\`}><Focus size={16}/>Escaparate</button>
+      <button type="button" onClick={()=>changeView("compact")} aria-pressed={view==="compact"} className={\`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold \${view==="compact"?"border-[#003399] bg-[#003399] text-white":"border-slate-200 bg-white text-slate-600"}\`}><LayoutGrid size={16}/>Vista catálogo</button>
+    </div>
     {query.isLoading&&!query.data?<p className="rounded-xl bg-white p-8 text-center text-sm text-slate-500">Cargando clubes...</p>:query.error&&!query.data?<p className="rounded-xl bg-red-50 p-6 text-sm text-red-700">No se pudieron cargar los clubes. No se ha borrado ningún dato.</p>:teams.length===0?<div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><Shirt className="mx-auto mb-3 text-slate-300" size={34}/><h2 className="font-semibold text-slate-800">{search?"No hay coincidencias":"Todavía no hay clubes personalizados"}</h2><p className="mt-2 text-sm text-slate-500">En TEAMS, edita un club y marca «Es un club ficticio o creado por mí».</p><a href="/teams" className="mt-4 inline-block rounded-lg bg-[#003399] px-4 py-2 text-sm font-semibold text-white">Ir a TEAMS</a></div>:
+      view==="editorial" && !selectedTeam ? <div className="space-y-6">{teams.map(team=><EditorialClub key={team.id} team={team} onOpen={setSelectedId}/>)}</div> :
       selectedTeam?<ClubGallery key={selectedTeam.id} team={selectedTeam} editing={editing} setEditing={setEditing} onSaved={onSaved} onBack={()=>{setEditing(null);setSelectedId(null);}}/>:
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {teams.map(team=><button key={team.id} type="button" onClick={()=>{setEditing(null);setSelectedId(team.id);}} className="group min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg">
