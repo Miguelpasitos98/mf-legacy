@@ -196,7 +196,7 @@ export default async function(req) {
       let automatic=null;
       if(counts&&(job.sources||[]).some(s=>["understat","fifa","market"].includes(s))){
         try{
-          const {applyVerifiedHistoricals}=await import("../import-review/entry.js");
+          const {applyVerifiedHistoricals}=await import("./reviewAuto.js");
           automatic=await applyVerifiedHistoricals(db,{...job,status:"review"});
           const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
           await db.ImportJob.update(job.id,{status:pending.length?"review":"completed",
