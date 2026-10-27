@@ -89,6 +89,32 @@
     "notes": {
       "type": "string",
       "description": "Notas o comentarios sobre el registro."
+    },
+    "fifa_source_player_id": {
+      "type": "string"
+    },
+    "fifa_source_revision": {
+      "type": "string"
+    },
+    "fifa_source_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "fifa_rating_kind": {
+      "type": "string",
+      "enum": [
+        "launch_base",
+        "historical_update"
+      ]
+    },
+    "market_source_player_id": {
+      "type": "string"
+    },
+    "market_selection_rule": {
+      "type": "string"
+    },
+    "source_provenance": {
+      "type": "object"
     }
   },
   "required": [
