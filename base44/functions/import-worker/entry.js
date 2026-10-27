@@ -59,7 +59,7 @@ function validate(input,job) {
 
 export function provenanceRecord(input){
   if(!input||typeof input!=="object"||Array.isArray(input)||JSON.stringify(input).length>4000)throw Error("Procedencia inválida o demasiado grande.");
-  const keys=["provider","player_id","archive_url","sha256","revision","revision_date","rating_kind","release_date","mode","identity_rule","scope","archive_cutoff","selection_rule","value_kind"];
+  const keys=["provider","player_id","archive_url","sha256","revision","revision_date","rating_kind","release_date","mode","identity_rule","scope","archive_cutoff","selection_rule","value_kind","license","archive_version","source_club","rate_kind","retrieved_at"];
   const result=Object.fromEntries(keys.filter(k=>typeof input[k]==="string").map(k=>[k,input[k].slice(0,k.endsWith("url")?800:200)]));
   if(typeof input.provider_minutes==="number"&&Number.isFinite(input.provider_minutes)&&input.provider_minutes>0)result.provider_minutes=input.provider_minutes;
   if(typeof input.provisional==="boolean")result.provisional=input.provisional;
@@ -95,7 +95,7 @@ export default async function(req) {
       for(let skip=0;skip<2000;skip+=100){
         const page=rows(await db.PlayerSeasonStats.filter({player_id:check.player_id},"id",100,skip));
         existing_stats.push(...page.map(r=>({season:r.season,competition:r.competition,fotmob_tournament_id:r.fotmob_tournament_id,fotmob_team_id:r.fotmob_team_id})));
-        if(page.length<100)return reply({ok:true,job:{id:check.id,claim_id:claimId,player_id:check.player_id,fotmob_player_id:check.fotmob_player_id,player_name:check.player_name,sources:check.sources,retry_pending:check.retry_pending===true,existing_stats}});
+        if(page.length<100)return reply({ok:true,job:{id:check.id,claim_id:claimId,player_id:check.player_id,fotmob_player_id:check.fotmob_player_id,player_name:check.player_name,sources:check.sources,retry_pending:check.retry_pending===true,retry_scopes:check.retry_scopes||null,existing_stats}});
       }
       throw Error("Demasiadas filas previas; no se usa una instantánea parcial.");
     }
@@ -191,18 +191,6 @@ export default async function(req) {
       }
       await db.ImportJob.update(job.id,{status:counts?"review":"completed",phase:counts?"Datos recibidos; revisar candidatos":"Sin nuevos datos verificables",progress:100,
         source_results,received_candidates:counts,finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
-      // Tras terminar la extracción, aplicar solo catálogos históricos verificables.
-      // FotMob no se verifica automáticamente. Los conflictos continúan en revisión.
-      let automatic=null;
-      if(counts){
-        try{
-          const {applyVerifiedHistoricals}=await import("./reviewAuto.js");
-          automatic=await applyVerifiedHistoricals(db,{...job,status:"review"});
-          const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
-          await db.ImportJob.update(job.id,{status:pending.length?"review":"completed",
-            phase:"Automático: "+automatic.applied+" candidatos incorporados · "+(pending.length?"otros pendientes de revisión":"completado")});
-        }catch(e){console.error("No se pudo aplicar automáticamente el historial; candidatos conservados",e);}
-      }
       // Continuar automáticamente cuando FotMob ha agotado las consultas dejando
       // temporadas sin caché, también tras la primera importación multifuente.
       // Máximo tres bloques adicionales; las siguientes tareas solo usan FotMob.
@@ -229,7 +217,7 @@ export default async function(req) {
           }
         }catch(e){console.error("No se pudo encolar el siguiente bloque FotMob",e);}
       }
-      return reply({ok:true,status:counts?"review":"completed",candidates:counts,automatic,next_job_id});
+      return reply({ok:true,status:counts?"review":"completed",candidates:counts,next_job_id});
     }
     if(action==="fail") {
       await db.ImportJob.update(job.id,{status:"failed",phase:"Error de extracción",last_error:str(body.error).slice(0,350),finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
