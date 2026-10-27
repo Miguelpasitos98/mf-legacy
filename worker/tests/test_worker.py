@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -5,10 +6,21 @@ import tempfile
 import unittest
 from unittest.mock import patch, MagicMock
 
-from worker.mf_v3_worker import number, valid_pid, historical_dataset, collect, call, studio_fotmob
+from worker.mf_v3_worker import number, valid_pid, historical_dataset, collect, call, studio_fotmob, prioritize_fotmob_seasons
 
 
 class WorkerContractTests(unittest.TestCase):
+    def test_fotmob_prioritizes_finished_historic_leagues_over_current_season(self):
+        items=[
+            {"season":"2026/2027","tournament_id":"87","season_id":"0-0"},
+            {"season":"2024/2025","tournament_id":"138","season_id":"2-1"},
+            {"season":"2024/2025","tournament_id":"42","season_id":"2-3"},
+            {"season":"2024/2025","tournament_id":"87","season_id":"2-0"},
+            {"season":"2025/2026","tournament_id":"87","season_id":"1-0"},
+        ]
+        sorted_options=prioritize_fotmob_seasons(items,datetime(2026,10,27,tzinfo=timezone.utc))
+        self.assertEqual([x["season_id"] for x in sorted_options],["1-0","2-0","2-3","2-1","0-0"])
+
     def test_null_not_converted_to_zero(self):
         self.assertIsNone(number(None))
         self.assertIsNone(number(""))
