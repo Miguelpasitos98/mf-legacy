@@ -23,14 +23,22 @@ const isoDate = (d) => {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : v;
 };
 const originalRows = (player) => validRows((player?.market_value_history || []).map((r) => ({ ...r, date: isoDate(r.date) })));
+const normClub = s => String(s || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/\\b(fc|cf|football club|futbol club)\\b/g, "").replace(/[^a-z0-9]/g, "");
+const clubColor = club => {
+  const primary = club?.primary_color || club?.primaryColor || "#23345a";
+  const secondary = club?.secondary_color || club?.secondaryColor || "#23345a";
+  // Los tonos blancos y casi blancos se sustituyen por el secundario para mantener contraste.
+  const n = /^#[0-9a-f]{6}$/i.test(primary) ? [1,3,5].map(i=>parseInt(primary.slice(i,i+2),16)) : [30,45,80];
+  return n.every(v=>v>225) ? secondary : primary;
+};
 function MiniTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
-  const entry = payload[0]?.payload;
+  const entry = payload.find(p=>p.payload)?.payload;
   if (!entry) return null;
-  return <div className="rounded-lg border border-white/20 bg-slate-950 px-3 py-2 text-xs text-white shadow-xl">
+  return <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xl">
     <div>{new Date(entry.date + "T12:00:00").toLocaleDateString("es-ES")}</div>
     <strong>{prettyMoney(entry.value)}</strong>
-    {entry.team && <div className="opacity-70">{entry.team}</div>}
+    {entry.team && <div className="mt-1 flex items-center gap-1.5 text-slate-500">{entry.clubLogo && <img src={entry.clubLogo} alt="" className="h-4 w-4 object-contain"/>}{entry.team}</div>}
   </div>;
 }
 export default function TransferChartMini({ player, clubs = [] }) {
@@ -50,12 +58,32 @@ export default function TransferChartMini({ player, clubs = [] }) {
     window.addEventListener("storage", sync);
     return () => { window.removeEventListener("mf-legacy-market-preview-updated", sync); window.removeEventListener("storage", sync); };
   }, [id, player]);
-  const data = useMemo(() => validRows(rows).map((r) => ({
-    ...r, timestamp: new Date(r.date + "T12:00:00").getTime(),
-    team: r.team || clubs.find((c) => String(c.id) === r.club_id)?.name || "",
-  })), [rows, clubs]);
-  const latest = data.at(-1);
-  const chartColor = "#ffffff";
+  const clubMap = useMemo(()=>new Map(clubs.map(c=>[normClub(c.name),c])),[clubs]);
+  const data = useMemo(() => validRows(rows).map((r) => {
+    const club = clubs.find(c=>String(c.id)===String(r.club_id)) || clubMap.get(normClub(r.team));
+    return {...r, timestamp:new Date(r.date+"T12:00:00").getTime(),
+      team:r.team||club?.name||"", club, clubLogo:club?.logo||club?.logo_url||club?.badge_url||"",
+      color:clubColor(club)};
+  }), [rows, clubs, clubMap]);
+  const latest=data.at(-1);
+  const segments=useMemo(()=>{
+    const result=[];
+    data.forEach((point,i)=>{
+      const key=point.club?.id||normClub(point.team)||"unknown";
+      const last=result.at(-1);
+      if(last?.key===key)last.indices.push(i);
+      else result.push({key,club:point.club,color:point.color,indices:[i]});
+    });
+    return result;
+  },[data]);
+  const chartData=useMemo(()=>{
+    const result=data.map(p=>({...p}));
+    segments.forEach((segment,i)=>{
+      segment.indices.forEach(j=>{result[j][`s${i}`]=result[j].value;});
+      if(i>0){const j=segment.indices[0];result[j][`s${i-1}`]=result[j].value;}
+    });
+    return result;
+  },[data,segments]);
   const save = () => {
     if (!id) { setError("El jugador no tiene ID."); return; }
     if (draft.some((r) => !validDate(r.date) || r.value === "" || !Number.isFinite(Number(r.value)) || Number(r.value) < 0)) {
@@ -67,28 +95,37 @@ export default function TransferChartMini({ player, clubs = [] }) {
     setRows(next); setOpen(false); setError("");
   };
   return <>
-    <div className="pointer-events-auto flex h-full min-w-0 flex-1 flex-col text-white">
+    <div className="pointer-events-auto flex h-full min-w-0 flex-1 flex-col text-slate-900">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/65">Evolución del valor de mercado</div>
-          <div className="mt-0.5 text-[19px] font-black leading-none">{latest ? prettyMoney(latest.value) : "Sin datos"}</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500">Evolución del valor de mercado</div>
+          <div className="mt-0.5 text-[18px] font-black leading-none">{latest ? prettyMoney(latest.value) : "Sin datos"}</div>
         </div>
-        <button type="button" aria-label="Editar historial de valor de mercado" title="Añadir o editar valores (guardado local de prueba)" onClick={() => { setDraft(data.map(({date,value,team,club_id}) => ({date,value:String(value),team,club_id}))); setError(""); setOpen(true); }} className="shrink-0 rounded-lg bg-white/15 p-2 text-white transition hover:bg-white/25">
+        <button type="button" aria-label="Editar historial de valor de mercado" onClick={() => {setDraft(data.map(({date,value,team,club_id})=>({date,value:String(value),team,club_id})));setError("");setOpen(true);}} className="shrink-0 rounded-lg border border-slate-200 bg-white/65 p-2 text-slate-700 hover:bg-white">
           {data.length ? <Pencil size={14}/> : <Plus size={16}/>}
         </button>
       </div>
-      {data.length > 0 ? <div className="mt-2 min-h-0 flex-1" style={{ minHeight: 75 }}>
+      {data.length>0 ? <div className="mt-1 min-h-0 flex-1" style={{minHeight:78}}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 5, right: 4, bottom: 0, left: -28 }}>
-            <defs><linearGradient id="miniMarketFade" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={chartColor} stopOpacity={0.35}/><stop offset="100%" stopColor={chartColor} stopOpacity={0.01}/></linearGradient></defs>
-            <XAxis dataKey="timestamp" type="number" domain={["dataMin", "dataMax"]} tickFormatter={(v) => new Date(v).getFullYear()} tick={{ fill:"#ffffffaa", fontSize:9 }} axisLine={false} tickLine={false} minTickGap={18} />
-            <YAxis hide domain={[0, "auto"]}/>
-            <Tooltip content={<MiniTooltip/>} cursor={{ stroke:"#ffffff55" }}/>
-            <Area type="monotone" dataKey="value" stroke={chartColor} strokeWidth={2.5} fill="url(#miniMarketFade)" dot={data.length === 1} activeDot={{ r: 4 }} isAnimationActive={false}/>
+          <AreaChart data={chartData} margin={{top:27,right:5,bottom:0,left:0}}>
+            <defs>{segments.map((seg,i)=><linearGradient key={i} id={`mini-market-${i}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={seg.color} stopOpacity={0.35}/>
+              <stop offset="100%" stopColor={seg.color} stopOpacity={0.02}/>
+            </linearGradient>)}</defs>
+            <XAxis dataKey="timestamp" type="number" domain={["dataMin","dataMax"]} tickFormatter={v=>new Date(v).getFullYear()} tick={{fill:"#64748b",fontSize:9}} axisLine={false} tickLine={false} minTickGap={19}/>
+            <YAxis hide domain={[0,"auto"]}/>
+            <Tooltip content={<MiniTooltip/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
+            {segments.map((seg,i)=><Area key={i} type="monotone" dataKey={`s${i}`} stroke={seg.color} strokeWidth={2.6} fill={`url(#mini-market-${i})`} connectNulls={false} dot={false} activeDot={false} isAnimationActive={false}/>)}
+            <Area dataKey="value" stroke="none" fill="none" isAnimationActive={false} dot={props=>{
+              const point=chartData[props.index];
+              const first=segments.find(seg=>seg.indices[0]===props.index);
+              if(!point?.clubLogo||!first||props.cx==null||props.cy==null)return <g/>;
+              return <image key={props.index} href={point.clubLogo} x={props.cx-9} y={Math.max(1,props.cy-26)} width={18} height={18} preserveAspectRatio="xMidYMid meet"/>;
+            }}/>
           </AreaChart>
         </ResponsiveContainer>
-      </div> : <div className="mt-3 flex flex-1 items-center text-xs text-white/70">Pulsa + para introducir el primer valor histórico.</div>}
-      <span className="mt-1 text-[9px] text-white/50">Vista de prueba · datos manuales guardados en este navegador</span>
+      </div> : <div className="mt-3 flex flex-1 items-center text-xs text-slate-500">Pulsa + para introducir el primer valor histórico.</div>}
+      <span className="mt-1 text-[9px] text-slate-400">Valores históricos · última valoración disponible</span>
     </div>
     {open && typeof document !== "undefined" && createPortal(
       <div className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
