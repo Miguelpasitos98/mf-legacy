@@ -87,6 +87,15 @@
     "retry_pending": {
       "type": "boolean",
       "default": false
+    },
+    "review_lock_id": {
+      "type": "string"
+    },
+    "review_lock_until": {
+      "type": "string"
+    },
+    "retry_scopes": {
+      "type": "object"
     }
   },
   "required": [
