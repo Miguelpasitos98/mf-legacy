@@ -85,6 +85,7 @@ export default async function(req) {
         const old=await db.ImportJob.get(str(body.job_id));
         const expired=old?.status==="running"&&old.lease_expires_at&&old.lease_expires_at<new Date().toISOString();
         if (!old || old.player_id!==playerId || !(["failed","cancelled"].includes(old.status)||action==="resume"&&expired)) return bad("Solo se reanudan trabajos interrumpidos o con concesión caducada.",409);
+        if(str(old.fotmob_player_id)!==pid)return bad("La identidad FotMob cambió; este trabajo no puede reanudarse con otra vinculación.",409);
         const other=rows(await db.ImportJob.filter({player_id:playerId},undefined,100)).some(j=>j.id!==old.id&&RUNNING.has(j.status));
         if(other)return bad("Ya existe otra importación activa para este jugador.",409);
         await db.ImportJob.update(old.id,{status:"queued",phase:"Reanudando el trabajo guardado",progress:0,requested_at:new Date().toISOString(),claim_id:"",lease_expires_at:"",last_error:"",retry_count:(old.retry_count||0)+1});
