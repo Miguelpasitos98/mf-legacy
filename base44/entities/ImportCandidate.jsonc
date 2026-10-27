@@ -111,6 +111,10 @@
       "type": "number",
       "minimum": 0,
       "maximum": 100
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Identidad, archivo original, checksum, versi\u00f3n y denominador; no equivale a aprobaci\u00f3n."
     }
   },
   "required": [
