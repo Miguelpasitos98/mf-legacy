@@ -23,6 +23,7 @@ import {
   Users,
   Trash2,
   FileJson,
+  Shirt,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -60,6 +61,7 @@ const normalizeLeague = (league) => ({
 
 const navigationFilters = [
   { id: "countries", label: "Countries", icon: Globe },
+  { id: "custom", label: "Mis clubes", icon: Shirt },
   { id: "continents", label: "Continents", icon: MapIcon },
   { id: "reputation", label: "Reputation", icon: Star },
   { id: "market", label: "Market", icon: TrendingUp },
@@ -198,6 +200,7 @@ export default function Teams() {
         secondCaptainPhotoUrl: team.second_captain_photo_url || team.secondCaptainPhotoUrl || "",
         keyPlayerName: team.key_player_name || team.keyPlayerName || "",
         keyPlayerPhotoUrl: team.key_player_photo_url || team.keyPlayerPhotoUrl || "",
+        isCustomClub: team.is_custom_club ?? team.isCustomClub ?? false,
         dataSource: team.data_source || team.dataSource || "Manual",
         isActive: team.is_active ?? team.isActive ?? true,
         leagueId,
@@ -528,6 +531,7 @@ export default function Teams() {
       kit3BadgeText: form.kit3BadgeText.trim(),
       kitsOverviewUrl: form.kitsOverviewUrl.trim(),
       dataSource: form.dataSource,
+      isCustomClub: Boolean(form.isCustomClub),
       isActive: form.isActive,
       incomplete: !form.name.trim() || !form.shortName.trim() || !form.country.trim() || !form.logo.trim(),
       competition: "Without competition",
@@ -616,7 +620,7 @@ export default function Teams() {
             coach_name: newTeam.coachName, coach_photo_url: newTeam.coachPhotoUrl, captain_name: newTeam.captainName, captain_photo_url: newTeam.captainPhotoUrl,
             second_captain_name: newTeam.secondCaptainName, second_captain_photo_url: newTeam.secondCaptainPhotoUrl,
             key_player_name: newTeam.keyPlayerName, key_player_photo_url: newTeam.keyPlayerPhotoUrl,
-            data_source: newTeam.dataSource, is_active: newTeam.isActive,
+            data_source: newTeam.dataSource, is_custom_club: newTeam.isCustomClub, is_active: newTeam.isActive,
           })
         : await base44.entities.Team.create({
             name: newTeam.name, short_name: newTeam.shortName, code: generatedCode, continent: newTeam.continent || "Europe",
@@ -631,7 +635,7 @@ export default function Teams() {
             coach_name: newTeam.coachName, coach_photo_url: newTeam.coachPhotoUrl, captain_name: newTeam.captainName, captain_photo_url: newTeam.captainPhotoUrl,
             second_captain_name: newTeam.secondCaptainName, second_captain_photo_url: newTeam.secondCaptainPhotoUrl,
             key_player_name: newTeam.keyPlayerName, key_player_photo_url: newTeam.keyPlayerPhotoUrl,
-            data_source: newTeam.dataSource, is_active: newTeam.isActive,
+            data_source: newTeam.dataSource, is_custom_club: newTeam.isCustomClub, is_active: newTeam.isActive,
           });
 
       const updatedTeam = { ...newTeam, id: savedTeam.id, competition: selectedLeague?.name || "Without competition", leagueId };
@@ -706,6 +710,36 @@ export default function Teams() {
         </div>
       </div>
 
+      {activeFilter === "custom" && (
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 md:p-6">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="text-xl font-extrabold text-slate-900">Mis clubes · Galería de equipaciones</h2>
+              <p className="mt-1 text-sm text-slate-500">Escudo, primera, segunda y tercera camiseta. Solo clubes marcados como creados por ti.</p></div>
+            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-800">{teams.filter(t => t.isCustomClub).length} clubes</span>
+          </div>
+          {!teams.some(t => t.isCustomClub) ? (
+            <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">Todavía no hay clubes marcados. Edita un equipo, activa «Club creado por mí» y añade las URLs de sus camisetas.</div>
+          ) : (
+            <div className="space-y-6">
+              {teams.filter(t => t.isCustomClub && (!search.trim() || t.name.toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es")))).sort((a,b)=>a.name.localeCompare(b.name,"es")).map(t => (
+                <article key={t.id} className="rounded-2xl border border-slate-200 p-4">
+                  <button type="button" onClick={()=>setSelectedTeam(t)} className="mb-4 text-left text-sm font-bold text-slate-900 hover:text-[#003399]">{t.name} <span className="font-normal text-slate-400">· Ver ficha</span></button>
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {[{title:"Escudo",url:t.logo},{title:"Primera",url:t.kit1_photo_url||t.kit1PhotoUrl},{title:"Segunda",url:t.kit2_photo_url||t.kit2PhotoUrl},{title:"Tercera",url:t.kit3_photo_url||t.kit3PhotoUrl}].map(item=>(
+                      <div key={item.title} className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                        <div className="flex h-32 items-center justify-center bg-white p-3 sm:h-44">
+                          {item.url?<img src={normalizeImageUrl(item.url)} alt={item.title+" de "+t.name} loading="lazy" className="max-h-full max-w-full object-contain" />:<span className="text-xs text-slate-400">Sin imagen</span>}
+                        </div>
+                        <p className="border-t border-slate-100 px-2 py-2 text-center text-xs font-semibold text-slate-600">{item.title}</p>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
       {bulkTeamsMode && (
         <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -753,7 +787,7 @@ export default function Teams() {
             </div>
           ))}
         </div>
-      ) : Object.keys(groupedTeams).length > 0 ? (
+      ) : activeFilter === "custom" ? null : Object.keys(groupedTeams).length > 0 ? (
         <div className="space-y-5">
           {Object.entries(groupedTeams).map(([groupName, groupTeams]) => {
             if (activeFilter === "reputation") {

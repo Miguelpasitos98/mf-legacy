@@ -544,6 +544,13 @@ export function AddTeamModal({ form, setForm, countries, leagues, onClose, onSub
                 </FormField>
                 <div className="grid gap-4 md:grid-cols-2">
                   {selectField("dataSource", "Data source", ["Manual", "Other"])}
+                  <FormField label="Club creado por mí">
+                    <label className="flex min-h-10 items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-950">
+                      <input type="checkbox" checked={Boolean(form.isCustomClub)} onChange={(event) => updateField("isCustomClub", event.target.checked)} />
+                      Es un club ficticio o creado por mí
+                    </label>
+                    <p className="mt-1 text-xs text-slate-500">Solo los clubes marcados aparecen en la galería «Mis clubes». No se marca automáticamente ningún equipo real.</p>
+                  </FormField>
                   <FormField label="Active club">
                     <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm text-slate-700">
                       <input type="checkbox" checked={form.isActive} onChange={(event) => updateField("isActive", event.target.checked)} /> Team is active
