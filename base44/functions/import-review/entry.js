@@ -378,6 +378,7 @@ export default async function(req) {
       const target=await db.ImportJob.get(jobId);
       if(!target||!["review","completed"].includes(target.status))return bad("Trabajo no finalizado o desconocido.",409);
       if(target.review_lock_until&&target.review_lock_until>new Date().toISOString())return bad("Hay una revisión en curso.",409);
+      const {applyVerifiedHistoricals}=await import("./reviewAuto.js");
       const result=await applyVerifiedHistoricals(db,{...target,status:"review"});
       await db.ImportJob.update(target.id,{phase:"Conciliación histórica: "+result.applied+" valores incorporados; "+result.pending+" por revisar"});
       return reply({ok:true,job_id:target.id,...result});
