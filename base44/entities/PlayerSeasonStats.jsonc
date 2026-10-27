@@ -94,6 +94,12 @@
             "type": "number",
             "minimum": 0,
             "maximum": 100
+          },
+          "provenance": {
+            "type": "object"
+          },
+          "source_url": {
+            "type": "string"
           }
         }
       }
@@ -183,6 +189,9 @@
     },
     "is_national_team": {
       "type": "boolean"
+    },
+    "last_import_review_batch_id": {
+      "type": "string"
     }
   },
   "required": [
