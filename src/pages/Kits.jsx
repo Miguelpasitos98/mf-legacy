@@ -36,7 +36,8 @@ function ClubGallery({team,editing,setEditing,onSaved,onBack}){
     finally{setSaving(false);}
   };
   return <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">\n      <button type="button" onClick={onBack} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"><ArrowLeft size={14}/>Todos los clubes</button>
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+      <button type="button" onClick={onBack} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"><ArrowLeft size={14}/>Todos los clubes</button>
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-50 p-1">
           {team.logo?<img src={normalizeImageUrl(team.logo)} alt="" className="h-full w-full object-contain"/>:<Shirt className="text-slate-300"/>}
@@ -46,7 +47,7 @@ function ClubGallery({team,editing,setEditing,onSaved,onBack}){
       <button type="button" onClick={editMode?()=>setEditing(null):startEdit} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{editMode?"Cancelar":"Editar camisetas"}</button>
     </header>
     <div className="grid items-center gap-3 p-4 md:grid-cols-[minmax(0,0.94fr)_minmax(0,1.12fr)_minmax(0,0.94fr)]">
-      {fields.map(field=><div key={field.key} className={\`min-w-0 overflow-hidden rounded-xl border \${field.key==="kit1_photo_url"?"border-[#003399]/40 bg-blue-50/50 shadow-md md:scale-[1.025] md:z-10":"border-slate-200"}\`}>
+      {fields.map(field=><div key={field.key} className={`min-w-0 overflow-hidden rounded-xl border ${field.key==="kit1_photo_url"?"border-[#003399]/40 bg-blue-50/50 shadow-md md:scale-[1.025] md:z-10":"border-slate-200"}`}>
         <KitPicture key={field.url} url={field.url} club={team.name} label={field.label}/>
         <div className="border-t border-slate-100 bg-white px-3 py-3"><p className="text-center text-xs font-bold text-slate-700">{field.label}</p>
           {editMode&&<label className="mt-3 block text-xs text-slate-600">URL de imagen
