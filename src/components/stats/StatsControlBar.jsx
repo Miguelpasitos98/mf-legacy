@@ -165,14 +165,6 @@ export default function StatsControlBar({
               >
                 Mejor temporada por jugador
               </button>
-              <button
-                type="button"
-                aria-pressed={seasonDisplay === "current"}
-                className={"button" + (seasonDisplay === "current" ? " selected" : "")}
-                onClick={() => onSeasonDisplay("current")}
-              >
-                Temporada actual
-              </button>
             </div>
           </>}
         </div>
