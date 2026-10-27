@@ -18,6 +18,7 @@ from pathlib import Path
 import re
 import sys
 import time
+from threading import Event, Thread
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 from typing import Any
@@ -329,7 +330,7 @@ def historical_dataset(path_value: str, pid: str, source: str, max_candidates=30
     return out,report("complete" if out else "unavailable",str(len(out))+" valores históricos encontrados.")
 
 
-def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offline=False, force_pending=False, existing_scopes=None):
+def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offline=False, force_pending=False, existing_scopes=None, progress_hook=None):
     if not valid_pid(pid):
         raise ValueError("ID FotMob inválido.")
     if not root.is_dir():
@@ -349,6 +350,7 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
         seasons=sorted({o['season'] for o in bundle['season_options'] if re.fullmatch(r'20\d{2}/20\d{2}',o['season']) and int(o['season'][5:])==int(o['season'][:4])+1},reverse=True)
         return bundle,raw,seasons
     for source in sources:
+        if progress_hook is not None:progress_hook(source)
         try:
             if source=="fotmob":
                 candidates,state=studio_fotmob(root,pid,
@@ -440,11 +442,39 @@ def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
     if not assigned:
         return False
     jid,claim=assigned["id"],assigned["claim_id"]
+    stop=Event()
+    lost_claim=Event()
+    phase={"value":"Conciliando revisiones y cachés anteriores"}
+    def keep_alive():
+        # FotMob y los catálogos pueden tardar varios minutos. No dejar vencer
+        # la concesión mientras se extraen los datos (antes del primer submit).
+        while not stop.wait(25):
+            try:
+                call("heartbeat",job_id=jid,claim_id=claim,progress=2,phase=phase["value"])
+            except Exception as error:
+                print("Aviso de comunicación durante extracción: "+str(error)[:200],file=sys.stderr,flush=True)
+                if "HTTP 409" in str(error):
+                    lost_claim.set()
+                    return
+    pulse=Thread(target=keep_alive,name="mf-v3-heartbeat",daemon=True)
+    pulse.start()
     try:
+        print("Trabajo "+jid+" · "+assigned["player_name"]+" · iniciando revisión y recuperación",flush=True)
+        call("heartbeat",job_id=jid,claim_id=claim,progress=2,phase=phase["value"])
         try:sync_reviews(root)
-        except Exception as review_error:print('Conciliación de revisión pendiente: '+str(review_error)[:150],file=sys.stderr)
-        candidates,states=collect(root,assigned["fotmob_player_id"],assigned["sources"],max_candidates,force_pending=assigned.get('retry_pending',False),existing_scopes=assigned.get('existing_stats'))
+        except Exception as review_error:print("Conciliación de revisión pendiente: "+str(review_error)[:150],file=sys.stderr,flush=True)
+        def show_source(source):
+            names={"fotmob":"FotMob","understat":"Understat","fifa":"FIFA/FC","market":"Transfermarkt"}
+            phase["value"]="Recuperando "+names.get(source,source)+" · consultas limitadas y caché local"
+            print("Extrayendo "+names.get(source,source)+" para "+assigned["fotmob_player_id"],flush=True)
+        candidates,states=collect(root,assigned["fotmob_player_id"],assigned["sources"],max_candidates,
+            force_pending=assigned.get("retry_pending",False),existing_scopes=assigned.get("existing_stats"),
+            progress_hook=show_source)
+        stop.set()
+        if lost_claim.is_set():
+            raise RuntimeError("La concesión de importación ha caducado o el trabajo fue cancelado.")
         total=len(candidates)
+        print("Extracción terminada: "+str(total)+" observaciones candidatas; enviando por lotes",flush=True)
         for i in range(0,total,15):
             call("heartbeat",job_id=jid,claim_id=claim,
                  progress=min(95,5+int(85*i/max(1,total))),phase="Normalización y envío seguro")
@@ -453,13 +483,18 @@ def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
         call("finish",job_id=jid,claim_id=claim,source_results=states)
         import importlib
         importlib.import_module('worker.historical_sources' if __package__ else 'historical_sources').Catalogs(root).track_job(jid,assigned['fotmob_player_id'])
+        print("Trabajo completado · "+jid+" · "+str(total)+" candidatos enviados",flush=True)
         return True
     except Exception as exc:
+        print("Falló el trabajo "+jid+": "+str(exc)[:250],file=sys.stderr,flush=True)
         try:
             call("fail",job_id=jid,claim_id=claim,error=type(exc).__name__+": "+str(exc)[:300])
         except Exception:
             pass
         raise
+    finally:
+        stop.set()
+        pulse.join(timeout=1)
 
 
 def main():
