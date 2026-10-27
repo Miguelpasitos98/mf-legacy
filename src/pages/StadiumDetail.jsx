@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState} from "react";
-import {useNavigate,useParams} from "react-router-dom";
+import {useLocation,useNavigate,useParams} from "react-router-dom";
 import {useQueryClient} from "@tanstack/react-query";
 import {ArrowLeft,Building2,MapPin,Users,CalendarDays,Ruler,Pencil,Save,X,ImageOff,BookOpen,Info} from "lucide-react";
 import {useTeamsQuery,useCountriesQuery,useLeaguesQuery} from "@/hooks/useSharedData";
@@ -44,14 +44,14 @@ function DetailStat({icon:Icon,label,value}){
 }
 
 export default function StadiumDetail(){
-  const {stadiumKey}=useParams(),navigate=useNavigate(),qc=useQueryClient();
+  const {stadiumKey}=useParams(),navigate=useNavigate(),location=useLocation(),qc=useQueryClient();
   const teamsQuery=useTeamsQuery(),countriesQuery=useCountriesQuery(),leaguesQuery=useLeaguesQuery();
   const stadiums=useMemo(()=>toStadiums(rows(teamsQuery.data),rows(countriesQuery.data),rows(leaguesQuery.data)),
     [teamsQuery.data,countriesQuery.data,leaguesQuery.data]);
   const stadium=stadiums.find(item=>item.id===stadiumKey);
   const [editing,setEditing]=useState(false),[draft,setDraft]=useState(null),[saving,setSaving]=useState(false),[error,setError]=useState("");
   useEffect(()=>{setEditing(false);setDraft(null);setError("");},[stadiumKey]);
-  const goBack=()=>navigate("/schedule");
+  const goBack=()=>navigate("/schedule",{state:location.state});
   const beginEdit=()=>{if(!stadium)return;setDraft(editFields(stadium));setEditing(true);setError("");};
   const update=(key,value)=>setDraft(prev=>({...prev,[key]:value}));
   const save=async(event)=>{
@@ -91,7 +91,7 @@ export default function StadiumDetail(){
       const newStadium=toStadiums(rows(cached),rows(countriesQuery.data),rows(leaguesQuery.data))
         .find(item=>item.teams.some(team=>stadium.teams.some(linked=>linked.id===team.id)));
       setDraft(null);setEditing(false);
-      if(newStadium&&newStadium.id!==stadiumKey)navigate("/schedule/stadium/"+encodeURIComponent(newStadium.id),{replace:true});
+      if(newStadium&&newStadium.id!==stadiumKey)navigate("/schedule/stadium/"+encodeURIComponent(newStadium.id),{replace:true,state:location.state});
       await qc.invalidateQueries({queryKey:RECORD_KEYS.Team,exact:true});
     }catch(e){
       setError(e?.response?.data?.message||e?.message||"No se pudieron guardar los datos. Inténtalo de nuevo.");
