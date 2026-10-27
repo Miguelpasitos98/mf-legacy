@@ -35,7 +35,7 @@ function StadiumCard({stadium,view,onClick}){
     <div className={"absolute inset-x-0 bottom-0 text-white "+(view==="gallery"?"p-2.5":"p-3.5")}>
       <h3 className={"font-black leading-tight drop-shadow-sm "+(view==="gallery"?"truncate text-xs":"text-base")}>{stadium.name}</h3>
       <p className="mt-1 flex flex-wrap items-center gap-2 text-[10px]"><span className="inline-flex items-center gap-1"><MapPin size={11}/>{[stadium.city,stadium.country].filter(Boolean).join(", ")||"Sin ubicación"}</span>{stadium.capacity&&<span className="inline-flex items-center gap-1"><Users size={11}/>{Number(stadium.capacity).toLocaleString("es-ES")}</span>}</p>
-      <div className="mt-1.5 flex flex-wrap gap-1">{stadium.teams.map(t=><span key={t.id} className="max-w-full truncate rounded bg-white/20 px-2 py-0.5 text-[10px] font-bold">{t.name}</span>)}</div>
+      <div className="mt-1.5 flex flex-wrap gap-1">{stadium.teams.map(t=><span key={t.id} className="inline-flex max-w-full items-center gap-1 rounded bg-white/20 px-2 py-0.5 text-[10px] font-bold leading-[14px]">{(t.logo||t.logo_url)&&<img src={normalizeImageUrl(t.logo||t.logo_url)} alt="" loading="lazy" className="h-[12px] w-[12px] shrink-0 object-contain"/>}<span className="min-w-0 truncate">{t.name}</span></span>)}</div>
     </div>
   </button>;
 }
