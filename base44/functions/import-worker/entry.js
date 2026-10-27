@@ -203,13 +203,13 @@ export default async function(req) {
             phase:"Automático: "+automatic.applied+" candidatos incorporados · "+(pending.length?"otros pendientes de revisión":"completado")});
         }catch(e){console.error("No se pudo aplicar automáticamente el historial; candidatos conservados",e);}
       }
-      // Solo para una recuperación histórica solicitada expresamente:
-      // continuar en lotes pequeños, hasta tres trabajos adicionales como máximo.
-      // Nunca repetir automáticamente una fuente si no hubo consultas nuevas.
+      // Continuar automáticamente cuando FotMob ha agotado las consultas dejando
+      // temporadas sin caché, también tras la primera importación multifuente.
+      // Máximo tres bloques adicionales; las siguientes tareas solo usan FotMob.
       let next_job_id=null;
       const fotmobReport=report.fotmob||{};
       const remainingFotmob=(fotmobReport.diagnostics||[]).filter(d=>["cache_absent","candidate_limit"].includes(d.status)).length;
-      const canContinue=job.retry_pending===true&&(job.sources||[]).length===1&&job.sources[0]==="fotmob"
+      const canContinue=(job.sources||[]).includes("fotmob")
         &&Number(job.retry_count||0)<3&&remainingFotmob>0
         &&Number(fotmobReport.network_requests||0)>0;
       if(canContinue) {
