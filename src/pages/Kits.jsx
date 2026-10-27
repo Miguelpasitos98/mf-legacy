@@ -4,6 +4,7 @@ import {Shirt,Search,Save,ImageOff,ChevronDown} from "lucide-react";
 import {useTeamsQuery} from "@/hooks/useSharedData";
 import {base44} from "@/api/base44Client";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
+import {RECORD_KEYS} from "@/api/recordQueries";
 
 const KIT_FIELDS=[["kit2_photo_url","Segunda equipación"],["kit1_photo_url","Primera equipación"],["kit3_photo_url","Tercera equipación"]];
 function KitPicture({url,label,club}){
@@ -25,7 +26,12 @@ function ClubGallery({team,editing,setEditing,onSaved}){
       const values=Object.fromEntries(KIT_FIELDS.map(([key])=>[key,String(editing.values[key]||"").trim()]));
       for(const value of Object.values(values)){if(value&&!/^(https?:\/\/|\/\/)/i.test(value))throw Error("Las imágenes necesitan una URL http(s) válida.");}
       await base44.entities.Team.update(team.id,values);
-      await onSaved();setEditing(null);
+      const persisted=await base44.entities.Team.filter({id:team.id},undefined,1);
+      const stored=Array.isArray(persisted)?persisted[0]:(persisted?.items||persisted?.data||persisted?.entities||[])[0];
+      if(!stored||KIT_FIELDS.some(([key])=>String(stored[key]||"").trim()!==values[key])){
+        throw Error("Base44 no confirmó que los enlaces se hayan guardado. Mantengo el editor abierto para evitar perderlos.");
+      }
+      await onSaved(stored);setEditing(null);
     }catch(e){setError(e?.response?.data?.message||e.message||"No se pudieron guardar las camisetas.");}
     finally{setSaving(false);}
   };
@@ -61,7 +67,14 @@ export default function Kits(){
   const teams=useMemo(()=>{const rows=Array.isArray(query.data)?query.data:(query.data?.items||query.data?.data||query.data?.entities||[]);
     return rows.filter(t=>t.is_custom_club===true).filter(t=>String(t.name||"").toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es")))
       .sort((a,b)=>sort==="name"?String(a.name).localeCompare(String(b.name),"es"):String(b.created_date||"").localeCompare(String(a.created_date||"")));},[query.data,search,sort]);
-  const onSaved=async()=>{await qc.invalidateQueries({queryKey:["mf-legacy","Team"]});};
+  const onSaved=async(stored)=>{
+    qc.setQueryData(RECORD_KEYS.Team,(previous)=>{
+      if(Array.isArray(previous))return previous.map(t=>t.id===stored.id?{...t,...stored}:t);
+      if(previous&&Array.isArray(previous.items))return {...previous,items:previous.items.map(t=>t.id===stored.id?{...t,...stored}:t)};
+      return previous;
+    });
+    await qc.invalidateQueries({queryKey:RECORD_KEYS.Team,exact:true});
+  };
   return <main className="min-h-full bg-[#F6F7F9] p-4 md:p-8">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div><div className="mb-2 flex items-center gap-2 text-[#003399]"><Shirt size={19}/><span className="text-xs font-black uppercase tracking-widest">MF Legacy · Club design</span></div><h1 className="text-2xl font-extrabold text-slate-900">Galería de equipaciones</h1><p className="mt-1 text-sm text-slate-500">Las camisetas de tus clubes personalizados. Gestiona sus diseños sin salir de esta página.</p></div>
