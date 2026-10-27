@@ -94,3 +94,26 @@ test('FotMob Goals prevented /90 se visualiza aunque falten minutos de la compet
  const negative={...keeper,metrics:[{name:'Goals prevented',value:-0.2,per90:-0.2}]};
  assert.equal(columnValue(negative,'competition','calc_goals_prevented_p90',config),-0.2);
 });
+test('las tasas /90 publicadas en FotMob se presentan sin minutos, sin cambiar formulas personalizadas',()=>{
+ const row={player_id:'x',season:'2024/2025',competition:'LaLiga',minutes:null,appearances:12,metrics:[
+  {name:'Goals',value:3,per90:0.31},{name:'Assists',value:2,per90:0.22},
+  {name:'xG',value:4.2,per90:0.41},{name:'xA',value:1.9,per90:0.19}
+ ]};
+ const config=initialConfig();
+ for(const [column,rate] of [['goalsper90',0.31],['assistsper90',0.22],['xgper90',0.41],['xaper90',0.19]])
+  assert.equal(columnValue(row,'competition',column,config),rate);
+ assert.equal(columnValue(row,'competition','gaper90',config),null);
+ const custom=initialConfig();custom.computed.find(x=>x.id==='goalsper90').formula='goals * 45 / minutes';
+ assert.equal(columnValue(row,'competition','goalsper90',custom),null);
+});
+test('el porcentaje de duelos importado se identifica por su nombre real',()=>{
+ const row={player_id:'x',season:'2024/2025',competition:'LaLiga',metrics:[
+  {name:'Duels won %',value:54.3},{name:'Aerials won %',value:62.5},
+  {name:'Dribbles success rate',value:70.1},{name:'Goals conceded',value:12}
+ ]};
+ const config=initialConfig();
+ assert.equal(columnValue(row,'competition','duelswonvariante2',config),54.3);
+ assert.equal(columnValue(row,'competition','aerialswonvariante2',config),62.5);
+ assert.equal(columnValue(row,'competition','dribblessuccessrate',config),70.1);
+ assert.equal(columnValue(row,'competition','goalsconcededwhileonpitch',config),null);
+});
