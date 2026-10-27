@@ -54,6 +54,38 @@ test("existing manual numbers are not overwritten",async()=>{
  assert.equal(f.saved[0].metrics[0].value,25);
  assert.equal(f.candidates[0].review_status,"pending");
 });
+test("una discrepancia de minutos no bloquea entradas, goles y despejes de FotMob",async()=>{
+ const f=fixture();
+ const base={...f.candidates[2],season:"2024/2025",competition:"LaLiga",
+   source_record_id:"2024/2025:87:8634:minutes:total",
+   evidence_url:"https://www.fotmob.com/players/921253"};
+ f.candidates.splice(0,f.candidates.length,
+   {...base,id:"minutes",metric_name:"Minutes",metric_unit:"total",value:1028},
+   {...base,id:"tackles",source_record_id:"2024/2025:87:8634:tackles:total",metric_name:"Tackles",value:22},
+   {...base,id:"clearances",source_record_id:"2024/2025:87:8634:clearances:total",metric_name:"Clearances",value:48});
+ f.saved.push({id:"historic",player_id:f.job.player_id,season:"2024/2025",competition:"LaLiga",
+   fotmob_team_id:"8634",team_name:"Barcelona",fotmob_tournament_id:"87",
+   minutes:1018,appearances:28,metrics:[{name:"Minutes",value:1018,unit:"total",source:"understat"}]});
+ const result=await applyVerifiedHistoricals(f.db,f.job);
+ assert.equal(result.applied,2);
+ assert.equal(f.saved[0].minutes,1018);
+ assert.equal(f.saved[0].metrics.find(m=>m.name==="Tackles")?.value,22);
+ assert.equal(f.saved[0].metrics.find(m=>m.name==="Clearances")?.value,48);
+ assert.equal(f.candidates[0].review_status,"pending");
+ assert.equal(f.candidates[1].review_status,"applied");
+});
+
+test("una competición EURO U21 no se atribuye automáticamente a Barcelona",async()=>{
+ const f=fixture();
+ const c={...f.candidates[2],season:"2025/2026",competition:"EURO U21",
+   fotmob_tournament_id:"288",source_record_id:"2025/2026:288:8634:minutes:total",
+   evidence_url:"https://www.fotmob.com/players/921253"};
+ f.candidates.splice(0,f.candidates.length,c);
+ const result=await applyVerifiedHistoricals(f.db,f.job);
+ assert.equal(result.created_stats,0);
+ assert.equal(c.review_status,"pending");
+});
+
 test("FotMob autoapplies a uniquely identified current-club season while preserving reviewed data",async()=>{
  const f=fixture();
  const c=f.candidates[2];
