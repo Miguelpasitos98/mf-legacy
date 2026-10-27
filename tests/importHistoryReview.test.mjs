@@ -26,11 +26,12 @@ function matches(row,query={}){
 }
 function fixture(candidates=[item],stats=[],valuations=[]){
  let counter=100,tick=0;
- const data={Player:[clone(player)],ImportJob:[{id:jid,player_id:pid,fotmob_player_id:'309328',status:'review'}],ImportCandidate:clone(candidates),PlayerSeasonStats:clone(stats),PlayerHistoricalValuation:clone(valuations),PlayerFotmobLink:[{id:'link',player_id:pid,fotmob_player_id:'309328',verification:'manual'}],Team:[],NationalTeam:[],ImportReviewBatch:[]};
+ const data={Player:[clone(player)],ImportJob:[{id:jid,player_id:pid,fotmob_player_id:'309328',status:'review'}],ImportCandidate:clone(candidates),PlayerSeasonStats:clone(stats),PlayerHistoricalValuation:clone(valuations),PlayerFotmobLink:[{id:'link',player_id:pid,fotmob_player_id:'309328',verification:'manual'}],Team:[],NationalTeam:[],ImportReviewBatch:[],ImportReviewPlanChunk:[]};
  const writes=[],hooks={};
  const db=Object.fromEntries(Object.keys(data).map(name=>[name,{
   filter:async(query,_sort,limit=100,skip=0)=>clone(data[name].filter(r=>matches(r,query)).slice(skip,skip+limit)),
   get:async id=>clone(data[name].find(r=>r.id===id)),
+  bulkCreate:async records=>{const saved=[];for(const r of records)saved.push(await db[name].create(r));return saved;},
   create:async record=>{
    const saved={...clone(record),id:(counter++).toString(16).padStart(24,'0'),updated_date:'v'+(++tick)};data[name].push(saved);writes.push({name,op:'create',id:saved.id});
    if(hooks.create)await hooks.create(name,saved);return clone(saved);
@@ -49,6 +50,7 @@ function fixture(candidates=[item],stats=[],valuations=[]){
 }
 const plan=async f=>{const p=await f.call('history-preview');assert.equal(p.ok,true);return p;};
 const approve=(f,p,keys=p.units.filter(u=>u.selectable).map(u=>u.key))=>f.call('history-approve',{confirmed:true,plan_token:p.plan_token,keys});
+const savedUnits=f=>JSON.parse(f.data.ImportReviewPlanChunk.slice().sort((a,b)=>a.chunk_index-b.chunk_index).map(c=>c.chunk_json).join(''));
 
 test('one valuation unit combines Overall and market without duplicate destinations',()=>{
  const units=historyPlan([fifa,market],player,[],[]);assert.equal(units.length,1);assert.equal(units[0].record.fifa_fc_overall,84);assert.equal(units[0].record.transfermarkt_value_eur,30000000);
@@ -80,7 +82,7 @@ test('history preview is read-only; authorization and fresh proposal are mandato
 });
 test('joint review creates, verifies persistence and repeating the same batch changes nothing',async()=>{
  const f=fixture([fifa,market]);const result=await approve(f,await plan(f));assert.equal(result.batch.status,'completed');assert.equal(result.batch.counts.created,1);assert.equal(f.data.PlayerHistoricalValuation.length,1);
- assert.ok(f.data.ImportReviewBatch[0].plan_json.includes('"before":null'));
+ assert.equal(savedUnits(f)[0].before,null);
  const before=clone(f.data),again=await f.call('history-approve',{confirmed:true,batch_id:result.batch.id});assert.equal(again.batch.counts.created,1);assert.deepEqual(f.data,before);
 });
 test('long review saves its cursor and resumes only remaining destinations',async()=>{
@@ -104,11 +106,28 @@ test('a concurrent manual correction prevents overwrite during a conditional upd
 test('changed source values or FotMob identities cannot be silently resumed',async()=>{
  const candidates=Array.from({length:4},(_,i)=>({...item,id:String(i+1).padStart(24,'0'),season:`${2014+i}/${2015+i}`}));
  const f=fixture(candidates),first=await approve(f,await plan(f));
- const remainingKey=JSON.parse(f.data.ImportReviewBatch[0].plan_json)[3].candidate_ids[0];f.data.ImportCandidate.find(c=>c.id===remainingKey).value=7;
+ const remainingKey=savedUnits(f)[3].candidate_ids[0];f.data.ImportCandidate.find(c=>c.id===remainingKey).value=7;
  const changed=await f.call('history-approve',{confirmed:true,batch_id:first.batch.id});assert.equal(changed.batch.status,'partial');assert.equal(f.data.PlayerSeasonStats.length,3);
  f.data.PlayerFotmobLink[0].fotmob_player_id='wrong';assert.equal((await f.call('history-approve',{confirmed:true,batch_id:first.batch.id})).ok,false);assert.equal(f.data.PlayerSeasonStats.length,3);
 });
 test('unchanged verified values close candidates without rewriting the sporting record',async()=>{
  const old={id:'stats',player_id:pid,season:item.season,competition:item.competition,fotmob_team_id:item.fotmob_team_id,fotmob_tournament_id:'53',updated_date:'old',metrics:[{name:'xG Chain',per90:item.value,source:'manual'}]};
  const f=fixture([item],[old]),result=await approve(f,await plan(f));assert.equal(result.batch.counts.omitted,1);assert.deepEqual(f.data.PlayerSeasonStats[0],old);assert.equal(f.data.ImportCandidate[0].review_status,'applied');
+});
+
+test('large proposals use bounded fragments and resume an interrupted plan upload',async()=>{
+ const old={id:'stats',player_id:pid,season:item.season,competition:item.competition,fotmob_team_id:item.fotmob_team_id,fotmob_tournament_id:'53',updated_date:'old',metrics:[],notes:'preserved '.repeat(8000)};
+ const f=fixture([item],[old]);let once=true;
+ f.hooks.create=name=>{if(name==='ImportReviewPlanChunk'&&once){once=false;throw Error('Connection lost while uploading proposal');}};
+ const first=await approve(f,await plan(f));assert.equal(first.batch.status,'partial');assert.deepEqual(f.data.PlayerSeasonStats[0],old);
+ assert.equal(f.data.ImportReviewPlanChunk.length,1);
+ assert.ok(f.data.ImportReviewBatch[0].plan_json.length<12000);assert.ok(f.data.ImportReviewPlanChunk.every(c=>c.chunk_json.length<=12000));
+ const resumed=await f.call('history-approve',{confirmed:true,batch_id:first.batch.id});assert.equal(resumed.batch.status,'completed');assert.equal(f.data.PlayerSeasonStats[0].notes,old.notes);assert.equal(f.data.PlayerSeasonStats[0].metrics[0].per90,item.value);
+});
+
+test('fragment corruption prevents sporting writes before resumption',async()=>{
+ const candidates=Array.from({length:4},(_,i)=>({...item,id:String(i+1).padStart(24,'0'),season:`${2014+i}/${2015+i}`,provenance:{provider:'archive',identity_rule:'evidence '.repeat(900)}}));
+ const f=fixture(candidates),first=await approve(f,await plan(f));assert.equal(first.batch.status,'running');
+ f.data.ImportReviewPlanChunk[0].chunk_json+='changed';
+ const resumed=await f.call('history-approve',{confirmed:true,batch_id:first.batch.id});assert.equal(resumed.batch.status,'partial');assert.equal(f.data.PlayerSeasonStats.length,3);
 });
