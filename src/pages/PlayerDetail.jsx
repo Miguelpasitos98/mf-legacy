@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryModal";
 import TransferChartMini from "@/components/players/TransferChartMini";
+import MarketBulkImport from "@/components/players/MarketBulkImport";
 import {changedPlayerFields,playerEditHasChanges,applyPlayerEditPatch} from "@/utils/playerEditPatch";
 
 // MF LEGACY: logos de estado integrados, sin dependencias externas.
@@ -1262,6 +1263,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
               <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1">
                 {[
                   ["general", "General"],
+                  ["market", "Valor mercado"],
                   ...(editablePlayer?.fm26_uid ? [["fm26", "FM26"]] : []),
                   ["positions", "Positions"],
                   ["mental", "Mental"],
@@ -1283,6 +1285,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                   </button>
                 ))}
               </div>
+
+              {editTab === "market" && <MarketBulkImport player={editablePlayer} />}
 
               {editTab === "general" && (
                 <div className="space-y-5">
