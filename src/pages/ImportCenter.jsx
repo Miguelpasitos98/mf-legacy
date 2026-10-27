@@ -13,6 +13,7 @@ const ACTIVE=["queued","running"];
 const STATUS={queued:"En cola",running:"Procesando",review:"Revisión pendiente",completed:"Completado",failed:"Error",cancelled:"Cancelado"};
 const SOURCE_STATES={no_consultado:"No consultado",consulta_pendiente:"Consulta pendiente",dato_encontrado:"Dato encontrado",pendiente_verificacion:"Pendiente de verificación",verificado_guardado:"Verificado y guardado",fuera_cobertura:"Fuera de cobertura",error_temporal:"Error temporal"};
 const fmt=x=>x?new Date(x).toLocaleString("es-ES"):"—";
+const queuedTooLong=job=>job?.status==="queued"&&!job.started_at&&Number.isFinite(Date.parse(job.requested_at||job.created_date))&&Date.now()-Date.parse(job.requested_at||job.created_date)>120000;
 const reason=e=>e?.response?.data?.error||e?.message||"Error inesperado";
 const responseRows=r=>Array.isArray(r)?r:r?.items||r?.data||r?.entities||[];
 
@@ -119,6 +120,7 @@ export default function ImportCenter(){
   const linked=links.some(l=>["confirmed","verified","manual","manual_confirmada","confirmada","automatic_exact_name_unique"].includes(String(l.verification||"").toLowerCase()))&&Boolean(fotmob);
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
+  const waitingForWorker=jobs.filter(queuedTooLong);
   const seasonGroups=Object.values(candidateRows.filter(c=>c.kind==="metric").reduce((acc,c)=>{
     const k=[selectedJob,c.source,c.season,c.competition,c.fotmob_team_id].join("|");
     if(!acc[k])acc[k]={key:k,source:c.source,season:c.season,competition:c.competition,
@@ -246,13 +248,19 @@ export default function ImportCenter(){
     {notice&&<p role="status" className="my-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 p-3 text-sm">{notice}</p>}
     <section className="rounded-xl bg-white border border-slate-200 p-5 mt-5">
       <h2 className="font-semibold text-lg mb-4">Trabajos de importación</h2>
+      {waitingForWorker.length>0&&<div role="status" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+        <p className="font-extrabold">Trabajador local sin recoger {waitingForWorker.length===1?"una importación":`${waitingForWorker.length} importaciones`} · 0 %</p>
+        <p className="mt-1">Base44 ha guardado la solicitud, pero el proceso Python de tu PC todavía no ha iniciado la extracción. La cola se mantiene: no vuelvas a importar al mismo jugador.</p>
+        <p className="mt-2">En el ordenador que contiene MF Legacy Studio, ejecuta <strong>worker/INICIAR_TRABAJADOR_V3.bat</strong> y deja abierta su ventana. Si aparece un error, ejecuta <strong>worker/COMPROBAR_TRABAJADOR_V3.bat</strong> para revisar la configuración local. Si el trabajador está abierto, comprueba la conexión y credenciales en su consola.</p>
+        <p className="mt-2 text-xs text-amber-800">En condiciones normales, la cola se recoge automáticamente al conectar el trabajador (consulta cada 30 segundos). La web no puede iniciar el proceso Windows por sí sola.</p>
+      </div>}
       {!loaded?<p>Cargando…</p>:!jobs.length?<p className="text-sm text-slate-500">No hay trabajos registrados.</p>:
         <div className="overflow-x-auto"><table className="w-full text-sm text-left">
           <thead><tr className="border-b"><th className="py-2 pr-3">Jugador</th><th className="pr-3">Fuentes</th><th className="pr-3">Estado</th><th className="pr-3">Progreso</th><th className="pr-3">Fecha</th><th>Opciones</th></tr></thead>
           <tbody>{jobs.map(j=><tr key={j.id} className="border-b align-top">
             <td className="py-3 pr-3 font-medium">{j.player_name||j.player_id}<div className="text-xs font-normal text-slate-500 max-w-56">{j.phase}</div>{j.last_error&&<div className="text-xs text-red-700">{j.last_error}</div>}</td>
             <td className="pr-3 py-3">{(j.sources||[]).join(", ")}</td>
-            <td className="pr-3 py-3">{j.worker_version==="base44-cache-v1"&&j.status==="completed"&&(j.received_candidates||0)===0?"Sin datos nuevos":STATUS[j.status]||j.status}</td>
+            <td className="pr-3 py-3">{queuedTooLong(j)?"En espera del trabajador (PC)":j.worker_version==="base44-cache-v1"&&j.status==="completed"&&(j.received_candidates||0)===0?"Sin datos nuevos":STATUS[j.status]||j.status}</td>
             <td className="pr-3 py-3">{j.worker_version==="base44-cache-v1"?"Análisis "+(j.progress||0)+"%":(j.progress||0)+"%"}</td>
             <td className="pr-3 py-3">{fmt(j.requested_at||j.created_date)}</td>
             <td className="py-3 space-x-2">
@@ -267,6 +275,7 @@ export default function ImportCenter(){
     </section>
     {selectedJobData&&<section className="rounded-xl bg-white border border-slate-200 p-5 mt-4">
       <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Revisión · {selectedJobData.player_name}</h2><button onClick={()=>setSelectedJob("")} className="text-sm text-slate-500 underline">Cerrar</button></div>
+      {queuedTooLong(selectedJobData)&&<p role="status" className="my-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">Este trabajo aún no ha comenzado: ningún trabajador de Studio lo ha recogido. Inicia o comprueba el trabajador Python en tu PC; esta solicitud seguirá en cola y no es necesario repetirla.</p>}
       <p className="text-xs text-slate-500 my-2">Para crear una primera temporada, comprueba la fuente y aprueba el lote de esa competición. Para valores individuales FIFA/mercado conserva la revisión específica. Los datos anteriores nunca se sobrescriben.</p>
       {selectedJobData.status==="completed"&&candidateRows.length>0&&<p className="text-sm font-semibold text-emerald-700">Revisión completada · {candidateRows.filter(c=>c.review_status==="applied").length} candidatos aplicados.</p>}
       <p className="text-xs text-slate-500">Diagnóstico de extracción anterior a la revisión:</p>
