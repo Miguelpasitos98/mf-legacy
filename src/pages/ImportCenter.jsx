@@ -302,7 +302,7 @@ export default function ImportCenter(){
         </table></div>}
     </section>
     {selectedJobData&&<section className="rounded-xl bg-white border border-slate-200 p-5 mt-4">
-      <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Revisión · {selectedJobData.player_name}</h2><button onClick={()=>setSelectedJob("")} className="text-sm text-slate-500 underline">Cerrar</button></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-lg">Revisión · {selectedJobData.player_name}</h2><div className="flex items-center gap-4"><button type="button" disabled={autoApplying||busy||coordinator!=="ready"} onClick={reconcileExisting} className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{autoApplying?"Incorporando a STATS…":"Incorporar candidatos compatibles a STATS"}</button><button onClick={()=>setSelectedJob("")} className="text-sm text-slate-500 underline">Cerrar</button></div></div>
       {chainProgress?.total>0&&<div className="my-4 space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4" role="status" aria-label="Progreso de importación y cobertura acumulada">
         <div>
           <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
