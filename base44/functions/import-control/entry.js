@@ -13,7 +13,7 @@ export function pendingSources(job){
   const diagnostics=r.diagnostics||[];
   return ["error","partial"].includes(r.status)||r.status==="pending"||
     r.status==="unavailable"&&(!diagnostics.length||!diagnostics.every(d=>d.status==="fuera_cobertura"))||
-    diagnostics.some(d=>["consulta_pendiente","error_temporal"].includes(d.status));
+    diagnostics.some(d=>["consulta_pendiente","error_temporal"].includes(d.status)||source==="fotmob"&&["cache_absent","candidate_limit"].includes(d.status));
  });
 }
 
