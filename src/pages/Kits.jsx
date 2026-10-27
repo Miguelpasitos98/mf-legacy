@@ -1,6 +1,6 @@
 import React,{useMemo,useState} from "react";
 import {useQueryClient} from "@tanstack/react-query";
-import {Shirt,Search,Save,ChevronDown,ArrowLeft,LayoutGrid,Focus} from "lucide-react";
+import {Shirt,Search,Save,ChevronDown,ArrowLeft,LayoutGrid,Focus,Pipette} from "lucide-react";
 import {useTeamsQuery} from "@/hooks/useSharedData";
 import {base44} from "@/api/base44Client";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
@@ -22,6 +22,17 @@ function kitTagStyle(team,key){
 }
 function KitTag({team,kitKey,label,small=false}){
   return <span className={small?"inline-flex max-w-full items-center justify-center rounded-md border px-2 py-1 text-center text-[9px] font-extrabold uppercase leading-tight tracking-wide":"inline-flex max-w-full items-center justify-center rounded-lg border px-3 py-1.5 text-center text-[10px] font-extrabold uppercase tracking-wider sm:text-xs"} style={kitTagStyle(team,kitKey)}>{label}</span>;
+}
+function ColorEditor({label,value,onChange,onPick}){
+  const hex=validKitHex(value)?value:"#FFFFFF";
+  return <div className="min-w-0">
+    <span className="mb-1 block text-[11px] font-semibold text-slate-600">{label}</span>
+    <div className="flex items-center gap-1.5">
+      <input aria-label={"Selector de "+label} type="color" value={hex} onChange={event=>onChange(event.target.value.toUpperCase())} className="h-9 w-10 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"/>
+      <input aria-label={"Código HEX de "+label} type="text" maxLength={7} value={value} placeholder="#FFFFFF" onChange={event=>onChange(event.target.value.toUpperCase())} className="h-9 w-full min-w-0 rounded-lg border border-slate-200 px-2 text-xs"/>
+      <button type="button" title={"Cuentagotas: "+label} aria-label={"Tomar "+label+" de pantalla"} onClick={onPick} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"><Pipette size={15}/></button>
+    </div>
+  </div>;
 }
 function KitPicture({url,label,club}){
   const src=normalizeImageUrl(url);
@@ -54,17 +65,32 @@ function EditorialClub({team,onOpen}){
 function ClubGallery({team,editing,setEditing,onSaved,onBack}){
   const [saving,setSaving]=useState(false),[error,setError]=useState("");
   const fields=KIT_FIELDS.map(([key,label])=>({key,label,url:editing?.id===team.id?(editing.values[key]||""):(team[key]||"")}));
+  const editValues=editing?.id===team.id?editing.values:null;
+  const updateField=(key,value)=>setEditing(current=>current?.id===team.id?{...current,values:{...current.values,[key]:value}}:current);
+  const pickColor=async(key)=>{
+    if(typeof window.EyeDropper!=="function"){setError("El cuentagotas de pantalla necesita un navegador compatible (Chrome o Edge). Puedes usar el selector de color.");return;}
+    try{const picked=await new window.EyeDropper().open();if(picked?.sRGBHex)updateField(key,picked.sRGBHex.toUpperCase());}
+    catch(err){if(err?.name!=="AbortError")setError("No se pudo capturar el color. Usa el selector de color.");}
+  };
   const editMode=editing?.id===team.id;
-  const startEdit=()=>setEditing({id:team.id,values:Object.fromEntries(KIT_FIELDS.map(([key])=>[key,team[key]||""]))});
+  const startEdit=()=>setEditing({id:team.id,values:Object.fromEntries(KIT_FIELDS.flatMap(([key])=>{
+    const n=key.match(/^kit([123])_/)[1];
+    const bg="kit"+n+"_badge_bg",text="kit"+n+"_badge_text";
+    return [[key,team[key]||""],[bg,team[bg]||team.primary_color||"#133572"],[text,team[text]||team.secondary_color||"#FFFFFF"]];
+  }))});
   const save=async()=>{
     setSaving(true);setError("");
     try{
-      const values=Object.fromEntries(KIT_FIELDS.map(([key])=>[key,String(editing.values[key]||"").trim()]));
-      for(const value of Object.values(values)){if(value&&!/^(https?:\/\/|\/\/)/i.test(value))throw Error("Las imágenes necesitan una URL http(s) válida.");}
+      const keys=KIT_FIELDS.flatMap(([key])=>{const n=key.match(/^kit([123])_/)[1];return [key,"kit"+n+"_badge_bg","kit"+n+"_badge_text"];});
+      const values=Object.fromEntries(keys.map(key=>[key,String(editing.values[key]||"").trim()]));
+      for(const [key,value] of Object.entries(values)){
+        if(key.endsWith("_photo_url")&&value&&!/^(https?:\/\/|\/\/)/i.test(value))throw Error("Las imágenes necesitan una URL http(s) válida.");
+        if(key.includes("_badge_")&&!validKitHex(value))throw Error("Introduce colores HEX válidos (#RRGGBB) para cada camiseta.");
+      }
       await base44.entities.Team.update(team.id,values);
       const persisted=await base44.entities.Team.filter({id:team.id},undefined,1);
       const stored=Array.isArray(persisted)?persisted[0]:(persisted?.items||persisted?.data||persisted?.entities||[])[0];
-      if(!stored||KIT_FIELDS.some(([key])=>String(stored[key]||"").trim()!==values[key])){
+      if(!stored||Object.keys(values).some(key=>String(stored[key]||"").trim().toUpperCase()!==values[key].toUpperCase())){
         throw Error("Base44 no confirmó que los enlaces se hayan guardado. Mantengo el editor abierto para evitar perderlos.");
       }
       await onSaved(stored);setEditing(null);
@@ -85,14 +111,22 @@ function ClubGallery({team,editing,setEditing,onSaved,onBack}){
     <div className="grid items-center gap-3 p-4 md:grid-cols-3">
       {fields.map(field=><div key={field.key} className={`min-w-0 overflow-hidden rounded-xl border ${field.key==="kit1_photo_url"?"border-[#003399]/40 bg-blue-50/50 shadow-md md:z-10":"border-slate-200"}`}>
         <KitPicture key={field.url} url={field.url} club={team.name} label={field.label}/>
-        <div className="border-t border-slate-100 bg-white px-3 py-3"><div className="flex justify-center"><KitTag team={team} kitKey={field.key} label={field.label}/></div>
+        <div className="border-t border-slate-100 bg-white px-3 py-3"><div className="flex justify-center"><KitTag team={editValues?{...team,...editValues}:team} kitKey={field.key} label={field.label}/></div>
           {editMode&&<label className="mt-3 block text-xs text-slate-600">URL de imagen
             <input className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-2 text-xs" placeholder="https://..." value={field.url} onChange={e=>setEditing(current=>({...current,values:{...current.values,[field.key]:e.target.value}}))}/></label>}
+          {editMode&&(()=>{
+            const n=field.key.match(/^kit([123])_/)[1];
+            const bg="kit"+n+"_badge_bg",text="kit"+n+"_badge_text";
+            return <div className="mt-3 grid gap-3 border-t border-slate-100 pt-3 sm:grid-cols-2">
+              <ColorEditor label="Principal · recuadro" value={editValues?.[bg]||""} onChange={value=>updateField(bg,value)} onPick={()=>pickColor(bg)}/>
+              <ColorEditor label="Secundario · texto" value={editValues?.[text]||""} onChange={value=>updateField(text,value)} onPick={()=>pickColor(text)}/>
+            </div>;
+          })()}
         </div>
       </div>)}
     </div>
     {editMode&&<div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
-      <p className="text-xs text-slate-500">Actualiza únicamente las camisetas; el escudo y el resto de la ficha permanecen intactos.</p>
+      <p className="text-xs text-slate-500">Actualiza las imágenes y los dos colores de cada camiseta; el resto de la ficha permanece intacto.</p>
       <button type="button" disabled={saving} onClick={save} className="flex items-center gap-2 rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-50"><Save size={14}/>{saving?"Guardando…":"Guardar equipaciones"}</button>
     </div>}
     {error&&<p role="alert" className="mx-4 mb-4 rounded-lg bg-red-50 p-3 text-xs text-red-700">{error}</p>}
