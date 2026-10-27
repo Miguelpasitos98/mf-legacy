@@ -191,7 +191,19 @@ export default async function(req) {
       }
       await db.ImportJob.update(job.id,{status:counts?"review":"completed",phase:counts?"Datos recibidos; revisar candidatos":"Sin nuevos datos verificables",progress:100,
         source_results,received_candidates:counts,finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
-      return reply({ok:true,status:counts?"review":"completed",candidates:counts});
+      // Tras terminar la extracción, aplicar solo catálogos históricos verificables.
+      // FotMob no se verifica automáticamente. Los conflictos continúan en revisión.
+      let automatic=null;
+      if(counts&&(job.sources||[]).some(s=>["understat","fifa","market"].includes(s))){
+        try{
+          const {applyVerifiedHistoricals}=await import("../import-review/entry.js");
+          automatic=await applyVerifiedHistoricals(db,{...job,status:"review"});
+          const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
+          await db.ImportJob.update(job.id,{status:pending.length?"review":"completed",
+            phase:"Automático: "+automatic.applied+" candidatos incorporados · "+(pending.length?"otros pendientes de revisión":"completado")});
+        }catch(e){console.error("No se pudo aplicar automáticamente el historial; candidatos conservados",e);}
+      }
+      return reply({ok:true,status:counts?"review":"completed",candidates:counts,automatic});
     }
     if(action==="fail") {
       await db.ImportJob.update(job.id,{status:"failed",phase:"Error de extracción",last_error:str(body.error).slice(0,350),finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
