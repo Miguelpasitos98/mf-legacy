@@ -1,0 +1,79 @@
+{
+  "name": "ImportReviewBatch",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "request_key": {
+      "type": "string"
+    },
+    "authorized_by": {
+      "type": "string"
+    },
+    "plan_hash": {
+      "type": "string"
+    },
+    "plan_json": {
+      "type": "string",
+      "maxLength": 2000000,
+      "description": "Propuesta autorizada y copias anteriores para auditar y reanudar sin sobrescrituras."
+    },
+    "result_json": {
+      "type": "string",
+      "description": "Estado y huella posterior de cada registro conciliado."
+    },
+    "cursor": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "partial",
+        "completed"
+      ]
+    },
+    "counts": {
+      "type": "object"
+    },
+    "last_error": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "player_id",
+    "request_key",
+    "plan_json",
+    "cursor",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

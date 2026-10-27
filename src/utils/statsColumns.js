@@ -2,6 +2,7 @@
 import {metricsValue,statNum} from "./statsViews.js";
 import {statDisplay} from "./statsSeason.js";
 import {alignedFormulaInputs} from "./statsAligned.js";
+import {advancedTotals} from "./statsAdvanced.js";
 export const MODES=["season","competition"];
 export const CATEGORIES=["Resumen","Ataque","Creación","Defensa","Portería","Físico"];
 export const RAW_METRICS=[
@@ -164,6 +165,11 @@ export function columnValue(row,mode,id,config){
  if(!row)return null;
  const definition=config.computed.find(d=>d.id===id);
  if(definition){try{
+  if(["calc_xgchainper90","calc_xgbuildupper90"].includes(id)&&definition.formula===COMPUTED.find(d=>d.id===id)?.formula){
+   const rates=advancedTotals(mode==="season"&&Array.isArray(row.records)?row.records:[row]);
+   const direct=id==="calc_xgchainper90"?rates.xg_chain_p90:rates.xg_buildup_p90;
+   if(direct!==null)return direct;
+  }
   // The default GK calculations use the provider-supplied Goals prevented
   // before trying the PSxGOT reconstruction. Custom formulas are untouched.
   const isDefaultGK=["calc_goals_prevented","calc_goals_prevented_p90"].includes(id)

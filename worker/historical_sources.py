@@ -18,16 +18,22 @@ UNDERSTAT_ARCHIVES_BY_SHA={
  'aa6b98bf396beef014c893d40e6352af0b03dc562aa0f82d56ff066acba09f0e':UNDERSTAT_ARCHIVE,
 }
 FIFA_ARCHIVE='https://www.kaggle.com/api/v1/datasets/download/stefanoleone992/ea-sports-fc-24-complete-player-dataset/male_players.csv?datasetVersionNumber=1'
+FIFA26_ARCHIVE='https://www.kaggle.com/api/v1/datasets/download/rovnez/fc-26-fifa-26-player-data/FC26_20250921.csv?datasetVersionNumber=3'
 TM_BASE='https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/'
 TM_SNAPSHOT='2026-07-06'
 REGISTRY={
  'understat-2014-2025':(UNDERSTAT_ARCHIVE,'understat-history-2025.csv',10_000_000),
  'fifa-launch-15-24':(FIFA_ARCHIVE,'fifa-launch.zip',40_000_000),
+ 'fifa-launch-26':(FIFA26_ARCHIVE,'fifa-26-launch.csv',15_000_000),
  'tm-players-20260706':(TM_BASE+'players.csv.gz','tm-players.csv.gz',10_000_000),
  'tm-values-20260706':(TM_BASE+'player_valuations.csv.gz','tm-valuations.csv.gz',15_000_000),
 }
+PINNED_SHA={
+ 'fifa-launch-15-24':'04f86f8aefffc7269c7fcee678d98faad171afac3ce44515147002a2069574d2',
+ 'fifa-launch-26':'4399cb2bcc2a14a2872e76a118f8f4bf64d7954503949c75751a14f33863e3b2',
+}
 # Actual release dates. Unknown editions stay pending rather than borrow data.
-RELEASES={15:'2014-09-26',16:'2015-09-25',17:'2016-09-29',18:'2017-09-29',19:'2018-09-28',20:'2019-09-27',21:'2020-10-09',22:'2021-10-01',23:'2022-09-30',24:'2023-09-29'}
+RELEASES={15:'2014-09-26',16:'2015-09-25',17:'2016-09-29',18:'2017-09-29',19:'2018-09-28',20:'2019-09-27',21:'2020-10-09',22:'2021-10-01',23:'2022-09-30',24:'2023-09-29',26:'2025-09-26'}
 POSITIONS={'GK','CB','RB','LB','RWB','LWB','CDM','CM','CAM','RM','LM','RW','LW','CF','ST'}
 def norm(value):
  value=unicodedata.normalize('NFKD',str(value or ''))
@@ -82,6 +88,27 @@ class Catalogs:
     c.execute("ALTER TABLE submissions ADD COLUMN checked_at TEXT NOT NULL DEFAULT ''")
  def connect(self):
   c=sqlite3.connect(self.db,timeout=30);c.row_factory=sqlite3.Row;return closing_connection(c)
+ def load_job(self,job_id,pid,sources):
+  if not re.fullmatch('[a-fA-F0-9]{24}',str(job_id)):raise ValueError('ID de trabajo local inválido')
+  path=self.base/'jobs'/(job_id+'.json')
+  if not path.exists():return None
+  saved=json.loads(path.read_text(encoding='utf-8'));payload=saved.get('payload',{})
+  raw=json.dumps(payload,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode('utf-8')
+  if hashlib.sha256(raw).hexdigest()!=saved.get('sha256'):raise ValueError('El trabajo guardado perdió su integridad')
+  if str(payload.get('pid'))!=str(pid) or sorted(payload.get('sources',[]))!=sorted(sources):raise ValueError('La identidad del trabajo guardado es incompatible')
+  return payload
+ def save_job(self,job_id,pid,sources,candidates,states):
+  if not re.fullmatch('[a-fA-F0-9]{24}',str(job_id)):raise ValueError('ID de trabajo local inválido')
+  folder=self.base/'jobs';folder.mkdir(exist_ok=True)
+  payload={'pid':str(pid),'sources':sources,'candidates':candidates,'states':states}
+  raw=json.dumps(payload,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode('utf-8')
+  if len(raw)>30_000_000:raise ValueError('Trabajo local demasiado grande')
+  target=folder/(job_id+'.json');fd,temp=tempfile.mkstemp(dir=folder,suffix='.pending')
+  try:
+   with os.fdopen(fd,'w',encoding='utf-8') as f:json.dump({'sha256':hashlib.sha256(raw).hexdigest(),'payload':payload},f,ensure_ascii=False)
+   os.replace(temp,target)
+  finally:
+   if os.path.exists(temp):os.unlink(temp)
  def state(self,pid,source,season,state,details=None,edition='',snapshot=''):
   with self.connect() as c:c.execute('INSERT OR REPLACE INTO results VALUES(?,?,?,?,?,?,?,?)',(str(pid),source,season,edition,snapshot,state,json.dumps(details or {},ensure_ascii=False),now()))
  def saved(self,pid,source,season):
@@ -109,6 +136,7 @@ class Catalogs:
   with self.connect() as c:old=c.execute('SELECT * FROM resources WHERE key=?',(key,)).fetchone()
   if old and old['status']=='found' and path.is_file():
    if hashlib.sha256(path.read_bytes()).hexdigest()!=old['sha256']:raise ValueError('Caché modificada; no se utiliza el catálogo')
+   if key in PINNED_SHA and old['sha256']!=PINNED_SHA[key]:raise ValueError('La caché no corresponde a la revisión contrastada')
    return path,old['sha256']
   if not self.network:raise RuntimeError('Catálogo ausente en caché; modo sin red')
   if old and old['retry_at'] and not self.force and now()<old['retry_at']:raise RuntimeError('Error temporal anterior; reintento explícito o tras seis horas')
@@ -125,6 +153,7 @@ class Catalogs:
      if size>limit:raise ValueError('Catálogo mayor que el límite permitido')
      digest.update(chunk);f.write(chunk)
    if not size:raise ValueError('Catálogo vacío')
+   if key in PINNED_SHA and digest.hexdigest()!=PINNED_SHA[key]:raise ValueError('El archivo no coincide con la revisión de catálogo contrastada')
    os.replace(temp,path);sha=digest.hexdigest()
    with self.connect() as c:c.execute('INSERT OR REPLACE INTO resources VALUES(?,?,?,?,?,?,?,?)',(key,url,str(path),sha,now(),'found','',None))
    return path,sha
@@ -162,31 +191,50 @@ class Catalogs:
   return {'provider_id':uid,'archive_url':UNDERSTAT_ARCHIVE,'sha256':sha,'rows':len(dataset.records(self.root,uid))}
 
  def fifa(self,pid,bundle,raw_profile,seasons):
-  path,sha=self.asset('fifa-launch-15-24');birth=provider_birth(raw_profile)
+  birth=provider_birth(raw_profile)
   if not birth:raise ValueError('No hay fecha FotMob verificable para resolver FIFA')
-  def load():
-   with zipfile.ZipFile(path) as z:
-    member=z.getinfo('male_players.csv')
-    if member.file_size>200_000_000 or member.is_dir():raise ValueError('Archivo FIFA descomprimido no admitido')
-    with z.open(member) as f:
-     return [r for r in csv.DictReader(io.TextIOWrapper(f,encoding='utf-8-sig')) if r.get('dob')==birth]
-  rows=self.player_payload(pid,'fifa',sha,load)
+  archive_for={**{game:'fifa-launch-15-24' for game in range(15,25)},26:'fifa-launch-26'}
+  wanted={edition_for(season)[0] for season in seasons if not self.saved(pid,'fifa',season)}
+  rows=[];failures={}
+  for key in sorted({archive_for[game] for game in wanted if game in archive_for}):
+   try:
+    path,sha=self.asset(key)
+    def load():
+     if zipfile.is_zipfile(path):
+      with zipfile.ZipFile(path) as z:
+       member=z.getinfo('male_players.csv')
+       if member.file_size>200_000_000 or member.is_dir():raise ValueError('Archivo FIFA descomprimido no admitido')
+       with z.open(member) as f:return [r for r in csv.DictReader(io.TextIOWrapper(f,encoding='utf-8-sig')) if r.get('dob')==birth]
+     with path.open(encoding='utf-8-sig',newline='') as f:return [r for r in csv.DictReader(f) if r.get('dob')==birth]
+    selected=self.player_payload(pid,'fifa',sha,load)
+    rows.extend({**r,'_archive_url':REGISTRY[key][0],'_archive_sha':sha,'_archive_key':key} for r in selected)
+   except (OSError,ValueError,RuntimeError,zipfile.BadZipFile) as error:failures[key]=str(error)
   # Exact name, or all FotMob name tokens plus exact DOB and a career club.
   tokens=set(norm(bundle['player']['name']).split());career=bundle['career']
   from app.understat_bridge import same_team
-  matched=[r for r in rows if (norm(r.get('long_name'))==norm(bundle['player']['name']) or tokens.issubset(set(norm(r.get('long_name')).split()))) and any(same_team(r.get('club_name'),c.get('team_name')) for c in career)]
+  named=[r for r in rows if norm(r.get('long_name'))==norm(bundle['player']['name']) or tokens.issubset(set(norm(r.get('long_name')).split()))]
+  matched=[r for r in named if any(same_team(r.get('club_name'),c.get('team_name')) for c in career)]
   ids={r['player_id'] for r in matched}
-  if len(ids)!=1:raise ValueError('FIFA: nombre, nacimiento y trayectoria no resuelven una identidad única')
-  uid=next(iter(ids));self.identity(pid,'fifa',uid,{'dob':birth,'rule':'name_dob_career_club','archive':FIFA_ARCHIVE,'sha256':sha})
+  with self.connect() as db:known=db.execute("SELECT provider_id FROM identities WHERE pid=? AND source='fifa'",(str(pid),)).fetchone()
+  if known and (not ids or ids=={known['provider_id']}):
+   ids={known['provider_id']} if any(r['player_id']==known['provider_id'] for r in named) else set()
+  if matched and len(ids)!=1:raise ValueError('FIFA: nombre, nacimiento y trayectoria no resuelven una identidad única')
+  if rows and not ids:raise ValueError('FIFA: nombre, nacimiento y trayectoria no resuelven una identidad única')
+  uid=next(iter(ids)) if ids else None
+  if uid:matched=[r for r in named if r['player_id']==uid]
+  if uid:self.identity(pid,'fifa',uid,{'dob':birth,'rule':'name_dob_career_club','archives':sorted({r['_archive_url'] for r in matched})})
   out=[]
   for season in seasons:
    if self.saved(pid,'fifa',season):continue
    game,edition=edition_for(season);release=RELEASES.get(game)
+   key=archive_for.get(game)
+   if key in failures:
+    self.state(pid,'fifa',season,'error_temporal',{'reason':failures[key]},edition);continue
    if not release:
-    self.state(pid,'fifa',season,'consulta_pendiente',{'reason':'No hay archivo de lanzamiento verificable para esta edición'},edition,sha);continue
+    self.state(pid,'fifa',season,'consulta_pendiente',{'reason':'No hay snapshot Career Mode de lanzamiento contrastado; no se sustituye por Ultimate Team ni revisiones posteriores'},edition);continue
    candidates=[r for r in matched if r['player_id']==uid and str(r.get('fifa_version'))==str(game) and re.fullmatch(r'\d{4}-\d{2}-\d{2}',str(r.get('update_as_of') or r.get('fifa_update_date') or '')) and (r.get('update_as_of') or r.get('fifa_update_date'))<=release]
    if not candidates:
-    self.state(pid,'fifa',season,'consulta_pendiente',{'reason':'Sin snapshot anterior/al lanzamiento; no se usa una revisión posterior'},edition,sha);continue
+    self.state(pid,'fifa',season,'consulta_pendiente',{'reason':'Sin snapshot anterior/al lanzamiento; no se usa una revisión posterior'},edition);continue
    stamp=max(r.get('update_as_of') or r.get('fifa_update_date') for r in candidates)
    versions=[r for r in candidates if (r.get('update_as_of') or r.get('fifa_update_date'))==stamp]
    variants={(r.get('overall'),r.get('player_positions'),r.get('fifa_update')) for r in versions}
@@ -194,9 +242,10 @@ class Catalogs:
    r=versions[0];value=number(r.get('overall'));pos=str(r.get('player_positions','')).split(',')[0].strip()
    if value is None or not value.is_integer() or not 1<=value<=99 or pos not in POSITIONS:raise ValueError('Overall/posición de lanzamiento inválidos')
    url='https://sofifa.com'+r['player_url'] if r['player_url'].startswith('/player/') else r['player_url']
-   provenance={'provider':'sofifa_archive','player_id':uid,'archive_url':FIFA_ARCHIVE,'sha256':sha,'revision':str(r.get('fifa_version'))+str(r.get('fifa_update')).zfill(4),'revision_date':stamp,'rating_kind':'launch_base','release_date':release,'mode':'career','identity_rule':'name_dob_career_club'}
+   provenance={'provider':'sofifa_archive','player_id':uid,'archive_url':r['_archive_url'],'sha256':r['_archive_sha'],'revision':str(r.get('fifa_version'))+str(r.get('fifa_update')).zfill(4),'revision_date':stamp,'rating_kind':'launch_base','release_date':release,'mode':'career','identity_rule':'name_dob_confirmed_provider_id_and_career','source_club':r.get('club_name',''),
+    'license':'CC BY 4.0 — rovnez' if game==26 else 'CC0 — Stefano Leone','archive_version':'3' if game==26 else '1'}
    out.append({'source':'fifa','kind':'overall','season':season,'value':int(value),'fifa_edition':edition,'fifa_fc_position':pos,'evidence_url':url,'source_record_id':f'{uid}:{game}:{stamp}:launch','verification_status':'verified','provenance':provenance})
-   self.state(pid,'fifa',season,'pendiente_verificacion',provenance,edition,sha)
+   self.state(pid,'fifa',season,'pendiente_verificacion',provenance,edition,r['_archive_sha'])
   return out
 
  def market(self,pid,bundle,raw_profile,seasons):
@@ -224,7 +273,11 @@ class Catalogs:
   return out
 
  def diagnostics(self,pid,source):
-  with self.connect() as c:return [dict(r) for r in c.execute("SELECT season,state,details,edition FROM results WHERE pid=? AND source=? AND season<>'' ORDER BY season DESC",(str(pid),source))]
+  with self.connect() as c:
+   records=[dict(r) for r in c.execute("SELECT season,state,details,edition,updated_at FROM results WHERE pid=? AND source=? AND season<>'' ORDER BY (state='verificado_guardado') DESC,updated_at DESC",(str(pid),source))]
+  latest={}
+  for row in records:latest.setdefault((row['season'],row['edition']),row)
+  return sorted(latest.values(),key=lambda r:(r['season'],r['edition']),reverse=True)
 
 class closing_connection:
  def __init__(self,c):self.c=c

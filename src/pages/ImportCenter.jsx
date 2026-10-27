@@ -7,6 +7,8 @@ import {HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {RECORD_KEYS} from "@/api/recordQueries";
 import {readCompleteRecords} from "@/utils/entityRecords";
 import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-react";
+import HistoricalReview from "@/components/imports/HistoricalReview";
+import {historyCanRetry} from "@/utils/importHistoryReview";
 
 const SOURCES=[{id:"fotmob",label:"FotMob"},{id:"understat",label:"Understat"},{id:"fifa",label:"FIFA / EA FC"},{id:"market",label:"Transfermarkt"}];
 const ACTIVE=["queued","running"];
@@ -17,7 +19,6 @@ const queuedTooLong=job=>job?.status==="queued"&&!job.started_at&&Number.isFinit
 const reason=e=>e?.response?.data?.error||e?.message||"Error inesperado";
 const responseRows=r=>Array.isArray(r)?r:r?.items||r?.data||r?.entities||[];
 const missingFotmobCaches=job=>(job?.source_results?.fotmob?.diagnostics||[]).filter(d=>["cache_absent","candidate_limit"].includes(d.status)).length;
-const retryableSources=job=>Object.entries(job?.source_results||{}).some(([source,r])=>["partial","error"].includes(r.status)||(r.diagnostics||[]).some(d=>["consulta_pendiente","error_temporal"].includes(d.status)||source==="fotmob"&&["cache_absent","candidate_limit"].includes(d.status)));
 
 export default function ImportCenter(){
   const cache=useQueryClient();
@@ -47,7 +48,6 @@ export default function ImportCenter(){
   const [coordinator,setCoordinator]=useState("checking");
   const [statsStatus,setStatsStatus]=useState({state:"idle",count:0});
   const refreshSequence=useRef(0),currentJob=useRef(selectedJob);
-  const autoProcessed=useRef(new Set());
   currentJob.current=selectedJob;
 
   const refresh=useCallback(async({forceCandidates=false}={})=>{
@@ -124,24 +124,6 @@ export default function ImportCenter(){
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const waitingForWorker=jobs.filter(queuedTooLong);
-  const fotmobRecoveryOrigin=job=>jobs.find(previous=>previous.id!==job.id&&previous.player_id===job.player_id&&["review","completed"].includes(previous.status)&&missingFotmobCaches(previous)>0);
-  useEffect(()=>{
-    if(!selectedJobData||selectedJobData.status!=="review"||candidatesLoading||!candidateRows.length||autoProcessed.current.has(selectedJobData.id))return;
-    const candidate=candidateRows.find(c=>c.review_status==="pending"&&c.verification_status==="verified"&&["fotmob","understat","fifa","market"].includes(c.source));
-    if(!candidate)return;
-    const jobId=selectedJobData.id;
-    autoProcessed.current.add(jobId);
-    base44.functions.invoke("import-review",{action:"auto-safe",candidate_id:candidate.id})
-      .then(async(response)=>{
-        const applied=Number(response?.data?.applied||0);
-        if(applied){
-          setNotice(`${applied} datos históricos contrastados incorporados automáticamente a STATS/valoraciones; el resto sigue pendiente de revisión.`);
-          await invalidateApplied();
-        }
-        await refresh({forceCandidates:true});
-      })
-      .catch(e=>setError("No se pudo completar la autoimportación de este trabajo: "+reason(e)));
-  },[selectedJobData?.id,selectedJobData?.status,candidatesLoading,candidateRows]);
   const seasonGroups=Object.values(candidateRows.filter(c=>c.kind==="metric").reduce((acc,c)=>{
     const k=[selectedJob,c.source,c.season,c.competition,c.fotmob_team_id].join("|");
     if(!acc[k])acc[k]={key:k,source:c.source,season:c.season,competition:c.competition,
@@ -152,7 +134,7 @@ export default function ImportCenter(){
     setBusy(true);setError("");setNotice("");
     try{
       const resp=await base44.functions.invoke("import-control",{action,...payload});
-      setNotice(action==="start"?"Solicitud de extracción nueva registrada. Tu MF Legacy Studio la ejecutará cuando INICIAR_TRABAJADOR_V3.bat esté activo en tu ordenador.":action==="retry-fotmob"?"Recuperación histórica FotMob solicitada. Se procesarán bloques de hasta 8 consultas, de forma limitada y sin repetir FIFA o mercado.":action==="retry-pending"?"Fuentes pendientes en cola; las fuentes guardadas se reutilizan desde caché.":action==="retry"?"Trabajo en cola de nuevo.":action==="release-stale"?"Concesión caducada liberada; ya puedes reintentar.":"Trabajo cancelado.");
+      setNotice(action==="start"?"Historial solicitado. El trabajador local reutilizará las cachés y consultará las fuentes disponibles; después podrás revisar todas las temporadas juntas.":action==="retry-pending"?"Solo los periodos pendientes están en cola; los datos encontrados y guardados se reutilizan.":["retry","resume"].includes(action)?"Trabajo en cola para reanudar desde sus datos guardados.":action==="release-stale"?"Concesión caducada liberada; ya puedes reintentar.":"Trabajo cancelado.");
       if(resp?.data?.job?.id)setSelectedJob(resp.data.job.id);
       await refresh({forceCandidates:true});
     }catch(e){setError(reason(e));}
@@ -248,7 +230,7 @@ export default function ImportCenter(){
         </div>}
         <h3 className="font-semibold text-sm">2. Fuentes para extraer estadísticas</h3>
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
-        <button disabled={coordinator!=="ready"||!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">3. Importar nuevas temporadas a STATS desde Studio (PC)</button>
+        <button disabled={coordinator!=="ready"||!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">3. Recuperar historial disponible desde Studio (PC)</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>
@@ -287,16 +269,16 @@ export default function ImportCenter(){
             <td className="py-3 space-x-2">
               <button onClick={()=>setSelectedJob(j.id)} className="text-[#003399] underline">Ver diagnóstico</button>
               {ACTIVE.includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("cancel",{job_id:j.id})} className="text-amber-800 underline">Cancelar</button>}
-              {j.status==="running"&&j.lease_expires_at&&Date.now()>new Date(j.lease_expires_at).getTime()&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("release-stale",{job_id:j.id})} className="text-amber-800 underline">Liberar bloqueo</button>}
-              {["failed","cancelled"].includes(j.status)&&(fotmobRecoveryOrigin(j)?<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry-fotmob",{job_id:fotmobRecoveryOrigin(j).id,player_id:j.player_id})} className="text-[#003399] underline">Continuar solo FotMob</button>:<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar</button>)}
-              {!ACTIVE.includes(j.status)&&retryableSources(j)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate(missingFotmobCaches(j)>0?"retry-fotmob":"retry-pending",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">{missingFotmobCaches(j)>0?`Recuperar ${missingFotmobCaches(j)} entradas FotMob pendientes`:"Reintentar fuentes pendientes"}</button>}
+              {j.status==="running"&&j.lease_expires_at&&Date.now()>new Date(j.lease_expires_at).getTime()&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("resume",{job_id:j.id,player_id:j.player_id})} className="text-amber-800 underline">Reanudar trabajo</button>}
+              {["failed","cancelled"].includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar</button>}
+              {!ACTIVE.includes(j.status)&&historyCanRetry(j)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry-pending",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar fuentes pendientes</button>}
             </td>
           </tr>)}</tbody>
         </table></div>}
     </section>
     {selectedJobData&&<section className="rounded-xl bg-white border border-slate-200 p-5 mt-4">
       <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Revisión · {selectedJobData.player_name}</h2><button onClick={()=>setSelectedJob("")} className="text-sm text-slate-500 underline">Cerrar</button></div>
-      {missingFotmobCaches(selectedJobData)>0&&<div className="my-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950"><strong>Extracción FotMob incompleta:</strong> quedan {missingFotmobCaches(selectedJobData)} entradas históricas sin recuperar. Las peticiones anteriores ya alcanzaron el límite por trabajo. <button type="button" disabled={busy||coordinator!=="ready"||ACTIVE.includes(selectedJobData.status)} onClick={()=>operate("retry-fotmob",{job_id:selectedJobData.id,player_id:selectedJobData.player_id})} className="ml-2 font-semibold text-[#003399] underline disabled:opacity-40">Recuperar historial de FotMob</button><p className="mt-1 text-xs">El trabajador del PC recuperará hasta 8 entradas por bloque y continuará automáticamente con hasta 3 bloques adicionales si sigue habiendo datos pendientes y FotMob responde. Conserva las temporadas existentes. Las entradas que la fuente no proporcione seguirán sin estadísticas.</p></div>}
+      {missingFotmobCaches(selectedJobData)>0&&<div className="my-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950"><strong>Extracción FotMob incompleta:</strong> quedan {missingFotmobCaches(selectedJobData)} entradas históricas sin recuperar. Las peticiones anteriores ya alcanzaron el límite por trabajo. <button type="button" disabled={busy||coordinator!=="ready"||ACTIVE.includes(selectedJobData.status)} onClick={()=>operate("retry-pending",{job_id:selectedJobData.id,player_id:selectedJobData.player_id})} className="ml-2 font-semibold text-[#003399] underline disabled:opacity-40">Recuperar historial de FotMob</button><p className="mt-1 text-xs">El trabajador del PC recuperará hasta 8 entradas por bloque y continuará automáticamente con hasta 3 bloques adicionales si sigue habiendo datos pendientes y FotMob responde. Conserva las temporadas existentes. Las entradas que la fuente no proporcione seguirán sin estadísticas.</p></div>}
       {queuedTooLong(selectedJobData)&&<p role="status" className="my-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">Este trabajo aún no ha comenzado: ningún trabajador de Studio lo ha recogido. Inicia o comprueba el trabajador Python en tu PC; esta solicitud seguirá en cola y no es necesario repetirla.</p>}
       <p className="text-xs text-slate-500 my-2">Para crear una primera temporada, comprueba la fuente y aprueba el lote de esa competición. Para valores individuales FIFA/mercado conserva la revisión específica. Los datos anteriores nunca se sobrescriben.</p>
       {selectedJobData.status==="completed"&&candidateRows.length>0&&<p className="text-sm font-semibold text-emerald-700">Revisión completada · {candidateRows.filter(c=>c.review_status==="applied").length} candidatos aplicados.</p>}
@@ -311,6 +293,8 @@ export default function ImportCenter(){
         </div>)}
       </details>)}
       {preview&&<div className="my-3 border rounded p-3 text-sm"><strong>Escritura propuesta · {preview.plan?.operation}</strong><pre className="overflow-auto max-h-80 text-xs">{JSON.stringify(preview.plan||preview.candidate,null,2)}</pre><button className="underline" onClick={()=>setPreview(null)}>Cerrar vista previa</button></div>}
+      <HistoricalReview job={selectedJobData} disabled={busy||coordinator!=="ready"} onBusyChange={setBusy} onApplied={async()=>{await invalidateApplied();await refresh({forceCandidates:true});}}/>
+      <details className="mt-4"><summary className="cursor-pointer text-sm font-semibold text-blue-900">Revisión avanzada individual y por fuente</summary>
       {seasonGroups.length>0&&<section className="mt-4 space-y-3" aria-label="Primeras temporadas disponibles">
         <h3 className="font-semibold text-[#003399]">Temporadas detectadas · Revisión por lote</h3>
         <p className="text-xs text-slate-600">Revisa cada temporada y su perfil original antes de aprobarla. Se crearán las competiciones ausentes o se rellenarán únicamente métricas vacías; nunca se reemplazarán cifras existentes.</p>
@@ -373,6 +357,7 @@ export default function ImportCenter(){
         </div>}
       </div>)}</div>
       </details>}
+      </details>
     </section>}
   </div>;
 }

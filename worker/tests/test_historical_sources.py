@@ -75,6 +75,20 @@ class HistoricalSourceTests(unittest.TestCase):
  def test_registry_never_calls_protected_sites(self):
   for url,_,_ in REGISTRY.values():
    self.assertNotIn('://understat.com',url);self.assertNotIn('://sofifa.com',url);self.assertNotIn('://www.transfermarkt.com',url)
+ def test_fc26_raw_csv_reuses_confirmed_identity_after_transfer(self):
+  row={'player_id':'10','long_name':'Milan Skriniar','dob':'1995-02-11','club_name':'Fenerbahce SK','fifa_version':'26','fifa_update':'4','update_as_of':'2025-09-19','overall':'81','player_positions':'CB, CDM','player_url':'/player/10/test/260004'}
+  target=self.root/'fc26.csv';body=io.StringIO();writer=csv.DictWriter(body,fieldnames=list(row));writer.writeheader();writer.writerow(row);target.write_text(body.getvalue(),encoding='utf-8')
+  c=Catalogs(self.root);c.identity('123','fifa','10',{'dob':row['dob']})
+  app=types.ModuleType('app');app.__path__=[];bridge=types.ModuleType('app.understat_bridge');bridge.same_team=lambda a,b:norm(a)==norm(b)
+  bundle={'player':{'name':'Milan Skriniar'},'career':[{'team_name':'Inter'}]}
+  with patch.dict('sys.modules',{'app':app,'app.understat_bridge':bridge}),patch.object(c,'asset',return_value=(target,'sha')):
+   result=c.fifa('123',bundle,{'birthDate':{'utcTime':row['dob']}},['2025/2026'])
+  self.assertEqual((result[0]['value'],result[0]['fifa_fc_position']),(81,'CB'));self.assertEqual(result[0]['provenance']['archive_version'],'3')
+ def test_diagnostics_latest_revision_and_saved_has_priority(self):
+  c=Catalogs(self.root);c.state('123','fifa','2025/2026','consulta_pendiente',edition='FC 26')
+  c.state('123','fifa','2025/2026','verificado_guardado',edition='FC 26',snapshot='saved')
+  c.state('123','fifa','2025/2026','pendiente_verificacion',edition='FC 26',snapshot='new')
+  result=c.diagnostics('123','fifa');self.assertEqual(len(result),1);self.assertEqual(result[0]['state'],'verificado_guardado')
  def test_review_sync_rotates_past_unfinished_jobs(self):
   c=Catalogs(self.root)
   for n in range(4):c.track_job(str(n),'123')

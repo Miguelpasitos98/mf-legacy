@@ -4,7 +4,8 @@ import React, { useEffect, useMemo, useState, useRef, useDeferredValue, useLayou
 import { createPortal } from "react-dom";
 import { minutesForDisplay, aggregate, defaultSeason, groupStatRows, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import {importLandingView} from "@/utils/importHistoryReview";
 import { ArrowLeftRight, ArrowRight, ClipboardPaste, Copy, Database, RefreshCw, Shield, Settings2, Upload, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery, useCountriesQuery } from "@/hooks/useSharedData";
@@ -458,8 +459,9 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
 export default function Stats(){
   const navigate=useNavigate(),queryClient=useQueryClient();
   const [statsParams]=useSearchParams();
+  const importSummary=useLocation().state?.importSummary;
   const pq=usePlayersQuery(),tq=useTeamsQuery();
-  const [savedView]=useState(readStatsViewState);
+  const [savedView]=useState(()=>importLandingView(readStatsViewState(),statsParams));
   const [season,setSeason]=useState(savedView.season&&seasonActive(savedView.season)?"Todas":savedView.season||"Todas"),[competition,setCompetition]=useState(savedView.competition||"Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||savedView.search||"");
   const deferredSearch=useDeferredValue(search);
   const [viewMode,setViewMode]=useState(savedView.viewMode||"season"),[minMinutes,setMinMinutes]=useState(savedView.minMinutes||0),[positionFilter,setPositionFilter]=useState(savedView.positionFilter||"Todas");
@@ -772,6 +774,7 @@ export default function Stats(){
         <button onClick={()=>setUnifiedOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white hover:bg-[#002777]"><Upload size={15}/> Importar FotMob + CraftedFC</button>
       </div>
     </div>
+    {importSummary&&<p role="status" className="mx-3 my-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">Importación verificada: {importSummary.created||0} registros creados · {importSummary.completed||0} completados · {importSummary.omitted||0} omitidos · {importSummary.conflicts||0} conflictos · {importSummary.values||0} valores conciliados.</p>}
     <div className="space-y-2 px-3 py-3 md:px-5">
       <StatsControlBar
         position={positionFilter}

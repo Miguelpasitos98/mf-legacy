@@ -105,7 +105,7 @@ def prioritize_fotmob_seasons(options, now=None):
 
 
 def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
-                  max_candidates=6000, progress_hook=None):
+                  max_candidates=6000,target_scopes=None,on_progress=None):
     profile, client, resolver = studio_import(root)
     if not callable(getattr(resolver,'resolve_stats_team',None)):
         raise RuntimeError('Falta la reparación de Studio: ejecuta worker/apply_studio_patch.py con su ruta.')
@@ -125,6 +125,11 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
     options = prioritize_fotmob_seasons(bundle["season_options"])
     seen = set()
     for option in options:
+        if target_scopes is not None and not any((not s.get('season') or s['season']==option['season']) and
+            (not s.get('season_id') or s['season_id']==option['season_id']) and
+            (not s.get('tournament_id') or text(s['tournament_id'])==text(option.get('tournament_id'))) and
+            (s.get('season_id') or s.get('tournament_id') or not s.get('competition') or norm(s['competition'])==norm(option.get('competition'))) for s in target_scopes):continue
+        if on_progress:on_progress('FotMob · '+text(option.get('season'))+' · '+text(option.get('competition')))
         sid = option["season_id"]
         diag = {"season": option["season"], "competition": option["competition"],
                 "season_id": sid, "tournament_id": text(option.get("tournament_id"))}
@@ -162,8 +167,8 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                 if network_count:
                     time.sleep(2.0)
                 network_count += 1  # Failed requests also consume the budget.
-                if progress_hook is not None:
-                    progress_hook("FotMob "+option["season"]+" · "+option["competition"]+" · consulta "+str(network_count)+"/"+str(request_limit))
+                if on_progress is not None:
+                    on_progress("FotMob "+option["season"]+" · "+option["competition"]+" · consulta "+str(network_count)+"/"+str(request_limit))
                 raw = client.fetch_stats(pid, sid, option.get("is_first", False))
                 client.save_json(file, {"_mf_legacy_meta": {
                     "player_id":pid, "season":option["season"], "competition":option["competition"],
@@ -228,11 +233,14 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                 continue
             out.extend(batch)
             diag.update(status="pending_review", candidates=len(batch), reason="Estadísticas recuperadas; requieren verificación y aprobación.")
-        except (ValueError, KeyError, TypeError, OSError) as exc:
+        except OSError as exc:
+            diag.update(status="query_failed", reason=type(exc).__name__+": "+str(exc)[:160])
+        except (ValueError, KeyError, TypeError) as exc:
             diag.update(status="incompatible_response", reason=type(exc).__name__+": "+str(exc)[:160])
     from collections import Counter
     counts=dict(Counter(d["status"] for d in diagnostics))
-    state=report("complete" if out else "unavailable",
+    pending_queries=any(counts.get(k,0) for k in ['cache_absent','candidate_limit','query_failed'])
+    state=report("partial" if pending_queries else "complete" if out else "unavailable",
         f"Candidatos: {len(out)}; recuperadas: {counts.get('pending_review',0)}; caché ausente: {counts.get('cache_absent',0)}; "
         f"equipo pendiente: {counts.get('team_unidentified',0)}; incompatibles: {counts.get('incompatible_response',0)}; "
         f"peticiones FotMob: {network_count}. Pendientes de revisión.")
@@ -351,7 +359,7 @@ def historical_dataset(path_value: str, pid: str, source: str, max_candidates=30
     return out,report("complete" if out else "unavailable",str(len(out))+" valores históricos encontrados.")
 
 
-def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offline=False, force_pending=False, existing_scopes=None, progress_hook=None):
+def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offline=False, force_pending=False, existing_scopes=None,pending_scopes=None,on_progress=None):
     if not valid_pid(pid):
         raise ValueError("ID FotMob inválido.")
     if not root.is_dir():
@@ -371,13 +379,15 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
         seasons=sorted({o['season'] for o in bundle['season_options'] if re.fullmatch(r'20\d{2}/20\d{2}',o['season']) and int(o['season'][5:])==int(o['season'][:4])+1},reverse=True)
         return bundle,raw,seasons
     for source in sources:
-        if progress_hook is not None:progress_hook(source)
+        if on_progress:on_progress('Consultando '+source)
+        requested=(pending_scopes or {}).get(source)
+        def scoped(seasons):return seasons if requested is None else [season for season in seasons if any(d.get('season')==season for d in requested)]
         try:
             if source=="fotmob":
                 candidates,state=studio_fotmob(root,pid,
                     allow_network=not offline and os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK")=="1",
                     request_limit=max(0,min(15,int(os.getenv("MF_V3_MAX_FOTMOB_REQUESTS","0")))),
-                    max_candidates=max_candidates,progress_hook=progress_hook)
+                    max_candidates=max_candidates,target_scopes=requested,on_progress=on_progress)
             elif source=="understat":
                 bundle,raw,seasons=context()
                 try:catalog().understat(pid,bundle)
@@ -387,6 +397,25 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
                     state['note']+=' Preparación: '+str(prepare_error)[:160]
                     if not candidates:raise
                 else:candidates,state=studio_understat(root,pid,max_candidates=max_candidates,existing_scopes=existing_scopes)
+                # Public per-player SSR supplements the fixed historical archive.
+                # Never treat Crafted's current ratings/model values as history.
+                try:
+                    crafted=importlib.import_module('worker.crafted_source' if __package__ else 'crafted_source')
+                    wanted=[s for s in scoped(seasons) if not catalog().saved(pid,source,s)]
+                    if wanted:
+                        page,meta=crafted.profile_asset(catalog(),pid,bundle['player']['name'])
+                        extra=crafted.season_candidates(crafted.decode_profile(page.decode('utf-8')),pid,bundle,raw,candidates,meta,existing_scopes,wanted)
+                        new_scopes={(c['season'],c['fotmob_tournament_id'],c['fotmob_team_id']) for c in extra}
+                        candidates=[c for c in candidates if (c['season'],c['fotmob_tournament_id'],c['fotmob_team_id']) not in new_scopes]+extra
+                        state['diagnostics']=[d for d in state.get('diagnostics',[]) if not any(d.get('season')==s and text(d.get('fotmob_team_id'))==team for s,tid,team in new_scopes)]
+                        for season,tid,team in sorted(new_scopes):
+                            state.setdefault('diagnostics',[]).append({'season':season,'fotmob_tournament_id':tid,'fotmob_team_id':team,'status':'pendiente_verificacion','reason':'Crafted: tasas Understat publicadas por liga/club/temporada; sin reconstruir minutos de fuente.'})
+                        state['note']+=' Crafted: '+str(len(extra))+' valores por temporada.'
+                except Exception as crafted_error:
+                    state['note']+=' Crafted pendiente: '+str(crafted_error)[:160]
+                    state.setdefault('diagnostics',[]).append({'status':'error_temporal','reason':'Crafted: '+str(crafted_error)[:160]})
+                    state['status']='partial'
+                if requested is not None:candidates=[c for c in candidates if c['season'] in scoped(seasons)]
                 candidates=[c for c in candidates if not catalog().saved(pid,source,c['season'])]
                 for d in state.get('diagnostics',[]):
                     if catalog().saved(pid,source,d['season']):d['status']='verificado_guardado'
@@ -398,12 +427,12 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
             elif source=="fifa":
                 if os.getenv('MF_V3_FIFA_JSON'):candidates,state=historical_dataset(os.environ['MF_V3_FIFA_JSON'],pid,'fifa',max_candidates)
                 else:
-                    bundle,raw,seasons=context();candidates=catalog().fifa(pid,bundle,raw,seasons)[:max_candidates]
+                    bundle,raw,seasons=context();seasons=scoped(seasons);candidates=catalog().fifa(pid,bundle,raw,seasons)[:max_candidates]
                     state=report('partial' if len(candidates)<len(seasons) else 'complete',str(len(candidates))+' Overall de lanzamiento recuperados; no se usan actualizaciones posteriores.')
             elif source=="market":
                 if os.getenv('MF_V3_MARKET_JSON'):candidates,state=historical_dataset(os.environ['MF_V3_MARKET_JSON'],pid,'market',max_candidates)
                 else:
-                    bundle,raw,seasons=context();candidates=catalog().market(pid,bundle,raw,seasons)[:max_candidates]
+                    bundle,raw,seasons=context();seasons=scoped(seasons);candidates=catalog().market(pid,bundle,raw,seasons)[:max_candidates]
                     state=report('partial' if len(candidates)<len(seasons) else 'complete',str(len(candidates))+' valoraciones históricas fechadas; regla último valor dentro de julio–junio.')
             else:
                 candidates,state=[],report("skipped","Fuente desconocida.")
@@ -480,21 +509,26 @@ def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
     pulse=Thread(target=keep_alive,name="mf-v3-heartbeat",daemon=True)
     pulse.start()
     try:
-        print("Trabajo "+jid+" · "+assigned["player_name"]+" · iniciando revisión y recuperación",flush=True)
-        call("heartbeat",job_id=jid,claim_id=claim,progress=2,phase=phase["value"])
-        if assigned["sources"]!=["fotmob"]:
-            try:sync_reviews(root)
-            except Exception as review_error:print("Conciliación de revisión pendiente: "+str(review_error)[:150],file=sys.stderr,flush=True)
-        def show_source(source):
-            names={"fotmob":"FotMob","understat":"Understat","fifa":"FIFA/FC","market":"Transfermarkt"}
-            phase["value"]="Recuperando "+names.get(source,source)+" · consultas limitadas y caché local"
-            print("Extrayendo "+names.get(source,source)+" para "+assigned["fotmob_player_id"],flush=True)
-        candidates,states=collect(root,assigned["fotmob_player_id"],assigned["sources"],max_candidates,
-            force_pending=assigned.get("retry_pending",False),existing_scopes=assigned.get("existing_stats"),
-            progress_hook=show_source)
+        try:sync_reviews(root)
+        except Exception as review_error:print('Conciliación de revisión pendiente: '+str(review_error)[:150],file=sys.stderr)
+        import importlib
+        catalogs=importlib.import_module('worker.historical_sources' if __package__ else 'historical_sources').Catalogs(root)
+        saved=catalogs.load_job(jid,assigned['fotmob_player_id'],assigned['sources'])
+        last_heartbeat=[0.0]
+        def progress(message):
+            phase['value']=message
+            if time.monotonic()-last_heartbeat[0]<20:return
+            try:
+                call('heartbeat',job_id=jid,claim_id=claim,progress=2,phase=message)
+                last_heartbeat[0]=time.monotonic()
+            except Exception as error:print('Progreso pendiente de comunicar: '+str(error)[:120],file=sys.stderr)
+        if saved:
+            candidates,states=saved['candidates'],saved['states'];progress('Reanudando envío desde el trabajo guardado')
+        else:
+            candidates,states=collect(root,assigned["fotmob_player_id"],assigned["sources"],max_candidates,force_pending=assigned.get('retry_pending',False),existing_scopes=assigned.get('existing_stats'),pending_scopes=assigned.get('retry_scopes'),on_progress=progress)
+            catalogs.save_job(jid,assigned['fotmob_player_id'],assigned['sources'],candidates,states)
         stop.set()
-        if lost_claim.is_set():
-            raise RuntimeError("La concesión de importación ha caducado o el trabajo fue cancelado.")
+        if lost_claim.is_set():raise RuntimeError('La concesión caducó o el trabajo fue cancelado')
         total=len(candidates)
         print("Extracción terminada: "+str(total)+" observaciones candidatas; enviando por lotes",flush=True)
         for i in range(0,total,15):
@@ -503,9 +537,7 @@ def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
             call("submit",job_id=jid,claim_id=claim,candidates=candidates[i:i+15])
             time.sleep(0.5)
         call("finish",job_id=jid,claim_id=claim,source_results=states)
-        import importlib
-        importlib.import_module('worker.historical_sources' if __package__ else 'historical_sources').Catalogs(root).track_job(jid,assigned['fotmob_player_id'])
-        print("Trabajo completado · "+jid+" · "+str(total)+" candidatos enviados",flush=True)
+        catalogs.track_job(jid,assigned['fotmob_player_id'])
         return True
     except Exception as exc:
         print("Falló el trabajo "+jid+": "+str(exc)[:250],file=sys.stderr,flush=True)
