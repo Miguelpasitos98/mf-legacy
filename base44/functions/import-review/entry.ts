@@ -165,6 +165,35 @@ export async function applyVerifiedHistoricals(db,job) {
       result.applied++;
     }catch(e){if(result.errors.length<8)result.errors.push(item.source+" "+item.season+": "+e.message);}
   }
+  // Understat solo para temporadas cerradas, procedencia contrastada y equipo interno único.
+  const byScope=new Map();
+  for(const c of records.filter(x=>x.source==="understat"&&x.kind==="metric")){
+    const key=[c.season,c.competition,c.fotmob_team_id,c.team_name].join("|");
+    if(!byScope.has(key))byScope.set(key,[]);
+    byScope.get(key).push(c);
+  }
+  const teams=await allRows(db.Team,{});
+  const club=v=>norm(v).replace(/^(fc|cf) /,"").replace(/ (fc|cf)$/,"");
+  for(const group of byScope.values()){
+    const first=group[0],prov=first.provenance||{};
+    if(group.some(c=>!trusted(c)||c.is_national_team!==false||c.fotmob_tournament_id!==first.fotmob_tournament_id)||
+      prov.scope!=="league_team_season"||!prov.player_id||!first.fotmob_tournament_id||
+      Number(first.season.slice(0,4))>=2025)continue;
+    const matching=teams.filter(t=>club(t.name)===club(first.team_name)&&
+      (!t.fotmob_id||str(t.fotmob_id)===str(first.fotmob_team_id)));
+    if(matching.length!==1)continue;
+    try{
+      const existing=await allRows(db.PlayerSeasonStats,{player_id:job.player_id,season:first.season});
+      const plan=seasonPlan(group,player,existing,{team_id:matching[0].id});
+      if(plan.operation==="create"){
+        await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
+        result.created_stats++;
+      }else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
+      await db.ImportCandidate.updateMany({id:{$in:group.map(c=>c.id)},job_id:job.id,review_status:"pending"},
+        {$set:{review_status:"applied",review_note:"Autoaplicado: Understat contrastado, club único y temporada cerrada"}});
+      result.applied+=group.length;
+    }catch(e){if(result.errors.length<8)result.errors.push("understat "+first.season+": "+e.message);}
+  }
   result.pending=records.length-result.applied;
   return result;
 }
