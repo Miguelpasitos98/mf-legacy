@@ -90,6 +90,10 @@ export default function Teams() {
   const [form, setForm] = useState(emptyTeamForm);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [editingTeam, setEditingTeam] = useState(null);
+  const [editingLeague, setEditingLeague] = useState(null);
+  const [leagueDraft, setLeagueDraft] = useState(null);
+  const [leagueSaving, setLeagueSaving] = useState(false);
+  const [leagueError, setLeagueError] = useState("");
   const [teamFormError, setTeamFormError] = useState("");
   const [bulkTeamsMode, setBulkTeamsMode] = useState(false);
   const [bulkTeamIds, setBulkTeamIds] = useState([]);
@@ -421,6 +425,34 @@ export default function Teams() {
     }
     return counts;
   }, [unattachedPlayers]);
+
+  const openLeagueEditor = (league) => {
+    if (!league?.id) return;
+    setLeagueDraft({name:league.name||"",country_id:league.countryId||league.country_id||"",reputation:String(league.reputation??""),logo:league.logo||""});
+    setLeagueError("");
+    setEditingLeague(league);
+  };
+  const closeLeagueEditor = () => {
+    if(leagueSaving)return;
+    setEditingLeague(null);setLeagueDraft(null);setLeagueError("");
+  };
+  const saveLeague = async (event) => {
+    event.preventDefault();
+    if(!editingLeague?.id||!leagueDraft||leagueSaving)return;
+    const reputation=Number(leagueDraft.reputation);
+    if(!leagueDraft.name.trim()||!leagueDraft.country_id||!Number.isInteger(reputation)||reputation<0||reputation>10000){
+      setLeagueError("Completa nombre, país y reputación entre 0 y 10000.");return;
+    }
+    const logo=leagueDraft.logo.trim();
+    if(logo&&!/^https?:\/\//i.test(logo)){setLeagueError("Introduce una URL http(s) para la imagen.");return;}
+    setLeagueSaving(true);setLeagueError("");
+    try{
+      await base44.entities.League.update(editingLeague.id,{name:leagueDraft.name.trim(),country_id:leagueDraft.country_id,reputation,logo});
+      await queryClient.invalidateQueries({queryKey:["mf-legacy","leagues"]});
+      setEditingLeague(null);setLeagueDraft(null);
+    }catch(error){setLeagueError(error?.response?.data?.message||error?.message||"No se pudo guardar la liga.");}
+    finally{setLeagueSaving(false);}
+  };
 
   // --- HANDLERS ---
 
@@ -844,7 +876,7 @@ export default function Teams() {
                       });
                       return (
                         <div key={competitionName}>
-                          <CompetitionHeader competitionName={competitionName} teams={sortedTeams} />
+                          <CompetitionHeader competitionName={competitionName} teams={sortedTeams} league={leagueByIdMap.get(String(sortedTeams[0]?.leagueId||""))} onEdit={openLeagueEditor} />
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6 2xl:grid-cols-6">
                             {sortedTeams.map((team) => (
                               <TeamCard key={team.id} team={team} selectionMode={bulkTeamsMode} isSelected={bulkTeamIdSet.has(String(team.id))} disabled={bulkTeamsBusy} onOpen={handleTeamOpen} />
@@ -867,6 +899,33 @@ export default function Teams() {
         </div>
       )}
 
+      {editingLeague && leagueDraft && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={event=>{if(event.target===event.currentTarget)closeLeagueEditor();}}>
+          <section role="dialog" aria-modal="true" aria-labelledby="edit-league-title" className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div><h2 id="edit-league-title" className="text-lg font-extrabold text-slate-900">Editar competición</h2><p className="text-xs text-slate-500">Se conservan el ID y los equipos vinculados.</p></div>
+              <button type="button" disabled={leagueSaving} onClick={closeLeagueEditor} className="rounded-lg px-3 py-2 text-xs text-slate-600 hover:bg-slate-100">Cerrar</button>
+            </div>
+            <form onSubmit={saveLeague} className="space-y-4">
+              <label className="block text-xs font-semibold text-slate-700">Nombre<input required value={leagueDraft.name} onChange={event=>setLeagueDraft(d=>({...d,name:event.target.value}))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"/></label>
+              <label className="block text-xs font-semibold text-slate-700">País
+                <select required value={leagueDraft.country_id} onChange={event=>setLeagueDraft(d=>({...d,country_id:event.target.value}))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm">
+                  <option value="">Seleccionar país</option>
+                  {countries.map(country=><option key={country.id} value={country.id}>{country.name}</option>)}
+                </select>
+              </label>
+              <label className="block text-xs font-semibold text-slate-700">Reputación (0–10000)<input type="number" min="0" max="10000" step="1" required value={leagueDraft.reputation} onChange={event=>setLeagueDraft(d=>({...d,reputation:event.target.value}))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"/></label>
+              <label className="block text-xs font-semibold text-slate-700">URL del escudo<input type="url" value={leagueDraft.logo} placeholder="https://..." onChange={event=>setLeagueDraft(d=>({...d,logo:event.target.value}))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"/></label>
+              {leagueDraft.logo&&<div className="flex h-28 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-3"><img src={normalizeImageUrl(leagueDraft.logo)} alt="Vista previa" className="h-full max-w-full object-contain"/></div>}
+              {leagueError&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{leagueError}</p>}
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <button type="button" disabled={leagueSaving} onClick={closeLeagueEditor} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold">Cancelar</button>
+                <button type="submit" disabled={leagueSaving} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{leagueSaving?"Guardando…":"Guardar competición"}</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
       {(addModalOpen || editingTeam) && (
         <AddTeamModal form={form} setForm={setForm} countries={countries} leagues={leagues} isEditing={Boolean(editingTeam)} formError={teamFormError} onClose={() => { setTeamFormError(""); setAddModalOpen(false); setEditingTeam(null); }} onSubmit={handleAddTeam} />
       )}
