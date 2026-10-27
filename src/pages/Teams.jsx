@@ -768,7 +768,7 @@ export default function Teams() {
                 <button key={team.id} type="button" onClick={()=>handleTeamOpen(team)}
                   className="group min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
                   <div className="relative flex h-36 items-center justify-center overflow-hidden p-5"
-                    style={{background:\`linear-gradient(135deg, \${/^#[0-9a-f]{6}$/i.test(team.primaryColor||"")?team.primaryColor+"18":"#f8fafc"}, #ffffff)\`}}>
+                    style={{background:`linear-gradient(135deg, ${/^#[0-9a-f]{6}$/i.test(team.primaryColor||"")?team.primaryColor+"18":"#f8fafc"}, #ffffff)`}}>
                     {team.logo
                       ? <img src={normalizeImageUrl(team.logo)} alt={team.name+" escudo"} loading="lazy" className="relative z-10 h-28 w-28 object-contain drop-shadow-sm"/>
                       : <Shirt size={48} className="text-slate-300"/>}
