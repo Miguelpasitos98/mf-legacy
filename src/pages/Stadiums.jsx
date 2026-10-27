@@ -1,6 +1,6 @@
 import React,{useMemo,useState} from "react";
 import {useQueryClient} from "@tanstack/react-query";
-import {Building2,MapPin,Users,Save,X,LayoutGrid,Image as ImageIcon} from "lucide-react";
+import {Building2,MapPin,Users,Save,X,Pencil,ArrowLeft,LayoutGrid,Image as ImageIcon} from "lucide-react";
 import {useTeamsQuery,useCountriesQuery,useLeaguesQuery} from "@/hooks/useSharedData";
 import {base44} from "@/api/base44Client";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
@@ -52,22 +52,24 @@ function toStadiums(teams,countries,leagues){
     const country=countryMap.get(String(team.country_id||team.countryId||league?.country_id||""));
     const countryName=safe(team.country||team.country_name||team.countryName||country?.name);
     const competitionName=safe(league?.name||team.competition);
-    if(!map.has(key))map.set(key,{id:key,name,teams:[],team,city:safe(team.city),country:countryName,competition:competitionName,capacity:team.stadium_capacity,built:team.stadium_built_year,renovated:team.stadium_renovation,pitch:safe(team.pitch_dimensions),interior:safe(team.stadium_interior_url),exterior:safe(team.stadium_exterior_url)});
+    if(!map.has(key))map.set(key,{id:key,name,teams:[],team,city:safe(team.city),country:countryName,competition:competitionName,capacity:team.stadium_capacity,built:team.stadium_built_year,renovated:team.stadium_renovation,pitch:safe(team.pitch_dimensions),interior:safe(team.stadium_interior_url),exterior:safe(team.stadium_exterior_url),description:safe(team.stadium_description)});
     const venue=map.get(key);
     venue.teams.push(team);
     if(!venue.country&&countryName)venue.country=countryName;
     if(!venue.competition&&competitionName)venue.competition=competitionName;
+    if(!venue.description)venue.description=safe(team.stadium_description);
     if(!venue.interior)venue.interior=safe(team.stadium_interior_url);
     if(!venue.exterior)venue.exterior=safe(team.stadium_exterior_url);
     if(!venue.capacity)venue.capacity=team.stadium_capacity;
   }
   return [...map.values()];
 }
-const formFor=(stadium)=>({name:stadium?.name||"",capacity:digits(stadium?.capacity),built:digits(stadium?.built),renovated:digits(stadium?.renovated),pitch:stadium?.pitch||"",interior:stadium?.interior||"",exterior:stadium?.exterior||""});
+const formFor=(stadium)=>({name:stadium?.name||"",capacity:digits(stadium?.capacity),built:digits(stadium?.built),renovated:digits(stadium?.renovated),pitch:stadium?.pitch||"",interior:stadium?.interior||"",exterior:stadium?.exterior||"",description:stadium?.description||""});
 export default function Stadiums(){
   const query=useTeamsQuery(),countriesQuery=useCountriesQuery(),leaguesQuery=useLeaguesQuery(),qc=useQueryClient();
   const [search,setSearch]=useState(""),[city,setCity]=useState(""),[country,setCountry]=useState(""),[capacity,setCapacity]=useState(""),[mode,setMode]=useState("leagues");
   const [view,setView]=useState("immersive"),[year,setYear]=useState(""),[color,setColor]=useState("");
+  const [detailEdit,setDetailEdit]=useState(false);
   const [selected,setSelected]=useState(null),[form,setForm]=useState(null),[saving,setSaving]=useState(false),[error,setError]=useState("");
   const stadiums=useMemo(()=>toStadiums(rows(query.data),rows(countriesQuery.data),rows(leaguesQuery.data)),[query.data,countriesQuery.data,leaguesQuery.data]);
   const filtered=useMemo(()=>stadiums.filter(s=>
@@ -83,7 +85,7 @@ export default function Stadiums(){
     const key=mode==="colors"?(stadium.teams.length?stadiumColor(stadium.teams[0]):"Multicolor"):mode==="leagues"?(stadium.competition||"Sin competición"):(stadium.country||"Sin país");
     (acc[key] ||= []).push(stadium);return acc;
   },{})).sort(([a],[b])=>a.localeCompare(b,"es")),[filtered,mode]);
-  const open=(stadium)=>{setSelected(stadium);setForm(formFor(stadium));setError("");};
+  const open=(stadium)=>{setSelected(stadium);setForm(formFor(stadium));setDetailEdit(false);setError("");};
   const save=async(event)=>{
     event.preventDefault();if(!selected||!form||saving)return;
     if(!form.name.trim()){setError("Introduce el nombre del estadio.");return;}
@@ -91,7 +93,7 @@ export default function Stadiums(){
       if(form[key]!==""&&(!Number.isInteger(Number(form[key]))||Number(form[key])<0)){setError("Revisa los valores numéricos.");return;}
     }
     if([form.interior,form.exterior].some(v=>v.trim()&&!/^https?:\/\//i.test(v.trim()))){setError("Las imágenes deben ser URLs http(s).");return;}
-    const updates={stadium:form.name.trim(),stadium_capacity:form.capacity===""?null:Number(form.capacity),stadium_built_year:form.built===""?null:Number(form.built),stadium_renovation:form.renovated===""?null:Number(form.renovated),pitch_dimensions:form.pitch.trim(),stadium_interior_url:form.interior.trim(),stadium_exterior_url:form.exterior.trim()};
+    const updates={stadium:form.name.trim(),stadium_capacity:form.capacity===""?null:Number(form.capacity),stadium_built_year:form.built===""?null:Number(form.built),stadium_renovation:form.renovated===""?null:Number(form.renovated),pitch_dimensions:form.pitch.trim(),stadium_interior_url:form.interior.trim(),stadium_exterior_url:form.exterior.trim(),stadium_description:form.description.trim()};
     setSaving(true);setError("");
     try{
       // Stadium fields belong to the Team entity; update all teams sharing this venue.
@@ -101,7 +103,7 @@ export default function Stadiums(){
         return prev;
       });
       await qc.invalidateQueries({queryKey:RECORD_KEYS.Team,exact:true});
-      setSelected(null);setForm(null);
+      setSelected(null);setForm(null);setDetailEdit(false);
     }catch(e){setError(e?.message||"No se pudo guardar el estadio. Revisa los equipos vinculados.");}
     finally{setSaving(false);}
   };
@@ -127,19 +129,25 @@ export default function Stadiums(){
       </div>
       <div className={view==="gallery"?"grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5":"grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"}>{venues.map(stadium=><StadiumCard key={stadium.id} stadium={stadium} view={view} onClick={()=>open(stadium)}/>)}</div>
     </section>)}</div>}
-    {selected&&form&&<div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-3 sm:p-6" onMouseDown={e=>{if(e.target===e.currentTarget&&!saving)setSelected(null);}}>
-      <section role="dialog" aria-modal="true" aria-labelledby="stadium-editor-heading" className="my-auto w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl">
-        <div className="mb-4 flex items-start justify-between gap-2"><div><h2 id="stadium-editor-heading" className="text-lg font-extrabold">Editar estadio</h2><p className="text-xs text-slate-500">Vinculado a: {selected.teams.map(t=>t.name).join(", ")}</p></div><button type="button" disabled={saving} onClick={()=>setSelected(null)} aria-label="Cerrar"><X size={20}/></button></div>
-        <form onSubmit={save} className="space-y-3">
+    {selected&&form&&<div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/70 p-3 sm:p-6" onMouseDown={e=>{if(e.target===e.currentTarget&&!saving)setSelected(null);}}>
+      <section role="dialog" aria-modal="true" aria-labelledby="stadium-detail-title" className="relative mx-auto my-2 w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-5 py-3 backdrop-blur-sm sm:px-8">
+          <button type="button" onClick={()=>detailEdit?setDetailEdit(false):setSelected(null)} disabled={saving} className="inline-flex items-center gap-2 text-xs font-bold text-slate-600"><ArrowLeft size={15}/>{detailEdit?"Volver a la ficha":"Todos los estadios"}</button>
+          <div className="flex items-center gap-2"><button type="button" onClick={()=>{setDetailEdit(v=>!v);setError("");}} className="inline-flex items-center gap-1.5 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white"><Pencil size={13}/>{detailEdit?"Ver ficha":"Editar estadio"}</button><button type="button" disabled={saving} onClick={()=>setSelected(null)} aria-label="Cerrar" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={19}/></button></div>
+        </div>
+        {!detailEdit?<div className="px-5 pb-10 pt-7 sm:px-10">
+          <header className="mb-8 text-center"><p className="text-[11px] font-black uppercase tracking-[.24em] text-[#003399]">MF Legacy · Stadiums</p><h2 id="stadium-detail-title" className="mt-2 text-3xl font-black uppercase tracking-tight text-slate-950 sm:text-5xl">{selected.name}</h2><p className="mt-2 inline-flex items-center gap-1.5 text-sm text-slate-500"><MapPin size={15}/>{[selected.city,selected.country].filter(Boolean).join(", ")||"Ubicación no registrada"}</p></header>
+          <div className="grid gap-4 md:grid-cols-2">{[["interior","Interior"],["exterior","Exterior"]].map(([key,title])=><div key={key} className="min-w-0"><div className="flex aspect-[16/10] items-center justify-center overflow-hidden rounded-xl bg-slate-50 p-2">{selected[key]?<img src={normalizeImageUrl(selected[key])} alt={title+" de "+selected.name} className="max-h-full max-w-full object-contain"/>:<div className="flex flex-col items-center gap-2 text-slate-400"><Building2 size={33}/><span className="text-xs">Sin fotografía {title.toLowerCase()}</span></div>}</div><p className="mt-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">{title}</p></div>)}</div>
+          <div className="mt-7 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-2 lg:grid-cols-4">{[["Capacidad",selected.capacity?Number(selected.capacity).toLocaleString("es-ES"):"Sin datos"],["Ciudad",selected.city||"Sin datos"],["País",selected.country||"Sin datos"],["Construido",selected.built||"Sin datos"],["Última reforma",selected.renovated||"Sin datos"],["Dimensiones",selected.pitch||"Sin datos"],["Competición",selected.competition||"Sin datos"]].map(([label,value])=><div key={label}><p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-sm font-bold text-slate-800">{value}</p></div>)}</div>
+          <section className="mt-8"><h3 className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-900"><Users size={15}/>Clubes asociados</h3><div className="flex flex-wrap gap-3">{selected.teams.map(t=><div key={t.id} className="flex min-w-[130px] flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-4 text-center">{t.logo||t.logo_url?<img src={normalizeImageUrl(t.logo||t.logo_url)} alt="" className="h-12 w-12 object-contain"/>:<Building2 size={36} className="text-slate-300"/>}<span className="text-xs font-bold text-slate-800">{t.name}</span></div>)}</div></section>
+          <section className="mt-8 border-t border-slate-100 pt-7"><h3 className="mb-3 text-xs font-black uppercase tracking-wider text-slate-900">Historia y descripción</h3>{selected.description?<p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{selected.description}</p>:<div className="rounded-xl border border-dashed border-slate-200 p-5 text-sm text-slate-500">Todavía no hay descripción de este estadio. <button type="button" onClick={()=>setDetailEdit(true)} className="font-bold text-[#003399]">Añadir descripción</button></div>}</section>
+        </div>:<form onSubmit={save} className="mx-auto max-w-2xl space-y-4 px-5 py-7 sm:px-8"><h2 id="stadium-detail-title" className="text-xl font-black">Editar estadio</h2><p className="text-xs text-slate-500">Vinculado a: {selected.teams.map(t=>t.name).join(", ")}</p>
           <label className="block text-xs font-semibold">Nombre<input required value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3"/></label>
-          <div className="grid grid-cols-2 gap-3">{[["capacity","Aforo"],["built","Año de construcción"],["renovated","Última reforma"]].map(([key,label])=><label key={key} className="block text-xs font-semibold">{label}<input type="number" min="0" value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3"/></label>)}
-            <label className="block text-xs font-semibold">Dimensiones del campo<input value={form.pitch} onChange={e=>setForm(f=>({...f,pitch:e.target.value}))} placeholder="105 x 68 m" className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3"/></label>
-          </div>
+          <div className="grid grid-cols-2 gap-3">{[["capacity","Aforo"],["built","Año de construcción"],["renovated","Última reforma"]].map(([key,label])=><label key={key} className="block text-xs font-semibold">{label}<input type="number" min="0" value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3"/></label>)}<label className="block text-xs font-semibold">Dimensiones del campo<input value={form.pitch} onChange={e=>setForm(f=>({...f,pitch:e.target.value}))} placeholder="105 x 68 m" className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3"/></label></div>
           {[["interior","URL imagen interior"],["exterior","URL imagen exterior"]].map(([key,label])=><label key={key} className="block text-xs font-semibold">{label}<input value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} placeholder="https://..." className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3"/></label>)}
-          {(form.interior||form.exterior)&&<div className="flex max-h-72 min-h-36 w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2"><img src={normalizeImageUrl(form.interior||form.exterior)} alt="Vista previa completa del estadio" className="max-h-64 max-w-full object-contain"/></div>}
-          {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{error}</p>}
-          <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4"><p className="text-[11px] text-slate-500">Los cambios se reflejan en los equipos vinculados.</p><button type="submit" disabled={saving} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-50"><Save size={14}/>{saving?"Guardando…":"Guardar estadio"}</button></div>
-        </form>
+          <label className="block text-xs font-semibold">Historia y descripción<textarea rows={6} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="Historia, arquitectura, curiosidades y características del estadio…" className="mt-1 w-full resize-y rounded-lg border border-slate-200 p-3 text-sm leading-relaxed"/></label>
+          {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{error}</p>}<div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" disabled={saving} onClick={()=>setDetailEdit(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Cancelar</button><button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-50"><Save size={14}/>{saving?"Guardando…":"Guardar estadio"}</button></div>
+        </form>}
       </section>
     </div>}
   </main>;

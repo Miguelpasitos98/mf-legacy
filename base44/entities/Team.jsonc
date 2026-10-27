@@ -74,6 +74,7 @@
       "type": "string",
       "description": "URL de una imagen del interior del estadio"
     },
+    "stadium_description": {"type": "string", "description": "Descripción e historia del estadio, compartida con los equipos vinculados"},
     "stadium_exterior_url": {
       "type": "string",
       "description": "URL de una imagen del exterior del estadio"
