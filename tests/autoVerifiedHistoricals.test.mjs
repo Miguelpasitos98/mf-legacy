@@ -75,6 +75,33 @@ test("una discrepancia de minutos no bloquea entradas, goles y despejes de FotMo
  assert.equal(f.candidates[1].review_status,"applied");
 });
 
+test("Bordeaux histórico sin ficha TEAMS se registra con ID FotMob y equipo interno pendiente",async()=>{
+ const f=fixture();
+ const c={...f.candidates[2],season:"2018/2019",competition:"Ligue 1",
+   team_name:"Bordeaux",fotmob_team_id:"9827",fotmob_tournament_id:"53",
+   source_record_id:"2018/2019:53:9827:clearances:total",
+   evidence_url:"https://www.fotmob.com/players/921253",metric_name:"Clearances",value:36};
+ f.candidates.splice(0,f.candidates.length,c);
+ const result=await applyVerifiedHistoricals(f.db,f.job);
+ assert.equal(result.created_stats,1);
+ assert.equal(result.applied,1);
+ assert.equal(f.saved[0].fotmob_team_id,"9827");
+ assert.equal(f.saved[0].team_name,"Bordeaux");
+ assert.equal(f.saved[0].team_id,undefined);
+ assert.equal(c.review_status,"applied");
+});
+test("ID FotMob del club ya perteneciente a otro equipo impide incorporación ambigua",async()=>{
+ const f=fixture();
+ const c={...f.candidates[2],season:"2018/2019",competition:"Ligue 1",
+   team_name:"Bordeaux",fotmob_team_id:"9827",fotmob_tournament_id:"53",
+   source_record_id:"2018/2019:53:9827:clearances:total",
+   evidence_url:"https://www.fotmob.com/players/921253",metric_name:"Clearances",value:36};
+ f.candidates.splice(0,f.candidates.length,c);
+ f.db.Team.filter=async()=>[{id:"wrong",name:"Other Team",fotmob_id:"9827"}];
+ const result=await applyVerifiedHistoricals(f.db,f.job);
+ assert.equal(result.created_stats,0);
+ assert.equal(c.review_status,"pending");
+});
 test("una competición EURO U21 no se atribuye automáticamente a Barcelona",async()=>{
  const f=fixture();
  const c={...f.candidates[2],season:"2025/2026",competition:"EURO U21",
