@@ -15,6 +15,7 @@ export default function Layout() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
   const isTeamsPage = location.pathname.startsWith("/teams");
+  const isKitsPage = location.pathname === "/news";
 
   // PERFIL INDIVIDUAL DE JUGADOR
   const isPlayerProfile =
@@ -73,7 +74,7 @@ export default function Layout() {
                 className={
                   isPlayerProfile
                     ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
-                    : isTeamsPage
+                    : isTeamsPage || isKitsPage
                       ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
                       : "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
                 }
