@@ -55,6 +55,15 @@ test("Rechaza duelos imposibles, minutos inválidos y buildup superior a chain",
  assert.throws(()=>changes("buildup",{value:"15",sourceMinutes:"1000",unit:"total"}),/no puede superar/i);
  assert.throws(()=>changes("xg",{value:"30"}),/coinciden/i);
 });
+test("La nota media FotMob se guarda en rating y el historial conserva el valor previo",()=>{
+ const row={...record,rating:null};
+ const updates=createOverviewManualChanges(row,"rating",{value:"7,34"},"FotMob 2020/21");
+ const updated=applyManualStatChanges(row,updates).update;
+ assert.equal(updated.rating,7.34);
+ assert.equal(updated.manual_metric_history[0].metric_name,"$field:rating");
+ assert.equal(updated.manual_metric_history[0].new_value,7.34);
+ assert.throws(()=>createOverviewManualChanges(row,"rating",{value:"75"},""),/0 y 10/);
+});
 test("El dato manual se guarda sin exigir fuente",()=>{
  const updates=createOverviewManualChanges(record,"xg",{value:"34"},"");
  assert.equal(updates[0].sourceNote,"Registro manual");
