@@ -10,6 +10,13 @@ const metricId=x=>{
 };
 const empty=x=>x===undefined||x===null||x==="";
 const slug=x=>norm(x).replace(/ /g,"-");
+export function reviewedCurrentTeamLink(player,team,item){
+  const club=x=>norm(x).replace(/^(?:fc |cf )|(?: fc| cf)$/g,"").trim();
+  if(item.is_national_team!==false||!team?.id||player?.team_id!==team.id)return {};
+  if(!club(item.team_name)||club(item.team_name)!==club(team.name))return {};
+  if(!empty(team.fotmob_id)&&str(team.fotmob_id)!==str(item.fotmob_team_id))return {};
+  return {team_id:team.id};
+}
 const competitionKey=x=>({"super lig":"super lig","super league turkey":"super lig","ligue 1 uber eats":"ligue 1","english premier league":"premier league"}[norm(x)]||norm(x));
 async function allRows(entity,query) {
   const out=[];
@@ -61,7 +68,7 @@ export function metricPlan(item,player,existing,teamLink={}) {
   }
   const summary=field&&empty(target?.[field])?{[field]:item.value}:{};
   if(target) {
-    const patch={...summary,...(metricChanged?{metrics}:{})};
+    const patch={...summary,...Object.fromEntries(Object.entries(teamLink).filter(([key])=>empty(target[key]))),...(metricChanged?{metrics}:{})};
     return {operation:Object.keys(patch).length?"update":"unchanged",target_id:target.id,record:patch};
   }
   if(!str(item.fotmob_tournament_id)||typeof item.is_national_team!=="boolean")throw Error("La primera importación requiere ID de competición y ámbito club/selección.");
@@ -195,6 +202,10 @@ export default async function(req) {
         if(teams.length>1)return bad("ID FotMob del equipo duplicado.",409);
         if(teams[0])Object.assign(teamLink,item.is_national_team
           ?{national_team_id:teams[0].id,national_country_id:teams[0].country_id}:{team_id:teams[0].id});
+        else if(item.is_national_team===false&&player.team_id){
+          const current=await db.Team.get(player.team_id);
+          Object.assign(teamLink,reviewedCurrentTeamLink(player,current,item));
+        }
       }
       let plan;
       try {plan=grouped?seasonPlan(group,player,existing,teamLink):metricPlan(item,player,existing,teamLink);}catch(e){return bad(e.message,409);}
