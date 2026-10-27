@@ -11,6 +11,7 @@ import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-
 const SOURCES=[{id:"fotmob",label:"FotMob"},{id:"understat",label:"Understat"},{id:"fifa",label:"FIFA / EA FC"},{id:"market",label:"Transfermarkt"}];
 const ACTIVE=["queued","running"];
 const STATUS={queued:"En cola",running:"Procesando",review:"Revisión pendiente",completed:"Completado",failed:"Error",cancelled:"Cancelado"};
+const SOURCE_STATES={no_consultado:"No consultado",consulta_pendiente:"Consulta pendiente",dato_encontrado:"Dato encontrado",pendiente_verificacion:"Pendiente de verificación",verificado_guardado:"Verificado y guardado",fuera_cobertura:"Fuera de cobertura",error_temporal:"Error temporal"};
 const fmt=x=>x?new Date(x).toLocaleString("es-ES"):"—";
 const reason=e=>e?.response?.data?.error||e?.message||"Error inesperado";
 const responseRows=r=>Array.isArray(r)?r:r?.items||r?.data||r?.entities||[];
@@ -126,7 +127,7 @@ export default function ImportCenter(){
     setBusy(true);setError("");setNotice("");
     try{
       const resp=await base44.functions.invoke("import-control",{action,...payload});
-      setNotice(action==="start"?"Solicitud de extracción nueva registrada. Tu MF Legacy Studio la ejecutará cuando INICIAR_TRABAJADOR_V3.bat esté activo en tu ordenador.":action==="retry"?"Trabajo en cola de nuevo.":action==="release-stale"?"Concesión caducada liberada; ya puedes reintentar.":"Trabajo cancelado.");
+      setNotice(action==="start"?"Solicitud de extracción nueva registrada. Tu MF Legacy Studio la ejecutará cuando INICIAR_TRABAJADOR_V3.bat esté activo en tu ordenador.":action==="retry-pending"?"Fuentes pendientes en cola; las fuentes guardadas se reutilizan desde caché.":action==="retry"?"Trabajo en cola de nuevo.":action==="release-stale"?"Concesión caducada liberada; ya puedes reintentar.":"Trabajo cancelado.");
       if(resp?.data?.job?.id)setSelectedJob(resp.data.job.id);
       await refresh({forceCandidates:true});
     }catch(e){setError(reason(e));}
@@ -226,7 +227,7 @@ export default function ImportCenter(){
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>
-        <p className="text-xs text-slate-500">Primera importación: el trabajador de tu PC consulta el perfil y las temporadas disponibles con los límites configurados. FIFA/FC y valores de mercado solo se completan desde catálogos históricos verificados. No se altera FM26.</p>
+        <p className="text-xs text-slate-500">Primera importación: el trabajador de tu PC consulta el perfil y las temporadas disponibles con los límites configurados. Understat usa ligas compatibles y cachés/archivos públicos. FIFA/FC usa revisiones de Career Mode anteriores al lanzamiento; mercado usa valoraciones fechadas dentro de cada temporada. No se altera FM26.</p>
       </section>
       <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
         <h2 className="font-semibold text-lg">Protección de las estadísticas</h2>
@@ -257,6 +258,7 @@ export default function ImportCenter(){
               {ACTIVE.includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("cancel",{job_id:j.id})} className="text-amber-800 underline">Cancelar</button>}
               {j.status==="running"&&j.lease_expires_at&&Date.now()>new Date(j.lease_expires_at).getTime()&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("release-stale",{job_id:j.id})} className="text-amber-800 underline">Liberar bloqueo</button>}
               {["failed","cancelled"].includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar</button>}
+              {!ACTIVE.includes(j.status)&&Object.values(j.source_results||{}).some(r=>["partial","error"].includes(r.status))&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry-pending",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar fuentes pendientes</button>}
             </td>
           </tr>)}</tbody>
         </table></div>}
@@ -266,12 +268,12 @@ export default function ImportCenter(){
       <p className="text-xs text-slate-500 my-2">Para crear una primera temporada, comprueba la fuente y aprueba el lote de esa competición. Para valores individuales FIFA/mercado conserva la revisión específica. Los datos anteriores nunca se sobrescriben.</p>
       {selectedJobData.status==="completed"&&candidateRows.length>0&&<p className="text-sm font-semibold text-emerald-700">Revisión completada · {candidateRows.filter(c=>c.review_status==="applied").length} candidatos aplicados.</p>}
       <p className="text-xs text-slate-500">Diagnóstico de extracción anterior a la revisión:</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 my-3">{(selectedJobData.sources||[]).map(s=><div key={s} className="border border-slate-200 rounded-md p-2 text-sm"><strong>{SOURCES.find(x=>x.id===s)?.label||s}:</strong> {selectedJobData.source_results?.[s]?.status==="complete"?"Datos recibidos":selectedJobData.source_results?.[s]?.status==="error"?"Error":selectedJobData.source_results?.[s]?.status==="unavailable"?"Sin datos archivados disponibles":"Pendiente"}<div className="text-xs text-slate-500">{selectedJobData.source_results?.[s]?.note||""}</div></div>)}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 my-3">{(selectedJobData.sources||[]).map(s=><div key={s} className="border border-slate-200 rounded-md p-2 text-sm"><strong>{SOURCES.find(x=>x.id===s)?.label||s}:</strong> {selectedJobData.source_results?.[s]?.status==="complete"?"Datos recibidos":selectedJobData.source_results?.[s]?.status==="partial"?"Datos parciales · quedan temporadas pendientes":selectedJobData.source_results?.[s]?.status==="error"?"Error":selectedJobData.source_results?.[s]?.status==="unavailable"?"Sin datos archivados disponibles":"Pendiente"}<div className="text-xs text-slate-500">{selectedJobData.source_results?.[s]?.note||""}</div></div>)}</div>
       {selectedJobData.worker_version==="base44-cache-v1"&&selectedJobData.status==="completed"&&(selectedJobData.received_candidates||0)===0&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 my-3 text-sm"><strong>El análisis de caché ha finalizado, pero no había datos previos.</strong><p>Para este jugador selecciona «Solicitar datos NUEVOS desde Studio (PC)» tras arrancar el trabajador local. No necesitas importar un JSON manualmente.</p></div>}
       {(selectedJobData.sources||[]).map(s=>(selectedJobData.source_results?.[s]?.diagnostics||[]).length>0&&<details key={s} className="my-3 border rounded p-2 text-sm"><summary>Diagnóstico por temporada · {s}</summary>
         {(selectedJobData.source_results[s].diagnostics||[]).map((d,i)=><div key={i} className="border-t py-2">
           <strong>{d.season} · {d.competition}</strong> · {d.team_name||"Equipo pendiente"}
-          <div>{({cache_absent:"Caché ausente",no_statistics:"Sin estadísticas disponibles",incompatible_response:"Respuesta incompatible",team_unidentified:"Equipo no identificado · pendiente de conciliación",competition_unidentified:"Competición no identificada",pending_review:"Estadísticas recuperadas · pendientes de revisión",candidate_limit:"Pendiente por límite de candidatos",pending_reconciliation:"Estadísticas pendientes de conciliación"})[d.status]||d.status} · {d.recovered_metrics||0} métricas</div>
+          <div>{({cache_absent:"Caché ausente",no_statistics:"Sin estadísticas disponibles",incompatible_response:"Respuesta incompatible",team_unidentified:"Equipo no identificado · pendiente de conciliación",competition_unidentified:"Competición no identificada",pending_review:"Estadísticas recuperadas · pendientes de revisión",candidate_limit:"Pendiente por límite de candidatos",pending_reconciliation:"Estadísticas pendientes de conciliación"})[d.status]||SOURCE_STATES[d.status]||d.status} · {d.recovered_metrics||0} métricas</div>
           <div className="text-slate-500">{d.reason}</div>
         </div>)}
       </details>)}
@@ -327,6 +329,8 @@ export default function ImportCenter(){
         <div className="text-sm"><strong>{c.kind==="metric"?c.metric_name:c.kind==="overall"?"Overall FIFA/FC":"Valor de mercado"}</strong> · {c.value} {c.metric_unit||""}
           <div className="text-xs text-slate-500">{c.source} · {c.season} · {c.competition||c.fifa_edition||c.as_of_date||""} · {c.team_name||""}</div>
           <div className="text-xs text-slate-500">Evidencia: {c.verification_status} · {c.review_status}</div>
+          {c.provenance&&<div className="text-xs text-slate-600">ID de fuente: {c.provenance.player_id||"—"} · {c.provenance.rating_kind==="launch_base"?"Career Mode · base de lanzamiento":"Alcance: "+(c.provenance.scope||"valor de mercado histórico")} {c.provenance.revision_date?" · "+c.provenance.revision_date:""}{c.provenance.revision?" · revisión "+c.provenance.revision:""}{c.fifa_fc_position?" · "+c.fifa_fc_position:""}</div>}
+          {c.provenance?.archive_url&&<a className="mr-3 text-xs text-blue-800 underline" href={c.provenance.archive_url} target="_blank" rel="noopener noreferrer">Archivo público original</a>}
           {c.evidence_url&&<a className="text-xs text-blue-800 underline" href={c.evidence_url} target="_blank" rel="noopener noreferrer">Consultar fuente</a>}
         </div>
         {c.review_status==="pending"&&<div className="flex items-center gap-3 text-sm">
