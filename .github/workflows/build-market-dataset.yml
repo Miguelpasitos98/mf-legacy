@@ -18,6 +18,17 @@ jobs:
           python-version: '3.11'
       - name: Download and process public snapshot
         run: python scripts/build_market_dataset.py
+      - name: Verify generated index
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("public/data/market")
+          meta = json.loads((path / "manifest.json").read_text())
+          assert meta["players"] > 0 and meta["valuations"] > 0
+          assert len(list(path.glob("valuations-*.json"))) == 128
+          print(meta)
+          PY
       - name: Commit generated data if changed
         run: |
           git config user.name "github-actions[bot]"
