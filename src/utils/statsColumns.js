@@ -176,6 +176,13 @@ export function columnValue(row,mode,id,config){
    &&definition.formula===COMPUTED.find(d=>d.id===id)?.formula;
   if(isDefaultGK){
    const p90=id==="calc_goals_prevented_p90";
+   // FotMob ya aporta Goals prevented /90. No exigir minutos a STATS
+   // cuando el proveedor entregó esa tasa directa (pueden faltar minutos).
+   if(p90&&mode==="competition"){
+    const direct=(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")==="goalsprevented");
+    const supplied=statNum(direct?.per90);
+    if(supplied!==null)return supplied;
+   }
    if(mode==="season"&&Array.isArray(row.records)){
     const direct=alignedFormulaInputs(row.records,p90?["goals_prevented","minutes"]:["goals_prevented"]);
     if(direct.available&&(!p90||direct.totals.minutes>0))
