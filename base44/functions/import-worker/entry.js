@@ -83,7 +83,8 @@ export default async function(req) {
     if(action==="claim") {
       if(body.job_id&&!/^[a-f0-9]{24}$/i.test(str(body.job_id)))return fail("ID de trabajo incorrecto.");
       const waiting=body.job_id?[await db.ImportJob.get(str(body.job_id))].filter(j=>j?.status==="queued")
-        :rows(await db.ImportJob.filter({status:"queued"},undefined,10));
+        :rows(await db.ImportJob.filter({status:"queued"},undefined,100))
+           .filter(j=>!j.requested_at||Date.parse(j.requested_at)<=Date.now());
       const job=waiting.sort((a,b)=>str(a.requested_at).localeCompare(str(b.requested_at)))[0];
       if(!job)return reply({ok:true,job:null});
       const claimId=crypto.randomUUID(),now=new Date();
@@ -182,24 +183,51 @@ export default async function(req) {
             team_name:str(d.team_name).slice(0,140),fotmob_team_id:str(d.fotmob_team_id).slice(0,20),
             recovered_metrics:Math.max(0,Math.trunc(Number(d.recovered_metrics)||0)),
             candidates:Math.max(0,Math.trunc(Number(d.candidates)||0))
-          }))};
+          })),
+          network_requests:Math.min(100,Math.max(0,Math.trunc(Number(v.network_requests)||0))),
+          successful_requests:Math.min(100,Math.max(0,Math.trunc(Number(v.successful_requests)||0))),
+          coverage: v.coverage&&typeof v.coverage==="object"?{
+            ...Object.fromEntries(["total","received","pending","unavailable","needs_review","rate_limited"]
+                .map(k=>[k,Math.min(1000,Math.max(0,Math.trunc(Number(v.coverage[k])||0)))])),
+            profile_stale:v.coverage.profile_stale===true,
+            complete:v.coverage.complete===true,
+          }:null};
       }
       let counts=0;
       for(let skip=0;skip<10000;skip+=100) {
         const page=rows(await db.ImportCandidate.filter({job_id:job.id},"id",100,skip));
         counts+=page.length;if(page.length<100)break;
       }
-      await db.ImportJob.update(job.id,{status:counts?"review":"completed",phase:counts?"Datos recibidos; revisar candidatos":"Sin nuevos datos verificables",progress:100,
+      await db.ImportJob.update(job.id,{status:counts?"review":"completed",phase:counts?"Candidatos recibidos; aplicación automática segura en curso":"Sin nuevos datos verificables",progress:100,
         source_results,received_candidates:counts,finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
-      // Continuar automáticamente cuando FotMob ha agotado las consultas dejando
-      // temporadas sin caché, también tras la primera importación multifuente.
-      // Máximo tres bloques adicionales; las siguientes tareas solo usan FotMob.
+      // El guardado seguro es parte del flujo normal, no una revisión manual
+      // posterior. Las métricas contradictorias o sin identidad quedan pendientes.
+      let automatic=null;
+      if(counts){
+        try{
+          const {applyVerifiedHistoricals}=await import("./reviewAuto.js");
+          automatic=await applyVerifiedHistoricals(db,{...job,status:"review"});
+          const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
+          await db.ImportJob.update(job.id,{
+            status:pending.length?"review":"completed",
+            phase:"Incorporados "+automatic.applied+" candidatos compatibles; "+
+              (pending.length?"otros necesitan revisión":"sin candidatos pendientes")});
+        }catch(error){
+          console.error("Conservados para revisión: error al aplicar candidatos",error);
+          await db.ImportJob.update(job.id,{phase:"Extracción terminada; aplicación automática pendiente de revisión"});
+        }
+      }
+      // Avanzar entre temporadas pendientes sin volver a solicitar todo el
+      // historial. Un bloque es de hasta ocho consultas; se detiene si FotMob
+      // rechaza o limita el acceso, si no hay respuestas útiles o al llegar
+      // al límite preventivo de doce bloques por solicitud.
       let next_job_id=null;
       const fotmobReport=report.fotmob||{};
-      const remainingFotmob=(fotmobReport.diagnostics||[]).filter(d=>["cache_absent","candidate_limit"].includes(d.status)).length;
+      const outstanding=(fotmobReport.diagnostics||[]).filter(d=>["cache_absent","cache_mismatch","query_failed","candidate_limit"].includes(d.status));
+      const stopped=(fotmobReport.diagnostics||[]).some(d=>["rate_limited","access_denied"].includes(d.status));
       const canContinue=(job.sources||[]).includes("fotmob")
-        &&Number(job.retry_count||0)<3&&remainingFotmob>0
-        &&Number(fotmobReport.network_requests||0)>0;
+        &&Number(job.retry_count||0)<11&&outstanding.length>0
+        &&!stopped&&Number(fotmobReport.successful_requests||0)>0;
       if(canContinue) {
         try {
           const key="mfv3:continue:"+job.id;
@@ -209,15 +237,22 @@ export default async function(req) {
             const next=await db.ImportJob.create({
               job_key:key,player_id:job.player_id,player_name:job.player_name,
               fotmob_player_id:job.fotmob_player_id,sources:["fotmob"],status:"queued",progress:0,
-              requested_at:new Date().toISOString(),phase:"Recuperación incremental FotMob · siguiente bloque",
+              requested_at:new Date(Date.now()+45_000).toISOString(),
+              phase:"Cobertura FotMob · siguiente bloque de competiciones pendientes",
               source_results:{fotmob:{status:"pending"}},completed_sources:[],received_candidates:0,
+              root_job_id:job.root_job_id||job.id,
+              retry_scopes:{fotmob:outstanding.map(d=>({
+                season:str(d.season),season_id:str(d.season_id),
+                tournament_id:str(d.tournament_id),competition:str(d.competition)
+              }))},
               retry_count:Number(job.retry_count||0)+1,retry_pending:true
             });
             next_job_id=next.id;
           }
         }catch(e){console.error("No se pudo encolar el siguiente bloque FotMob",e);}
       }
-      return reply({ok:true,status:counts?"review":"completed",candidates:counts,next_job_id});
+      return reply({ok:true,status:counts?"review":"completed",candidates:counts,
+        automatic,next_job_id,coverage:source_results.fotmob?.coverage||null});
     }
     if(action==="fail") {
       await db.ImportJob.update(job.id,{status:"failed",phase:"Error de extracción",last_error:str(body.error).slice(0,350),finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
