@@ -18,6 +18,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryModal";
+import TransferChartMini from "@/components/players/TransferChartMini";
 import {changedPlayerFields,playerEditHasChanges,applyPlayerEditPatch} from "@/utils/playerEditPatch";
 
 // MF LEGACY: logos de estado integrados, sin dependencias externas.
@@ -651,13 +652,13 @@ const getBestPosition = (ratings) => {
   return `${valid[0].label} · ${valid[0].value}/20`;
 };
 
-const PlayerStatCard = ({ background, grow = 1 }) => {
+const PlayerStatCard = ({ background, grow = 1, children }) => {
   return (
     <div
-      aria-hidden="true"
+      aria-hidden={children ? undefined : "true"}
       className="flex h-[190px] min-w-0 flex-1 rounded-[16px] border border-black/10 px-6 py-5 shadow-[0_24px_52px_rgba(15,23,42,0.22)]"
       style={{ backgroundColor: background, flex: grow }}
-    />
+    >{children}</div>
   );
 };
 
@@ -1169,7 +1170,9 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       {typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed bottom-20 left-1/2 z-[80] flex w-[min(1200px,calc(100vw-28px))] -translate-x-1/2 gap-4 sm:bottom-20 sm:gap-5">
           <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
-          <PlayerStatCard background={statCardColors.middleColor} grow={2.1} />
+          <PlayerStatCard background={statCardColors.middleColor} grow={2.1}>
+            <TransferChartMini player={editablePlayer} clubs={teams} />
+          </PlayerStatCard>
           <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
         </div>,
         document.body
