@@ -35,6 +35,7 @@ const exactTeam=(r,teams)=>{
 };
 export const resolveTeam=(record,teams,peers=[])=>{
  if(nationalCompetition(record.competition)){
+  if(record.national_team_id&&record.national_country_id)return {team:null,status:"national",label:record.team_name||"Selección nacional"};
   const team=exactTeam(record,teams);
   const sourceName=String(record.team_name||"").trim();
   const suspicious= /^(atletico|atlético|river plate|manchester|paris saint|psg|real madrid|barcelona|arsenal|chelsea|bayern|monaco)/i.test(sourceName);
