@@ -194,6 +194,39 @@ export async function applyVerifiedHistoricals(db,job) {
       result.applied+=group.length;
     }catch(e){if(result.errors.length<8)result.errors.push("understat "+first.season+": "+e.message);}
   }
+  // FotMob: aplicar grupos completos únicamente cuando el ID del jugador y
+  // los IDs de equipo/competición coinciden con un club interno único.
+  // Los valores incompatibles, combinaciones incompletas o selecciones se dejan pendientes.
+  const fotmobGroups=new Map();
+  for(const c of records.filter(x=>x.source==="fotmob"&&x.kind==="metric")){
+    const key=[c.season,c.competition,c.fotmob_team_id,c.fotmob_tournament_id,c.is_national_team].join("|");
+    if(!fotmobGroups.has(key))fotmobGroups.set(key,[]);
+    fotmobGroups.get(key).push(c);
+  }
+  for(const group of fotmobGroups.values()){
+    const first=group[0];
+    if(group.some(c=>c.review_status!=="pending"||c.verification_status==="conflict"||
+        c.source!=="fotmob"||c.kind!=="metric"||
+        !str(c.evidence_url).startsWith("https://www.fotmob.com/players/")||
+        !str(c.source_record_id)||str(c.player_id)!==str(job.player_id)||
+        str(c.fotmob_player_id)!==str(job.fotmob_player_id)||
+        c.is_national_team!==false||!str(c.fotmob_team_id)||!str(c.fotmob_tournament_id))||
+        !/^20\d{2}\/20\d{2}$/.test(first.season))continue;
+    const matching=teams.filter(t=>club(t.name)===club(first.team_name)&&
+      (!t.fotmob_id||str(t.fotmob_id)===str(first.fotmob_team_id)));
+    if(matching.length!==1)continue;
+    try{
+      const existing=await allRows(db.PlayerSeasonStats,{player_id:job.player_id,season:first.season});
+      const plan=seasonPlan(group,player,existing,{team_id:matching[0].id});
+      if(plan.operation==="create"){
+        await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
+        result.created_stats++;
+      }else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
+      await db.ImportCandidate.updateMany({id:{$in:group.map(c=>c.id)},job_id:job.id,review_status:"pending"},
+        {$set:{review_status:"applied",review_note:"Autoaplicado: FotMob ID confirmado, club/competición únicos, sin sustituir datos"}});
+      result.applied+=group.length;
+    }catch(e){if(result.errors.length<8)result.errors.push("fotmob "+first.season+" "+first.competition+": "+e.message);}
+  }
   result.pending=records.length-result.applied;
   return result;
 }

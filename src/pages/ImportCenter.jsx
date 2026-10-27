@@ -124,7 +124,7 @@ export default function ImportCenter(){
   const waitingForWorker=jobs.filter(queuedTooLong);
   useEffect(()=>{
     if(!selectedJobData||selectedJobData.status!=="review"||candidatesLoading||!candidateRows.length||autoProcessed.current.has(selectedJobData.id))return;
-    const candidate=candidateRows.find(c=>c.review_status==="pending"&&c.verification_status==="verified"&&["understat","fifa","market"].includes(c.source));
+    const candidate=candidateRows.find(c=>c.review_status==="pending"&&c.verification_status==="verified"&&["fotmob","understat","fifa","market"].includes(c.source));
     if(!candidate)return;
     const jobId=selectedJobData.id;
     autoProcessed.current.add(jobId);
