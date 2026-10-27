@@ -2,7 +2,7 @@ import React,{useMemo,useState} from "react";
 import {Building2,MapPin,Users,LayoutGrid,Image as ImageIcon} from "lucide-react";
 import {useTeamsQuery,useCountriesQuery,useLeaguesQuery} from "@/hooks/useSharedData";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
-import {useNavigate} from "react-router-dom";
+import {useLocation,useNavigate} from "react-router-dom";
 import {rows,safe,toStadiums} from "@/components/stadiums/stadiumData";
 
 const COLOR_GROUPS=["Azul","Rojo","Blanco","Negro","Verde","Amarillo","Naranja","Morado","Gris","Multicolor"];
@@ -37,9 +37,10 @@ function StadiumCard({stadium,view,onClick}){
 }
 
 export default function Stadiums(){
-  const query=useTeamsQuery(),countriesQuery=useCountriesQuery(),leaguesQuery=useLeaguesQuery(),navigate=useNavigate();
-  const [search,setSearch]=useState(""),[city,setCity]=useState(""),[country,setCountry]=useState(""),[capacity,setCapacity]=useState(""),[mode,setMode]=useState("leagues");
-  const [view,setView]=useState("immersive"),[year,setYear]=useState(""),[color,setColor]=useState("");
+  const query=useTeamsQuery(),countriesQuery=useCountriesQuery(),leaguesQuery=useLeaguesQuery(),navigate=useNavigate(),location=useLocation();
+  const returnState=location.state?.stadiumsReturn||{};
+  const [search,setSearch]=useState(returnState.search||""),[city,setCity]=useState(returnState.city||""),[country,setCountry]=useState(returnState.country||""),[capacity,setCapacity]=useState(returnState.capacity||""),[mode,setMode]=useState(returnState.mode||"leagues");
+  const [view,setView]=useState(returnState.view||"immersive"),[year,setYear]=useState(returnState.year||""),[color,setColor]=useState(returnState.color||"");
   const stadiums=useMemo(()=>toStadiums(rows(query.data),rows(countriesQuery.data),rows(leaguesQuery.data)),[query.data,countriesQuery.data,leaguesQuery.data]);
   const filtered=useMemo(()=>stadiums.filter(s=>
     (mode!=="custom" || s.teams.some(t=>t.is_custom_club===true||t.isCustomClub===true))&&
@@ -54,7 +55,7 @@ export default function Stadiums(){
     const key=mode==="colors"?(stadium.teams.length?stadiumColor(stadium.teams[0]):"Multicolor"):mode==="leagues"?(stadium.competition||"Sin competición"):(stadium.country||"Sin país");
     (acc[key] ||= []).push(stadium);return acc;
   },{})).sort(([a],[b])=>a.localeCompare(b,"es")),[filtered,mode]);
-  const open=(stadium)=>navigate("/schedule/stadium/"+encodeURIComponent(stadium.id));
+  const open=(stadium)=>navigate("/schedule/stadium/"+encodeURIComponent(stadium.id),{state:{stadiumsReturn:{search,city,country,capacity,mode,view,year,color}}});
   return <main className="min-h-full bg-[#F6F7F9] p-4 md:p-6">
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
       <h1 className="text-lg font-black uppercase text-slate-900">ESTADIOS</h1>
