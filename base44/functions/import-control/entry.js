@@ -77,7 +77,7 @@ export default async function(req) {
       const {pid,automatic} = await verifiedLink(db,playerId);
       const previous=action!=="start"?await db.ImportJob.get(str(body.job_id)):null;
       if(["retry-pending","retry-fotmob"].includes(action)&&(!previous||previous.player_id!==playerId||RUNNING.has(previous.status)))return bad("El trabajo no permite reintentar fuentes pendientes.",409);
-      if(action==="retry-fotmob"&&(!(previous.sources||[]).includes("fotmob")||!(pendingScopes(previous).fotmob||[]).length))return bad("No hay competiciones FotMob recuperables en este trabajo.",409);
+      if(action==="retry-fotmob"&&(!(previous.sources||[]).includes("fotmob")||!pendingSources(previous).includes("fotmob")))return bad("No hay competiciones FotMob recuperables en este trabajo.",409);
       const sources = action==="retry-fotmob"?["fotmob"]:action==="retry-pending"?pendingSources(previous):["retry","resume"].includes(action)
         ? [...new Set(previous?.sources||[])]
         : [...new Set(Array.isArray(body.sources)?body.sources:[])];
