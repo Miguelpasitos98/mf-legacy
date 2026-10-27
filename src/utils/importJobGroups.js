@@ -1,5 +1,22 @@
 const dateOf=job=>Date.parse(job.requested_at||job.created_date||"")||0;
 const isActive=job=>["running","queued"].includes(job.status);
+const numberFrom=(text,expression)=>{
+ const match=String(text||"").match(expression);
+ return match?Number(match[1]):null;
+};
+// Los totales por trabajo pueden contar un mismo valor en importaciones
+// independientes. Son actividades históricas, no métricas únicas de STATS.
+export function importGroupActivity(jobs=[]){
+ let incorporated=0,pending=0,knownPending=0;
+ for(const job of jobs){
+  const phase=job.phase||"";
+  const applied=numberFrom(phase,/(?:Automático:\s*|Conciliación histórica:\s*)(\d+)\s*(?:candidatos(?:\s+compatibles)?|valores)\s+incorporados/i);
+  const needsReview=numberFrom(phase,/(\d+)\s*(?:pendientes de revisión|por revisar)/i);
+  if(applied!==null)incorporated+=applied;
+  if(needsReview!==null){pending+=needsReview;knownPending++;}
+ }
+ return {incorporated,pending:knownPending?pending:null,reviewedJobs:knownPending};
+}
 export function groupImportJobs(jobs=[]){
  const groups=new Map();
  for(const job of jobs){
@@ -19,8 +36,9 @@ export function groupImportJobs(jobs=[]){
   const errors=items.filter(j=>j.status==="failed").length;
   const reviews=items.filter(j=>j.status==="review").length;
   const final=active?active.status:reviews?"review":latest.status;
+  const activity=importGroupActivity(items);
   return {id:playerId,playerId,playerName:latest.player_name||latest.player_id||"Jugador",
-    items,latest,main,sources,received,errors,reviews,status:final,active:Boolean(active),
+    items,latest,main,sources,received,errors,reviews,activity,status:final,active:Boolean(active),
     timestamp:dateOf(latest)};
  }).sort((a,b)=>Number(b.active)-Number(a.active)||b.timestamp-a.timestamp);
 }
