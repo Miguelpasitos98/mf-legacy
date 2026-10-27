@@ -211,6 +211,7 @@ function PlayerCardInner({
   hideTeam = false,
   useNationalCardPhoto = false,
   priority = false,
+  hasStats = false,
 }) {
   const preferredCardPhoto = useNationalCardPhoto
     ? player.nationalCardPhotoUrl || player.cardPhotoUrl || player.photoUrl
@@ -341,6 +342,14 @@ function PlayerCardInner({
             >
               {player.name || "Unnamed player"}
             </h3>
+            {hasStats && (
+              <span
+                className="ml-1.5 inline-block h-[7px] w-[7px] shrink-0 rounded-full bg-[#003399] ring-2 ring-blue-50"
+                title="Con estadísticas en STATS"
+                role="img"
+                aria-label="Con estadísticas en STATS"
+              />
+            )}
           </div>
         </div>
 

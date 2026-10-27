@@ -10,7 +10,7 @@ import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 
 import { parseFootballManagerCsv } from "@/utils/playerCsvImporter";
 import { parsePositionCsv, findPlayerForPositionRow } from "@/utils/positionCsvImporter";
-import { base44 } from "@/api/base44Client";import { useQueryClient } from "@tanstack/react-query";import { useCountriesQuery,useTeamsQuery,usePlayersQuery } from "@/hooks/useSharedData";
+import { base44 } from "@/api/base44Client";import { useQuery, useQueryClient } from "@tanstack/react-query";import { useCountriesQuery,useTeamsQuery,usePlayersQuery } from "@/hooks/useSharedData";
 
 import PlayerFormModal from "@/components/players/PlayerFormModal";
 import Fm26ImportModal from "@/components/players/Fm26ImportModal";
@@ -1769,7 +1769,24 @@ export default function Players() {
       });
   }, [players, search, teamById, countryById, sortBy, teamFilterId, positionFilter]);
 
-
+  // Una lectura ligera y compartida para todas las vistas de PLAYERS.
+  // No se descargan las métricas completas ni se marca a quienes solo tienen
+  // FIFA/Transfermarkt: debe existir al menos una fila PlayerSeasonStats.
+  const statsPresenceQuery = useQuery({
+    queryKey: ["mf-legacy","players","stats-presence"],
+    queryFn: async () => {
+      const response=await base44.functions.invoke("player-stats-presence",{});
+      if(!response?.data?.ok||!Array.isArray(response.data.player_ids))
+        throw Error("No se pudo verificar la presencia de los jugadores en STATS.");
+      return response.data.player_ids;
+    },
+    enabled:players.length>0&&!selectedPlayer,
+    staleTime:60_000,
+    gcTime:5*60_000,
+    refetchOnWindowFocus:true,
+    retry:false
+  });
+  const playersWithStats = useMemo(() => new Set(statsPresenceQuery.data||[]),[statsPresenceQuery.data]);
 
   const groupedByTeam = useMemo(() => { if (viewMode !== "teams") return [];
     const groups = {};
@@ -3300,6 +3317,7 @@ export default function Players() {
                       onToggleSelection={toggleBulkPlayer}
                       key={player.id || `${player.name}-${player.dateOfBirth}`}
                       player={player}
+                      hasStats={playersWithStats.has(String(player.id))}
                       priority={index < 6}
                       team={teamById[player.teamId]}
                       country={countryById[player.countryId]}
@@ -3336,7 +3354,7 @@ export default function Players() {
                                 player.id ||
                                 `${player.name}-${player.dateOfBirth}`
                               }
-                              player={player}
+                              player={player} hasStats={playersWithStats.has(String(player.id))}
                               team={
                                 teamById[player.teamId]
                               }
@@ -3385,7 +3403,7 @@ export default function Players() {
                                 player.id ||
                                 `${player.name}-${player.dateOfBirth}`
                               }
-                              player={player}
+                              player={player} hasStats={playersWithStats.has(String(player.id))}
                               team={
                                 teamById[player.teamId]
                               }
@@ -3427,7 +3445,7 @@ export default function Players() {
                             player.id ||
                             `${player.name}-${player.dateOfBirth}`
                           }
-                          player={player}
+                          player={player} hasStats={playersWithStats.has(String(player.id))}
                           team={teamById[player.teamId]}
                           country={countryById[player.countryId]}
                           compact
@@ -3461,7 +3479,7 @@ export default function Players() {
                             player.id ||
                             `${player.name}-${player.dateOfBirth}`
                           }
-                          player={player}
+                          player={player} hasStats={playersWithStats.has(String(player.id))}
                           team={teamById[player.teamId]}
                           country={countryById[player.countryId]}
                           compact
@@ -3555,7 +3573,7 @@ export default function Players() {
                                                 player.id ||
                                                 `${player.name}-${player.dateOfBirth}`
                                               }
-                                              player={player}
+                                              player={player} hasStats={playersWithStats.has(String(player.id))}
                                               team={teamById[player.teamId]}
                                               country={
                                                 countryById[player.countryId]

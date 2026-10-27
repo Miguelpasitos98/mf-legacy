@@ -24,7 +24,7 @@ const missingFotmobCaches=job=>(job?.source_results?.fotmob?.diagnostics||[]).fi
 export default function ImportCenter(){
   const cache=useQueryClient();
   const invalidateApplied=()=>Promise.all([STATS_ROWS_KEY,STATS_DETAIL_KEY,HISTORICAL_PEER_KEY,
-    RECORD_KEYS.PlayerHistoricalValuation].map(queryKey=>cache.invalidateQueries({queryKey})));
+    RECORD_KEYS.PlayerHistoricalValuation,["mf-legacy","players","stats-presence"]].map(queryKey=>cache.invalidateQueries({queryKey})));
   const [players,setPlayers]=useState([]);
   const [searching,setSearching]=useState(false);
   const [searchOpen,setSearchOpen]=useState(false);
