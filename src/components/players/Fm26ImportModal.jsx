@@ -92,6 +92,12 @@ export default function Fm26ImportModal({
   useEffect(() => {
     if (!fm26ImportOpen) return undefined;
     const playersScroller = document.querySelector("[data-mf-players-scroll]");
+    const appRoot = document.getElementById("root");
+    const wasInert = appRoot?.hasAttribute("inert");
+    const priorFocus = document.activeElement;
+    if (appRoot) appRoot.setAttribute("inert", "");
+    const fileInput = document.querySelector('[aria-labelledby="fm26-import-title"] input[type="file"]');
+    fileInput?.focus();
     const html = document.documentElement;
     const body = document.body;
     const oldHtmlOverflow = html.style.overflow;
@@ -104,6 +110,8 @@ export default function Fm26ImportModal({
       html.style.overflow = oldHtmlOverflow;
       body.style.overflow = oldBodyOverflow;
       if (playersScroller) playersScroller.style.overflow = oldPlayersOverflow;
+      if (appRoot && !wasInert) appRoot.removeAttribute("inert");
+      if (priorFocus?.isConnected) priorFocus.focus();
     };
   }, [fm26ImportOpen]);
 
