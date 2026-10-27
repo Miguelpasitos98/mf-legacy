@@ -76,10 +76,14 @@ export function seasonSummary(rows,teams=[]){
   partial:Object.values(totals).some(v=>v.partial), excludedCompetitions:allClubRecords.length-records.length
  };
 }
-// "Todas las temporadas" incluye también las que están en curso. Solo el modo
-// mejor temporada histórica excluye temporadas todavía sin finalizar.
+// Ocultación temporal de la temporada en curso únicamente en la vista STATS.
+// Los registros siguen intactos en Base44, para importarlos y mostrarlos más adelante.
+export function withoutCurrentStatsSeason(records,now=new Date()){
+ return (records||[]).filter(row=>!seasonActive(row.season,now));
+}
 export function filterSeasonSummariesForDisplay(summaries,mode,now=new Date()){
- return summaries.filter(summary=>mode==="current"?seasonActive(summary.season,now):mode==="best"?!seasonActive(summary.season,now):true);
+ // Incluso si una preferencia antigua conservaba "current", no la mostramos.
+ return mode==="current"?[]:withoutCurrentStatsSeason(summaries,now);
 }
 export function buildSeasonSummaries(rows,teams=[]){
  const grouped=new Map();
