@@ -53,7 +53,17 @@ function validate(input,job) {
     source,kind,season,competition:comp,fotmob_team_id:teamId,team_name:teamName,
     metric_name:name,metric_unit:unit,value,fifa_edition:str(input.fifa_edition),
     fifa_fc_position:str(input.fifa_fc_position),as_of_date:str(input.as_of_date),
-    evidence_url:evidence,source_record_id:sourceRecordId,verification_status};
+    evidence_url:evidence,source_record_id:sourceRecordId,verification_status,
+    ...(input.provenance?{provenance:provenanceRecord(input.provenance)}:{})};
+}
+
+export function provenanceRecord(input){
+  if(!input||typeof input!=="object"||Array.isArray(input)||JSON.stringify(input).length>4000)throw Error("Procedencia inválida o demasiado grande.");
+  const keys=["provider","player_id","archive_url","sha256","revision","revision_date","rating_kind","release_date","mode","identity_rule","scope","archive_cutoff","selection_rule","value_kind"];
+  const result=Object.fromEntries(keys.filter(k=>typeof input[k]==="string").map(k=>[k,input[k].slice(0,k.endsWith("url")?800:200)]));
+  if(typeof input.provider_minutes==="number"&&Number.isFinite(input.provider_minutes)&&input.provider_minutes>0)result.provider_minutes=input.provider_minutes;
+  if(typeof input.provisional==="boolean")result.provisional=input.provisional;
+  return result;
 }
 
 export default async function(req) {
@@ -81,11 +91,29 @@ export default async function(req) {
       await db.ImportJob.update(job.id,{status:"running",phase:"Iniciando extracción",progress:1,claim_id:claimId,worker_id:str(body.worker_id).slice(0,80),started_at:now.toISOString(),heartbeat_at:now.toISOString(),lease_expires_at:end});
       const check=await db.ImportJob.get(job.id);
       if(check.claim_id!==claimId||check.status!=="running")return reply({ok:true,job:null});
-      return reply({ok:true,job:{id:check.id,claim_id:claimId,player_id:check.player_id,fotmob_player_id:check.fotmob_player_id,player_name:check.player_name,sources:check.sources}});
+      const existing_stats=[];
+      for(let skip=0;skip<2000;skip+=100){
+        const page=rows(await db.PlayerSeasonStats.filter({player_id:check.player_id},"id",100,skip));
+        existing_stats.push(...page.map(r=>({season:r.season,competition:r.competition,fotmob_tournament_id:r.fotmob_tournament_id,fotmob_team_id:r.fotmob_team_id})));
+        if(page.length<100)return reply({ok:true,job:{id:check.id,claim_id:claimId,player_id:check.player_id,fotmob_player_id:check.fotmob_player_id,player_name:check.player_name,sources:check.sources,retry_pending:check.retry_pending===true,existing_stats}});
+      }
+      throw Error("Demasiadas filas previas; no se usa una instantánea parcial.");
     }
     if(!/^[a-f0-9]{24}$/i.test(str(body.job_id)))return fail("ID de trabajo incorrecto.");
     const job=await db.ImportJob.get(str(body.job_id));
     if(!job)return fail("Trabajo no encontrado.",404);
+    if(action==="review-status"){
+      const groups=new Map();
+      for(let skip=0;skip<10000;skip+=100){
+        const page=rows(await db.ImportCandidate.filter({job_id:job.id},"id",100,skip));
+        for(const c of page){const key=[c.source,c.season].join("|");
+          if(!groups.has(key))groups.set(key,{source:c.source,season:c.season,pending:0,applied:0,rejected:0});
+          const g=groups.get(key);if(["pending","applied","rejected"].includes(c.review_status))g[c.review_status]++;
+        }
+        if(page.length<100)return reply({ok:true,groups:[...groups.values()],finished:job.status==="completed"});
+      }
+      return fail("La revisión supera el límite de lectura.",409);
+    }
     if(job.status!=="running"||!job.claim_id||job.claim_id!==str(body.claim_id))return fail("Trabajo no adquirido o cancelado.",409);
     if(job.lease_expires_at&&Date.now()>new Date(job.lease_expires_at).getTime())return fail("La concesión del trabajo ha caducado.",409);
     if(action==="heartbeat") {
@@ -144,7 +172,7 @@ export default async function(req) {
       const source_results={};
       for(const s of job.sources||[]) {
         const v=report[s]||{};
-        source_results[s]={status:["complete","unavailable","error","skipped"].includes(v.status)?v.status:"unavailable",
+        source_results[s]={status:["complete","partial","unavailable","error","skipped"].includes(v.status)?v.status:"error",
           note:str(v.note).slice(0,300),
           counts:Object.fromEntries(Object.entries(v.counts||{}).filter(([k,n])=>/^[a-z_]{1,45}$/.test(k)&&Number.isInteger(n)&&n>=0)),
           diagnostics:(Array.isArray(v.diagnostics)?v.diagnostics:[]).slice(0,200).map(d=>({
