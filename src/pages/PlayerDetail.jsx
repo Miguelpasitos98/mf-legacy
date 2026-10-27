@@ -21,6 +21,7 @@ import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryMod
 import TransferChartMini from "@/components/players/TransferChartMini";
 import MarketBulkImport from "@/components/players/MarketBulkImport";
 import HistoricalMarketLookup from "@/components/players/HistoricalMarketLookup";
+import MarketCsvUpload from "@/components/players/MarketCsvUpload";
 import {changedPlayerFields,playerEditHasChanges,applyPlayerEditPatch} from "@/utils/playerEditPatch";
 
 // MF LEGACY: logos de estado integrados, sin dependencias externas.
@@ -1287,7 +1288,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 ))}
               </div>
 
-              {editTab === "market" && <div className="space-y-5"><HistoricalMarketLookup player={editablePlayer}/><MarketBulkImport player={editablePlayer}/></div>}
+              {editTab === "market" && <div className="space-y-5"><HistoricalMarketLookup player={editablePlayer}/><MarketCsvUpload player={editablePlayer}/><MarketBulkImport player={editablePlayer}/></div>}
 
               {editTab === "general" && (
                 <div className="space-y-5">
