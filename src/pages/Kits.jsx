@@ -6,7 +6,7 @@ import {base44} from "@/api/base44Client";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
 import {RECORD_KEYS} from "@/api/recordQueries";
 
-const KIT_FIELDS=[["kit2_photo_url","Segunda equipación"],["kit1_photo_url","Primera equipación"],["kit3_photo_url","Tercera equipación"]];
+const KIT_FIELDS=[["kit3_photo_url","Tercera equipación"],["kit1_photo_url","Primera equipación"],["kit2_photo_url","Segunda equipación"]];
 function KitPicture({url,label,club}){
   const [bad,setBad]=useState(false);
   const src=normalizeImageUrl(url);
