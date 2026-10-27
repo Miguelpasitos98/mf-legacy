@@ -115,8 +115,8 @@ class Catalogs:
   with self.connect() as c:return bool(c.execute("SELECT 1 FROM results WHERE pid=? AND source=? AND season=? AND state='verificado_guardado' LIMIT 1",(str(pid),source,season)).fetchone())
  def track_job(self,job_id,pid):
   with self.connect() as c:c.execute("INSERT OR IGNORE INTO submissions(job_id,pid,state) VALUES(?,?,'pending')",(job_id,str(pid)))
- def pending_jobs(self):
-  with self.connect() as c:return [dict(r) for r in c.execute("SELECT * FROM submissions WHERE state='pending' ORDER BY checked_at,job_id LIMIT 3")]
+ def pending_jobs(self,pid=None):
+  with self.connect() as c:return [dict(r) for r in c.execute("SELECT * FROM submissions WHERE state='pending'"+(" AND pid=?" if pid is not None else "")+" ORDER BY checked_at,job_id LIMIT 3",(str(pid),) if pid is not None else ())]
  def apply_review_status(self,job_id,pid,groups,finished=False):
   with self.connect() as c:
    c.execute('UPDATE submissions SET checked_at=? WHERE job_id=?',(now(),job_id))

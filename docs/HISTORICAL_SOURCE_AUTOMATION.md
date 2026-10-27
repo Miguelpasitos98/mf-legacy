@@ -64,6 +64,8 @@ El trabajador guarda el conjunto exacto de candidatos antes del primer envío. R
 
 ## Precisión de Crafted
 
+Las propuestas se almacenan en fragmentos administrativos de hasta 12.000 caracteres (`ImportReviewPlanChunk`), con huella por fragmento y de conjunto. `ImportReviewBatch.plan_json` contiene solo el manifiesto; las copias anteriores y los candidatos seleccionados se conservan en los fragmentos. Esto evita el límite real de los campos de texto de Base44, comprobado durante la prueba de producción. Un envío de propuesta incompleto se puede reconstruir únicamente si la propuesta y su hash originales siguen siendo válidos; no se escribe STATS antes de validar todos los fragmentos.
+
 Se decodifica únicamente el JSON SSR público, sin ejecutar JavaScript. Se conservan URL, SHA-256 y fecha de recuperación. Caché de 24 horas, espera de seis horas tras error y parada ante una denegación; sin proxies ni evasión. El contenido se usa como referencia local del jugador solicitado, no para entrenamiento ni redistribución del catálogo.
 
 Valverde: tasas publicadas Chain/Buildup de 2025/26 **0,6203 / 0,4981**, y de 2026/27 **0,5615 / 0,4586**. Los totales 2023/24 coinciden con el archivo Understat original. Crafted no expone el denominador Understat de esas filas recientes: las tasas se guardan como `/90` y no se dividen por minutos FotMob. Sus resúmenes de partidos/minutos llevan proveedor `craftedfc_match_context`; no se convierten en «Understat minutes». Una sola liga cubierta se muestra con cobertura parcial; varios contextos sin denominadores compatibles no se promedian.

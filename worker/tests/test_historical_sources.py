@@ -95,5 +95,10 @@ class HistoricalSourceTests(unittest.TestCase):
   first=c.pending_jobs();self.assertEqual(len(first),3)
   for job in first:c.apply_review_status(job['job_id'],'123',[])
   self.assertEqual(c.pending_jobs()[0]['job_id'],'3')
+ def test_review_sync_prioritizes_the_player_before_repeating_collection(self):
+  c=Catalogs(self.root)
+  for i in range(5):c.track_job(str(i),'other-player')
+  c.track_job('latest','743533')
+  self.assertEqual([r['job_id'] for r in c.pending_jobs('743533')],['latest'])
 
 if __name__=='__main__':unittest.main()

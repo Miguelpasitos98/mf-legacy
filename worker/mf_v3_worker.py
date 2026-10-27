@@ -570,11 +570,11 @@ def call(action: str, **kwargs):
     return result
 
 
-def sync_reviews(root):
+def sync_reviews(root,pid=None):
     import importlib
     Catalogs=importlib.import_module('worker.historical_sources' if __package__ else 'historical_sources').Catalogs
     cache=Catalogs(root)
-    for job in cache.pending_jobs():
+    for job in cache.pending_jobs(pid):
         state=call('review-status',job_id=job['job_id'])
         cache.apply_review_status(job['job_id'],job['pid'],state.get('groups',[]),state.get('finished',False))
 
@@ -600,7 +600,7 @@ def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
     pulse=Thread(target=keep_alive,name="mf-v3-heartbeat",daemon=True)
     pulse.start()
     try:
-        try:sync_reviews(root)
+        try:sync_reviews(root,assigned['fotmob_player_id'])
         except Exception as review_error:print('Conciliación de revisión pendiente: '+str(review_error)[:150],file=sys.stderr)
         import importlib
         catalogs=importlib.import_module('worker.historical_sources' if __package__ else 'historical_sources').Catalogs(root)
