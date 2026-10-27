@@ -45,7 +45,7 @@ function EditorialClub({team,onOpen}){
   const images=KIT_FIELDS.map(([key,label])=>({key,label,src:normalizeImageUrl(team[key])}));
   return <button type="button" onClick={()=>onOpen(team.id)} className="group relative w-full overflow-hidden rounded-3xl border border-slate-200 bg-white text-left shadow-sm transition hover:border-slate-300 hover:shadow-xl">
     <div className="relative isolate overflow-hidden px-4 pb-6 pt-5 sm:px-8" style={{background:`linear-gradient(150deg, ${primary}17, #ffffff 55%, ${primary}20)`}}>
-      <div className="absolute -right-16 -top-28 h-80 w-80 rounded-full border-[65px] opacity-10" style={{borderColor:primary}} aria-hidden="true"/>
+      {team.logo && <img src={normalizeImageUrl(team.logo)} alt="" aria-hidden="true" className="pointer-events-none absolute -right-8 top-1/2 h-[75%] max-h-[340px] w-[42%] -translate-y-1/2 select-none object-contain opacity-[0.055]" />}
       <div className="relative mb-4 flex items-center gap-3">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/90 p-2 shadow-sm">{team.logo?<img src={normalizeImageUrl(team.logo)} alt="" className="h-full w-full object-contain"/>:<Shirt className="text-slate-300"/>}</div>
         <div className="min-w-0 flex-1"><h2 className="truncate text-lg font-black text-slate-900">{team.name}</h2><p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Colección de equipaciones</p></div>
