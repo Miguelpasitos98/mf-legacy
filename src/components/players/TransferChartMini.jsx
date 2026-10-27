@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
@@ -79,8 +80,8 @@ export default function TransferChartMini({ player, clubs = [] }) {
       </div> : <div className="mt-3 flex flex-1 items-center text-xs text-white/70">Pulsa + para introducir el primer valor histórico.</div>}
       <span className="mt-1 text-[9px] text-white/50">Vista de prueba · datos manuales guardados en este navegador</span>
     </div>
-    {open && typeof document !== "undefined" && (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+    {open && typeof document !== "undefined" && createPortal(
+      <div className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
         <div role="dialog" aria-modal="true" aria-label="Editar historial de mercado" className="max-h-[85vh] w-full max-w-[640px] overflow-y-auto rounded-2xl bg-white p-5 text-slate-900 shadow-2xl">
           <div className="flex items-start justify-between gap-3">
             <div><h2 className="text-lg font-black">Historial de valor de mercado</h2><p className="mt-1 text-xs text-slate-500">Primera prueba: fechas, millones de euros y club opcional. Los cambios se guardan solo en este navegador, no en Base44.</p></div>
@@ -99,7 +100,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
           {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
           <div className="mt-5 flex justify-end gap-2"><button type="button" className="rounded-lg border px-4 py-2 text-sm" onClick={() => setOpen(false)}>Cancelar</button><button type="button" className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white" onClick={save}>Guardar prueba</button></div>
         </div>
-      </div>
+      </div>, document.body
     )}
   </>;
 }
