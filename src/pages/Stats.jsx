@@ -799,6 +799,10 @@ export default function Stats(){
     </section>}
     {importSummary&&<p role="status" className="mx-3 my-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">Importación verificada: {importSummary.created||0} registros creados · {importSummary.completed||0} completados · {importSummary.omitted||0} omitidos · {importSummary.conflicts||0} conflictos · {importSummary.values||0} valores conciliados.</p>}
     <div className="space-y-2 px-3 py-3 md:px-5">
+      {(seasonDisplay==="best"||minMinutes>0||positionFilter!=="Todas"||season!=="Todas"||competition!=="Todas")&&<div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">
+        <span>Hay filtros activos que pueden ocultar temporadas guardadas{seasonDisplay==="best"?" · Se muestra solo la mejor temporada por jugador":""}{minMinutes>0?" · Mínimo "+minMinutes+" minutos":""}.</span>
+        <button type="button" className="font-bold text-[#003399] underline" onClick={()=>{setSeason("Todas");setCompetition("Todas");setSeasonDisplay("all");setMinMinutes(0);setPositionFilter("Todas");setPage(0);refreshStats();}}>Ver todas las temporadas guardadas</button>
+      </div>}
       <StatsControlBar
         position={positionFilter}
         positionOptions={positionOptions}
