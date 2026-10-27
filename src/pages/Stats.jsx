@@ -27,6 +27,7 @@ import StatsColumnSettings from "@/components/stats/StatsColumnSettings";
 import TeamLinkPicker from "@/components/stats/TeamLinkPicker";
 import {saveTeamLinkSafely} from "@/utils/teamLinkSave";
 import {initialConfig,sanitizeConfig,getColumn,columnValue,RAW_METRICS} from "@/utils/statsColumns";
+import {auditStatsTransfer} from "@/utils/statsTransferAudit";
 import {bestSeasonPerPlayer} from "@/utils/statsBestSeason";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
 import {buildCompositeSeasonIndex,bestSeasonByComposite,sortByComposite} from "@/utils/statsCompositeRanking";
@@ -476,6 +477,8 @@ export default function Stats(){
   const [columnConfig,setColumnConfig]=useState(initialConfig);
   const [settingsOpen,setSettingsOpen]=useState(false),[settingsContext,setSettingsContext]=useState(null),[prefsRecord,setPrefsRecord]=useState(null),[prefsWarning,setPrefsWarning]=useState("");
   const [unifiedOpen,setUnifiedOpen]=useState(false);
+  const [transferAuditOpen,setTransferAuditOpen]=useState(false);
+  const transferAudit=useMemo(()=>transferAuditOpen?auditStatsTransfer(sourceAllRows):null,[transferAuditOpen,sourceAllRows]);
   useEffect(()=>{let mounted=true;(async()=>{
     try{const mine=await queryClient.fetchQuery({
       queryKey:STATS_LAYOUT_KEY,
@@ -769,11 +772,31 @@ export default function Stats(){
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 md:px-5">
       <p className="text-xs font-black uppercase tracking-[.12em] text-[#0d315b]">STATS <span className="ml-2 font-normal normal-case tracking-normal text-slate-400">Rendimiento por temporada</span></p>
       <div className="flex max-w-full flex-wrap items-center gap-2">
+        <button type="button" onClick={()=>setTransferAuditOpen(value=>!value)} aria-expanded={transferAuditOpen} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">Validar métricas</button>
         <button type="button" onClick={()=>{setSettingsContext(null);setSettingsOpen(true);}} title="Configurar columnas, cálculos y categorías" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Settings2 size={16}/> Ajustes</button>
         <button onClick={()=>setImportOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] hover:bg-blue-50"><Upload size={15}/> Solo FotMob</button>
         <button onClick={()=>setUnifiedOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white hover:bg-[#002777]"><Upload size={15}/> Importar FotMob + CraftedFC</button>
       </div>
     </div>
+    {transferAuditOpen&&<section className="mx-3 my-3 rounded-xl border border-slate-200 bg-white p-4 md:mx-5" aria-label="Auditoría de traslado de estadísticas">
+      <div className="flex items-center justify-between gap-3"><strong className="text-sm text-[#0d315b]">Validación de métricas guardadas frente a STATS</strong><button onClick={()=>setTransferAuditOpen(false)} className="text-xs text-slate-500 underline">Cerrar</button></div>
+      {!cached?<p className="mt-2 text-xs text-slate-600">Esperando a cargar el conjunto completo de STATS.</p>:<>
+        <p className="mt-2 text-xs text-slate-600">Análisis de solo lectura de los registros cargados, excluida la temporada actual oculta. «Sin columna» no implica que el dato se haya perdido: continúa en la ficha.</p>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+          <div className="rounded-md bg-slate-50 p-2"><strong className="block text-lg text-[#003399]">{transferAudit?.totals.rows??0}</strong>Registros examinados</div>
+          <div className="rounded-md bg-slate-50 p-2"><strong className="block text-lg text-[#003399]">{transferAudit?.totals.metrics??0}</strong>Métricas almacenadas</div>
+          <div className="rounded-md bg-slate-50 p-2"><strong className="block text-lg text-amber-800">{transferAudit?.totals.notRepresented??0}</strong>Observaciones sin columna directa</div>
+          <div className="rounded-md bg-slate-50 p-2"><strong className="block text-lg text-red-700">{transferAudit?.totals.ratesHidden??0}</strong>Tasas /90 guardadas no mostradas</div>
+        </div>
+        <p className="mt-2 text-xs text-slate-600">{transferAudit?.totals.missingMinutes??0} registros sin minutos originales · {transferAudit?.totals.unreadable??0} valores con nombre reconocido pero lectura fallida · {transferAudit?.totals.currentExcluded??0} registros de temporada actual excluidos.</p>
+        <div className="mt-3 max-h-72 overflow-y-auto rounded-md border border-slate-200">
+          {transferAudit?.issues.length?transferAudit.issues.map(issue=><div key={issue.type+"|"+issue.metric} className="border-b border-slate-100 px-3 py-2 text-xs">
+            <strong>{issue.metric}</strong> · {issue.count} observaciones · {issue.type==="no_column"?"No tiene columna directa configurable":issue.type==="rate_hidden"?"Tasa /90 guardada pero no mostrada":"Valor no se puede leer por la columna"}
+            <p className="mt-1 text-slate-500">{issue.examples.slice(0,2).join(" | ")}</p>
+          </div>):<p className="p-3 text-xs text-slate-600">Sin anomalías detectadas en las categorías comprobadas.</p>}
+        </div>
+      </>}
+    </section>}
     {importSummary&&<p role="status" className="mx-3 my-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">Importación verificada: {importSummary.created||0} registros creados · {importSummary.completed||0} completados · {importSummary.omitted||0} omitidos · {importSummary.conflicts||0} conflictos · {importSummary.values||0} valores conciliados.</p>}
     <div className="space-y-2 px-3 py-3 md:px-5">
       <StatsControlBar
