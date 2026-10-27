@@ -33,7 +33,7 @@ import ManualMetricEditor from "@/components/stats/ManualMetricEditor";
 import {applyManualStatChange,applyManualStatChanges} from "@/utils/manualStats";
 import {advancedTotals} from "@/utils/statsAdvanced";
 import {metricName} from "@/utils/compositeEngine";
-import {buildSeasonSummaries} from "@/utils/statsSeason";
+import {buildSeasonSummaries,filterSeasonSummariesForDisplay} from "@/utils/statsSeason";
 import {patchHistoricalPeerCache,HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
 import {useStatsRows} from "@/hooks/useStatsRows";
@@ -531,8 +531,8 @@ export default function Stats(){
     return [...new Set(known)].map(id=>getColumn(columnConfig,id)).filter(Boolean);
   },[columnConfig]);
   const allSeasonsRanked=useMemo(()=>{
-    // Keep unfinished seasons out of historical rankings and historical bests.
-    const displayedSummaries=seasonSummaries.filter(summary=>seasonDisplay==="current" ? seasonActive(summary.season) : !seasonActive(summary.season));
+    // All seasons includes the current season; historical best excludes unfinished seasons.
+    const displayedSummaries=filterSeasonSummariesForDisplay(seasonSummaries,seasonDisplay);
     const mapped=displayedSummaries.map(summary=>({summary,player:byID.get(String(summary.player_id))||null}));
     if(tab==="todos"){
       const existing=new Set(seasonSummaries.map(s=>String(s.player_id)));
