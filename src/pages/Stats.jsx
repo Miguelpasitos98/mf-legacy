@@ -429,7 +429,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
                 setNationalTeams(old=>old.some(t=>String(t.id)===String(chosen.id))?old:[...old,chosen]);
                 const current=await base44.entities.PlayerSeasonStats.get(nationalTarget.id);
                 if(!current||current.season!==nationalTarget.season||current.competition!==nationalTarget.competition||String(current.player_id)!==String(nationalTarget.player_id))throw Error("La identidad del registro cambió; vuelve a abrirlo.");
-                const patch={national_team_id:String(chosen.id),national_country_id:nationalChoice,team_id:"",team_name:chosen.name,fotmob_team_id:""};
+                const patch={national_team_id:String(chosen.id),national_country_id:nationalChoice,team_id:"",team_name:chosen.name};
                 await base44.entities.PlayerSeasonStats.update(current.id,patch);
                 setNationalLinks(old=>({...old,[String(current.id)]:{...patch,country_id:nationalChoice}}));
                 setNationalTarget(null);
