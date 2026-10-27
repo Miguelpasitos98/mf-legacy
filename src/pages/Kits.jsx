@@ -1,6 +1,6 @@
 import React,{useMemo,useState} from "react";
 import {useQueryClient} from "@tanstack/react-query";
-import {Shirt,Search,Save,ImageOff,ChevronDown} from "lucide-react";
+import {Shirt,Search,Save,ImageOff,ChevronDown,ArrowLeft} from "lucide-react";
 import {useTeamsQuery} from "@/hooks/useSharedData";
 import {base44} from "@/api/base44Client";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
@@ -10,12 +10,12 @@ const KIT_FIELDS=[["kit3_photo_url","Tercera equipación"],["kit1_photo_url","Pr
 function KitPicture({url,label,club}){
   const [bad,setBad]=useState(false);
   const src=normalizeImageUrl(url);
-  return <div className="flex h-44 items-center justify-center bg-gradient-to-b from-white to-slate-50 p-4 sm:h-52">
+  return <div className="flex h-52 items-center justify-center bg-gradient-to-b from-white to-slate-50 p-4 sm:h-64">
     {src&&!bad?<img src={src} alt={label+" de "+club} className="h-full w-full object-contain drop-shadow-sm" loading="lazy" onError={()=>setBad(true)}/>:
       <div className="flex flex-col items-center gap-2 text-slate-400"><ImageOff size={25}/><span className="text-xs">Sin imagen</span></div>}
   </div>;
 }
-function ClubGallery({team,editing,setEditing,onSaved}){
+function ClubGallery({team,editing,setEditing,onSaved,onBack}){
   const [saving,setSaving]=useState(false),[error,setError]=useState("");
   const fields=KIT_FIELDS.map(([key,label])=>({key,label,url:editing?.id===team.id?(editing.values[key]||""):(team[key]||"")}));
   const editMode=editing?.id===team.id;
@@ -36,7 +36,7 @@ function ClubGallery({team,editing,setEditing,onSaved}){
     finally{setSaving(false);}
   };
   return <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">\n      <button type="button" onClick={onBack} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"><ArrowLeft size={14}/>Todos los clubes</button>
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-50 p-1">
           {team.logo?<img src={normalizeImageUrl(team.logo)} alt="" className="h-full w-full object-contain"/>:<Shirt className="text-slate-300"/>}
@@ -45,8 +45,8 @@ function ClubGallery({team,editing,setEditing,onSaved}){
       </div>
       <button type="button" onClick={editMode?()=>setEditing(null):startEdit} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{editMode?"Cancelar":"Editar camisetas"}</button>
     </header>
-    <div className="grid gap-3 p-4 md:grid-cols-3">
-      {fields.map(field=><div key={field.key} className="min-w-0 overflow-hidden rounded-xl border border-slate-200">
+    <div className="grid items-center gap-3 p-4 md:grid-cols-[minmax(0,0.94fr)_minmax(0,1.12fr)_minmax(0,0.94fr)]">
+      {fields.map(field=><div key={field.key} className={\`min-w-0 overflow-hidden rounded-xl border \${field.key==="kit1_photo_url"?"border-[#003399]/40 bg-blue-50/50 shadow-md md:scale-[1.025] md:z-10":"border-slate-200"}\`}>
         <KitPicture key={field.url} url={field.url} club={team.name} label={field.label}/>
         <div className="border-t border-slate-100 bg-white px-3 py-3"><p className="text-center text-xs font-bold text-slate-700">{field.label}</p>
           {editMode&&<label className="mt-3 block text-xs text-slate-600">URL de imagen
@@ -63,11 +63,11 @@ function ClubGallery({team,editing,setEditing,onSaved}){
 }
 export default function Kits(){
   const query=useTeamsQuery(),qc=useQueryClient();
-  const [search,setSearch]=useState(""),[editing,setEditing]=useState(null),[sort,setSort]=useState("name");
+  const [search,setSearch]=useState(""),[editing,setEditing]=useState(null),[sort,setSort]=useState("name"),[selectedId,setSelectedId]=useState(null);
   const teams=useMemo(()=>{const rows=Array.isArray(query.data)?query.data:(query.data?.items||query.data?.data||query.data?.entities||[]);
     return rows.filter(t=>t.is_custom_club===true).filter(t=>String(t.name||"").toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es")))
       .sort((a,b)=>sort==="name"?String(a.name).localeCompare(String(b.name),"es"):String(b.created_date||"").localeCompare(String(a.created_date||"")));},[query.data,search,sort]);
-  const onSaved=async(stored)=>{
+  const selectedTeam=teams.find(team=>team.id===selectedId);\n  const onSaved=async(stored)=>{
     qc.setQueryData(RECORD_KEYS.Team,(previous)=>{
       if(Array.isArray(previous))return previous.map(t=>t.id===stored.id?{...t,...stored}:t);
       if(previous&&Array.isArray(previous.items))return {...previous,items:previous.items.map(t=>t.id===stored.id?{...t,...stored}:t)};
@@ -81,7 +81,22 @@ export default function Kits(){
       <div className="flex flex-wrap gap-2"><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3"><Search size={16} className="text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar club..." className="h-10 w-44 bg-transparent text-sm outline-none"/></label><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3"><ChevronDown size={14}/><select value={sort} onChange={e=>setSort(e.target.value)} className="h-10 bg-transparent text-xs outline-none"><option value="name">Alfabético</option><option value="recent">Más recientes</option></select></label></div>
     </div>
     {query.isLoading&&!query.data?<p className="rounded-xl bg-white p-8 text-center text-sm text-slate-500">Cargando clubes...</p>:query.error&&!query.data?<p className="rounded-xl bg-red-50 p-6 text-sm text-red-700">No se pudieron cargar los clubes. No se ha borrado ningún dato.</p>:teams.length===0?<div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><Shirt className="mx-auto mb-3 text-slate-300" size={34}/><h2 className="font-semibold text-slate-800">{search?"No hay coincidencias":"Todavía no hay clubes personalizados"}</h2><p className="mt-2 text-sm text-slate-500">En TEAMS, edita un club y marca «Es un club ficticio o creado por mí».</p><a href="/teams" className="mt-4 inline-block rounded-lg bg-[#003399] px-4 py-2 text-sm font-semibold text-white">Ir a TEAMS</a></div>:
-      <div className="space-y-5">{teams.map(team=><ClubGallery key={team.id} team={team} editing={editing} setEditing={setEditing} onSaved={onSaved}/>)}</div>}
+      selectedTeam?<ClubGallery key={selectedTeam.id} team={selectedTeam} editing={editing} setEditing={setEditing} onSaved={onSaved} onBack={()=>{setEditing(null);setSelectedId(null);}}/>:
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {teams.map(team=><button key={team.id} type="button" onClick={()=>{setEditing(null);setSelectedId(team.id);}} className="group min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg">
+          <div className="flex items-center gap-3 border-b border-slate-100 p-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-50 p-1">{team.logo?<img src={normalizeImageUrl(team.logo)} alt="" className="h-full w-full object-contain"/>:<Shirt size={22} className="text-slate-300"/>}</div>
+            <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-extrabold text-slate-900">{team.name}</h2><p className="text-xs text-slate-500">Ver colección completa</p></div>
+            <ChevronDown size={17} className="-rotate-90 text-slate-400"/>
+          </div>
+          <div className="grid grid-cols-3 gap-1 bg-slate-100 p-2">
+            {KIT_FIELDS.map(([key,label])=><div key={key} className="min-w-0 bg-white">
+              <div className="flex h-28 items-center justify-center p-1 sm:h-32">{team[key]?<img src={normalizeImageUrl(team[key])} alt={label} loading="lazy" className="max-h-full max-w-full object-contain"/>:<Shirt size={24} className="text-slate-200"/>}</div>
+              <p className="truncate px-1 pb-2 text-center text-[10px] font-semibold text-slate-500">{label.split(" ")[0]}</p>
+            </div>)}
+          </div>
+        </button>)}
+      </div>}
   </main>;
 }
 
