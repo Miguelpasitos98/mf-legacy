@@ -68,7 +68,8 @@ export default function Kits(){
   const teams=useMemo(()=>{const rows=Array.isArray(query.data)?query.data:(query.data?.items||query.data?.data||query.data?.entities||[]);
     return rows.filter(t=>t.is_custom_club===true).filter(t=>String(t.name||"").toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es")))
       .sort((a,b)=>sort==="name"?String(a.name).localeCompare(String(b.name),"es"):String(b.created_date||"").localeCompare(String(a.created_date||"")));},[query.data,search,sort]);
-  const selectedTeam=teams.find(team=>team.id===selectedId);\n  const onSaved=async(stored)=>{
+  const selectedTeam=teams.find(team=>team.id===selectedId);
+  const onSaved=async(stored)=>{
     qc.setQueryData(RECORD_KEYS.Team,(previous)=>{
       if(Array.isArray(previous))return previous.map(t=>t.id===stored.id?{...t,...stored}:t);
       if(previous&&Array.isArray(previous.items))return {...previous,items:previous.items.map(t=>t.id===stored.id?{...t,...stored}:t)};
