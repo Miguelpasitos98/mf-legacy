@@ -203,7 +203,33 @@ export default async function(req) {
             phase:"Automático: "+automatic.applied+" candidatos incorporados · "+(pending.length?"otros pendientes de revisión":"completado")});
         }catch(e){console.error("No se pudo aplicar automáticamente el historial; candidatos conservados",e);}
       }
-      return reply({ok:true,status:counts?"review":"completed",candidates:counts,automatic});
+      // Solo para una recuperación histórica solicitada expresamente:
+      // continuar en lotes pequeños, hasta tres trabajos adicionales como máximo.
+      // Nunca repetir automáticamente una fuente si no hubo consultas nuevas.
+      let next_job_id=null;
+      const fotmobReport=report.fotmob||{};
+      const remainingFotmob=(fotmobReport.diagnostics||[]).filter(d=>["cache_absent","candidate_limit"].includes(d.status)).length;
+      const canContinue=job.retry_pending===true&&(job.sources||[]).length===1&&job.sources[0]==="fotmob"
+        &&Number(job.retry_count||0)<3&&remainingFotmob>0
+        &&Number(fotmobReport.network_requests||0)>0;
+      if(canContinue) {
+        try {
+          const key="mfv3:continue:"+job.id;
+          const duplicate=rows(await db.ImportJob.filter({job_key:key},undefined,1))[0];
+          if(duplicate)next_job_id=duplicate.id;
+          else {
+            const next=await db.ImportJob.create({
+              job_key:key,player_id:job.player_id,player_name:job.player_name,
+              fotmob_player_id:job.fotmob_player_id,sources:["fotmob"],status:"queued",progress:0,
+              requested_at:new Date().toISOString(),phase:"Recuperación incremental FotMob · siguiente bloque",
+              source_results:{fotmob:{status:"pending"}},completed_sources:[],received_candidates:0,
+              retry_count:Number(job.retry_count||0)+1,retry_pending:true
+            });
+            next_job_id=next.id;
+          }
+        }catch(e){console.error("No se pudo encolar el siguiente bloque FotMob",e);}
+      }
+      return reply({ok:true,status:counts?"review":"completed",candidates:counts,automatic,next_job_id});
     }
     if(action==="fail") {
       await db.ImportJob.update(job.id,{status:"failed",phase:"Error de extracción",last_error:str(body.error).slice(0,350),finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
