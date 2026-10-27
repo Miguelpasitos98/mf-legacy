@@ -19,7 +19,7 @@ function EditorialClub({team,onOpen}){
   const primary=/^#[0-9a-f]{6}$/i.test(team.primary_color||"")?team.primary_color:"#15294a";
   const images=KIT_FIELDS.map(([key,label])=>({key,label,src:normalizeImageUrl(team[key])}));
   return <button type="button" onClick={()=>onOpen(team.id)} className="group relative w-full overflow-hidden rounded-3xl border border-slate-200 bg-white text-left shadow-sm transition hover:border-slate-300 hover:shadow-xl">
-    <div className="relative isolate overflow-hidden px-4 pb-6 pt-5 sm:px-8" style={{background:\`linear-gradient(150deg, \${primary}17, #ffffff 55%, \${primary}20)\`}}>
+    <div className="relative isolate overflow-hidden px-4 pb-6 pt-5 sm:px-8" style={{background:`linear-gradient(150deg, ${primary}17, #ffffff 55%, ${primary}20)`}}>
       <div className="absolute -right-16 -top-28 h-80 w-80 rounded-full border-[65px] opacity-10" style={{borderColor:primary}} aria-hidden="true"/>
       <div className="relative mb-4 flex items-center gap-3">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/90 p-2 shadow-sm">{team.logo?<img src={normalizeImageUrl(team.logo)} alt="" className="h-full w-full object-contain"/>:<Shirt className="text-slate-300"/>}</div>
@@ -27,8 +27,8 @@ function EditorialClub({team,onOpen}){
         <span className="hidden rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-700 sm:block">Ver colección</span>
       </div>
       <div className="relative grid grid-cols-[0.9fr_1.15fr_0.9fr] items-end gap-0 sm:gap-3">
-        {images.map(({key,label,src})=><div key={key} className={\`flex min-w-0 flex-col items-center \${key==="kit1_photo_url"?"relative z-10":"opacity-90"}\`}>
-          <div className={\`flex w-full items-center justify-center \${key==="kit1_photo_url"?"h-64 sm:h-80":"h-52 sm:h-64"}\`}>
+        {images.map(({key,label,src})=><div key={key} className={`flex min-w-0 flex-col items-center ${key==="kit1_photo_url"?"relative z-10":"opacity-90"}`}>
+          <div className={`flex w-full items-center justify-center ${key==="kit1_photo_url"?"h-64 sm:h-80":"h-52 sm:h-64"}`}>
             {src?<img src={src} alt={label+" de "+team.name} loading="lazy" className="max-h-full max-w-full object-contain drop-shadow-xl transition-transform duration-300 group-hover:scale-[1.03]"/>:<Shirt size={46} className="text-slate-200"/>}
           </div>
           <span className="mt-3 text-center text-[10px] font-extrabold uppercase tracking-wider text-slate-500 sm:text-xs">{label}</span>
@@ -106,8 +106,8 @@ export default function Kits(){
       <div className="flex flex-wrap gap-2"><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3"><Search size={16} className="text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar club..." className="h-10 w-44 bg-transparent text-sm outline-none"/></label><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3"><ChevronDown size={14}/><select value={sort} onChange={e=>setSort(e.target.value)} className="h-10 bg-transparent text-xs outline-none"><option value="name">Alfabético</option><option value="recent">Más recientes</option></select></label></div>
     </div>
     <div className="mb-5 flex flex-wrap items-center gap-2" role="group" aria-label="Vista de camisetas">
-      <button type="button" onClick={()=>changeView("editorial")} aria-pressed={view==="editorial"} className={\`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold \${view==="editorial"?"border-[#003399] bg-[#003399] text-white":"border-slate-200 bg-white text-slate-600"}\`}><Focus size={16}/>Escaparate</button>
-      <button type="button" onClick={()=>changeView("compact")} aria-pressed={view==="compact"} className={\`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold \${view==="compact"?"border-[#003399] bg-[#003399] text-white":"border-slate-200 bg-white text-slate-600"}\`}><LayoutGrid size={16}/>Vista catálogo</button>
+      <button type="button" onClick={()=>changeView("editorial")} aria-pressed={view==="editorial"} className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold ${view==="editorial"?"border-[#003399] bg-[#003399] text-white":"border-slate-200 bg-white text-slate-600"}`}><Focus size={16}/>Escaparate</button>
+      <button type="button" onClick={()=>changeView("compact")} aria-pressed={view==="compact"} className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold ${view==="compact"?"border-[#003399] bg-[#003399] text-white":"border-slate-200 bg-white text-slate-600"}`}><LayoutGrid size={16}/>Vista catálogo</button>
     </div>
     {query.isLoading&&!query.data?<p className="rounded-xl bg-white p-8 text-center text-sm text-slate-500">Cargando clubes...</p>:query.error&&!query.data?<p className="rounded-xl bg-red-50 p-6 text-sm text-red-700">No se pudieron cargar los clubes. No se ha borrado ningún dato.</p>:teams.length===0?<div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><Shirt className="mx-auto mb-3 text-slate-300" size={34}/><h2 className="font-semibold text-slate-800">{search?"No hay coincidencias":"Todavía no hay clubes personalizados"}</h2><p className="mt-2 text-sm text-slate-500">En TEAMS, edita un club y marca «Es un club ficticio o creado por mí».</p><a href="/teams" className="mt-4 inline-block rounded-lg bg-[#003399] px-4 py-2 text-sm font-semibold text-white">Ir a TEAMS</a></div>:
       view==="editorial" && !selectedTeam ? <div className="space-y-6">{teams.map(team=><EditorialClub key={team.id} team={team} onOpen={setSelectedId}/>)}</div> :
