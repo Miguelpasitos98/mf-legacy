@@ -115,6 +115,9 @@
     },
     "source_provenance": {
       "type": "object"
+    },
+    "last_import_review_batch_id": {
+      "type": "string"
     }
   },
   "required": [
