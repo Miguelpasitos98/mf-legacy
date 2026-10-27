@@ -331,6 +331,7 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                  successful_requests=successful_requests,coverage=coverage)
     # Persistir el inventario local para poder reanudar tras un fallo de Base44.
     manifest=root/"datos"/"cobertura_fotmob"/(pid+".json")
+    manifest.parent.mkdir(parents=True,exist_ok=True)
     client.save_json(manifest,{
         "schema":"mf_legacy_fotmob_coverage_v1","fotmob_player_id":pid,
         "checked_at":datetime.now(timezone.utc).isoformat(),
