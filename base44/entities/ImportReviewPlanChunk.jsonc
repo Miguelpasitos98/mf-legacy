@@ -1,0 +1,48 @@
+{
+  "name": "ImportReviewPlanChunk",
+  "type": "object",
+  "properties": {
+    "batch_id": {
+      "type": "string"
+    },
+    "chunk_index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "chunk_json": {
+      "type": "string",
+      "maxLength": 12000
+    },
+    "sha256": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "batch_id",
+    "chunk_index",
+    "chunk_json",
+    "sha256"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -163,14 +163,14 @@ const stable=value=>JSON.stringify(value,(_key,v)=>v&&typeof v==="object"&&!Arra
   ?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
 const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(stable(value))))).map(x=>x.toString(16).padStart(2,"0")).join("");
 const includesPatch=(record,patch)=>Object.entries(patch).every(([key,value])=>stable(record?.[key])===stable(value));
-const candidateVersion=c=>Object.fromEntries(["id","job_id","player_id","fotmob_player_id","source","kind","season","competition","fotmob_team_id","fotmob_tournament_id","is_national_team","metric_name","metric_unit","value","fifa_edition","fifa_fc_position","as_of_date","evidence_url","source_record_id","verification_status","provenance"].map(k=>[k,c[k]]));
+const candidateVersion=c=>Object.fromEntries(["id","job_id","player_id","fotmob_player_id","source","kind","season","competition","fotmob_team_id","fotmob_tournament_id","is_national_team","metric_name","metric_unit","value","percentile","derivation","fifa_edition","fifa_fc_position","as_of_date","evidence_url","source_record_id","verification_status","provenance"].map(k=>[k,c[k]]));
 export function historyValueRows(unit){
   return unit.all_items.map(c=>{
     const field=c.metric_unit==="per90"?"per90":c.metric_unit==="per_match"?"per_match":"value";
     const old=c.kind==="metric"?unit.before?.metrics?.find(m=>metricId(m.name)===metricId(c.metric_name))?.[field]
       :unit.before?.[c.kind==="overall"?"fifa_fc_overall":"transfermarkt_value_eur"];
     return {candidate_id:c.id,name:c.metric_name||(c.kind==="overall"?"Overall / "+c.fifa_edition+" / "+c.fifa_fc_position:"Mercado EUR / "+c.as_of_date),
-      source:c.source,unit:c.metric_unit||"",found:c.value,existing:old??null,new_value:empty(old)?c.value:null,
+      source:c.source,unit:c.metric_unit||"",found:c.value,existing:old??null,new_value:unit.selectable&&unit.candidate_ids.includes(c.id)&&empty(old)?c.value:null,
       verification:c.verification_status,status:c.review_status,evidence_url:c.evidence_url,provenance:c.provenance||{},
       action:c.review_status!=="pending"?"Conservar":c.verification_status!=="verified"?"Pendiente individual":!empty(old)&&Number(old)!==c.value?"Conflicto":empty(old)?"Añadir":"Conservar"};
   });
@@ -244,7 +244,33 @@ async function historyPreview(db,job){
     conflicts:units.filter(u=>u.action==="conflict").length,pending:units.filter(u=>u.action==="pending").length,
     rejected:candidates.filter(c=>c.review_status==="rejected").length}};
 }
-const batchResult=batch=>({id:batch.id,status:batch.status,cursor:batch.cursor,total:JSON.parse(batch.plan_json).length,
+const compactPlan=units=>units.map(({candidates,values,...unit})=>({...unit,all_items:unit.all_items.filter(c=>unit.candidate_ids.includes(c.id)).map(candidateVersion)}));
+async function storedPlan(db,batch,seed){
+  const manifest=JSON.parse(batch.plan_json);
+  if(Array.isArray(manifest))return manifest;
+  if(manifest.format!=="chunks-v1"||manifest.count>180||manifest.count<1)throw Error("Manifiesto de revisión inválido");
+  let chunks=await allRows(db.ImportReviewPlanChunk,{batch_id:batch.id});
+  if(chunks.length<manifest.count){
+    if(!seed)throw Error("La propuesta está incompleta; vuelve a actualizar la revisión y reanuda la selección");
+    const raw=stable(compactPlan(seed));
+    if(await digest(raw)!==manifest.sha256)throw Error("La propuesta original cambió; prepara una nueva revisión");
+    const pending=[];
+    for(let index=0;index<manifest.count;index++){
+      const chunk_json=raw.slice(index*12000,(index+1)*12000),sha256=await digest(chunk_json),old=chunks.filter(c=>c.chunk_index===index);
+      if(old.length>1||old.length&&old[0].sha256!==sha256)throw Error("Fragmentos de revisión contradictorios");
+      if(!old.length)pending.push({batch_id:batch.id,chunk_index:index,chunk_json,sha256});
+    }
+    for(let i=0;i<pending.length;i+=10)await db.ImportReviewPlanChunk.bulkCreate(pending.slice(i,i+10));
+    chunks=await allRows(db.ImportReviewPlanChunk,{batch_id:batch.id});
+  }
+  chunks.sort((a,b)=>a.chunk_index-b.chunk_index);
+  if(chunks.length!==manifest.count)throw Error("Número de fragmentos de revisión incompatible");
+  for(let i=0;i<chunks.length;i++)if(chunks[i].chunk_index!==i||await digest(chunks[i].chunk_json)!==chunks[i].sha256)throw Error("La propuesta guardada perdió su integridad");
+  const raw=chunks.map(c=>c.chunk_json).join("");
+  if(await digest(raw)!==manifest.sha256)throw Error("La huella de la propuesta guardada no coincide");
+  const units=JSON.parse(raw);if(units.length!==manifest.total)throw Error("La propuesta está incompleta");return units;
+}
+const batchResult=batch=>({id:batch.id,status:batch.status,cursor:batch.cursor,total:JSON.parse(batch.plan_json).total??JSON.parse(batch.plan_json).length,
   counts:batch.counts||{},results:JSON.parse(batch.result_json||"[]"),error:batch.last_error||""});
 async function historyRequest(db,user,data){
   const jobId=str(data.job_id);if(!/^[a-f0-9]{24}$/i.test(jobId))return bad("ID de trabajo no válido");
@@ -252,7 +278,7 @@ async function historyRequest(db,user,data){
   if(data.action==="history-batches")return reply({ok:true,batches:(await allRows(db.ImportReviewBatch,{job_id:job.id})).sort((a,b)=>str(b.created_date).localeCompare(str(a.created_date))).slice(0,20).map(batchResult)});
   if(data.action==="history-preview"){const preview=await historyPreview(db,job);return reply({ok:true,...preview});}
   if(data.confirmed!==true)return bad("Confirma expresamente los registros seleccionados",409);
-  let batch;
+  let batch,seed;
   if(data.batch_id){
     await reviewedJobIdentity(db,job);
     batch=await db.ImportReviewBatch.get(str(data.batch_id));
@@ -265,12 +291,14 @@ async function historyRequest(db,user,data){
     if(!keys.length||keys.length>200)return bad("Selecciona entre 1 y 200 registros");
     const units=keys.map(k=>preview.units.find(u=>u.key===k));
     if(units.some(u=>!u?.selectable))return bad("La selección incluye conflictos o datos sin verificar",409);
-    const plan_json=JSON.stringify(units);if(plan_json.length>2000000)return bad("La propuesta supera el límite; selecciona menos registros",409);
+    seed=units;
+    const rawPlan=stable(compactPlan(units));if(rawPlan.length>2000000)return bad("La propuesta supera el límite; selecciona menos registros",409);
+    const plan_json=JSON.stringify({format:"chunks-v1",total:units.length,count:Math.ceil(rawPlan.length/12000),sha256:await digest(rawPlan)});
     const request_key=await digest({job_id:job.id,plan_token:preview.plan_token,keys:keys.sort()});
     const prior=await allRows(db.ImportReviewBatch,{request_key});
     if(prior.length>1)return bad("Varias revisiones para la misma solicitud; consulta el diagnóstico",409);
     batch=prior[0]||await db.ImportReviewBatch.create({job_id:job.id,player_id:job.player_id,request_key,authorized_by:user.id,
-      plan_hash:preview.plan_token,plan_json,result_json:"[]",cursor:0,status:"pending",counts:{created:0,completed:0,omitted:0,conflicts:0,values:0},last_error:""});
+      plan_hash:preview.plan_token,plan_json,unit_keys:keys,result_json:"[]",cursor:0,status:"pending",counts:{created:0,completed:0,omitted:0,conflicts:0,values:0},last_error:""});
   }
   // A short, atomic lease prevents simultaneous administrators from replaying
   // the same review. It expires, so closing the browser never loses the plan.
@@ -278,7 +306,14 @@ async function historyRequest(db,user,data){
   await db.ImportJob.updateMany({id:job.id,$or:[{review_lock_until:{$exists:false}},{review_lock_until:null},{review_lock_until:""},{review_lock_until:{$lt:now}}]},{$set:{review_lock_id:lock,review_lock_until:until}});
   if((await db.ImportJob.get(job.id)).review_lock_id!==lock)return bad("Otra revisión está en curso. Podrás reanudarla cuando termine o caduque su concesión",409);
   try {
-    const units=JSON.parse(batch.plan_json),results=JSON.parse(batch.result_json||"[]"),counts={created:0,completed:0,omitted:0,conflicts:0,values:0,...batch.counts};
+    if(!seed&&JSON.parse(batch.plan_json).format==="chunks-v1"&&batch.cursor===0){
+      const available=await allRows(db.ImportReviewPlanChunk,{batch_id:batch.id});
+      if(available.length<JSON.parse(batch.plan_json).count){
+        const preview=await historyPreview(db,job);
+        if(preview.plan_token===batch.plan_hash)seed=(batch.unit_keys||[]).map(k=>preview.units.find(u=>u.key===k));
+      }
+    }
+    const units=await storedPlan(db,batch,seed),results=JSON.parse(batch.result_json||"[]"),counts={created:0,completed:0,omitted:0,conflicts:0,values:0,...batch.counts};
     let cursor=batch.cursor||0;const stop=Math.min(units.length,cursor+3);
     while(cursor<stop){
       const unit=units[cursor],entity=unit.kind==="stats"?db.PlayerSeasonStats:db.PlayerHistoricalValuation;
