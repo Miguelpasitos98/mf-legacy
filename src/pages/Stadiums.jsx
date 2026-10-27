@@ -136,7 +136,7 @@ export default function Stadiums(){
             <label className="block text-xs font-semibold">Dimensiones del campo<input value={form.pitch} onChange={e=>setForm(f=>({...f,pitch:e.target.value}))} placeholder="105 x 68 m" className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3"/></label>
           </div>
           {[["interior","URL imagen interior"],["exterior","URL imagen exterior"]].map(([key,label])=><label key={key} className="block text-xs font-semibold">{label}<input value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} placeholder="https://..." className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3"/></label>)}
-          {form.interior&&<img src={normalizeImageUrl(form.interior)} alt="Vista previa del estadio" className="h-32 w-full rounded-lg bg-slate-100 object-cover"/>}
+          {(form.interior||form.exterior)&&<div className="flex max-h-72 min-h-36 w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2"><img src={normalizeImageUrl(form.interior||form.exterior)} alt="Vista previa completa del estadio" className="max-h-64 max-w-full object-contain"/></div>}
           {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{error}</p>}
           <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4"><p className="text-[11px] text-slate-500">Los cambios se reflejan en los equipos vinculados.</p><button type="submit" disabled={saving} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-50"><Save size={14}/>{saving?"Guardando…":"Guardar estadio"}</button></div>
         </form>
