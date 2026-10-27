@@ -200,8 +200,16 @@ export default async function(req) {
       }
       await db.ImportJob.update(job.id,{status:counts?"review":"completed",phase:counts?"Datos recibidos; revisar candidatos":"Sin nuevos datos verificables",progress:100,
         source_results,received_candidates:counts,finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
-      // La solicitud del usuario exige aprobación explícita de los datos.
-      // Recuperar y continuar bloques solo prepara candidatos; no escribe STATS.
+      // Aplicar automáticamente solo candidatos compatibles con identidad,
+      // club y competición contrastados. Los conflictos permanecen pendientes.
+      let automatic=null;
+      if(counts){
+        try{
+          const {applyVerifiedHistoricals}=await import("./reviewAuto.js");
+          automatic=await applyVerifiedHistoricals(db,{...job,status:"review"});
+          await db.ImportJob.update(job.id,{phase:"Automático: "+automatic.applied+" candidatos compatibles incorporados; "+automatic.pending+" pendientes de revisión"});
+        }catch(e){console.error("Aplicación automática conservadora pendiente",e);}
+      }
       // Avanzar entre temporadas pendientes sin volver a solicitar todo el
       // historial. Un bloque es de hasta ocho consultas; se detiene si FotMob
       // rechaza o limita el acceso, si no hay respuestas útiles o al llegar
@@ -237,7 +245,7 @@ export default async function(req) {
         }catch(e){console.error("No se pudo encolar el siguiente bloque FotMob",e);}
       }
       return reply({ok:true,status:counts?"review":"completed",candidates:counts,
-        automatic:null,next_job_id,coverage:source_results.fotmob?.coverage||null});
+        automatic,next_job_id,coverage:source_results.fotmob?.coverage||null});
     }
     if(action==="fail") {
       await db.ImportJob.update(job.id,{status:"failed",phase:"Error de extracción",last_error:str(body.error).slice(0,350),finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
