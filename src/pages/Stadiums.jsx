@@ -1,6 +1,6 @@
 import React,{useMemo,useState} from "react";
 import {useQueryClient} from "@tanstack/react-query";
-import {Building2,Search,MapPin,Users,Plus,Save,X,ImageOff} from "lucide-react";
+import {Building2,Search,MapPin,Users,Save,X} from "lucide-react";
 import {useTeamsQuery} from "@/hooks/useSharedData";
 import {base44} from "@/api/base44Client";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
