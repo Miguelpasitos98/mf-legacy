@@ -9,6 +9,7 @@ import {readCompleteRecords} from "@/utils/entityRecords";
 import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-react";
 import HistoricalReview from "@/components/imports/HistoricalReview";
 import {historyCanRetry} from "@/utils/importHistoryReview";
+import {summarizeImportCoverage} from "@/utils/importCoverage";
 
 const SOURCES=[{id:"fotmob",label:"FotMob"},{id:"understat",label:"Understat"},{id:"fifa",label:"FIFA / EA FC"},{id:"market",label:"Transfermarkt"}];
 const ACTIVE=["queued","running"];
@@ -124,6 +125,7 @@ export default function ImportCenter(){
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const waitingForWorker=jobs.filter(queuedTooLong);
+  const importCoverage=summarizeImportCoverage(jobs,selectedJobData);
   const seasonGroups=Object.values(candidateRows.filter(c=>c.kind==="metric").reduce((acc,c)=>{
     const k=[selectedJob,c.source,c.season,c.competition,c.fotmob_team_id].join("|");
     if(!acc[k])acc[k]={key:k,source:c.source,season:c.season,competition:c.competition,
@@ -278,7 +280,23 @@ export default function ImportCenter(){
     </section>
     {selectedJobData&&<section className="rounded-xl bg-white border border-slate-200 p-5 mt-4">
       <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Revisión · {selectedJobData.player_name}</h2><button onClick={()=>setSelectedJob("")} className="text-sm text-slate-500 underline">Cerrar</button></div>
-      {missingFotmobCaches(selectedJobData)>0&&<div className="my-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950"><strong>Extracción FotMob incompleta:</strong> quedan {missingFotmobCaches(selectedJobData)} entradas históricas sin recuperar. Las peticiones anteriores ya alcanzaron el límite por trabajo. <button type="button" disabled={busy||coordinator!=="ready"||ACTIVE.includes(selectedJobData.status)} onClick={()=>operate("retry-pending",{job_id:selectedJobData.id,player_id:selectedJobData.player_id})} className="ml-2 font-semibold text-[#003399] underline disabled:opacity-40">Recuperar historial de FotMob</button><p className="mt-1 text-xs">El trabajador del PC recuperará hasta 8 entradas por bloque y continuará automáticamente con hasta 3 bloques adicionales si sigue habiendo datos pendientes y FotMob responde. Conserva las temporadas existentes. Las entradas que la fuente no proporcione seguirán sin estadísticas.</p></div>}
+      {importCoverage?.total>0&&<div className="my-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950" role="status">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <strong>Cobertura real de FotMob · {importCoverage.checked} de {importCoverage.total} competiciones consultadas con respuesta</strong>
+          <span className="text-xs font-semibold">{importCoverage.running?"Extracción en curso":importCoverage.complete?"Inventario revisado":"Historial parcial"}</span>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          <span>{importCoverage.received} con estadísticas</span>
+          <span>{importCoverage.noData} sin estadísticas del proveedor</span>
+          <span className={importCoverage.missing?"font-bold text-amber-800":""}>{importCoverage.missing} por consultar o recuperar</span>
+          <span className={importCoverage.withheld?"font-bold text-amber-800":""}>{importCoverage.withheld} con identidad/conflictos pendientes</span>
+          <span>{importCoverage.jobCount} bloques de trabajo</span>
+        </div>
+        {importCoverage.stale&&<p className="mt-2 text-xs text-amber-800">El perfil de FotMob está desactualizado: el inventario no se considera completo.</p>}
+        {importCoverage.limited&&<p className="mt-2 text-xs text-red-800">FotMob ha limitado o rechazado consultas. Se ha detenido la continuación automática para respetar el acceso del proveedor.</p>}
+        <p className="mt-2 text-xs text-blue-800">El 100 % de «Progreso» indica que terminó un bloque de importación, no que FotMob ofrezca todos los indicadores de toda la carrera. STATS conserva los datos validados.</p>
+      </div>}
+      {missingFotmobCaches(selectedJobData)>0&&<div className="my-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950"><strong>Extracción FotMob incompleta:</strong> quedan {missingFotmobCaches(selectedJobData)} entradas históricas sin recuperar. Las peticiones anteriores ya alcanzaron el límite por trabajo. <button type="button" disabled={busy||coordinator!=="ready"||ACTIVE.includes(selectedJobData.status)} onClick={()=>operate("retry-pending",{job_id:selectedJobData.id,player_id:selectedJobData.player_id})} className="ml-2 font-semibold text-[#003399] underline disabled:opacity-40">Recuperar historial de FotMob</button><p className="mt-1 text-xs">El trabajador del PC recuperará entradas por bloques limitados, con intervalos y un máximo preventivo por solicitud; se detiene si FotMob restringe las consultas. Conserva las temporadas existentes. Las entradas que la fuente no proporcione seguirán sin estadísticas.</p></div>}
       {queuedTooLong(selectedJobData)&&<p role="status" className="my-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">Este trabajo aún no ha comenzado: ningún trabajador de Studio lo ha recogido. Inicia o comprueba el trabajador Python en tu PC; esta solicitud seguirá en cola y no es necesario repetirla.</p>}
       <p className="text-xs text-slate-500 my-2">Para crear una primera temporada, comprueba la fuente y aprueba el lote de esa competición. Para valores individuales FIFA/mercado conserva la revisión específica. Los datos anteriores nunca se sobrescriben.</p>
       {selectedJobData.status==="completed"&&candidateRows.length>0&&<p className="text-sm font-semibold text-emerald-700">Revisión completada · {candidateRows.filter(c=>c.review_status==="applied").length} candidatos aplicados.</p>}
