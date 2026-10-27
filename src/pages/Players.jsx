@@ -1563,10 +1563,18 @@ export default function Players() {
     setFm26ProgressLabel("");
     setFm26Leagues([]);
     try {
-      const payload = JSON.parse(await file.text());
-      if (!Array.isArray(payload) || !payload.length) throw new Error("Se esperaba un JSON con una lista de jugadores.");
+      const content = (await file.text()).replace(/^\uFEFF/, "").trim();
+      if (!content) throw new Error("El archivo está completamente vacío. Exporta primero los jugadores desde fmsave FM26.");
+      const document = JSON.parse(content);
+      // Admitir tanto el array directo de fmsave como archivos con contenedor players.
+      const payload = Array.isArray(document) ? document
+        : Array.isArray(document?.players) ? document.players
+        : Array.isArray(document?.data?.players) ? document.data.players
+        : null;
+      if (!payload) throw new Error("Formato JSON no reconocido. Se necesita una lista de jugadores de fmsave FM26 o un objeto con la propiedad players.");
+      if (payload.length === 0) throw new Error(`El archivo «${file.name}» contiene 0 jugadores (JSON: []). No se ha importado nada. Comprueba que la exportación desde fmsave FM26 incluya jugadores.`);
       if (payload.length > 150000) throw new Error("El archivo supera 150.000 jugadores. Divide la exportación por clubes o ligas.");
-      if (!payload.some(p => p && p.positions && p.attributes && p.uid != null)) throw new Error("No parece una exportación 'players' de fmsave FM26.");
+      if (!payload.some(p => p && p.positions && p.attributes && p.uid != null)) throw new Error("El JSON contiene registros, pero ninguno incluye los campos uid, positions y attributes necesarios para importar jugadores desde fmsave FM26.");
       setFm26Import(payload);
       try {const result=await base44.entities.League.list();setFm26Leagues(Array.isArray(result)?result:(result?.data||[]));} catch(error) {console.warn("No se pudieron cargar las ligas disponibles",error);}
     } catch (err) { setFm26Error(err.message || "No se ha podido abrir el JSON"); }
