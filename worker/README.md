@@ -122,3 +122,15 @@ Las pruebas del manifiesto real requieren el artefacto local
 ## Arranque independiente — verificación 27/10/2026
 
 El lanzador importa el módulo Security de su propio PSHOME para evitar conflictos entre PowerShell 5 y 7. Se comprobó un arranque oculto independiente y su proceso Python persistente. La sesión de auditoría deja el trabajador en modo `-SoloLocal`: usa cachés existentes y no consulta FotMob. El inicio normal conserva el presupuesto configurado. No se guardan credenciales en el repositorio.
+
+## Historial V3 — revisión conjunta y fuentes recientes
+
+El arranque normal permite archivos públicos gratuitos y perfiles públicos puntuales de Crafted como apoyo Understat. `-SoloLocal` desactiva todas las consultas nuevas. Los perfiles se conservan 24 horas con URL/SHA y los errores tienen una espera de seis horas. Nunca se ejecuta el JavaScript de la página ni se eluden denegaciones.
+
+FC 26 usa el CSV Career Mode de rovnez, revisión 260004 de 19/09/2025, versión 3, CC BY 4.0; FC 25/27 quedan pendientes si no existe revisión de lanzamiento contrastada. Crafted solo aporta estadísticas de sus filas históricas verificables: sus Overall actuales y valores modelados no se consideran históricos. Las tasas Understat publicadas no se dividen por minutos FotMob.
+
+El trabajador guarda candidatos y estados en `FUENTES/AUTOMATION/jobs/` antes de enviarlos. Reanudar conserva el trabajo y reutiliza ese archivo comprobando su SHA e identidad; el servidor concilia claves repetidas. Un pulso independiente mantiene la concesión durante consultas lentas. Reintentar fuentes pendientes limita las temporadas/entradas a los diagnósticos no resueltos.
+
+En ImportCenter, abrir «Revisar todas las temporadas disponibles», seleccionar destinos válidos y confirmar. La aplicación procesa tres destinos por llamada y conserva cada progreso en `ImportReviewBatch`. Las propuestas ambiguas o sin verificar quedan pendientes; los datos deportivos requieren aprobación explícita. Se comprueba persistencia antes de marcar candidatos aplicados y se invalidan las cachés al volver a STATS.
+
+Procedencia y límites detallados en [HISTORICAL_SOURCE_AUTOMATION.md](../docs/HISTORICAL_SOURCE_AUTOMATION.md). Las cachés, copias de producción y credenciales permanecen fuera de Git.

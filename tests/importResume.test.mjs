@@ -23,3 +23,6 @@ test('Failed and expired jobs resume same identity without resetting candidates'
 test('Live lease cannot be resumed',async()=>{
  const f=fixture('running');f.job.lease_expires_at='2099-01-01T00:00:00Z';const response=await f.invoke('resume');assert.equal(response.status,409);assert.equal(f.writes.length,0);
 });
+test('Changed FotMob link cannot resume an old payload',async()=>{
+ const f=fixture();f.job.fotmob_player_id='456';const response=await f.invoke('retry');assert.equal(response.status,409);assert.equal(f.writes.length,0);
+});
