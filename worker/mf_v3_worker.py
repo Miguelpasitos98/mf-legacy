@@ -12,6 +12,7 @@ Environment:
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -85,6 +86,24 @@ def metric_values(metric):
         yield "per90", rate
 
 
+def prioritize_fotmob_seasons(options, now=None):
+    """Preferir temporadas cerradas y liga antes de gastar consultas en la actual.
+
+    Las temporadas ya almacenadas en caché no generan solicitudes adicionales.
+    El criterio solo ordena la recuperación: no elimina ni inventa registros.
+    """
+    today=now or datetime.now(timezone.utc)
+    active_year=today.year if today.month>=7 else today.year-1
+    leagues={"87","47","54","55","53","63"}
+    def priority(option):
+        season=text(option.get("season"))
+        start=int(season[:4]) if re.fullmatch(r"20\d{2}/20\d{2}",season) else active_year
+        tid=text(option.get("tournament_id"))
+        importance=0 if tid in leagues else 1 if tid=="42" else 2 if tid in {"138","139"} else 3
+        return (start>=active_year,-start,importance,tid,text(option.get("season_id")))
+    return sorted(options,key=priority)
+
+
 def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                   max_candidates=6000, progress_hook=None):
     profile, client, resolver = studio_import(root)
@@ -103,7 +122,7 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
         raise ValueError("El perfil de FotMob pertenece a otro jugador.")
     assignments = resolver.load_assignments(root)
     out, diagnostics = [], []
-    options = sorted(bundle["season_options"], key=lambda o: (text(o.get("season")), text(o.get("season_id"))), reverse=True)
+    options = prioritize_fotmob_seasons(bundle["season_options"])
     seen = set()
     for option in options:
         sid = option["season_id"]
