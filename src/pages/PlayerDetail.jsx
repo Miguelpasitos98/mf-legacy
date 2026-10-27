@@ -20,6 +20,7 @@ import { base44 } from "@/api/base44Client";
 import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryModal";
 import TransferChartMini from "@/components/players/TransferChartMini";
 import MarketBulkImport from "@/components/players/MarketBulkImport";
+import HistoricalMarketLookup from "@/components/players/HistoricalMarketLookup";
 import {changedPlayerFields,playerEditHasChanges,applyPlayerEditPatch} from "@/utils/playerEditPatch";
 
 // MF LEGACY: logos de estado integrados, sin dependencias externas.
@@ -1286,7 +1287,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 ))}
               </div>
 
-              {editTab === "market" && <MarketBulkImport player={editablePlayer} />}
+              {editTab === "market" && <div className="space-y-5"><HistoricalMarketLookup player={editablePlayer}/><MarketBulkImport player={editablePlayer}/></div>}
 
               {editTab === "general" && (
                 <div className="space-y-5">
