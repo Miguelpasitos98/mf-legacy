@@ -9,7 +9,7 @@ import {readCompleteRecords} from "@/utils/entityRecords";
 import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-react";
 import HistoricalReview from "@/components/imports/HistoricalReview";
 import {historyCanRetry} from "@/utils/importHistoryReview";
-import {summarizeImportCoverage} from "@/utils/importCoverage";
+import {importProgressSummary} from "@/utils/importCoverage";
 
 const SOURCES=[{id:"fotmob",label:"FotMob"},{id:"understat",label:"Understat"},{id:"fifa",label:"FIFA / EA FC"},{id:"market",label:"Transfermarkt"}];
 const ACTIVE=["queued","running"];
@@ -125,7 +125,8 @@ export default function ImportCenter(){
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const waitingForWorker=jobs.filter(queuedTooLong);
-  const importCoverage=summarizeImportCoverage(jobs,selectedJobData);
+  const chainProgress=importProgressSummary(jobs,selectedJobData);
+  const importCoverage=chainProgress?.coverage;
   const seasonGroups=Object.values(candidateRows.filter(c=>c.kind==="metric").reduce((acc,c)=>{
     const k=[selectedJob,c.source,c.season,c.competition,c.fotmob_team_id].join("|");
     if(!acc[k])acc[k]={key:k,source:c.source,season:c.season,competition:c.competition,
@@ -280,6 +281,28 @@ export default function ImportCenter(){
     </section>
     {selectedJobData&&<section className="rounded-xl bg-white border border-slate-200 p-5 mt-4">
       <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Revisión · {selectedJobData.player_name}</h2><button onClick={()=>setSelectedJob("")} className="text-sm text-slate-500 underline">Cerrar</button></div>
+      {chainProgress?.total>0&&<div className="my-4 space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4" role="status" aria-label="Progreso de importación y cobertura acumulada">
+        <div>
+          <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+            <strong className="text-slate-800">Progreso del bloque {chainProgress.blockIndex}</strong>
+            <span className="font-semibold tabular-nums text-[#003399]">{chainProgress.blockPercent}%</span>
+          </div>
+          <div role="progressbar" aria-label="Progreso del bloque de consultas" aria-valuenow={chainProgress.blockPercent} aria-valuemin={0} aria-valuemax={100} className="h-2 overflow-hidden rounded-full bg-slate-200">
+            <div className="h-full rounded-full bg-slate-500 transition-[width] duration-500" style={{width:`${chainProgress.blockPercent}%`}}/>
+          </div>
+          <p className="mt-1.5 text-xs text-slate-500">{chainProgress.block.phase||"Esperando al trabajador"}</p>
+        </div>
+        <div>
+          <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+            <strong className="text-slate-800">Cobertura acumulada de FotMob</strong>
+            <span className="font-bold tabular-nums text-[#003399]">{chainProgress.coveragePercent}%</span>
+          </div>
+          <div role="progressbar" aria-label="Cobertura acumulada de competiciones FotMob" aria-valuenow={chainProgress.coveragePercent} aria-valuemin={0} aria-valuemax={100} className="h-2.5 overflow-hidden rounded-full bg-slate-200">
+            <div className="h-full rounded-full bg-[#003399] transition-[width] duration-500" style={{width:`${chainProgress.coveragePercent}%`}}/>
+          </div>
+          <p className="mt-1.5 text-xs text-slate-600">{chainProgress.covered} de {chainProgress.total} competiciones con respuesta · {importCoverage.missing} pendientes · {importCoverage.jobCount} bloques</p>
+        </div>
+      </div>}
       {importCoverage?.total>0&&<div className="my-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950" role="status">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <strong>Cobertura real de FotMob · {importCoverage.checked} de {importCoverage.total} competiciones consultadas con respuesta</strong>

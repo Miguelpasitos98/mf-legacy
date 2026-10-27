@@ -33,3 +33,18 @@ export function summarizeImportCoverage(jobs,selected){
    complete:entries.length>0&&!running&&!missing&&!withheld&&!stale,
    limited:entries.some(d=>["rate_limited","access_denied"].includes(d.status))};
 }
+
+// Un bloque tiene su propio progreso (0-100), mientras la cobertura de la
+// cadena es acumulativa y nunca se reinicia al crear otro trabajo.
+export function importProgressSummary(jobs,selected){
+ if(!selected)return null;
+ const coverage=summarizeImportCoverage(jobs,selected);
+ const chain=(jobs||[]).filter(j=>j.id===coverage.root||j.root_job_id===coverage.root)
+  .sort((a,b)=>String(a.requested_at||"").localeCompare(String(b.requested_at||"")));
+ const current=chain.findLast(j=>["running","queued"].includes(j.status))||chain.at(-1)||selected;
+ const progress=Math.max(0,Math.min(100,Number(current.progress)||0));
+ const count=coverage.received+coverage.noData;
+ const pct=coverage.total?Math.round(100*count/coverage.total):0;
+ return {coverage,block:current,blockIndex:chain.findIndex(j=>j.id===current.id)+1,
+  blockPercent:progress,coveragePercent:pct,covered:count,total:coverage.total};
+}
