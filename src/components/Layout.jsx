@@ -16,6 +16,7 @@ export default function Layout() {
 
   const isTeamsPage = location.pathname.startsWith("/teams");
   const isKitsPage = location.pathname === "/news";
+  const isStadiumsPage = location.pathname === "/schedule";
 
   // PERFIL INDIVIDUAL DE JUGADOR
   const isPlayerProfile =
@@ -74,7 +75,7 @@ export default function Layout() {
                 className={
                   isPlayerProfile
                     ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
-                    : isTeamsPage || isKitsPage
+                    : isTeamsPage || isKitsPage || isStadiumsPage
                       ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
                       : "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
                 }
