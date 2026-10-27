@@ -29,6 +29,7 @@ export default function TopNavbar() {
         {footballNav.map((item) => {
           const isActive =
             location.pathname === item.path ||
+            (item.path === "/schedule" && location.pathname.startsWith("/schedule/")) ||
             (item.path === "/countries" &&
               location.pathname.startsWith("/countries/")) ||
             (item.path === "/teams" &&

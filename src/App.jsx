@@ -14,6 +14,7 @@ import Countries from "@/pages/Countries";
 import Teams from "@/pages/Teams";
 import Kits from "@/pages/Kits";
 import Stadiums from "@/pages/Stadiums";
+import StadiumDetail from "@/pages/StadiumDetail";
 import Players from "@/pages/Players";
 import Stats from "@/pages/Stats";
 import ImportHistory from "@/pages/ImportHistory";
@@ -58,6 +59,7 @@ const AuthenticatedApp = () => {
         <Route path="/teams" element={<Teams />} />
         <Route path="/news" element={<Kits />} />
         <Route path="/schedule" element={<Stadiums />} />
+        <Route path="/schedule/stadium/:stadiumKey" element={<StadiumDetail />} />
         <Route path="/players" element={<Players />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/possession" element={<TeamPossession />} />

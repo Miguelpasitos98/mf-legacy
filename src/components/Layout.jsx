@@ -16,7 +16,7 @@ export default function Layout() {
 
   const isTeamsPage = location.pathname.startsWith("/teams");
   const isKitsPage = location.pathname === "/news";
-  const isStadiumsPage = location.pathname === "/schedule";
+  const isStadiumsPage = location.pathname.startsWith("/schedule");
 
   // PERFIL INDIVIDUAL DE JUGADOR
   const isPlayerProfile =
