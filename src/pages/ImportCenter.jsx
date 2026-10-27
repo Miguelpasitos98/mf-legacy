@@ -10,6 +10,7 @@ import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-
 import HistoricalReview from "@/components/imports/HistoricalReview";
 import {historyCanRetry} from "@/utils/importHistoryReview";
 import {importProgressSummary} from "@/utils/importCoverage";
+import {groupImportJobs,visibleImportGroups} from "@/utils/importJobGroups";
 
 const SOURCES=[{id:"fotmob",label:"FotMob"},{id:"understat",label:"Understat"},{id:"fifa",label:"FIFA / EA FC"},{id:"market",label:"Transfermarkt"}];
 const ACTIVE=["queued","running"];
@@ -51,6 +52,8 @@ export default function ImportCenter(){
   const refreshSequence=useRef(0),currentJob=useRef(selectedJob);
   const autoAppliedJobs=useRef(new Set());
   const [autoApplying,setAutoApplying]=useState(false);
+  const [showJobHistory,setShowJobHistory]=useState(false);
+  const [expandedPlayers,setExpandedPlayers]=useState({});
   currentJob.current=selectedJob;
 
   const refresh=useCallback(async({forceCandidates=false}={})=>{
@@ -127,6 +130,8 @@ export default function ImportCenter(){
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const waitingForWorker=jobs.filter(queuedTooLong);
+  const groupedJobs=groupImportJobs(jobs);
+  const visibleGroups=visibleImportGroups(groupedJobs,showJobHistory);
   const chainProgress=importProgressSummary(jobs,selectedJobData);
   const importCoverage=chainProgress?.coverage;
   const reconcileExisting=async()=>{
