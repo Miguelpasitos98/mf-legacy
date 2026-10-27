@@ -9,7 +9,7 @@ export default function TopNavbar() {
   const footballNav = [
     { label: "SCORES", path: "/scores" },
     { label: "SCHEDULE", path: "/schedule" },
-    { label: "NEWS", path: "/news" },
+    { label: "KITS", path: "/news" },
     { label: "STATS", path: "/stats" },
     { label: "IMPORT", path: "/import-center" },
     { label: "POSESIÓN", path: "/possession" },

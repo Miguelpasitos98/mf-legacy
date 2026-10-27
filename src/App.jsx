@@ -12,6 +12,7 @@ import Layout from "@/components/Layout";
 import Home from "@/pages/Home";
 import Countries from "@/pages/Countries";
 import Teams from "@/pages/Teams";
+import Kits from "@/pages/Kits";
 import Players from "@/pages/Players";
 import Stats from "@/pages/Stats";
 import ImportHistory from "@/pages/ImportHistory";
@@ -54,6 +55,7 @@ const AuthenticatedApp = () => {
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/teams" element={<Teams />} />
+        <Route path="/news" element={<Kits />} />
         <Route path="/players" element={<Players />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/possession" element={<TeamPossession />} />
