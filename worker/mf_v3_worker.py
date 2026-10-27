@@ -109,10 +109,17 @@ def prioritize_fotmob_seasons(options, now=None):
 
 def fotmob_coverage(diagnostics, profile_stale=False):
     """Cobertura de RECURSOS, no porcentaje de calidad del jugador ni de métricas."""
+    # Una opción repetida en statSeasons no es otra competición.
+    unique={}
+    for d in diagnostics:
+        key=(d.get("season"),d.get("tournament_id"),d.get("competition"))
+        if d.get("status")=="duplicate_option" and key in unique:continue
+        unique[key]=d
+    diagnostics=list(unique.values())
     counts=Counter(d.get("status") for d in diagnostics)
-    retry={"cache_absent","cache_mismatch","query_failed","candidate_limit"}
+    retry={"cache_absent","cache_mismatch","query_failed","candidate_limit","provider_paused"}
     blocked={"team_unidentified","pending_reconciliation","competition_unidentified",
-             "incompatible_response"}
+             "incompatible_response","access_denied"}
     received=counts["pending_review"]
     unavailable=counts["no_statistics"]+counts["provider_unavailable"]
     pending=sum(counts[k] for k in retry)
@@ -176,12 +183,17 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
     assignments = resolver.load_assignments(root)
     out, diagnostics = [], []
     options = prioritize_fotmob_seasons(bundle["season_options"])
+    if target_scopes is not None:
+        options=[option for option in options if any(
+            (not scope.get("season") or scope["season"]==option["season"]) and
+            (not scope.get("tournament_id") or str(scope["tournament_id"])==str(option.get("tournament_id"))) and
+            (not scope.get("season_id") or scope["season_id"]==option["season_id"]) and
+            (scope.get("season_id") or scope.get("tournament_id") or not scope.get("competition") or
+             norm(scope["competition"])==norm(option.get("competition")))
+            for scope in target_scopes)]
     seen = set()
+    paused_by_provider=False
     for option in options:
-        if target_scopes is not None and not any((not s.get('season') or s['season']==option['season']) and
-            (not s.get('season_id') or s['season_id']==option['season_id']) and
-            (not s.get('tournament_id') or text(s['tournament_id'])==text(option.get('tournament_id'))) and
-            (s.get('season_id') or s.get('tournament_id') or not s.get('competition') or norm(s['competition'])==norm(option.get('competition'))) for s in target_scopes):continue
         if on_progress:on_progress('FotMob · '+text(option.get('season'))+' · '+text(option.get('competition')))
         sid = option["season_id"]
         diag = {"season": option["season"], "competition": option["competition"],
@@ -294,12 +306,20 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
             status="rate_limited" if code==429 else "access_denied" if code in (401,403) else "provider_unavailable" if code==404 else "query_failed"
             diag.update(status=status,reason="FotMob HTTP "+str(code)+": consulta no completada")
             # No seguir consultando si el proveedor limita o niega el acceso.
-            if code in (401,403,429):break
+            if code in (401,403,429):
+                paused_by_provider=True
+                break
         except OSError as exc:
             diag.update(status="query_failed", reason=type(exc).__name__+": "+str(exc)[:160])
         except (ValueError, KeyError, TypeError) as exc:
             diag.update(status="incompatible_response", reason=type(exc).__name__+": "+str(exc)[:160])
-    from collections import Counter
+    if paused_by_provider:
+        processed={str(d.get("season_id")) for d in diagnostics}
+        for option in options:
+            if option["season_id"] not in processed:
+                diagnostics.append({"season":option["season"],"competition":option["competition"],
+                    "season_id":option["season_id"],"tournament_id":str(option.get("tournament_id","")),
+                    "status":"provider_paused","reason":"No se consulta: FotMob limitó o negó el acceso."})
     counts=dict(Counter(d["status"] for d in diagnostics))
     coverage=fotmob_coverage(diagnostics,profile_stale)
     state=report("complete" if coverage["complete"] else "partial",

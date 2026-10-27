@@ -1,6 +1,6 @@
 // Identidad de temporada+competición sobre la que FotMob publica playerStats.
 // La presencia de métricas en STATS se mide por separado (ImportCandidate review).
-const retryable=new Set(["cache_absent","cache_mismatch","candidate_limit","query_failed"]);
+const retryable=new Set(["cache_absent","cache_mismatch","candidate_limit","query_failed","provider_paused"]);
 const blocked=new Set(["team_unidentified","pending_reconciliation","competition_unidentified","incompatible_response","duplicate_option","access_denied","rate_limited"]);
 const unavailable=new Set(["no_statistics","provider_unavailable"]);
 const terminal=new Set(["pending_review",...unavailable]);
@@ -15,8 +15,9 @@ export function summarizeImportCoverage(jobs,selected){
  for(const job of chain){
   for(const d of job.source_results?.fotmob?.diagnostics||[]){
    if(!d.season||!d.competition||!d.tournament_id)continue;
-   scopes.set([d.season,d.tournament_id,d.competition].join("|"),
-      {...d,job_id:job.id});
+   const key=[d.season,d.tournament_id,d.competition].join("|");
+   if(d.status==="duplicate_option"&&scopes.has(key))continue;
+   scopes.set(key,{...d,job_id:job.id});
   }
  }
  const entries=[...scopes.values()];
