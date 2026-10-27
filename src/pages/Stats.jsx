@@ -1,6 +1,6 @@
 import {nationalLinkPlan} from "@/utils/nationalAutoLink";
 import {POSITION_OPTIONS,normalizeHistoricalPosition,positionGroup} from "@/utils/historicalPositions.js";
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef, useDeferredValue, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { minutesForDisplay, aggregate, defaultSeason, groupStatRows, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,6 +37,7 @@ import {buildSeasonSummaries} from "@/utils/statsSeason";
 import {patchHistoricalPeerCache,HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
 import {useStatsRows} from "@/hooks/useStatsRows";
+import {readStatsViewState,writeStatsViewState} from "@/utils/statsViewState";
 import {STATS_ROWS_KEY,STATS_DETAIL_KEY,STATS_ROWS_STALE_MS,STATS_CACHE_GC_MS,STATS_LAYOUT_KEY,statsDetailKey} from "@/utils/statsRowsCache";
 import {useCraftedfcSnapshot} from "@/hooks/useCraftedfcSnapshot";
 import MfLegacyOverview from "@/components/stats/MfLegacyOverview";
@@ -428,7 +429,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
                 setNationalTeams(old=>old.some(t=>String(t.id)===String(chosen.id))?old:[...old,chosen]);
                 const current=await base44.entities.PlayerSeasonStats.get(nationalTarget.id);
                 if(!current||current.season!==nationalTarget.season||current.competition!==nationalTarget.competition||String(current.player_id)!==String(nationalTarget.player_id))throw Error("La identidad del registro cambió; vuelve a abrirlo.");
-                const patch={national_team_id:String(chosen.id),national_country_id:nationalChoice,team_id:"",team_name:chosen.name,fotmob_team_id:""};
+                const patch={national_team_id:String(chosen.id),national_country_id:nationalChoice,team_id:"",team_name:chosen.name};
                 await base44.entities.PlayerSeasonStats.update(current.id,patch);
                 setNationalLinks(old=>({...old,[String(current.id)]:{...patch,country_id:nationalChoice}}));
                 setNationalTarget(null);
@@ -450,7 +451,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           // JSON batch imports and genuinely new records alter the comparison population.
           queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
         }
-      }} stats={stats} teams={teams} initialSeason={activeSeason}/>
+      }} initialSeason={activeSeason}/>
     </div>,document.body
   );
 }
@@ -458,11 +459,14 @@ export default function Stats(){
   const navigate=useNavigate(),queryClient=useQueryClient();
   const [statsParams]=useSearchParams();
   const pq=usePlayersQuery(),tq=useTeamsQuery();
-  const [season,setSeason]=useState("Todas"),[competition,setCompetition]=useState("Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||"");
-  const [viewMode,setViewMode]=useState("season"),[minMinutes,setMinMinutes]=useState(0),[positionFilter,setPositionFilter]=useState("Todas");
-  const [seasonDisplay,setSeasonDisplay]=useState("all"),[bestMetric,setBestMetric]=useState("composite");
-  const [tab,setTab]=useState("con"),[category,setCategory]=useState("Resumen"),[sort,setSort]=useState("composite"),[sortDirection,setSortDirection]=useState("desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[page,setPage]=useState(0);
-  const {rows,hasMore,loadMore,applyLocalRecord,refresh:refreshStats,busy,error,cached,refreshedAt}=useStatsRows(season,competition);
+  const [savedView]=useState(readStatsViewState);
+  const [season,setSeason]=useState(savedView.season||"Todas"),[competition,setCompetition]=useState(savedView.competition||"Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||savedView.search||"");
+  const deferredSearch=useDeferredValue(search);
+  const [viewMode,setViewMode]=useState(savedView.viewMode||"season"),[minMinutes,setMinMinutes]=useState(savedView.minMinutes||0),[positionFilter,setPositionFilter]=useState(savedView.positionFilter||"Todas");
+  const [seasonDisplay,setSeasonDisplay]=useState(savedView.seasonDisplay||"all"),[bestMetric,setBestMetric]=useState(savedView.bestMetric||"composite");
+  const [tab,setTab]=useState(savedView.tab||"con"),[category,setCategory]=useState(savedView.category||"Resumen"),[sort,setSort]=useState(savedView.sort||"composite"),[sortDirection,setSortDirection]=useState(savedView.sortDirection||"desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[page,setPage]=useState(savedView.page||0);
+  const scrollRoot=useRef(null),restoredScroll=useRef(false);
+  const {rows,allRows,hasMore,loadMore,applyLocalRecord,refresh:refreshStats,busy,error,cached,refreshedAt}=useStatsRows(season,competition);
   const {data:peerDataset,isFetching:peerLoading,error:peerError}=useHistoricalPeerDataset(viewMode==="season");
   const compositeIndex=useMemo(()=>buildCompositeSeasonIndex(peerDataset?.observations||[]),[peerDataset]);
   const [columnConfig,setColumnConfig]=useState(initialConfig);
@@ -484,20 +488,16 @@ export default function Stats(){
   // Avoid first painting an incomplete page with unknown players/teams or
   // unstable ranks. Keep a fully cached dataset immediately available.
   const waitingForCompleteData=(
-    ((!cached||(busy&&hasMore))&&!error) ||
+    (!cached&&!error) ||
     (!pq.data&&!pq.isError) ||
-    (!tq.data&&!tq.isError) ||
-    // The initial screenshot has all 769 stats records already, but the
-    // historical Composite dataset is still loading. Never publish an
-    // apparent ranking without its requested ranking metric.
-    (viewMode==="season"&&sort==="composite"&&!peerError&&!peerDataset)
+    (!tq.data&&!tq.isError)
   );
   const players=pq.data||[],teams=tq.data||[];
   const byID=useMemo(()=>new Map(players.map(p=>[String(p.id),p])),[players]);
   const byTeam=useMemo(()=>new Map(teams.map(t=>[String(t.id),t])),[teams]);
   const stats=useMemo(()=>groupStatRows(rows.filter(r=>r.player_id)),[rows]);
   const seasonSummaries=useMemo(()=>buildSeasonSummaries(rows.filter(r=>r.player_id),teams),[rows,teams]);
-  const competitions=useMemo(()=>[...new Set(rows.map(r=>r.competition))].filter(Boolean).sort(),[rows]);
+  const competitions=useMemo(()=>[...new Set(allRows.filter(r=>season==="Todas"||r.season===season).map(r=>r.competition))].filter(Boolean).sort(),[allRows,season]);
   const positionOptions=useMemo(()=>[
     {value:"grupo:gk",label:"Porteros (GK)"},
     {value:"grupo:def",label:"Defensas"},
@@ -519,10 +519,10 @@ export default function Stats(){
     return sortStatsItems(rs.filter(({record,player})=>matchesPosition(record?.position||player?.position||player?.position_raw)),"competition",sort,sortDirection,columnConfig);
   },[stats,players,tab,sort,sortDirection,byID,columnConfig,positionFilter]);
   const visible=useMemo(()=>{
-    const q=normalizeLabel(search);
+    const q=normalizeLabel(deferredSearch);
     if(!q)return allCompetitionsRanked;
     return allCompetitionsRanked.filter(({record:r,player:p})=>[r?.player_name,p?.name,p?.id,r?.team_name,byTeam.get(String(p?.team_id))?.name,r?.fotmob_player_id,playerUID(p)].some(v=>normalizeLabel(v).includes(q)));
-  },[allCompetitionsRanked,search,byTeam]);
+  },[allCompetitionsRanked,deferredSearch,byTeam]);
   const globalCompetitionRanks=useMemo(()=>rankPositions(allCompetitionsRanked,"competition"),[allCompetitionsRanked]);
   const playerCompetitionRanks=useMemo(()=>playerRankPositions(allCompetitionsRanked,"competition"),[allCompetitionsRanked]);
   const bestCriteria=useMemo(()=>{
@@ -545,10 +545,10 @@ export default function Stats(){
     return sort==="composite"?sortByComposite(ranked,compositeIndex,sortDirection):sortStatsItems(ranked,"season",sort,sortDirection,columnConfig);
   },[seasonSummaries,byID,players,tab,minMinutes,sort,sortDirection,columnConfig,seasonDisplay,bestMetric,compositeIndex,positionFilter]);
   const seasonVisible=useMemo(()=>{
-    const q=normalizeLabel(search);
+    const q=normalizeLabel(deferredSearch);
     if(!q)return allSeasonsRanked;
     return allSeasonsRanked.filter(({summary,player})=>[player?.name,player?.id,playerUID(player),summary?.player_name,summary?.fotmob_player_id,summary?.mainClub?.name,summary?.season].some(v=>normalizeLabel(v).includes(q)));
-  },[allSeasonsRanked,search]);
+  },[allSeasonsRanked,deferredSearch]);
   const globalSeasonRanks=useMemo(()=>rankPositions(allSeasonsRanked,"season"),[allSeasonsRanked]);
   const playerSeasonRanks=useMemo(()=>playerRankPositions(allSeasonsRanked,"season"),[allSeasonsRanked]);
   const chooseSort=key=>{
@@ -559,6 +559,18 @@ export default function Stats(){
   };
   const filtered=visible.slice(page*50,(page+1)*50);
   const activeCount=viewMode==="season"?seasonVisible.length:visible.length;
+  useEffect(()=>{if(cached)setPage(p=>Math.min(p,Math.max(0,Math.ceil(activeCount/50)-1)));},[cached,activeCount]);
+  useEffect(()=>{
+    const previous=readStatsViewState();
+    writeStatsViewState({...previous,season,competition,search,viewMode,minMinutes,positionFilter,seasonDisplay,bestMetric,tab,category,sort,sortDirection,page});
+  },[season,competition,search,viewMode,minMinutes,positionFilter,seasonDisplay,bestMetric,tab,category,sort,sortDirection,page]);
+  useLayoutEffect(()=>{
+    if(waitingForCompleteData||restoredScroll.current||!scrollRoot.current)return;
+    scrollRoot.current.scrollTop=savedView.scrollTop||0;
+    const horizontal=scrollRoot.current.querySelector('[data-stats-horizontal]');
+    if(horizontal)horizontal.scrollLeft=savedView.scrollLeft||0;
+    restoredScroll.current=true;
+  },[waitingForCompleteData,savedView]);
   const [bulkSelection,setBulkSelection]=useState(()=>new Set());
   const [compareOpen,setCompareOpen]=useState(false);
   const [bulkConfirm,setBulkConfirm]=useState("");
@@ -658,7 +670,7 @@ export default function Stats(){
     const {update}=Array.isArray(change)?applyManualStatChanges(current,changes):applyManualStatChange(current,change);
     await base44.entities.PlayerSeasonStats.update(record.id,update);
     setDetailRows(rows=>rows.map(r=>String(r.id)===String(record.id)?{...r,...update}:r));
-    applyLocalRecord(record.id,update);
+    await applyLocalRecord(record.id,update);
     // Rebuild percentiles immediately from our complete in-memory population.
     // No global refetch, no redundant full STATS download after a single edit.
     if(!patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",record.id,update))
@@ -669,7 +681,7 @@ export default function Stats(){
     if(!Number.isInteger(matches)||matches<1||matches>200)throw Error("Los PJ del equipo deben ser un entero entre 1 y 200.");
     await base44.entities.PlayerSeasonStats.update(record.id,{team_matches:matches});
     setDetailRows(current=>current.map(r=>String(r.id)===String(record.id)?{...r,team_matches:matches}:r));
-    applyLocalRecord(record.id,{team_matches:matches});
+    await applyLocalRecord(record.id,{team_matches:matches});
     if(!patchHistoricalPeerCache(queryClient,"PlayerSeasonStats",record.id,{team_matches:matches}))
       queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
   };
@@ -746,10 +758,13 @@ export default function Stats(){
     queryClient.invalidateQueries({queryKey:["mf-legacy","teams"]});
     queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
   };
-  return <div className="h-full w-full overflow-y-auto bg-[#f3f5f8]">
+  return <div ref={scrollRoot} data-stats-scroll className="h-full w-full overflow-y-auto bg-[#f3f5f8]" onScrollCapture={()=>{
+    const previous=readStatsViewState(),horizontal=scrollRoot.current?.querySelector('[data-stats-horizontal]');
+    writeStatsViewState({...previous,scrollTop:scrollRoot.current?.scrollTop||0,scrollLeft:horizontal?.scrollLeft||0});
+  }}>
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 md:px-5">
       <p className="text-xs font-black uppercase tracking-[.12em] text-[#0d315b]">STATS <span className="ml-2 font-normal normal-case tracking-normal text-slate-400">Rendimiento por temporada</span></p>
-      <div className="flex items-center gap-2">
+      <div className="flex max-w-full flex-wrap items-center gap-2">
         <button type="button" onClick={()=>{setSettingsContext(null);setSettingsOpen(true);}} title="Configurar columnas, cálculos y categorías" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Settings2 size={16}/> Ajustes</button>
         <button onClick={()=>setImportOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-[#003399] hover:bg-blue-50"><Upload size={15}/> Solo FotMob</button>
         <button onClick={()=>setUnifiedOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white hover:bg-[#002777]"><Upload size={15}/> Importar FotMob + CraftedFC</button>
@@ -772,7 +787,7 @@ export default function Stats(){
         sortOptions={sortOptions}
         onSort={changeSort}
         refreshing={busy||peerLoading}
-        onRefresh={()=>{refreshStats();queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});}}
+        onRefresh={refreshStats}
         minMinutes={minMinutes}
         onMinMinutes={value=>{setMinMinutes(value);setPage(0);}}
         viewMode={viewMode}
@@ -803,9 +818,11 @@ export default function Stats(){
         {bulkStatus&&<span role="status" className="text-[11px] font-semibold text-[#173B67]">{bulkStatus}</span>}
         {bulkSelection.size>0&&<button type="button" onClick={()=>{setBulkSelection(new Set());setBulkConfirm("");}} className="ml-auto rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700">Quitar selección</button>}
       </div>}
-      {error&&<div className="border-b border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">Error al cargar estadísticas: {error}</div>}
-      {waitingForCompleteData?<div role="status" aria-live="polite" className="min-h-[240px] flex items-center justify-center border-t border-slate-200 bg-white p-8 text-center text-sm text-slate-600"><div><RefreshCw size={20} className="mx-auto mb-3 animate-spin text-blue-700"/><p className="font-semibold">Preparando estadísticas, jugadores y equipos…</p><p className="mt-1 text-xs text-slate-500">La tabla aparecerá cuando estén listas todas las páginas para evitar cambios de orden.</p></div></div>:viewMode==="season"?<SeasonStatsTable items={seasonVisible} compositeBySeason={compositeIndex} peerLoading={peerLoading} peerError={peerError} teamSeasonMatches={peerDataset?.records?.TeamSeasonMatches||[]} globalRanks={globalSeasonRanks} playerRanks={playerSeasonRanks} category={category} config={columnConfig} page={page} sortKey={sort} sortDirection={sortDirection} onSort={chooseSort} onOpen={openSeasonDetail} onTeam={id=>navigate("/teams?stats_team="+encodeURIComponent(id))} selection={bulkSelection} onToggleSelect={toggleBulk} onToggleSelectPage={toggleBulkPage}/>:<div className="max-w-full overflow-x-auto"><table className="w-full min-w-[920px] text-left text-xs"><thead className="bg-[#003399] text-white"><tr><th className={"px-2 py-3 text-center"+listLine("rank")} title="Posición entre las competiciones del jugador (posición entre todos los jugadores)">RANK</th><SortHeader column="player" label="JUGADOR" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={"min-w-[190px]"+listLine("player")}/><SortHeader column="club" label="EQUIPO" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("club")}/><SortHeader column="season" label="TEMPORADA" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("season")}/><SortHeader column="competition" label="COMPETICIÓN" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("competition")}/><SortHeader column="appearances" label="PJ" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("appearances")}/><SortHeader column="minutes" label="MIN" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("minutes")}/><SortHeader column="rating" label="NOTA" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("rating")}/>{columns.map(id=><SortHeader key={id} column={id} label={getColumn(columnConfig,id)?.name||metricLabel(id)} active={sort} direction={sortDirection} onSort={chooseSort} className={listLine(id)}/>)}<th className="px-3 py-3">FICHA</th></tr></thead>
-      <tbody>{filtered.map(({record:r,player:p},i)=>{const info=r?resolveTeam(r,teams,stats):null;const team=r?info?.team:byTeam.get(String(p?.team_id||""));const linkable=!r||info?.status==="confirmed";return <tr key={(r?.id||r?.external_record_id||p?.id||"")+":"+i} className="border-b border-slate-100 odd:bg-white even:bg-[#f6f8f6] hover:bg-[#eef3fb]"><td className={"whitespace-nowrap px-2 py-3 text-center"+listLine("rank")}><strong className="font-black text-slate-800">{playerCompetitionRanks.get(rankIdentity({record:r,player:p},"competition"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalCompetitionRanks.get(rankIdentity({record:r,player:p},"competition"))??"—"})</span></td><td className={"px-3 py-2"+listLine("player")}><button onClick={()=>openDetail({record:r,player:p})} className="flex items-center gap-2 text-left"><Avatar name={p?.name||r?.player_name} photo={playerPhoto(p)}/><span><span className="block font-extrabold text-[#0f3156] hover:underline">{p?.name||r?.player_name||"Jugador"}</span><span className="text-[10px] text-slate-400">FM {playerUID(p)||"—"} · FotMob {r?.fotmob_player_id||"—"}</span></span></button></td><td className={"px-3 py-2 text-slate-700"+listLine("club")}>{r&&info?.status==="national"?<span className="text-slate-500">Selección nacional</span>:r&&!linkable?<span className="text-amber-800">{info?.label||"Club pendiente"}{info?.status==="suggested"&&<span className="block text-[10px]">Sin verificar</span>}</span>:team?.id?<button className="hover:underline" onClick={()=>navigate("/teams?stats_team="+encodeURIComponent(team.id))}><TeamBadge teamName={team.name} logo={teamLogo(team)}/></button>:<TeamBadge teamName={r?.team_name||team?.name} logo={teamLogo(team)}/>}</td><td className={"px-3 py-3"+listLine("season")}>{r?.season||"—"}</td><td className={"px-3 py-3"+listLine("competition")}>{r?.competition||"Sin datos"}</td><td className={"px-3 py-3 text-right"+listLine("appearances")}>{show(r?.appearances)}</td><td className={"px-3 py-3 text-right"+listLine("minutes")}>{show(r?.minutes)}</td><td className={"px-3 py-3 text-right font-bold"+listLine("rating")}>{show(r?.rating,2)}</td>{columns.map(id=><td key={id} className={"px-3 py-3 text-right"+listLine(id)}>{show(columnValue(r,"competition",id,columnConfig),getColumn(columnConfig,id)?.decimals??0)}{columnValue(r,"competition",id,columnConfig)!==null&&getColumn(columnConfig,id)?.unit?" "+getColumn(columnConfig,id).unit:""}</td>)}<td className="px-3 py-3"><button onClick={()=>openDetail({record:r,player:p})} className="rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Ver stats</button></td></tr>})}
+      <div role="status" aria-live="polite" className={"flex min-h-8 items-center px-4 py-1 text-xs "+(error||peerError?"text-rose-700":"text-slate-500")}>
+        {error?"No se pudo actualizar: "+error+(cached?" Se conservan los datos anteriores.":""):peerError?"No se pudo actualizar Composite; se conserva la comparación disponible.":busy?(cached?"Actualizando estadísticas; los registros guardados siguen visibles.":"Cargando estadísticas…"):peerLoading?"Actualizando Composite con la población completa; la tabla sigue disponible.":deferredSearch!==search?"Filtrando jugadores…":""}
+      </div>
+      {waitingForCompleteData?<div role="status" aria-live="polite" className="min-h-[240px] flex items-center justify-center border-t border-slate-200 bg-white p-8 text-center text-sm text-slate-600"><div><RefreshCw size={20} className="mx-auto mb-3 animate-spin text-blue-700"/><p className="font-semibold">Preparando estadísticas, jugadores y equipos…</p><p className="mt-1 text-xs text-slate-500">La tabla aparecerá cuando estén listas todas las páginas para evitar cambios de orden.</p></div></div>:!cached&&error?<div role="alert" className="min-h-[240px] p-8 text-sm text-rose-700">No se pudieron cargar las estadísticas. <button onClick={refreshStats} className="font-bold underline">Reintentar</button></div>:viewMode==="season"?<SeasonStatsTable items={seasonVisible} compositeBySeason={compositeIndex} peerLoading={peerLoading} peerError={peerError} teamSeasonMatches={peerDataset?.records?.TeamSeasonMatches||[]} globalRanks={sort==="composite"&&!peerDataset?new Map():globalSeasonRanks} playerRanks={sort==="composite"&&!peerDataset?new Map():playerSeasonRanks} category={category} config={columnConfig} page={page} sortKey={sort} sortDirection={sortDirection} onSort={chooseSort} onOpen={openSeasonDetail} onTeam={id=>navigate("/teams?stats_team="+encodeURIComponent(id))} selection={bulkSelection} onToggleSelect={toggleBulk} onToggleSelectPage={toggleBulkPage}/>:<div data-stats-horizontal className="max-w-full overflow-x-auto"><table className="w-full min-w-[920px] text-left text-xs"><thead className="bg-[#003399] text-white"><tr><th className={"px-2 py-3 text-center"+listLine("rank")} title="Posición entre las competiciones del jugador (posición entre todos los jugadores)">RANK</th><SortHeader column="player" label="JUGADOR" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={"min-w-[190px]"+listLine("player")}/><SortHeader column="club" label="EQUIPO" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("club")}/><SortHeader column="season" label="TEMPORADA" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("season")}/><SortHeader column="competition" label="COMPETICIÓN" active={sort} direction={sortDirection} onSort={chooseSort} align="left" className={listLine("competition")}/><SortHeader column="appearances" label="PJ" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("appearances")}/><SortHeader column="minutes" label="MIN" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("minutes")}/><SortHeader column="rating" label="NOTA" active={sort} direction={sortDirection} onSort={chooseSort} className={listLine("rating")}/>{columns.map(id=><SortHeader key={id} column={id} label={getColumn(columnConfig,id)?.name||metricLabel(id)} active={sort} direction={sortDirection} onSort={chooseSort} className={listLine(id)}/>)}<th className="px-3 py-3">FICHA</th></tr></thead>
+      <tbody>{filtered.map(({record:r,player:p},i)=>{const info=r?resolveTeam(r,teams,stats):null;const team=r?info?.team:byTeam.get(String(p?.team_id||""));const linkable=!r||info?.status==="confirmed";return <tr key={(r?.id||r?.external_record_id||p?.id||"")+":"+i} className="border-b border-slate-100 odd:bg-white even:bg-[#f6f8f6] hover:bg-[#eef3fb]"><td className={"whitespace-nowrap px-2 py-3 text-center"+listLine("rank")}><strong className="font-black text-slate-800">{playerCompetitionRanks.get(rankIdentity({record:r,player:p},"competition"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalCompetitionRanks.get(rankIdentity({record:r,player:p},"competition"))??"—"})</span></td><td className={"px-3 py-2"+listLine("player")}><button onClick={()=>openDetail({record:r,player:p})} className="flex items-center gap-2 text-left"><Avatar name={p?.name||r?.player_name} photo={playerPhoto(p)}/><span><span className="block font-extrabold text-[#0f3156] hover:underline">{p?.name||r?.player_name||"Jugador"}</span><span className="text-[10px] text-slate-400">FM {playerUID(p)||"—"} · FotMob {r?.fotmob_player_id||"—"}</span></span></button></td><td className={"px-3 py-2 text-slate-700"+listLine("club")}>{r&&info?.status==="national"?<span className="text-slate-700">{info.label||"Selección nacional"}</span>:r&&!linkable?<span className="text-amber-800">{info?.label||"Club pendiente"}{info?.status==="suggested"&&<span className="block text-[10px]">Sin verificar</span>}</span>:team?.id?<button className="hover:underline" onClick={()=>navigate("/teams?stats_team="+encodeURIComponent(team.id))}><TeamBadge teamName={team.name} logo={teamLogo(team)}/></button>:<TeamBadge teamName={r?.team_name||team?.name} logo={teamLogo(team)}/>}</td><td className={"px-3 py-3"+listLine("season")}>{r?.season||"—"}</td><td className={"px-3 py-3"+listLine("competition")}>{r?.competition||"Sin datos"}</td><td className={"px-3 py-3 text-right"+listLine("appearances")}>{show(r?.appearances)}</td><td className={"px-3 py-3 text-right"+listLine("minutes")}>{show(r?.minutes)}</td><td className={"px-3 py-3 text-right font-bold"+listLine("rating")}>{show(r?.rating,2)}</td>{columns.map(id=><td key={id} className={"px-3 py-3 text-right"+listLine(id)}>{show(columnValue(r,"competition",id,columnConfig),getColumn(columnConfig,id)?.decimals??0)}{columnValue(r,"competition",id,columnConfig)!==null&&getColumn(columnConfig,id)?.unit?" "+getColumn(columnConfig,id).unit:""}</td>)}<td className="px-3 py-3"><button onClick={()=>openDetail({record:r,player:p})} className="rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Ver stats</button></td></tr>})}
       {!filtered.length&&<tr><td colSpan={9+columns.length} className="px-6 py-12 text-center"><Database className="mx-auto mb-3 text-slate-300" size={36}/><p className="font-bold text-slate-600">Todavía no hay estadísticas para estos filtros</p><p className="mt-1 text-xs text-slate-400">Puedes cambiar los filtros o importar archivos de FotMob Studio.</p></td></tr>}</tbody></table></div>}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"><p className="text-xs text-slate-500">Página {page+1} · Los campos no disponibles se indican con —</p><div className="flex gap-2">{page>0&&<button onClick={()=>setPage(x=>x-1)} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Anterior</button>}{(page+1)*50<activeCount&&<button onClick={()=>setPage(x=>x+1)} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white">Siguiente</button>}{hasMore&&<button disabled={busy} onClick={loadMore} className="rounded-lg border border-blue-300 px-4 py-2 text-xs font-bold text-[#003399] disabled:opacity-40">Cargar más</button>}</div></div></div>
 

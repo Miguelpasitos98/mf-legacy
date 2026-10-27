@@ -8,6 +8,10 @@ param(
   [string]$Trabajo
 )
 $ErrorActionPreference="Stop"
+# A process launched from PowerShell 7 may inherit its module paths even when
+# this script runs under Windows PowerShell 5. Load the matching bundled module
+# explicitly; importing the other engine's Security module duplicates TypeData.
+Import-Module (Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1') -ErrorAction Stop
 $homeDir=Join-Path $env:APPDATA "MF_Legacy_V3"
 $configPath=Join-Path $homeDir "config.json"
 $tokenPath=Join-Path $homeDir "token.dpapi"

@@ -1,27 +1,37 @@
-# Importación STATS — verificación del 26/10/2026
+# Importación y estabilidad STATS — 27/10/2026
 
-La reparación web está publicada en Base44. Una prueba real con Milan Škriniar (FotMob 309328) creó, tras autorización explícita, 12 registros sobre su Player existente: 872 valores/unidades, 505 métricas y 836 percentiles originales sin diferencias frente a la extracción. Son nueve registros de clubes y tres de selección. Se verificaron en la tabla STATS después de recargar, cerrar y volver a abrir la página.
+La auditoría del 27/10/2026 verifica **19 filas de Milan Škriniar**, 1.217 valores/unidades, 710 métricas y 1.166 percentiles. Los 872 valores originales y los 345 adicionales autorizados coinciden con sus fuentes; cero duplicados y cero candidatos pendientes en el trabajo revisado. Se cerraron únicamente 872 candidatos repetidos ya aplicados y documentados.
 
-El recorrido verificado fue PLAYERS → perfil/cachés FotMob → Studio Windows → worker Python → Base44 → revisión de administrador → STATS. El job recibió 872 candidatos únicos y terminó con todos aplicados. La reanudación tras un límite real de actualizaciones Base44 no duplicó la temporada ya creada.
+La web está publicada en Base44. La prueba comparable de escritorio pasó de 19.96 s a 5.35 s hasta la tabla y de 36 a 16 solicitudes de entidades. Los cambios de temporada mantuvieron la tabla montada, sin nuevas lecturas; el desplazamiento visual observado bajó de 0,288999 a 0.002039. Son mediciones de esta sesión, con recarga completa y caché HTTP caliente; no representan un SLA ni un percentil estadístico.
 
-La extracción inicial fue offline. Una comprobación posterior limitada a ocho consultas FotMob recuperó siete propuestas adicionales (345 valores), pendientes de una autorización separada. Treinta y una opciones siguen sin caché. Los conflictos de equipo o datos se retienen y no se transforman en estadísticas.
+## Conservación de datos
 
-Las pruebas adicionales utilizaron cachés reales y un baseline de producción: De Bruyne (3672 valores), Courtois (1592), Valverde (2843) y Rüdiger (3702). No escribieron sus STATS. La lectura final confirmó que los 47 registros de Courtois y los 62 de Rüdiger conservan exactamente el baseline. Los grupos por proveedor pueden corresponder a la misma fila STATS, por lo que no se cuentan como filas independientes.
+Las 1.235 filas STATS conservan sus campos estadísticos y manuales. Los 712 registros de posesión son idénticos a su copia previa, incluidos los no vinculados. Courtois conserva 47 filas y Rüdiger 62. No se crearon jugadores ni equipos para estas pruebas.
 
-## Validación
+La vinculación nacional existente borraba el ID FotMob. Se corrigieron las rutas automática y manual y se recuperaron los cuatro IDs de Eslovaquia documentados en la extracción aprobada. Se conservaron los enlaces internos ya asignados. Por tanto, las filas originales conservan íntegramente sus estadísticas, aunque algunos metadatos de vinculación han cambiado. Quedan cuatro filas PSG sin enlace interno confirmado; sus nombres e IDs externos están preservados.
 
-- 309/309 pruebas Node.
-- 23/23 pruebas Python worker/Studio.
-- 5/5 pruebas de cobertura defensiva Studio.
-- Lint y build correctos.
-- Typecheck global mantiene los mismos 206 errores del baseline, sin errores nuevos. Este comando no pasa y sigue como deuda previa.
+## Cambios de código
 
-Se corrigió el uso de minutos estimados como denominador; las fórmulas de tasas y Play % exigen minutos reales. Se actualizaron pruebas anteriores para reflejar contratos ya presentes (tasa manual directa, selección pendiente, cobertura explícita y componentes separados) y se retiraron ocho imports sin uso.
+Una caché canónica completa de STATS alimenta filtros locales y Composite. Las páginas se leen por cursor con dos solicitudes simultáneas como máximo; una respuesta fallida, duplicada o incompleta conserva la instantánea anterior. Las mutaciones cancelan lecturas obsoletas antes de actualizar la caché. PLAYERS, equipos, países, ligas y posesión comparten lecturas completas. ImportCenter pagina candidatos, protege la selección frente a respuestas atrasadas y distingue carga de ausencia de observaciones.
 
-## Conservación y límites
+STATS conserva búsqueda, filtros, ordenación y ambos scrolls al cambiar de sección o recargar la misma pestaña. Una pestaña nueva inicia su propio estado. No se persiste la selección de edición. La paginación visible continúa en 50 filas; no se añadió virtualización sin una mejora demostrada.
 
-No se crean Players, equipos o selecciones desde esta reparación. Se vincula únicamente por identidad oficial única. El nombre y el ID FotMob se conservan cuando el enlace interno del catálogo está pendiente. Solo se completan valores vacíos y los conflictos bloquean el lote antes de escribir. Las tasas, los porcentajes, los valores GK negativos y los percentiles total/per90 permanecen separados.
+La normalización de nombres de métricas usa una caché acotada. Benchmark alternado de tres ejecuciones sobre los mismos 1.235 registros: comparación histórica 411.1 → 178.5 ms; resúmenes de temporada 400.7 → 82.7 ms (medianas). Se comprobaron salidas idénticas, sin cambiar fórmulas o pesos.
 
-Understat no tenía datos locales del jugador inicial; FIFA/EA FC y mercado no tenían catálogo histórico autorizado configurado. No se sustituyen esas ausencias por ceros. Las métricas derivadas de duelos conservan una explicación. Las evidencias de producción, capturas y contextos internos permanecen en worker/review/ y se excluyen de Git.
+También se corrigió la interpretación DD/MM/YYYY en la ficha, el recorte de controles en móvil y la etiqueta de selecciones ya vinculadas.
 
-El parche portable de Studio se instala con worker/apply_studio_patch.py, que guarda respaldos. Véase worker/README.md para configuración, diagnóstico offline, revisión y ejecución dirigida a un job_id.
+## Pruebas
+
+- 322/322 Node; 23/23 Python del worker; 265/265 Studio.
+- Build y lint pasan localmente; también se ejecutaron en el sandbox Base44.
+- Typecheck global falla con 204 errores previos, sin errores nuevos frente al baseline normalizado.
+- Navegador publicado: búsqueda, filtros, temporadas, ordenación, actualización activa, scroll, navegación PLAYERS/ficha/STATS, recarga y reapertura; posesión 712 tras actualizar/recargar; vista de 390 px.
+- Edición controlada aislada: un único registro sintético, un guardado, historial manual conservado y persistencia al abrir una pestaña nueva. Un fallo de red simulado conserva sus tres filas y muestra un error recuperable. Ningún dato deportivo real se editó para esa prueba.
+
+## Publicación y límites
+
+Publicación web final: commit `1d42aadbab5ec06ab0704b537b89deb621a3da36`, checkpoint `6ae0899ce99e0e42fd0f1d80`. El PR #65 conserva el parche portable del importador y agrega las pruebas y correcciones Windows; no se fusiona automáticamente.
+
+El arranque independiente carga explícitamente el módulo Security de la versión de PowerShell en ejecución. Se verificaron configuración cifrada, proceso PowerShell/Python persistente y comunicación sin errores. Queda arrancado en modo SoloLocal; no realiza nuevas consultas FotMob.
+
+Persisten 31 opciones FotMob sin caché, cuatro grupos retenidos por conciliación y ausencia de catálogos históricos autorizados para las fuentes que no los tienen. Se conservan como pendientes, sin fabricar datos. La posesión conserva 549 registros pendientes de enlace interno; no se eliminan ni se reconstruyen. El cálculo inicial aún contiene tareas largas y el build avisa de un bundle grande; no se afirma haber eliminado todo el trabajo síncrono de la aplicación. Evidencias detalladas y datos internos: `worker/review/`, excluido de Git.

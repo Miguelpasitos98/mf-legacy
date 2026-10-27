@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import {formatBirthDate,birthAge} from "@/utils/playerDate";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
@@ -554,32 +555,8 @@ function normalizeImageUrl(value) {
   return `https://${url}`;
 }
 
-function formatDate(value) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("es-ES", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
-}
-
-function calculateAge(value) {
-  if (!value) return null;
-  const birth = new Date(value);
-  if (Number.isNaN(birth.getTime())) return null;
-
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const month = today.getMonth() - birth.getMonth();
-
-  if (month < 0 || (month === 0 && today.getDate() < birth.getDate())) {
-    age -= 1;
-  }
-
-  return age >= 0 ? age : null;
-}
+const formatDate=formatBirthDate;
+const calculateAge=birthAge;
 
 function formatFm26Money(value) {
   if (value == null || value === "") return "—";

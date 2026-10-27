@@ -1,6 +1,7 @@
+import {normalizedMetricKey} from "./metricKey.js";
 export const norm = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
 // Metric keys retain the distinction between totals and percentages.
-export const metricNorm = name => norm(String(name??"").replace(/%/g,"percent"));
+export const metricNorm = normalizedMetricKey;
 export const statNum = v => v===null||v===undefined||v===""?null:Number.isFinite(Number(v))?Number(v):null;
 export const minutesForDisplay = record => {
  const actual=statNum(record?.minutes);
@@ -34,6 +35,7 @@ const exactTeam=(r,teams)=>{
 };
 export const resolveTeam=(record,teams,peers=[])=>{
  if(nationalCompetition(record.competition)){
+  if(record.national_team_id&&record.national_country_id)return {team:null,status:"national",label:record.team_name||"Selección nacional"};
   const team=exactTeam(record,teams);
   const sourceName=String(record.team_name||"").trim();
   const suspicious= /^(atletico|atlético|river plate|manchester|paris saint|psg|real madrid|barcelona|arsenal|chelsea|bayern|monaco)/i.test(sourceName);

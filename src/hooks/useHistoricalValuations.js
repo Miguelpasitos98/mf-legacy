@@ -1,40 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
-import { base44 } from "@/api/base44Client";
+import {useCallback,useMemo} from "react";
+import {useQuery} from "@tanstack/react-query";
+import {recordQueryOptions} from "@/api/recordQueries";
 
-// Carga las valoraciones historicas de un jugador desde PlayerHistoricalValuation.
-// Devuelve { valuations, loading, refresh }.
-export function useHistoricalValuations(playerId) {
-  const [valuations, setValuations] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const refresh = useCallback(async () => {
-    const id = String(playerId || "");
-    if (!id) {
-      setValuations([]);
-      return;
-    }
-    setLoading(true);
-    try {
-      const r = await base44.entities.PlayerHistoricalValuation.filter(
-        { player_id: id },
-        { sort: "-season", limit: 100 }
-      );
-      const items = Array.isArray(r) ? r : r?.items || [];
-      setValuations(
-        items.sort((a, b) =>
-          String(b.season || "").localeCompare(String(a.season || ""))
-        )
-      );
-    } catch {
-      setValuations([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [playerId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  return { valuations, loading, refresh };
+// Shared complete snapshot: an unsuccessful refresh retains the last good data.
+export function useHistoricalValuations(playerId){
+  const query=useQuery({...recordQueryOptions("PlayerHistoricalValuation"),enabled:Boolean(playerId)});
+  const valuations=useMemo(()=>(query.data||[]).filter(row=>String(row.player_id)===String(playerId||""))
+    .sort((a,b)=>String(b.season||"").localeCompare(String(a.season||""))),[query.data,playerId]);
+  const refresh=useCallback(()=>query.refetch(),[query.refetch]);
+  return {valuations,loading:query.isFetching,error:query.error,refresh};
 }

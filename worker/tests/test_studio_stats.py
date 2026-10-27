@@ -99,8 +99,10 @@ class StudioTests(unittest.TestCase):
         self.assertGreater(len(a),500)
         self.assertEqual(len({r['source_record_id'] for r in a}),len(a))
         self.assertEqual(state['network_requests'],0)
-        self.assertFalse(any(r['fotmob_team_id']=='8636' for r in a))
-        self.assertFalse(any(r['competition']=='Super Cup' for r in a))
+        # New approved caches include Inter's 2022/23 Super Cup. Only the
+        # ambiguous PSG/Fenerbahce aggregate must remain excluded.
+        self.assertFalse(any(r['competition']=='Super Cup' and r['season']=='2024/2025' for r in a))
+        self.assertFalse(any(r['fotmob_team_id']=='8636' and r['season']!='2022/2023' for r in a))
         self.assertTrue(any(r['metric_name']=='Pass accuracy' and r['metric_unit']=='percentage' for r in a))
         self.assertFalse(any(r['metric_name']=='Rating' and r['metric_unit']=='per90' for r in a))
 

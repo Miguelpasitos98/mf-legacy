@@ -1,6 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
+import {useQueryClient} from "@tanstack/react-query";
+import {STATS_ROWS_KEY,STATS_DETAIL_KEY} from "@/utils/statsRowsCache";
+import {HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
+import {RECORD_KEYS} from "@/api/recordQueries";
+import {readCompleteRecords} from "@/utils/entityRecords";
 import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-react";
 
 const SOURCES=[{id:"fotmob",label:"FotMob"},{id:"understat",label:"Understat"},{id:"fifa",label:"FIFA / EA FC"},{id:"market",label:"Transfermarkt"}];
@@ -11,6 +16,9 @@ const reason=e=>e?.response?.data?.error||e?.message||"Error inesperado";
 const responseRows=r=>Array.isArray(r)?r:r?.items||r?.data||r?.entities||[];
 
 export default function ImportCenter(){
+  const cache=useQueryClient();
+  const invalidateApplied=()=>Promise.all([STATS_ROWS_KEY,STATS_DETAIL_KEY,HISTORICAL_PEER_KEY,
+    RECORD_KEYS.PlayerHistoricalValuation].map(queryKey=>cache.invalidateQueries({queryKey})));
   const [players,setPlayers]=useState([]);
   const [searching,setSearching]=useState(false);
   const [searchOpen,setSearchOpen]=useState(false);
@@ -30,23 +38,29 @@ export default function ImportCenter(){
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
   const [loaded,setLoaded]=useState(false);
+  const [candidatesLoading,setCandidatesLoading]=useState(false);
   const [coordinator,setCoordinator]=useState("checking");
   const [statsStatus,setStatsStatus]=useState({state:"idle",count:0});
+  const refreshSequence=useRef(0),currentJob=useRef(selectedJob);
+  currentJob.current=selectedJob;
 
-  const refresh=useCallback(async()=>{
+  const refresh=useCallback(async({forceCandidates=false}={})=>{
+    const request=++refreshSequence.current;
     try{
       const result=await base44.entities.ImportJob.list("-created_date",100);
+      if(request!==refreshSequence.current)return;
       setJobs(responseRows(result));setLoaded(true);
       if(selectedJob){
-        const candidates=[];
-        for(let skip=0;skip<10000;skip+=100){
-          const page=responseRows(await base44.entities.ImportCandidate.filter({job_id:selectedJob},"id",100,skip));
-          candidates.push(...page);if(page.length<100)break;
-        }
-        setCandidateRows(candidates);
+        const queryKey=["mf-legacy","import-candidates",selectedJob];
+        const job=responseRows(result).find(j=>j.id===selectedJob);
+        if(forceCandidates)await cache.invalidateQueries({queryKey,exact:true,refetchType:"none"});
+        const candidates=await cache.fetchQuery({queryKey,
+          queryFn:({signal})=>readCompleteRecords({list:options=>base44.entities.ImportCandidate.filter({job_id:selectedJob},options)},{signal,maxRecords:10000}),
+          staleTime:job?.status==="completed"?Infinity:10000,retry:false});
+        if(request===refreshSequence.current&&currentJob.current===selectedJob){setCandidateRows(candidates);setCandidatesLoading(false);setError("");}
       }
-    }catch(e){setError(reason(e));setLoaded(true);}
-  },[selectedJob]);
+    }catch(e){if(request===refreshSequence.current){setError(reason(e));setLoaded(true);setCandidatesLoading(false);}}
+  },[selectedJob,cache]);
   useEffect(()=>{
     base44.functions.invoke("import-control",{action:"health"})
       .then(resp=>setCoordinator(resp.data?.ok?"ready":"unavailable"))
@@ -57,7 +71,7 @@ export default function ImportCenter(){
     const timer=setInterval(()=>{if(document.visibilityState==="visible")refresh();},15000);
     return ()=>clearInterval(timer);
   },[refresh]);
-  useEffect(()=>{setCandidateRows([]);setPreview(null);setReviewedGroups({});},[selectedJob]);
+  useEffect(()=>{setCandidateRows([]);setCandidatesLoading(Boolean(selectedJob));setPreview(null);setReviewedGroups({});},[selectedJob]);
   useEffect(()=>{
     setLinks([]);
     if(!selection)return;
@@ -99,7 +113,7 @@ export default function ImportCenter(){
   const player=selectedPlayer?.id===selection?selectedPlayer:players.find(p=>p.id===selection);
   const candidateIds=[...new Set(links.map(l=>String(l.fotmob_player_id||"")).filter(Boolean))];
   const fotmob=candidateIds.length===1?candidateIds[0]:"";
-  const linked=links.some(l=>["confirmed","verified","manual","automatic_exact_name_unique"].includes(String(l.verification||"").toLowerCase()))&&Boolean(fotmob);
+  const linked=links.some(l=>["confirmed","verified","manual","manual_confirmada","confirmada","automatic_exact_name_unique"].includes(String(l.verification||"").toLowerCase()))&&Boolean(fotmob);
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const seasonGroups=Object.values(candidateRows.filter(c=>c.kind==="metric").reduce((acc,c)=>{
@@ -114,7 +128,7 @@ export default function ImportCenter(){
       const resp=await base44.functions.invoke("import-control",{action,...payload});
       setNotice(action==="start"?"Solicitud de extracción nueva registrada. Tu MF Legacy Studio la ejecutará cuando INICIAR_TRABAJADOR_V3.bat esté activo en tu ordenador.":action==="retry"?"Trabajo en cola de nuevo.":action==="release-stale"?"Concesión caducada liberada; ya puedes reintentar.":"Trabajo cancelado.");
       if(resp?.data?.job?.id)setSelectedJob(resp.data.job.id);
-      await refresh();
+      await refresh({forceCandidates:true});
     }catch(e){setError(reason(e));}
     finally{setBusy(false);}
   };
@@ -131,7 +145,8 @@ export default function ImportCenter(){
       setNotice((r.data.created_season?"Nueva temporada creada en STATS. ":"Temporada existente completada. ")+
         (r.data.new_metrics||0)+" observaciones incorporadas; los datos anteriores se han conservado.");
       setReviewedGroups(v=>({...v,[group.key]:false}));
-      await refresh();
+      await invalidateApplied();
+      await refresh({forceCandidates:true});
     }catch(e){setError(reason(e));}finally{setBusy(false);}
   };
   const linkManually=async()=>{
@@ -156,7 +171,7 @@ export default function ImportCenter(){
       setNotice((result.created||0)===0&&(result.already_staged||0)===0
         ? "Análisis finalizado sin datos: este jugador no tiene nuevas estadísticas archivadas que podamos aplicar. Necesita una primera importación de Studio o una fuente externa conectada. No se ha actualizado STATS."
         : "Datos ya guardados: "+(result.created||0)+" métricas nuevas propuestas, "+(result.already_staged||0)+" ya registradas y "+(result.unmatched||0)+" registros sin coincidencia exacta. No se ha sobrescrito ninguna estadística.");
-      await refresh();
+      await refresh({forceCandidates:true});
     }catch(e){setError(reason(e));}finally{setBusy(false);}
   };
   const review=async(action,candidate_id)=>{
@@ -164,8 +179,9 @@ export default function ImportCenter(){
     try{
       const result=await base44.functions.invoke("import-review",{action,candidate_id});
       if(action==="preview"||action==="preview-season"){setPreview(result.data);return;}
+      if(action==="approve")await invalidateApplied();
       setNotice(action==="approve"?"Candidato incorporado sin reemplazar valores existentes.":action==="verify"?"Se ha registrado tu verificación de la fuente. Ya puedes aplicar el dato.":"Candidato descartado.");
-      await refresh();
+      await refresh({forceCandidates:true});
     }catch(e){setError(reason(e));}
     finally{setBusy(false);}
   };
@@ -173,7 +189,7 @@ export default function ImportCenter(){
   return <div className="h-full overflow-y-auto p-4 md:p-7 text-slate-800">
     <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
       <div><h1 className="text-2xl font-bold tracking-tight">Centro de importaciones <span className="text-[#003399]">V3</span></h1><p className="text-sm text-slate-600">FotMob · Understat · FIFA / EA FC · Mercado histórico</p></div>
-      <button onClick={refresh} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 bg-white hover:bg-slate-100"><RefreshCw size={16}/>Actualizar</button>
+      <button onClick={()=>refresh({forceCandidates:true})} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 bg-white hover:bg-slate-100"><RefreshCw size={16}/>Actualizar</button>
     </div>
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"El trabajador Studio de tu PC puede solicitar estadísticas nuevas de FotMob para IDs confirmados, con un máximo de 8 peticiones por trabajo. Los resultados se revisan antes de guardarlos; Understat, FIFA y mercado dependen de catálogos verificados disponibles.":coordinator==="auth_required"?"Inicia sesión con una cuenta de administrador para solicitar y revisar importaciones.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones no es accesible. No se admiten solicitudes hasta restaurar el coordinador."}</div>
     {coordinator==="auth_required"&&<button className="bg-[#003399] text-white rounded-lg px-4 py-2 mb-4" onClick={()=>base44.auth.loginWithProvider("google",window.location.href)}>Iniciar sesión de administrador</button>}
@@ -248,6 +264,8 @@ export default function ImportCenter(){
     {selectedJobData&&<section className="rounded-xl bg-white border border-slate-200 p-5 mt-4">
       <div className="flex items-center justify-between"><h2 className="font-semibold text-lg">Revisión · {selectedJobData.player_name}</h2><button onClick={()=>setSelectedJob("")} className="text-sm text-slate-500 underline">Cerrar</button></div>
       <p className="text-xs text-slate-500 my-2">Para crear una primera temporada, comprueba la fuente y aprueba el lote de esa competición. Para valores individuales FIFA/mercado conserva la revisión específica. Los datos anteriores nunca se sobrescriben.</p>
+      {selectedJobData.status==="completed"&&candidateRows.length>0&&<p className="text-sm font-semibold text-emerald-700">Revisión completada · {candidateRows.filter(c=>c.review_status==="applied").length} candidatos aplicados.</p>}
+      <p className="text-xs text-slate-500">Diagnóstico de extracción anterior a la revisión:</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 my-3">{(selectedJobData.sources||[]).map(s=><div key={s} className="border border-slate-200 rounded-md p-2 text-sm"><strong>{SOURCES.find(x=>x.id===s)?.label||s}:</strong> {selectedJobData.source_results?.[s]?.status==="complete"?"Datos recibidos":selectedJobData.source_results?.[s]?.status==="error"?"Error":selectedJobData.source_results?.[s]?.status==="unavailable"?"Sin datos archivados disponibles":"Pendiente"}<div className="text-xs text-slate-500">{selectedJobData.source_results?.[s]?.note||""}</div></div>)}</div>
       {selectedJobData.worker_version==="base44-cache-v1"&&selectedJobData.status==="completed"&&(selectedJobData.received_candidates||0)===0&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 my-3 text-sm"><strong>El análisis de caché ha finalizado, pero no había datos previos.</strong><p>Para este jugador selecciona «Solicitar datos NUEVOS desde Studio (PC)» tras arrancar el trabajador local. No necesitas importar un JSON manualmente.</p></div>}
       {(selectedJobData.sources||[]).map(s=>(selectedJobData.source_results?.[s]?.diagnostics||[]).length>0&&<details key={s} className="my-3 border rounded p-2 text-sm"><summary>Diagnóstico por temporada · {s}</summary>
@@ -301,7 +319,8 @@ export default function ImportCenter(){
           })}
         </div>
       </section>}
-      {!candidateRows.length&&<p className="text-sm text-slate-500">Este trabajo aún no ha recibido observaciones.</p>}
+      {candidatesLoading&&<p role="status" className="text-sm text-slate-500">Cargando observaciones completas…</p>}
+      {!candidatesLoading&&!error&&!candidateRows.length&&<p className="text-sm text-slate-500">Este trabajo aún no ha recibido observaciones.</p>}
       {candidateRows.length>0&&<details className="mt-4">
         <summary className="cursor-pointer text-sm font-semibold text-slate-700">Revisión individual de los {candidateRows.length} valores y candidatos FIFA/mercado</summary>
       <div className="space-y-2 mt-3">{candidateRows.map(c=><div key={c.id} className="flex flex-wrap gap-3 items-center justify-between border rounded-lg p-3">
@@ -320,4 +339,3 @@ export default function ImportCenter(){
     </section>}
   </div>;
 }
-

@@ -50,7 +50,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
  const pageRows=items.filter(({summary})=>summary?(summary.totals.minutes.value||0)>=minimumMinutes:minimumMinutes===0).slice(page*50,(page+1)*50);
  const pageSelectable=pageRows.filter(({summary})=>summary).map(({summary})=>summary.id);
  return <div>
-  <div className="max-w-full overflow-x-auto">
+  <div data-stats-horizontal className="max-w-full overflow-x-auto">
    <table className="w-full min-w-[900px] text-left text-[11px]">
     <thead className="bg-[#003399] text-white"><tr>
      <th className="w-8 px-2 py-3 text-center"><input type="checkbox" aria-label="Seleccionar todas las temporadas de esta página" disabled={!pageSelectable.length} checked={pageSelectable.length>0&&pageSelectable.every(id=>selection.has(id))} onChange={e=>onToggleSelectPage(e.target.checked)} className="h-3.5 w-3.5 cursor-pointer accent-[#1D4ED8] disabled:cursor-not-allowed"/></th>

@@ -67,9 +67,11 @@ test("El STATS reutiliza React Query al volver y no invalida solo por cerrar imp
   assert.doesNotMatch(page,/const useStatsRows=/);
   assert.match(page,/fetchQuery\(\{/);
   assert.match(page,/queryKey:statsDetailKey|const key=statsDetailKey/);
-  assert.match(hook,/useInfiniteQuery\(\{/);
-  assert.match(hook,/gcTime:STATS_CACHE_GC_MS/);
-  assert.match(hook,/staleTime:STATS_ROWS_STALE_MS/);
+  const records=readFileSync(new URL("../src/api/recordQueries.js",import.meta.url),"utf8");
+  assert.match(hook,/useQuery\(statsSnapshotOptions\(\)\)/);
+  assert.match(records,/gcTime:STATS_CACHE_GC_MS/);
+  assert.match(records,/staleTime:STATS_ROWS_STALE_MS/);
+  assert.match(hook,/selectStatsRows\(complete,season,competition\)/);
   assert.match(hook,/flattenStatsPages\(query.data\)/);
   assert.match(page,/onClick=\{\(\)=>setUnifiedOpen\(false\)\}/);
   assert.match(page,/<ImportUnified onImported=\{importComplete\}/);

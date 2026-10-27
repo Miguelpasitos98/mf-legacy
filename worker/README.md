@@ -2,7 +2,7 @@
 
 **Opción gratuita para Windows:** lee [COMO_ACTIVAR_SIN_PAGAR.md](COMO_ACTIVAR_SIN_PAGAR.md), ejecuta INSTALAR_TRABAJADOR_V3.bat una vez y después INICIAR_TRABAJADOR_V3.bat. El alojamiento en la nube es opcional, no un requisito.
 
-Reparación publicada y verificada con datos reales el 26/10/2026: tras aprobación explícita se incorporaron 12 registros de Milan Škriniar y se comprobaron en STATS después de recargar y volver a abrir la página. **No crea ni cambia registros STATS sin la revisión posterior del backend.**
+Reparación publicada y verificada el 27/10/2026: 19 registros de Milan Škriniar, 1.217 valores y 1.166 percentiles, incluidas las siete filas adicionales autorizadas. Persistencia comprobada tras recarga y reapertura. Véase [verificación y auditoría](../docs/IMPORT_STATS_VERIFICATION.md). **No crea ni cambia registros STATS sin la revisión posterior del backend.**
 
 ## Componentes
 
@@ -65,7 +65,7 @@ El primer comando no toca Base44. El tercero ejecuta un proceso persistente **so
 - La fuente y la unidad se mantienen separadas: total, /90, porcentaje.
 - Los candidatos no alteran STATS hasta aprobarse; el aprobador conserva valores existentes distintos y correcciones manuales.
 - Las funciones serverless sin desplegar y el worker sin alojamiento no ejecutan trabajos por sí solos.
-- Comunicación real worker–Base44 comprobada: envío de 872 observaciones, revisión por administrador y persistencia en 12 registros. Una prueba posterior limitada a ocho consultas FotMob recuperó siete propuestas adicionales, que requieren su propia aprobación.
+- Comunicación real worker–Base44 comprobada: revisión de 1.217 observaciones y persistencia en 19 registros autorizados. Las siete propuestas adicionales (345 valores) ya están aplicadas; los candidatos repetidos se conciliaron sin reescribir STATS.
 
 ## Seguridad
 
@@ -115,3 +115,8 @@ Pruebas: `python -m unittest discover -s worker/tests -v` (establecer
 `node --test tests/importReviewCreation.test.mjs tests/importWorkerBridge.test.mjs tests/statsReviewManifest.test.mjs`.
 Las pruebas del manifiesto real requieren el artefacto local
 `worker/review/skriniar-extraction.json`; no se suben cachés ni datos internos a GitHub.
+
+
+## Arranque independiente — verificación 27/10/2026
+
+El lanzador importa el módulo Security de su propio PSHOME para evitar conflictos entre PowerShell 5 y 7. Se comprobó un arranque oculto independiente y su proceso Python persistente. La sesión de auditoría deja el trabajador en modo `-SoloLocal`: usa cachés existentes y no consulta FotMob. El inicio normal conserva el presupuesto configurado. No se guardan credenciales en el repositorio.

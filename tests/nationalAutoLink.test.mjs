@@ -7,6 +7,7 @@ test("Vincula Mundial y Finalissima a selección absoluta del país del jugador"
  const rows=[{id:"a",player_id:"p",season:"2021/2022",competition:"World Cup"},{id:"b",player_id:"p",season:"2021/2022",competition:"Finalissima"},{id:"c",player_id:"p",season:"2021/2022",competition:"Premier League"}];
  const plan=nationalLinkPlan({player,records:rows,nationalTeams});
  assert.equal(plan.length,2);assert.ok(plan.every(x=>x.patch.national_team_id==="arg-senior"));
+ assert.ok(plan.every(x=>!Object.hasOwn(x.patch,"fotmob_team_id")),"Vincular la identidad interna conserva el ID del proveedor");
 });
 test("No cambia equipo ya vinculado y distingue sub-20, olímpicos y categoría ambigua",()=>{
  const player={id:"p",country_id:"arg"};

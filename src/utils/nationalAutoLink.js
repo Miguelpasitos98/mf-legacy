@@ -20,6 +20,6 @@ export function nationalLinkPlan({player,records=[],nationalTeams=[]}={}){
    if(candidates.length!==1)return [];
    const nt=candidates[0];
    return [{id:r.id,player_id:r.player_id,season:r.season,competition:r.competition,
-    patch:{national_team_id:text(nt.id),national_country_id:country,team_id:"",fotmob_team_id:"",team_name:text(nt.name)}}];
+    patch:{national_team_id:text(nt.id),national_country_id:country,team_id:"",team_name:text(nt.name)}}];
   });
 }

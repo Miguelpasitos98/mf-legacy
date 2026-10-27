@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import {recordQueryOptions} from "@/api/recordQueries";
 
 /**
  * MF LEGACY — Shared data cache via TanStack React Query.
@@ -14,67 +14,8 @@ import { base44 } from "@/api/base44Client";
  * to trigger a background refetch so the cache stays fresh.
  */
 
-const getList = (result) => {
-  if (Array.isArray(result)) return result;
-  if (Array.isArray(result?.data)) return result.data;
-  if (Array.isArray(result?.items)) return result.items;
-  if (Array.isArray(result?.results)) return result.results;
-  return [];
-};
-
-const STALE_TIME = 5 * 60 * 1000;
-
-export function useCountriesQuery() {
-  return useQuery({
-    queryKey: ["mf-legacy", "countries"],
-    queryFn: async () => {
-      const result = await base44.entities.Country.list();
-      return getList(result);
-    },
-    staleTime: STALE_TIME,
-  });
-}
-
-export function useLeaguesQuery() {
-  return useQuery({
-    queryKey: ["mf-legacy", "leagues"],
-    queryFn: async () => {
-      const result = await base44.entities.League.list();
-      return getList(result);
-    },
-    staleTime: STALE_TIME,
-  });
-}
-
-export function useTeamsQuery() {
-  return useQuery({
-    queryKey: ["mf-legacy", "teams"],
-    queryFn: async () => {
-      const result = await base44.entities.Team.list();
-      return getList(result);
-    },
-    staleTime: STALE_TIME,
-  });
-}
-
-export function usePlayersQuery() {
-  return useQuery({
-    queryKey: ["mf-legacy", "players"],
-    queryFn: async () => {
-      const result = await base44.entities.Player.list();
-      return getList(result);
-    },
-    staleTime: STALE_TIME,
-  });
-}
-
-export function useTeamLeaguesQuery() {
-  return useQuery({
-    queryKey: ["mf-legacy", "team-leagues"],
-    queryFn: async () => {
-      const result = await base44.entities.TeamLeague.list();
-      return getList(result);
-    },
-    staleTime: STALE_TIME,
-  });
-}
+export const useCountriesQuery=()=>useQuery(recordQueryOptions('Country'));
+export const useLeaguesQuery=()=>useQuery(recordQueryOptions('League'));
+export const useTeamsQuery=()=>useQuery(recordQueryOptions('Team'));
+export const usePlayersQuery=()=>useQuery(recordQueryOptions('Player'));
+export const useTeamLeaguesQuery=()=>useQuery(recordQueryOptions('TeamLeague'));

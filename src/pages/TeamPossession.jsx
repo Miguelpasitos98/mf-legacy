@@ -1,7 +1,8 @@
 import React,{useEffect,useMemo,useState} from "react";
 import {Link} from "react-router-dom";
-import {useQueryClient} from "@tanstack/react-query";
+import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {base44} from "@/api/base44Client";
+import {recordQueryOptions} from "@/api/recordQueries";
 import {useTeamsQuery} from "@/hooks/useSharedData";
 import {HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {canonicalHistoricalCompetition,canonicalHistoricalClub} from "@/utils/historicalJson";
@@ -15,34 +16,15 @@ const labelClass="mb-1 block text-xs font-bold uppercase tracking-wide text-slat
 const buttonClass="inline-flex items-center justify-center gap-2 rounded-lg bg-[#003399] px-4 py-2 text-sm font-semibold text-white disabled:opacity-45";
 const statusText=e=>String(e?.message||e||"Error de conexión.");
 const normalize=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-// Read every persisted observation. A single 500-row request silently hid older data.
-async function listAllPossessions(){
- const all=[],seenIds=new Set(),seenCursors=new Set(),pageSize=250,maxRecords=10000;
- let cursor=null;
- for(let pageIndex=0;pageIndex<Math.ceil(maxRecords/pageSize);pageIndex++){
-  // The Base44 SDK supports cursor pagination, NOT skip on entity.list().
-  const response=await base44.entities.TeamSeasonPossession.list(
-   cursor?{limit:pageSize,cursor}:{limit:pageSize,sort:"-updated_date"});
-  const page=unpack(response);
-  if(!Array.isArray(page))throw Error("Respuesta de posesión inválida.");
-  for(const record of page){
-   if(!record?.id||seenIds.has(String(record.id)))throw Error("La paginación devolvió registros repetidos. No se sustituye la lista actual.");
-   seenIds.add(String(record.id));all.push(record);
-  }
-  if(!response?.has_more)return all;
-  const next=response?.next_cursor;
-  if(!next||next===cursor||seenCursors.has(next)||!page.length)
-   throw Error("Base44 indicó más registros pero no proporcionó un cursor válido.");
-  seenCursors.add(next);cursor=next;
- }
- throw Error("Hay más de 10.000 registros. No se puede mostrar un historial incompleto.");
-}
 const sample=[{team_name:"Manchester City",season:"2018/2019",competition:"Premier League",team_possession_pct:67.9,source:"FBref",source_url:""}];
 
 export default function TeamPossession(){
  const cache=useQueryClient(),teamsQuery=useTeamsQuery();
  const teams=useMemo(()=>(teamsQuery.data||[]).filter(t=>t?.id).sort((a,b)=>a.name.localeCompare(b.name)),[teamsQuery.data]);
- const [admin,setAdmin]=useState(null),[rows,setRows]=useState([]),[loading,setLoading]=useState(true);
+ const [admin,setAdmin]=useState(null);
+ const possessions=useQuery({...recordQueryOptions("TeamSeasonPossession"),enabled:admin===true});
+ const rows=possessions.data||[];
+ const loading=admin===null||(admin===true&&!possessions.data&&possessions.isPending);
  const [form,setForm]=useState(blank),[editId,setEditId]=useState(""),[search,setSearch]=useState(""),[listFilter,setListFilter]=useState("");
  const [notice,setNotice]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  const [json,setJson]=useState(""),[preview,setPreview]=useState(null),[importing,setImporting]=useState(false),[progress,setProgress]=useState("");
@@ -51,18 +33,14 @@ export default function TeamPossession(){
  const [expandedLeagues,setExpandedLeagues]=useState({});
  const update=(key,value)=>{setForm(prev=>({...prev,[key]:value}));setNotice("");setError("");};
  const refresh=async()=>{
-  setLoading(true);
   try{
-   const completeRows=await listAllPossessions();
-   setRows(completeRows);
+   await possessions.refetch({throwOnError:true});
    setError("");
   }catch(e){setError("No se pudo cargar la base de posesión: "+statusText(e));}
-  finally{setLoading(false);}
  };
  useEffect(()=>{let live=true; (async()=>{
-  try{const me=await base44.auth.me();if(!live)return;setAdmin(me?.role==="admin");if(me?.role==="admin")await refresh();}
+  try{const me=await base44.auth.me();if(!live)return;setAdmin(me?.role==="admin");}
   catch(e){if(live){setAdmin(false);setError(statusText(e));}}
-  finally{if(live)setLoading(false);}
  })();return()=>{live=false;};},[]);
  const displayed=useMemo(()=>rows.filter(r=>{
   const club=teams.find(t=>String(t.id)===String(r.team_id));
@@ -204,9 +182,9 @@ export default function TeamPossession(){
       {progress&&<p className="mt-2 text-xs font-semibold text-[#003399]">{progress}</p>}
      </section>
     </div>
-    {(notice||error)&&<div role="status" className={"rounded-xl border bg-white p-3 text-sm "+(error?"border-red-200 text-red-700":"border-green-200 text-slate-700")}>{error||notice}</div>}
+    {(notice||error||possessions.error)&&<div role="status" className={"rounded-xl border bg-white p-3 text-sm "+(error||possessions.error?"border-red-200 text-red-700":"border-green-200 text-slate-700")}>{error||possessions.error?.message||notice}</div>}
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-     <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-extrabold text-slate-900">Registros guardados ({rows.length}) · pendientes: {rows.filter(r=>!r.team_id).length}</h2><button className="inline-flex items-center gap-2 text-xs font-bold text-[#003399]" onClick={refresh} disabled={loading}><RefreshCw size={15}/> {loading?"Cargando…":"Actualizar"}</button></div>
+     <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-extrabold text-slate-900">Registros guardados ({rows.length}) · pendientes: {rows.filter(r=>!r.team_id).length}</h2><button className="inline-flex items-center gap-2 text-xs font-bold text-[#003399]" onClick={refresh} disabled={possessions.isFetching}><RefreshCw size={15}/> {possessions.isFetching?"Cargando…":"Actualizar"}</button></div>
      <input className={inputClass+" mb-3"} value={listFilter} onChange={e=>setListFilter(e.target.value)} placeholder="Filtrar por equipo, temporada o competición…" />
      <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
