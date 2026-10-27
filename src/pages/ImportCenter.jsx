@@ -135,10 +135,9 @@ export default function ImportCenter(){
   const visibleGroups=visibleImportGroups(groupedJobs,showJobHistory);
   const chainProgress=importProgressSummary(jobs,selectedJobData);
   const importCoverage=chainProgress?.coverage;
-  const reconcileExisting=async()=>{
-    if(!selectedJobData||autoApplying)return;
-    const root=selectedJobData.root_job_id||selectedJobData.id;
-    const chain=jobs.filter(j=>(j.id===root||j.root_job_id===root)&&["review","completed"].includes(j.status))
+  const reconcileExisting=async(jobForPlayer=selectedJobData)=>{
+    if(!jobForPlayer||autoApplying)return;
+    const chain=jobs.filter(j=>j.player_id===jobForPlayer.player_id&&["review","completed"].includes(j.status))
       .sort((a,b)=>String(a.requested_at||"").localeCompare(String(b.requested_at||"")));
     setAutoApplying(true);setError("");
     let total=0,done=0;
@@ -325,6 +324,7 @@ export default function ImportCenter(){
                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-slate-500" style={{width:progress+"%"}}/></div>
                 <p className="mt-1 text-[11px] text-slate-500">{job.phase||"Esperando al trabajador"}</p>
               </div>}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2"><span className="text-[11px] text-slate-500">Las temporadas con club histórico sin ficha en TEAMS se pueden conservar sin vinculación interna.</span><button type="button" disabled={autoApplying||busy||coordinator!=="ready"} onClick={()=>reconcileExisting(job)} className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{autoApplying?"Conciliando…":"Incorporar historial pendiente a STATS"}</button></div>
               <div className="border-t border-slate-200 pt-2">
                 <button type="button" onClick={()=>setTechnicalHistory(v=>({...v,[g.id]:!v[g.id]}))} aria-expanded={technical} className="text-xs font-semibold text-[#003399] underline">{technical?"Ocultar historial técnico":"Historial técnico · "+g.items.length+" trabajos"}</button>
                 {technical&&<div className="mt-2 space-y-1">
