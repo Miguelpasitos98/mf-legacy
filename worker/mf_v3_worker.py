@@ -86,7 +86,7 @@ def metric_values(metric):
 
 
 def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
-                  max_candidates=6000):
+                  max_candidates=6000, progress_hook=None):
     profile, client, resolver = studio_import(root)
     if not callable(getattr(resolver,'resolve_stats_team',None)):
         raise RuntimeError('Falta la reparación de Studio: ejecuta worker/apply_studio_patch.py con su ruta.')
@@ -143,6 +143,8 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                 if network_count:
                     time.sleep(2.0)
                 network_count += 1  # Failed requests also consume the budget.
+                if progress_hook is not None:
+                    progress_hook("FotMob "+option["season"]+" · "+option["competition"]+" · consulta "+str(network_count)+"/"+str(request_limit))
                 raw = client.fetch_stats(pid, sid, option.get("is_first", False))
                 client.save_json(file, {"_mf_legacy_meta": {
                     "player_id":pid, "season":option["season"], "competition":option["competition"],
@@ -356,7 +358,7 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
                 candidates,state=studio_fotmob(root,pid,
                     allow_network=not offline and os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK")=="1",
                     request_limit=max(0,min(15,int(os.getenv("MF_V3_MAX_FOTMOB_REQUESTS","0")))),
-                    max_candidates=max_candidates)
+                    max_candidates=max_candidates,progress_hook=progress_hook)
             elif source=="understat":
                 bundle,raw,seasons=context()
                 try:catalog().understat(pid,bundle)
@@ -461,8 +463,9 @@ def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
     try:
         print("Trabajo "+jid+" · "+assigned["player_name"]+" · iniciando revisión y recuperación",flush=True)
         call("heartbeat",job_id=jid,claim_id=claim,progress=2,phase=phase["value"])
-        try:sync_reviews(root)
-        except Exception as review_error:print("Conciliación de revisión pendiente: "+str(review_error)[:150],file=sys.stderr,flush=True)
+        if assigned["sources"]!=["fotmob"]:
+            try:sync_reviews(root)
+            except Exception as review_error:print("Conciliación de revisión pendiente: "+str(review_error)[:150],file=sys.stderr,flush=True)
         def show_source(source):
             names={"fotmob":"FotMob","understat":"Understat","fifa":"FIFA/FC","market":"Transfermarkt"}
             phase["value"]="Recuperando "+names.get(source,source)+" · consultas limitadas y caché local"
