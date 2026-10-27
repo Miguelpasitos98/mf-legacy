@@ -1,6 +1,7 @@
+import {normalizedMetricKey} from "./metricKey.js";
 export const norm = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
 // Metric keys retain the distinction between totals and percentages.
-export const metricNorm = name => norm(String(name??"").replace(/%/g,"percent"));
+export const metricNorm = normalizedMetricKey;
 export const statNum = v => v===null||v===undefined||v===""?null:Number.isFinite(Number(v))?Number(v):null;
 export const minutesForDisplay = record => {
  const actual=statNum(record?.minutes);
