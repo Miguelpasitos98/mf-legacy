@@ -54,3 +54,16 @@ test("existing manual numbers are not overwritten",async()=>{
  assert.equal(f.saved[0].metrics[0].value,25);
  assert.equal(f.candidates[0].review_status,"pending");
 });
+test("FotMob autoapplies a uniquely identified current-club season while preserving reviewed data",async()=>{
+ const f=fixture();
+ const c=f.candidates[2];
+ Object.assign(c,{season:"2026/2027",competition:"Premier League",team_name:"Liverpool",
+   fotmob_team_id:"8650",fotmob_tournament_id:"47",source_record_id:"2026/2027:47:8650:goals:total",
+   evidence_url:"https://www.fotmob.com/players/921253"});
+ const previous=f.db.Team.filter;
+ f.db.Team.filter=async()=>[...(await previous()),{id:"team-liverpool",name:"Liverpool FC",fotmob_id:null}];
+ const result=await applyVerifiedHistoricals(f.db,f.job);
+ assert.equal(result.created_stats,2);
+ assert.equal(f.saved.find(x=>x.season==="2026/2027")?.team_id,"team-liverpool");
+ assert.equal(c.review_status,"applied");
+});
