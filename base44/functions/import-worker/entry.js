@@ -194,7 +194,7 @@ export default async function(req) {
       // Tras terminar la extracción, aplicar solo catálogos históricos verificables.
       // FotMob no se verifica automáticamente. Los conflictos continúan en revisión.
       let automatic=null;
-      if(counts&&(job.sources||[]).some(s=>["understat","fifa","market"].includes(s))){
+      if(counts){
         try{
           const {applyVerifiedHistoricals}=await import("./reviewAuto.js");
           automatic=await applyVerifiedHistoricals(db,{...job,status:"review"});
