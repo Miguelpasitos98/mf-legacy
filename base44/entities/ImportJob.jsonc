@@ -83,6 +83,10 @@
       "items": {
         "type": "string"
       }
+    },
+    "retry_pending": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [
