@@ -128,6 +128,12 @@ export default function Teams() {
 
   const { setTeamTheme, setSidebarVisible } = useOutletContext() || {};
 
+  // Restaurar el tema predeterminado cuando se abandone TEAMS desde el menú o navegador.
+  useEffect(() => () => {
+    setTeamTheme?.({ primaryColor: "#003399", secondaryColor: "#FFFFFF" });
+    setSidebarVisible?.(true);
+  }, [setTeamTheme, setSidebarVisible]);
+
   useEffect(() => {
     if (!setTeamTheme) return;
     if (!selectedTeam) {
