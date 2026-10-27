@@ -1,11 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { parseMarketBulk } from "./MarketBulkImport";
+import { parseBirthDate } from "@/utils/playerDate";
 
 // Snapshot generado por scripts/build_market_dataset.py en el repositorio.
 const ROOT = "https://raw.githubusercontent.com/Miguelpasitos98/mf-legacy/main/public/data/market";
 const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 const dateOnly = s => String(s || "").slice(0,10);
+const normalizedBirthDate = value => {
+  const date = parseBirthDate(value);
+  if (!date) return null;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 const savedKey = id => `mf-legacy-market-history-preview-v1:${id}`;
 const knownIds = player => [player?.transfermarkt_id,player?.transfermarktId,player?.tm_id,player?.tmId].map(String).filter(v => /^\d+$/.test(v));
 const bucket = id => String(Number(id) % 128).padStart(3,"0");
@@ -50,8 +59,9 @@ export default function HistoricalMarketLookup({ player }) {
   }
   function importRows(){
     if(!history?.length||!player?.id||!selected)return;
-    const playerDob=dateOnly(player?.date_of_birth||player?.dateOfBirth);
-    if(playerDob && selected.dob && playerDob!==dateOnly(selected.dob)){
+    const playerDob=normalizedBirthDate(player?.date_of_birth || player?.dateOfBirth);
+    const candidateDob=normalizedBirthDate(selected.dob);
+    if(playerDob && candidateDob && playerDob!==candidateDob){
       setError("La fecha de nacimiento no coincide. Importación bloqueada para evitar asociar otro futbolista.");
       return;
     }
