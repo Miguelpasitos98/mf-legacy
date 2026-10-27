@@ -2,6 +2,12 @@
   "name": "ImportReviewBatch",
   "type": "object",
   "properties": {
+    "unit_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "job_id": {
       "type": "string"
     },
