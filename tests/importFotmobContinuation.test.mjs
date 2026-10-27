@@ -53,7 +53,10 @@ test("After the fourth bounded block, no further work is queued",async()=>{
  const f=setup({attempt:3});await finish();
  assert.equal(f.jobs.length,1);
 });
-test("Mixed-source work does not launch an auto-chain",async()=>{
- const f=setup({sources:["fotmob","fifa"]});await finish();
- assert.equal(f.jobs.length,1);
+test("Mixed-source first import continues with only FotMob when historic caches are missing",async()=>{
+ const f=setup({sources:["fotmob","fifa","market"]});await finish();
+ assert.equal(f.jobs.length,2);
+ assert.deepEqual(f.jobs[1].sources,["fotmob"]);
+ assert.equal(f.jobs[1].retry_pending,true);
+ assert.equal(f.jobs[1].retry_count,1);
 });
