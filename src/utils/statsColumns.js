@@ -165,6 +165,14 @@ export function columnValue(row,mode,id,config){
  if(!row)return null;
  const definition=config.computed.find(d=>d.id===id);
  if(definition){try{
+  // Para columnas /90 estándar, preferir la tasa publicada por el proveedor
+  // por competición, sin requerir minutos adicionales ni estimarlos desde PJ.
+  const directRateMetric={goalsper90:"goals",assistsper90:"assists",xgper90:"xg",xaper90:"xa"}[id];
+  if(mode==="competition"&&directRateMetric&&definition.formula===COMPUTED.find(d=>d.id===id)?.formula){
+   const direct=(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===directRateMetric);
+   const value=statNum(direct?.per90);
+   if(value!==null)return value;
+  }
   if(["calc_xgchainper90","calc_xgbuildupper90"].includes(id)&&definition.formula===COMPUTED.find(d=>d.id===id)?.formula){
    const rates=advancedTotals(mode==="season"&&Array.isArray(row.records)?row.records:[row]);
    const direct=id==="calc_xgchainper90"?rates.xg_chain_p90:rates.xg_buildup_p90;
