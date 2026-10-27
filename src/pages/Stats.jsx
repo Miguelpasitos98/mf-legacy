@@ -33,7 +33,7 @@ import ManualMetricEditor from "@/components/stats/ManualMetricEditor";
 import {applyManualStatChange,applyManualStatChanges} from "@/utils/manualStats";
 import {advancedTotals} from "@/utils/statsAdvanced";
 import {metricName} from "@/utils/compositeEngine";
-import {buildSeasonSummaries,filterSeasonSummariesForDisplay} from "@/utils/statsSeason";
+import {buildSeasonSummaries,filterSeasonSummariesForDisplay,withoutCurrentStatsSeason} from "@/utils/statsSeason";
 import {patchHistoricalPeerCache,HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {rankPositions,rankIdentity,playerRankPositions} from "@/utils/statsRank";
 import {useStatsRows} from "@/hooks/useStatsRows";
@@ -460,13 +460,15 @@ export default function Stats(){
   const [statsParams]=useSearchParams();
   const pq=usePlayersQuery(),tq=useTeamsQuery();
   const [savedView]=useState(readStatsViewState);
-  const [season,setSeason]=useState(savedView.season||"Todas"),[competition,setCompetition]=useState(savedView.competition||"Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||savedView.search||"");
+  const [season,setSeason]=useState(savedView.season&&seasonActive(savedView.season)?"Todas":savedView.season||"Todas"),[competition,setCompetition]=useState(savedView.competition||"Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||savedView.search||"");
   const deferredSearch=useDeferredValue(search);
   const [viewMode,setViewMode]=useState(savedView.viewMode||"season"),[minMinutes,setMinMinutes]=useState(savedView.minMinutes||0),[positionFilter,setPositionFilter]=useState(savedView.positionFilter||"Todas");
-  const [seasonDisplay,setSeasonDisplay]=useState(savedView.seasonDisplay||"all"),[bestMetric,setBestMetric]=useState(savedView.bestMetric||"composite");
+  const [seasonDisplay,setSeasonDisplay]=useState(savedView.seasonDisplay==="current"?"all":savedView.seasonDisplay||"all"),[bestMetric,setBestMetric]=useState(savedView.bestMetric||"composite");
   const [tab,setTab]=useState(savedView.tab||"con"),[category,setCategory]=useState(savedView.category||"Resumen"),[sort,setSort]=useState(savedView.sort||"composite"),[sortDirection,setSortDirection]=useState(savedView.sortDirection||"desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[page,setPage]=useState(savedView.page||0);
   const scrollRoot=useRef(null),restoredScroll=useRef(false);
-  const {rows,allRows,hasMore,loadMore,applyLocalRecord,refresh:refreshStats,busy,error,cached,refreshedAt}=useStatsRows(season,competition);
+  const {rows:sourceRows,allRows:sourceAllRows,hasMore,loadMore,applyLocalRecord,refresh:refreshStats,busy,error,cached,refreshedAt}=useStatsRows(season,competition);
+  const rows=useMemo(()=>withoutCurrentStatsSeason(sourceRows),[sourceRows]);
+  const allRows=useMemo(()=>withoutCurrentStatsSeason(sourceAllRows),[sourceAllRows]);
   const {data:peerDataset,isFetching:peerLoading,error:peerError}=useHistoricalPeerDataset(viewMode==="season");
   const compositeIndex=useMemo(()=>buildCompositeSeasonIndex(peerDataset?.observations||[]),[peerDataset]);
   const [columnConfig,setColumnConfig]=useState(initialConfig);
@@ -531,7 +533,7 @@ export default function Stats(){
     return [...new Set(known)].map(id=>getColumn(columnConfig,id)).filter(Boolean);
   },[columnConfig]);
   const allSeasonsRanked=useMemo(()=>{
-    // All seasons includes the current season; historical best excludes unfinished seasons.
+    // Ocultar la temporada activa en todos los rankings de STATS, sin borrar datos.
     const displayedSummaries=filterSeasonSummariesForDisplay(seasonSummaries,seasonDisplay);
     const mapped=displayedSummaries.map(summary=>({summary,player:byID.get(String(summary.player_id))||null}));
     if(tab==="todos"){
@@ -720,7 +722,7 @@ export default function Stats(){
     const key=statsDetailKey(kind,value);
     const cachedRows=queryClient.getQueryData(key);
     setSelected(row);
-    setDetailRows(cachedRows||[]);
+    setDetailRows(withoutCurrentStatsSeason(cachedRows||[]));
     setDetailLoading(!cachedRows);
     try{
       const detail=await queryClient.fetchQuery({
@@ -730,9 +732,9 @@ export default function Stats(){
         gcTime:STATS_CACHE_GC_MS,
         retry:1,
       });
-      if(seq===detailRequest.current)setDetailRows(detail);
+      if(seq===detailRequest.current)setDetailRows(withoutCurrentStatsSeason(detail));
     }catch{
-      if(seq===detailRequest.current&&!cachedRows)setDetailRows(row.record?[row.record]:[]);
+      if(seq===detailRequest.current&&!cachedRows)setDetailRows(withoutCurrentStatsSeason(row.record?[row.record]:[]));
     }finally{
       if(seq===detailRequest.current)setDetailLoading(false);
     }
@@ -776,7 +778,7 @@ export default function Stats(){
         positionOptions={positionOptions}
         onPosition={value=>{setPositionFilter(value);setPage(0);setBulkSelection(new Set());}}
         season={season}
-        seasonOptions={options}
+        seasonOptions={options.filter(option=>!seasonActive(option))}
         onSeason={value=>{setSeason(value);setCompetition("Todas");setPage(0);}}
         competition={competition}
         competitions={competitions}
