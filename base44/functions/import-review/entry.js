@@ -372,6 +372,16 @@ export default async function(req) {
     const data=await req.json();
     const action=str(data.action),candidateId=str(data.candidate_id);
     const db=sdk.asServiceRole.entities;
+    if(action==="auto-safe-job"){
+      const jobId=str(data.job_id);
+      if(!/^[a-f0-9]{24}$/i.test(jobId))return bad("ID de trabajo no válido.");
+      const target=await db.ImportJob.get(jobId);
+      if(!target||!["review","completed"].includes(target.status))return bad("Trabajo no finalizado o desconocido.",409);
+      if(target.review_lock_until&&target.review_lock_until>new Date().toISOString())return bad("Hay una revisión en curso.",409);
+      const result=await applyVerifiedHistoricals(db,{...target,status:"review"});
+      await db.ImportJob.update(target.id,{phase:"Conciliación histórica: "+result.applied+" valores incorporados; "+result.pending+" por revisar"});
+      return reply({ok:true,job_id:target.id,...result});
+    }
     if(["history-preview","history-approve","history-batches"].includes(action))return await historyRequest(db,user,data);
     if(!/^[a-f0-9]{24}$/i.test(candidateId))return bad("ID de candidato no válido.");
     const item=await db.ImportCandidate.get(candidateId);
