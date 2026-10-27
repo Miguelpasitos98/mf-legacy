@@ -50,7 +50,12 @@ export default function StadiumDetail(){
     [teamsQuery.data,countriesQuery.data,leaguesQuery.data]);
   const stadium=stadiums.find(item=>item.id===stadiumKey);
   const [editing,setEditing]=useState(false),[draft,setDraft]=useState(null),[saving,setSaving]=useState(false),[error,setError]=useState("");
-  useEffect(()=>{setEditing(false);setDraft(null);setError("");},[stadiumKey]);
+  useEffect(()=>{
+    setEditing(false);setDraft(null);setError("");
+    // El contenedor de MF LEGACY tiene scroll propio: abrir siempre la ficha desde arriba.
+    const scrollArea=document.querySelector("main.overflow-y-auto");
+    if(scrollArea)scrollArea.scrollTop=0;
+  },[stadiumKey]);
   const goBack=()=>navigate("/schedule",{state:location.state});
   const beginEdit=()=>{if(!stadium)return;setDraft(editFields(stadium));setEditing(true);setError("");};
   const update=(key,value)=>setDraft(prev=>({...prev,[key]:value}));
