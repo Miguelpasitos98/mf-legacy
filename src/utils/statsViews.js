@@ -57,7 +57,7 @@ export const metricsValue=(r,name)=>{
  if(name==="minutes")return minutesForDisplay(r).value;
  if(["appearances","rating","team_matches"].includes(name))return statNum(r[name]);
  const aliases={goals:["goals","goles"],assists:["assists","asistencias"],xg:["xg","expectedgoals"],xa:["xa","expectedassists"],shots:["shots","tiros"],tackles:["tackles","entradas"],recoveries:["recoveries","recuperaciones"],shotsontarget:["shotsontarget","tirosapuerta"],goals_prevented:["goalsprevented","goals_prevented","golesevitados"],goalsconcededwhileonpitch:["goalsconcededwhileonpitch","golesencajadosencampo"],duelswonvariante2:["duelswon%","duelswonpercentage"],aerialswonvariante2:["aerialswon%","aerialswonpercentage"],dribblessuccessrate:["dribblessuccessrate","dribblessuccess%"],passaccuracy:["passaccuracy"],longballaccuracy:["longballaccuracy"],crossaccuracy:["crossaccuracy"],groundduelswon:["groundduelswon"],groundduelscontested:["groundduelscontested"]};
- const candidate=(r.metrics||[]).find(m=>(aliases[name]||[metricNorm(name)]).includes(metricNorm(m.name)));
+ const candidate=(r.metrics||[]).find(m=>(aliases[name]||[name]).some(alias=>metricNorm(alias)===metricNorm(m.name)));
  return candidate?statNum(candidate.value):null;
 };
 export const aggregate=(records,keys=["goals","assists","xg","xa","shots"])=>{
