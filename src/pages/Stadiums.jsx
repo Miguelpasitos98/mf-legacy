@@ -1,7 +1,7 @@
 import React,{useMemo,useState} from "react";
 import {useQueryClient} from "@tanstack/react-query";
 import {Building2,Search,MapPin,Users,Save,X} from "lucide-react";
-import {useTeamsQuery} from "@/hooks/useSharedData";
+import {useTeamsQuery,useCountriesQuery,useLeaguesQuery} from "@/hooks/useSharedData";
 import {base44} from "@/api/base44Client";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
 import {RECORD_KEYS} from "@/api/recordQueries";
@@ -9,15 +9,23 @@ import {RECORD_KEYS} from "@/api/recordQueries";
 const rows=data=>Array.isArray(data)?data:(data?.items||data?.data||data?.entities||[]);
 const safe=(v)=>String(v||"").trim();
 const digits=(v)=>v===null||v===undefined||v===""?"":String(v);
-function toStadiums(teams){
+function toStadiums(teams,countries,leagues){
+  const countryMap=new Map(countries.map(c=>[String(c.id),c]));
+  const leagueMap=new Map(leagues.map(l=>[String(l.id),l]));
   const map=new Map();
   for(const team of teams){
     const name=safe(team.stadium);
     if(!name)continue;
     const key=safe(team.stadium_id)?("id:"+team.stadium_id):("name:"+name.toLocaleLowerCase("es")+"|"+safe(team.country_id||team.country).toLocaleLowerCase("es"));
-    if(!map.has(key))map.set(key,{id:key,name,teams:[],team,city:safe(team.city),country:safe(team.country),competition:safe(team.competition),capacity:team.stadium_capacity,built:team.stadium_built_year,renovated:team.stadium_renovation,pitch:safe(team.pitch_dimensions),interior:safe(team.stadium_interior_url),exterior:safe(team.stadium_exterior_url)});
+    const league=leagueMap.get(String(team.league_id||team.leagueId||""));
+    const country=countryMap.get(String(team.country_id||team.countryId||league?.country_id||""));
+    const countryName=safe(team.country||team.country_name||team.countryName||country?.name);
+    const competitionName=safe(league?.name||team.competition);
+    if(!map.has(key))map.set(key,{id:key,name,teams:[],team,city:safe(team.city),country:countryName,competition:competitionName,capacity:team.stadium_capacity,built:team.stadium_built_year,renovated:team.stadium_renovation,pitch:safe(team.pitch_dimensions),interior:safe(team.stadium_interior_url),exterior:safe(team.stadium_exterior_url)});
     const venue=map.get(key);
     venue.teams.push(team);
+    if(!venue.country&&countryName)venue.country=countryName;
+    if(!venue.competition&&competitionName)venue.competition=competitionName;
     if(!venue.interior)venue.interior=safe(team.stadium_interior_url);
     if(!venue.exterior)venue.exterior=safe(team.stadium_exterior_url);
     if(!venue.capacity)venue.capacity=team.stadium_capacity;
@@ -26,10 +34,10 @@ function toStadiums(teams){
 }
 const formFor=(stadium)=>({name:stadium?.name||"",capacity:digits(stadium?.capacity),built:digits(stadium?.built),renovated:digits(stadium?.renovated),pitch:stadium?.pitch||"",interior:stadium?.interior||"",exterior:stadium?.exterior||""});
 export default function Stadiums(){
-  const query=useTeamsQuery(),qc=useQueryClient();
+  const query=useTeamsQuery(),countriesQuery=useCountriesQuery(),leaguesQuery=useLeaguesQuery(),qc=useQueryClient();
   const [search,setSearch]=useState(""),[city,setCity]=useState(""),[country,setCountry]=useState(""),[capacity,setCapacity]=useState(""),[mode,setMode]=useState("leagues");
   const [selected,setSelected]=useState(null),[form,setForm]=useState(null),[saving,setSaving]=useState(false),[error,setError]=useState("");
-  const stadiums=useMemo(()=>toStadiums(rows(query.data)),[query.data]);
+  const stadiums=useMemo(()=>toStadiums(rows(query.data),rows(countriesQuery.data),rows(leaguesQuery.data)),[query.data,countriesQuery.data,leaguesQuery.data]);
   const filtered=useMemo(()=>stadiums.filter(s=>
     (!search||[s.name,...s.teams.map(t=>t.name)].some(v=>v.toLocaleLowerCase("es").includes(search.toLocaleLowerCase("es"))))&&
     (!city||s.city.toLocaleLowerCase("es").includes(city.toLocaleLowerCase("es")))&&
