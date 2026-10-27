@@ -33,7 +33,7 @@ async function finish(networkRequests=8){
  headers:{"X-MF-Worker-Token":"test_key_012345678901234567890123456789",
    "Content-Type":"application/json"},
  body:JSON.stringify({action:"finish",job_id:jobId,claim_id:claim,source_results:{
-  fotmob:{status:"complete",network_requests:networkRequests,diagnostics:[
+  fotmob:{status:"partial",network_requests:networkRequests,successful_requests:networkRequests,diagnostics:[
    {season:"2019/2020",competition:"LaLiga",status:"cache_absent"}]}}})});
  const response=await worker(req);return await response.json();
 }
@@ -49,8 +49,8 @@ test("Without network requests, no repeated auto-fetch",async()=>{
  const f=setup({networkRequests:0});await finish(0);
  assert.equal(f.jobs.length,1);
 });
-test("After the fourth bounded block, no further work is queued",async()=>{
- const f=setup({attempt:3});await finish();
+test("After the twelfth bounded block, no further work is queued",async()=>{
+ const f=setup({attempt:11});await finish();
  assert.equal(f.jobs.length,1);
 });
 test("Mixed-source first import continues with only FotMob when historic caches are missing",async()=>{
