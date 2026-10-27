@@ -1,14 +1,92 @@
 import json
 import os
 from pathlib import Path
+from urllib.error import HTTPError
 import tempfile
 import unittest
 from unittest.mock import patch, MagicMock
 
-from worker.mf_v3_worker import number, valid_pid, historical_dataset, collect, call, studio_fotmob
+from worker.mf_v3_worker import number, valid_pid, historical_dataset, collect, call, studio_fotmob, fotmob_coverage
 
 
 class WorkerContractTests(unittest.TestCase):
+    def test_coverage_deduplicates_competitions_and_reports_unavailable(self):
+        details=[
+            {"season":"2024/2025","competition":"LaLiga","tournament_id":"87","status":"pending_review"},
+            {"season":"2024/2025","competition":"LaLiga","tournament_id":"87","status":"duplicate_option"},
+            {"season":"2024/2025","competition":"Cup","tournament_id":"138","status":"no_statistics"},
+            {"season":"2023/2024","competition":"LaLiga","tournament_id":"87","status":"cache_absent"},
+        ]
+        c=fotmob_coverage(details)
+        self.assertEqual(c["total"],3)
+        self.assertEqual(c["received"],1)
+        self.assertEqual(c["unavailable"],1)
+        self.assertEqual(c["pending"],1)
+        self.assertFalse(c["complete"])
+
+    def test_mismatched_cache_is_refetched_and_original_preserved(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            profile_path=root/"profile.json"
+            profile_path.write_text('{"id":1598982}',encoding="utf-8")
+            file=root/"stats.json"
+            file.write_text(json.dumps({"_mf_legacy_meta":{
+                "player_id":"1598982","season":"2023/2024","competition":"LaLiga","season_id":"0-0"},
+                "payload":{"statsSection":{}}}),encoding="utf-8")
+            profile,client,resolver=MagicMock(),MagicMock(),MagicMock()
+            client.player_cache_path.return_value=profile_path
+            client.stat_cache_path.return_value=file
+            def save(path,data):
+                path.parent.mkdir(parents=True,exist_ok=True)
+                path.write_text(json.dumps(data),encoding="utf-8")
+            client.save_json.side_effect=save
+            profile.read_json.side_effect=lambda path:json.loads(path.read_text(encoding="utf-8"))
+            profile.load_profile_bundle.return_value={
+                "player":{"fotmob_player_id":"1598982"},
+                "season_options":[{"season":"2024/2025","competition":"LaLiga",
+                    "season_id":"0-0","tournament_id":"87"}],
+                "career":[]}
+            profile.extract_stat_details.return_value={"conflicts":[],"metrics":[{"name":"Tackles","value":22}]}
+            client.fetch_stats.return_value={"statsSection":{"items":[{"x":1}]}}
+            resolver.load_assignments.return_value={}
+            resolver.resolve_stats_team.return_value=("8634","Barcelona","career_tournament_id",[])
+            with patch("worker.mf_v3_worker.studio_import",return_value=(profile,client,resolver)):
+                found,state=studio_fotmob(root,"1598982",allow_network=True,request_limit=1)
+            self.assertEqual(len(found),1)
+            self.assertEqual(found[0]["metric_name"],"Tackles")
+            self.assertEqual(state["coverage"]["received"],1)
+            self.assertEqual(state["successful_requests"],1)
+            self.assertTrue((root/"stats.json.old").exists())
+            self.assertEqual(json.loads(file.read_text())["_mf_legacy_meta"]["season"],"2024/2025")
+            self.assertTrue((root/"datos"/"cobertura_fotmob"/"1598982.json").is_file())
+
+    def test_provider_rate_limit_stops_remaining_competitions(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            profile_path=root/"profile.json"
+            profile_path.write_text('{"id":1598982}',encoding="utf-8")
+            profile,client,resolver=MagicMock(),MagicMock(),MagicMock()
+            client.player_cache_path.return_value=profile_path
+            client.stat_cache_path.side_effect=lambda root,pid,sid:root/(sid+".json")
+            profile.read_json.side_effect=lambda path:json.loads(path.read_text(encoding="utf-8"))
+            profile.load_profile_bundle.return_value={
+                "player":{"fotmob_player_id":"1598982"},
+                "season_options":[
+                    {"season":"2024/2025","competition":"LaLiga","season_id":"0-0","tournament_id":"87"},
+                    {"season":"2023/2024","competition":"LaLiga","season_id":"1-0","tournament_id":"87"}],
+                "career":[]}
+            client.fetch_stats.side_effect=HTTPError("https://www.fotmob.com",429,"Too many requests",None,None)
+            client.save_json.side_effect=lambda path,data:path.parent.mkdir(parents=True,exist_ok=True) or path.write_text(json.dumps(data))
+            resolver.load_assignments.return_value={}
+            with patch("worker.mf_v3_worker.studio_import",return_value=(profile,client,resolver)):
+                found,state=studio_fotmob(root,"1598982",allow_network=True,request_limit=8)
+            self.assertFalse(found)
+            self.assertEqual(client.fetch_stats.call_count,1)
+            self.assertEqual(state["coverage"]["rate_limited"],1)
+            self.assertEqual(state["coverage"]["total"],2)
+            self.assertFalse(state["coverage"]["complete"])
+            self.assertEqual(state["coverage"]["pending"],1)
+
     def test_null_not_converted_to_zero(self):
         self.assertIsNone(number(None))
         self.assertIsNone(number(""))
