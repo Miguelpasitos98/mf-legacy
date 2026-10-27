@@ -61,15 +61,16 @@ export default async function(req) {
       });
       return reply({ok:true,pid});
     }
-    if (action === "start" || action === "retry" || action === "retry-pending") {
+    if (action === "start" || action === "retry" || action === "retry-pending" || action === "retry-fotmob") {
       const playerId = str(body.player_id);
       if (!/^[a-f0-9]{24}$/i.test(playerId)) return bad("ID interno de jugador no válido.");
       const player = await db.Player.get(playerId);
       if (!player?.id) return bad("Jugador no encontrado.",404);
       const {pid,automatic} = await verifiedLink(db,playerId);
       const previous=action!=="start"?await db.ImportJob.get(str(body.job_id)):null;
-      if(action==="retry-pending"&&(!previous||previous.player_id!==playerId||RUNNING.has(previous.status)))return bad("El trabajo no permite reintentar fuentes pendientes.",409);
-      const sources = action==="retry-pending"?pendingSources(previous):action==="retry"
+      if(["retry-pending","retry-fotmob"].includes(action)&&(!previous||previous.player_id!==playerId||RUNNING.has(previous.status)))return bad("El trabajo no permite reintentar fuentes pendientes.",409);
+      if(action==="retry-fotmob"&&(!(previous.sources||[]).includes("fotmob")||!(previous.source_results?.fotmob?.diagnostics||[]).some(d=>["cache_absent","candidate_limit"].includes(d.status))))return bad("No hay entradas pendientes de FotMob en este trabajo.",409);
+      const sources = action==="retry-fotmob"?["fotmob"]:action==="retry-pending"?pendingSources(previous):action==="retry"
         ? [...new Set(previous?.sources||[])]
         : [...new Set(Array.isArray(body.sources)?body.sources:[])];
       if (sources.length===0 || sources.some(x=>!SOURCE_SET.has(x))) return bad("Fuentes solicitadas no válidas.");
@@ -88,7 +89,7 @@ export default async function(req) {
         requested_at:now,phase:"Pendiente de recoger por el trabajador Python",
         source_results:Object.fromEntries(sources.map(s=>[s,{status:"pending"}])),
         completed_sources:[],received_candidates:0,
-        retry_count:action!=="start"?(previous?.retry_count||0)+1:0,retry_pending:action==="retry-pending"
+        retry_count:action==="retry-fotmob"?0:action!=="start"?(previous?.retry_count||0)+1:0,retry_pending:["retry-pending","retry-fotmob"].includes(action)
       });
       return reply({ok:true,job:{id:job.id,status:job.status,player_name:job.player_name,fotmob_player_id:pid}});
     }
