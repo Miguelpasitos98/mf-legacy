@@ -1,18 +1,17 @@
 import React,{useMemo,useState} from "react";
 import {useQueryClient} from "@tanstack/react-query";
-import {Shirt,Search,Save,ImageOff,ChevronDown,ArrowLeft,LayoutGrid,Focus} from "lucide-react";
+import {Shirt,Search,Save,ChevronDown,ArrowLeft,LayoutGrid,Focus} from "lucide-react";
 import {useTeamsQuery} from "@/hooks/useSharedData";
 import {base44} from "@/api/base44Client";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
 import {RECORD_KEYS} from "@/api/recordQueries";
+import NormalizedKitImage from "@/components/teams/NormalizedKitImage";
 
 const KIT_FIELDS=[["kit3_photo_url","Tercera equipación"],["kit1_photo_url","Primera equipación"],["kit2_photo_url","Segunda equipación"]];
 function KitPicture({url,label,club}){
-  const [bad,setBad]=useState(false);
   const src=normalizeImageUrl(url);
   return <div className="flex h-52 items-center justify-center bg-gradient-to-b from-white to-slate-50 p-4 sm:h-64">
-    {src&&!bad?<img src={src} alt={label+" de "+club} className="h-full w-full object-contain drop-shadow-sm" loading="lazy" onError={()=>setBad(true)}/>:
-      <div className="flex flex-col items-center gap-2 text-slate-400"><ImageOff size={25}/><span className="text-xs">Sin imagen</span></div>}
+    <NormalizedKitImage url={src} alt={label+" de "+club} className="drop-shadow-sm"/>
   </div>;
 }
 function EditorialClub({team,onOpen}){
@@ -26,10 +25,10 @@ function EditorialClub({team,onOpen}){
         <div className="min-w-0 flex-1"><h2 className="truncate text-lg font-black text-slate-900">{team.name}</h2><p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Colección de equipaciones</p></div>
         <span className="hidden rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-700 sm:block">Ver colección</span>
       </div>
-      <div className="relative grid grid-cols-[0.9fr_1.15fr_0.9fr] items-end gap-0 sm:gap-3">
+      <div className="relative grid grid-cols-3 items-end gap-1 sm:gap-4">
         {images.map(({key,label,src})=><div key={key} className={`flex min-w-0 flex-col items-center ${key==="kit1_photo_url"?"relative z-10":"opacity-90"}`}>
           <div className={`flex w-full items-center justify-center ${key==="kit1_photo_url"?"h-64 sm:h-80":"h-52 sm:h-64"}`}>
-            {src?<img src={src} alt={label+" de "+team.name} loading="lazy" className="max-h-full max-w-full object-contain drop-shadow-xl transition-transform duration-300 group-hover:scale-[1.03]"/>:<Shirt size={46} className="text-slate-200"/>}
+            <NormalizedKitImage url={src} alt={label+" de "+team.name} className="drop-shadow-xl transition-transform duration-300 group-hover:scale-[1.03]"/>
           </div>
           <span className="mt-3 text-center text-[10px] font-extrabold uppercase tracking-wider text-slate-500 sm:text-xs">{label}</span>
         </div>)}
@@ -68,8 +67,8 @@ function ClubGallery({team,editing,setEditing,onSaved,onBack}){
       </div>
       <button type="button" onClick={editMode?()=>setEditing(null):startEdit} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{editMode?"Cancelar":"Editar camisetas"}</button>
     </header>
-    <div className="grid items-center gap-3 p-4 md:grid-cols-[minmax(0,0.94fr)_minmax(0,1.12fr)_minmax(0,0.94fr)]">
-      {fields.map(field=><div key={field.key} className={`min-w-0 overflow-hidden rounded-xl border ${field.key==="kit1_photo_url"?"border-[#003399]/40 bg-blue-50/50 shadow-md md:scale-[1.025] md:z-10":"border-slate-200"}`}>
+    <div className="grid items-center gap-3 p-4 md:grid-cols-3">
+      {fields.map(field=><div key={field.key} className={`min-w-0 overflow-hidden rounded-xl border ${field.key==="kit1_photo_url"?"border-[#003399]/40 bg-blue-50/50 shadow-md md:z-10":"border-slate-200"}`}>
         <KitPicture key={field.url} url={field.url} club={team.name} label={field.label}/>
         <div className="border-t border-slate-100 bg-white px-3 py-3"><p className="text-center text-xs font-bold text-slate-700">{field.label}</p>
           {editMode&&<label className="mt-3 block text-xs text-slate-600">URL de imagen
@@ -121,7 +120,7 @@ export default function Kits(){
           </div>
           <div className="grid grid-cols-3 gap-1 bg-slate-100 p-2">
             {KIT_FIELDS.map(([key,label])=><div key={key} className="min-w-0 bg-white">
-              <div className="flex h-28 items-center justify-center p-1 sm:h-32">{team[key]?<img src={normalizeImageUrl(team[key])} alt={label} loading="lazy" className="max-h-full max-w-full object-contain"/>:<Shirt size={24} className="text-slate-200"/>}</div>
+              <div className="flex h-28 items-center justify-center p-1 sm:h-32"><NormalizedKitImage url={team[key]} alt={label}/></div>
               <p className="truncate px-1 pb-2 text-center text-[10px] font-semibold text-slate-500">{label.split(" ")[0]}</p>
             </div>)}
           </div>
