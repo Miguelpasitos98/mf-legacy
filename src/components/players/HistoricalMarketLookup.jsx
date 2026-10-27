@@ -8,7 +8,8 @@ const ROOT = "https://raw.githubusercontent.com/Miguelpasitos98/mf-legacy/main/p
 const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 const dateOnly = s => String(s || "").slice(0,10);
 const normalizedBirthDate = value => {
-  const date = parseBirthDate(value);
+  const raw = String(value ?? "").trim();
+  const date = parseBirthDate(raw);
   if (!date) return null;
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -59,10 +60,16 @@ export default function HistoricalMarketLookup({ player }) {
   }
   function importRows(){
     if(!history?.length||!player?.id||!selected)return;
-    const playerDob=normalizedBirthDate(player?.date_of_birth || player?.dateOfBirth);
-    const candidateDob=normalizedBirthDate(selected.dob);
+    const playerRaw = player?.date_of_birth || player?.dateOfBirth || "";
+    const candidateRaw = selected.dob || "";
+    const playerDob=normalizedBirthDate(playerRaw);
+    const candidateDob=normalizedBirthDate(candidateRaw);
     if(playerDob && candidateDob && playerDob!==candidateDob){
-      setError("La fecha de nacimiento no coincide. Importación bloqueada para evitar asociar otro futbolista.");
+      setError(`Las fechas no coinciden: MF Legacy ${playerRaw} (${playerDob}) y Transfermarkt ${candidateRaw} (${candidateDob}). Comprueba la ficha del jugador; no se importó nada.`);
+      return;
+    }
+    if ((playerRaw && !playerDob) || (candidateRaw && !candidateDob)) {
+      setError(`No se puede interpretar una fecha de nacimiento: MF Legacy "${playerRaw}" / Transfermarkt "${candidateRaw}". No se importó nada.`);
       return;
     }
     try {
