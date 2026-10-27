@@ -140,6 +140,63 @@ function withinSeason(season,date) {
   const parsed=new Date(date+"T00:00:00Z");
   return !Number.isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===date&&date>=start&&date<=end;
 }
+// Utilizado al finalizar una extracción: solo aplica valores históricos contrastados.
+export async function applyVerifiedHistoricals(db,job) {
+  const result={applied:0,pending:0,created_stats:0,created_valuations:0,errors:[]};
+  if(job.status!=="review")return result;
+  const player=await db.Player.get(job.player_id);
+  if(!player)return result;
+  const links=await allRows(db.PlayerFotmobLink,{player_id:job.player_id});
+  const backlinks=await allRows(db.PlayerFotmobLink,{fotmob_player_id:job.fotmob_player_id});
+  const valid=new Set(["verified","confirmed","manual","manual_confirmada","confirmada","automatic_exact_name_unique"]);
+  if(!links.length||links.some(l=>str(l.fotmob_player_id)!==str(job.fotmob_player_id))||!links.some(l=>valid.has(str(l.verification).toLowerCase()))||backlinks.some(l=>str(l.player_id)!==job.player_id))return result;
+  const records=await allRows(db.ImportCandidate,{job_id:job.id});
+  const trusted=c=>c.review_status==="pending"&&c.verification_status==="verified"&&str(c.evidence_url).startsWith("https://")&&str(c.provenance?.archive_url).startsWith("https://")&&!!str(c.provenance?.sha256)&&str(c.player_id)===str(job.player_id)&&str(c.fotmob_player_id)===str(job.fotmob_player_id);
+  for(const item of records.filter(c=>trusted(c)&&["overall","market_value"].includes(c.kind))){
+    const p=item.provenance;
+    if(!p?.player_id||!p.identity_rule||(item.kind==="overall"&&(item.source!=="fifa"||p.rating_kind!=="launch_base"))||(item.kind==="market_value"&&(item.source!=="market"||p.value_kind!=="market_value")))continue;
+    try{
+      const existing=rows(await db.PlayerHistoricalValuation.filter({player_id:job.player_id,season:item.season},undefined,10));
+      if(existing.length>1)continue;
+      const plan=valuationPlan(item,existing[0]||null);
+      if(plan.operation==="create") {await db.PlayerHistoricalValuation.create({player_id:job.player_id,fotmob_player_id:job.fotmob_player_id,season:item.season,verification_status:"verified",...plan.record});result.created_valuations++;}
+      else if(plan.operation==="update")await db.PlayerHistoricalValuation.update(plan.target_id,plan.record);
+      await db.ImportCandidate.update(item.id,{review_status:"applied",review_note:"Autoaplicado: archivo contrastado y sin sobrescribir datos"});
+      result.applied++;
+    }catch(e){if(result.errors.length<8)result.errors.push(item.source+" "+item.season+": "+e.message);}
+  }
+  // Understat solo para temporadas cerradas, procedencia contrastada y equipo interno único.
+  const byScope=new Map();
+  for(const c of records.filter(x=>x.source==="understat"&&x.kind==="metric")){
+    const key=[c.season,c.competition,c.fotmob_team_id,c.team_name].join("|");
+    if(!byScope.has(key))byScope.set(key,[]);
+    byScope.get(key).push(c);
+  }
+  const teams=await allRows(db.Team,{});
+  const club=v=>norm(v).replace(/^(fc|cf) /,"").replace(/ (fc|cf)$/,"");
+  for(const group of byScope.values()){
+    const first=group[0],prov=first.provenance||{};
+    if(group.some(c=>!trusted(c)||c.is_national_team!==false||c.fotmob_tournament_id!==first.fotmob_tournament_id)||
+      prov.scope!=="league_team_season"||!prov.player_id||!first.fotmob_tournament_id||
+      Number(first.season.slice(0,4))>=2025)continue;
+    const matching=teams.filter(t=>club(t.name)===club(first.team_name)&&
+      (!t.fotmob_id||str(t.fotmob_id)===str(first.fotmob_team_id)));
+    if(matching.length!==1)continue;
+    try{
+      const existing=await allRows(db.PlayerSeasonStats,{player_id:job.player_id,season:first.season});
+      const plan=seasonPlan(group,player,existing,{team_id:matching[0].id});
+      if(plan.operation==="create"){
+        await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
+        result.created_stats++;
+      }else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
+      await db.ImportCandidate.updateMany({id:{$in:group.map(c=>c.id)},job_id:job.id,review_status:"pending"},
+        {$set:{review_status:"applied",review_note:"Autoaplicado: Understat contrastado, club único y temporada cerrada"}});
+      result.applied+=group.length;
+    }catch(e){if(result.errors.length<8)result.errors.push("understat "+first.season+": "+e.message);}
+  }
+  result.pending=records.length-result.applied;
+  return result;
+}
 async function conclude(db,job) {
   const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
   if(!pending.length)await db.ImportJob.update(job.id,{status:"completed",phase:"Candidatos revisados",progress:100});
@@ -158,6 +215,12 @@ export default async function(req) {
     if(!item)return bad("Candidato no encontrado.",404);
     const job=await db.ImportJob.get(item.job_id);
     if(!job||job.player_id!==item.player_id||job.fotmob_player_id!==item.fotmob_player_id)return bad("Identidad del candidato incompatible.",409);
+    if(action==="auto-safe") {
+      const result=await applyVerifiedHistoricals(db,job);
+      const remaining=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
+      if(job.status==="review")await db.ImportJob.update(job.id,{status:remaining.length?"review":"completed",phase:"Automático: "+result.applied+" incorporados · "+(remaining.length?"revisión pendiente":"completado")});
+      return reply({ok:true,...result,remaining_review:remaining.length>0});
+    }
     if(item.review_status==="applied"||item.review_status==="rejected")return reply({ok:true,status:item.review_status,unchanged:true});
     if(item.review_status!=="pending"||job.status!=="review")return bad("Este candidato no está disponible para revisión.",409);
     if(action==="reject") {
