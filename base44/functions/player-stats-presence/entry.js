@@ -4,16 +4,18 @@ import {createClientFromRequest} from "npm:@base44/sdk";
 // PlayerSeasonStats; no se consideran valoraciones FIFA/Transfermarkt ni candidatos.
 const rows=value=>Array.isArray(value)?value:value?.items||value?.data||value?.entities||[];
 const response=(body,status=200)=>Response.json(body,{status,headers:{"Cache-Control":"private, no-store"}});
-export async function collectStatsPlayerIds(db,{pageSize=250,maxRows=30000}={}){
+export async function collectStatsPlayerIds(db,{pageSize=250,maxRows=30000,now=new Date()}={}){
   const unique=new Set();
-  let processed=0;
+  // La temporada en curso está oculta en STATS: el distintivo debe reflejar
+  // solo los jugadores que tienen al menos una temporada visible.
+  const activeSeasonStart=now.getUTCMonth()>=6?now.getUTCFullYear():now.getUTCFullYear()-1;
   for(let skip=0;skip<maxRows;skip+=pageSize){
     const page=rows(await db.PlayerSeasonStats.filter({},"id",pageSize,skip));
     for(const record of page){
       const playerId=String(record?.player_id||"").trim();
-      if(playerId)unique.add(playerId);
+      const seasonStart=Number(String(record?.season||"").slice(0,4));
+      if(playerId&&seasonStart!==activeSeasonStart)unique.add(playerId);
     }
-    processed+=page.length;
     if(page.length<pageSize)return [...unique];
   }
   // Nunca devolver un subconjunto como si fuera una comprobación completa.
