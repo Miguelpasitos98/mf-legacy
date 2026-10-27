@@ -124,6 +124,7 @@ export default function ImportCenter(){
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const waitingForWorker=jobs.filter(queuedTooLong);
+  const fotmobRecoveryOrigin=job=>jobs.find(previous=>previous.id!==job.id&&previous.player_id===job.player_id&&["review","completed"].includes(previous.status)&&missingFotmobCaches(previous)>0);
   useEffect(()=>{
     if(!selectedJobData||selectedJobData.status!=="review"||candidatesLoading||!candidateRows.length||autoProcessed.current.has(selectedJobData.id))return;
     const candidate=candidateRows.find(c=>c.review_status==="pending"&&c.verification_status==="verified"&&["fotmob","understat","fifa","market"].includes(c.source));
@@ -287,7 +288,7 @@ export default function ImportCenter(){
               <button onClick={()=>setSelectedJob(j.id)} className="text-[#003399] underline">Ver diagnóstico</button>
               {ACTIVE.includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("cancel",{job_id:j.id})} className="text-amber-800 underline">Cancelar</button>}
               {j.status==="running"&&j.lease_expires_at&&Date.now()>new Date(j.lease_expires_at).getTime()&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("release-stale",{job_id:j.id})} className="text-amber-800 underline">Liberar bloqueo</button>}
-              {["failed","cancelled"].includes(j.status)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar</button>}
+              {["failed","cancelled"].includes(j.status)&&(fotmobRecoveryOrigin(j)?<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry-fotmob",{job_id:fotmobRecoveryOrigin(j).id,player_id:j.player_id})} className="text-[#003399] underline">Continuar solo FotMob</button>:<button disabled={busy||coordinator!=="ready"} onClick={()=>operate("retry",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">Reintentar</button>)}
               {!ACTIVE.includes(j.status)&&retryableSources(j)&&<button disabled={busy||coordinator!=="ready"} onClick={()=>operate(missingFotmobCaches(j)>0?"retry-fotmob":"retry-pending",{job_id:j.id,player_id:j.player_id})} className="text-[#003399] underline">{missingFotmobCaches(j)>0?`Recuperar ${missingFotmobCaches(j)} entradas FotMob pendientes`:"Reintentar fuentes pendientes"}</button>}
             </td>
           </tr>)}</tbody>
