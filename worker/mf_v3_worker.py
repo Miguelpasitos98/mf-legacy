@@ -12,6 +12,9 @@ Environment:
 from __future__ import annotations
 
 import argparse
+from collections import Counter
+from urllib.error import HTTPError
+import shutil
 from datetime import datetime, timezone
 import json
 import os
@@ -104,6 +107,37 @@ def prioritize_fotmob_seasons(options, now=None):
     return sorted(options,key=priority)
 
 
+def fotmob_coverage(diagnostics, profile_stale=False):
+    """Cobertura de RECURSOS, no porcentaje de calidad del jugador ni de métricas."""
+    # Una opción repetida en statSeasons no es otra competición.
+    unique={}
+    for d in diagnostics:
+        key=(d.get("season"),d.get("tournament_id"),d.get("competition"))
+        if d.get("status")=="duplicate_option" and key in unique:continue
+        unique[key]=d
+    diagnostics=list(unique.values())
+    counts=Counter(d.get("status") for d in diagnostics)
+    retry={"cache_absent","cache_mismatch","query_failed","candidate_limit","provider_paused"}
+    blocked={"team_unidentified","pending_reconciliation","competition_unidentified",
+             "incompatible_response","access_denied"}
+    received=counts["pending_review"]
+    unavailable=counts["no_statistics"]+counts["provider_unavailable"]
+    pending=sum(counts[k] for k in retry)
+    needs_review=sum(counts[k] for k in blocked)
+    return {"total":len(diagnostics),"received":received,
+            "unavailable":unavailable,"pending":pending,"needs_review":needs_review,
+            "rate_limited":counts["rate_limited"],"profile_stale":bool(profile_stale),
+            "complete":bool(diagnostics) and pending==0 and needs_review==0
+                       and not counts["rate_limited"] and not profile_stale}
+
+def fotmob_cache_valid(data,pid,option):
+    meta=data.get("_mf_legacy_meta") if isinstance(data,dict) else None
+    return isinstance(meta,dict) and (str(meta.get("player_id"))==pid
+        and str(meta.get("season"))==str(option["season"])
+        and str(meta.get("competition"))==str(option["competition"])
+        and str(meta.get("season_id"))==str(option["season_id"])
+        and (not meta.get("tournament_id") or str(meta["tournament_id"])==str(option.get("tournament_id"))))
+
 def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                   max_candidates=6000,target_scopes=None,on_progress=None):
     profile, client, resolver = studio_import(root)
@@ -111,24 +145,55 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
         raise RuntimeError('Falta la reparación de Studio: ejecuta worker/apply_studio_patch.py con su ruta.')
     cache = client.player_cache_path(root, pid)
     network_count = 0
-    if not cache.exists():
-        if not allow_network or request_limit < 1:
-            return [], report("unavailable", "Caché de perfil ausente; consulta externa desactivada.")
-        network_count += 1
-        data = client.fetch_profile(pid)
-        client.save_json(cache, data)
+    successful_requests = 0
+    # El perfil define las competiciones que existen. Una copia vieja no puede
+    # certificar que ya se descubrieron todas; renovarlo sin perder la anterior.
+    ttl_hours=max(24,min(720,int(os.getenv("MF_V3_PROFILE_TTL_HOURS","168"))))
+    profile_stale=cache.exists() and time.time()-cache.stat().st_mtime>ttl_hours*3600
+    profile_refresh_error=""
+    if not cache.exists() or profile_stale:
+        if allow_network and network_count<request_limit:
+            try:
+                network_count+=1
+                data=client.fetch_profile(pid)  # valida el ID antes de guardar
+                client.save_json(cache,data)
+                successful_requests+=1
+                profile_stale=False
+            except HTTPError as error:
+                profile_refresh_error="Perfil FotMob HTTP "+str(error.code)
+                if error.code in (401,403,429):
+                    # No intentar otros recursos si el proveedor ha negado
+                    # acceso o indicado límite temporal.
+                    allow_network=False
+                if not cache.exists():
+                    return [],{**report("partial",profile_refresh_error),
+                        "coverage":{"total":0,"received":0,"unavailable":0,"pending":1,
+                                    "needs_review":0,"rate_limited":int(error.code==429),
+                                    "profile_stale":True,"complete":False},
+                        "network_requests":network_count,"successful_requests":successful_requests}
+            except (OSError,ValueError) as error:
+                profile_refresh_error="Perfil FotMob "+type(error).__name__+": "+str(error)[:80]
+                if not cache.exists():
+                    return [],report("unavailable",profile_refresh_error)
+        elif not cache.exists():
+            return [],report("unavailable", "Perfil FotMob ausente y consultas desactivadas.")
     bundle = profile.load_profile_bundle(cache)
     if text(bundle["player"]["fotmob_player_id"]) != pid:
         raise ValueError("El perfil de FotMob pertenece a otro jugador.")
     assignments = resolver.load_assignments(root)
     out, diagnostics = [], []
     options = prioritize_fotmob_seasons(bundle["season_options"])
+    if target_scopes is not None:
+        options=[option for option in options if any(
+            (not scope.get("season") or scope["season"]==option["season"]) and
+            (not scope.get("tournament_id") or str(scope["tournament_id"])==str(option.get("tournament_id"))) and
+            (not scope.get("season_id") or scope["season_id"]==option["season_id"]) and
+            (scope.get("season_id") or scope.get("tournament_id") or not scope.get("competition") or
+             norm(scope["competition"])==norm(option.get("competition")))
+            for scope in target_scopes)]
     seen = set()
+    paused_by_provider=False
     for option in options:
-        if target_scopes is not None and not any((not s.get('season') or s['season']==option['season']) and
-            (not s.get('season_id') or s['season_id']==option['season_id']) and
-            (not s.get('tournament_id') or text(s['tournament_id'])==text(option.get('tournament_id'))) and
-            (s.get('season_id') or s.get('tournament_id') or not s.get('competition') or norm(s['competition'])==norm(option.get('competition'))) for s in target_scopes):continue
         if on_progress:on_progress('FotMob · '+text(option.get('season'))+' · '+text(option.get('competition')))
         sid = option["season_id"]
         diag = {"season": option["season"], "competition": option["competition"],
@@ -144,37 +209,40 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
         seen.add(identity)
         file = client.stat_cache_path(root, pid, sid)
         raw = None
+        bad_cache=False
         try:
             if file.exists():
                 data = profile.read_json(file)
-                meta = data.get("_mf_legacy_meta")
-                if not isinstance(meta,dict) or not meta:
-                    diag.update(status="incompatible_response", reason="Caché antigua sin metadatos de identidad: no se atribuyen estadísticas por posición de archivo.")
-                    continue
-                if meta and (text(meta.get("player_id")) != pid
-                             or text(meta.get("season")) != option["season"]
-                             or text(meta.get("competition")) != option["competition"]
-                             or text(meta.get("season_id")) != sid
-                             or (meta.get("tournament_id") and text(meta["tournament_id"]) != text(option.get("tournament_id")))):
-                    diag.update(status="incompatible_response", reason="Identidad de caché incompatible con el perfil actual.")
-                    continue
-                raw = data.get("payload") if meta else data
+                if fotmob_cache_valid(data,pid,option):
+                    raw=data.get("payload")
+                else:
+                    # No usar registros de otra temporada, pero sí poder
+                    # recuperar la entrada correcta sin borrar el original.
+                    bad_cache=True
             elif sid == next((o["season_id"] for o in bundle["season_options"]), None):
                 # The profile can embed the first tournament; no new request needed.
                 data=profile.read_json(cache)
                 raw=data.get("firstSeasonStats")
-            if raw is None and not file.exists() and allow_network and network_count < request_limit:
+            if raw is None and allow_network and network_count < request_limit:
                 if network_count:
                     time.sleep(2.0)
-                network_count += 1  # Failed requests also consume the budget.
+                network_count += 1
                 if on_progress is not None:
                     on_progress("FotMob "+option["season"]+" · "+option["competition"]+" · consulta "+str(network_count)+"/"+str(request_limit))
-                raw = client.fetch_stats(pid, sid, option.get("is_first", False))
+                fresh=client.fetch_stats(pid,sid,option.get("is_first",False))
+                if not isinstance(fresh,dict) or not any(k in fresh for k in ("statsSection","topStatCard")):
+                    diag.update(status="incompatible_response",reason="Respuesta del proveedor sin estadísticas reconocibles")
+                    continue
+                if bad_cache and not file.with_suffix(file.suffix+".old").exists():
+                    shutil.copy2(file,file.with_suffix(file.suffix+".old"))
                 client.save_json(file, {"_mf_legacy_meta": {
                     "player_id":pid, "season":option["season"], "competition":option["competition"],
-                    "season_id":sid,"tournament_id":text(option.get("tournament_id"))}, "payload":raw})
-            if raw is None and not file.exists():
-                diag.update(status="cache_absent", reason="Caché ausente; no se dispone de playerStats local.")
+                    "season_id":sid,"tournament_id":text(option.get("tournament_id"))}, "payload":fresh})
+                successful_requests+=1
+                raw=fresh
+            if raw is None:
+                diag.update(status="cache_mismatch" if bad_cache else "cache_absent",
+                            reason="Caché incompatible, recuperar con identidad exacta." if bad_cache else "Aún no descargado; pendiente de consulta.")
                 continue
             if not isinstance(raw, dict) or not any(k in raw for k in ("statsSection", "topStatCard")):
                 diag.update(status="incompatible_response", reason="Respuesta sin bloques playerStats reconocibles.")
@@ -233,18 +301,40 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                 continue
             out.extend(batch)
             diag.update(status="pending_review", candidates=len(batch), reason="Estadísticas recuperadas; requieren verificación y aprobación.")
+        except HTTPError as exc:
+            code=exc.code
+            status="rate_limited" if code==429 else "access_denied" if code in (401,403) else "provider_unavailable" if code==404 else "query_failed"
+            diag.update(status=status,reason="FotMob HTTP "+str(code)+": consulta no completada")
+            # No seguir consultando si el proveedor limita o niega el acceso.
+            if code in (401,403,429):
+                paused_by_provider=True
+                break
         except OSError as exc:
             diag.update(status="query_failed", reason=type(exc).__name__+": "+str(exc)[:160])
         except (ValueError, KeyError, TypeError) as exc:
             diag.update(status="incompatible_response", reason=type(exc).__name__+": "+str(exc)[:160])
-    from collections import Counter
+    if paused_by_provider:
+        processed={str(d.get("season_id")) for d in diagnostics}
+        for option in options:
+            if option["season_id"] not in processed:
+                diagnostics.append({"season":option["season"],"competition":option["competition"],
+                    "season_id":option["season_id"],"tournament_id":str(option.get("tournament_id","")),
+                    "status":"provider_paused","reason":"No se consulta: FotMob limitó o negó el acceso."})
     counts=dict(Counter(d["status"] for d in diagnostics))
-    pending_queries=any(counts.get(k,0) for k in ['cache_absent','candidate_limit','query_failed'])
-    state=report("partial" if pending_queries else "complete" if out else "unavailable",
-        f"Candidatos: {len(out)}; recuperadas: {counts.get('pending_review',0)}; caché ausente: {counts.get('cache_absent',0)}; "
-        f"equipo pendiente: {counts.get('team_unidentified',0)}; incompatibles: {counts.get('incompatible_response',0)}; "
-        f"peticiones FotMob: {network_count}. Pendientes de revisión.")
-    state.update(counts=counts,diagnostics=diagnostics,network_requests=network_count)
+    coverage=fotmob_coverage(diagnostics,profile_stale)
+    state=report("complete" if coverage["complete"] else "partial",
+        f"Cobertura {coverage['received']}/{coverage['total']} entradas con datos; "
+        f"{coverage['pending']} por consultar; {coverage['needs_review']} por conciliar; "
+        f"{coverage['unavailable']} sin estadísticas del proveedor; {network_count} peticiones de red."
+        +(f" Perfil pendiente: {profile_refresh_error}." if profile_refresh_error else ""))
+    state.update(counts=counts,diagnostics=diagnostics,network_requests=network_count,
+                 successful_requests=successful_requests,coverage=coverage)
+    # Persistir el inventario local para poder reanudar tras un fallo de Base44.
+    manifest=root/"datos"/"cobertura_fotmob"/(pid+".json")
+    client.save_json(manifest,{
+        "schema":"mf_legacy_fotmob_coverage_v1","fotmob_player_id":pid,
+        "checked_at":datetime.now(timezone.utc).isoformat(),
+        "profile_stale":profile_stale,"summary":coverage,"competitions":diagnostics})
     return out,state
 
 
@@ -417,7 +507,6 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
                     state['status']='partial'
                 if requested is not None:candidates=[c for c in candidates if c['season'] in scoped(seasons)]
                 candidates=[c for c in candidates if not catalog().saved(pid,source,c['season'])]
-                state['note']=re.sub(r'Candidatos Understat: \d+',f'Candidatos Understat: {len(candidates)}',state['note'])
                 for d in state.get('diagnostics',[]):
                     if catalog().saved(pid,source,d['season']):d['status']='verificado_guardado'
                     else:catalog().state(pid,source,d['season'],'pendiente_verificacion',d)
