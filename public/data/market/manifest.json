@@ -1,0 +1,9 @@
+{
+  "source": "dcaribou/transfermarkt-datasets",
+  "players": 50149,
+  "valuations": 656301,
+  "earliest": "2000-01-20",
+  "latest": "2026-06-12",
+  "buckets": 128,
+  "source_sha256": "5971ec002b9d7b3e99358ed28b0518e7f384549db53075efc273cc57f7dacdf1"
+}
