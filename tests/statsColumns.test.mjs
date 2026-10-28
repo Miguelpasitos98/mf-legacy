@@ -133,14 +133,14 @@ test('Keylor Navas: Play %, SV/90 y xA/90 usan fuentes existentes sin crear minu
  assert.ok(Math.abs(columnValue(season,'season','xaper90',config)-xaRate)<1e-8);
  assert.equal(rows[0].minutes,null);
 });
-test('preferencias antiguas de Portería reciben SV/90 y xA/90 sin perder columnas personales',()=>{
+test('preferencias antiguas de Portería mantienen SV/90 sin reintroducir xA/90',()=>{
  const old=initialConfig();old.version=3;
  old.columns.season.Portería=['saves','calc_goals_prevented','my_metric'];
  old.columns.competition.Portería=['saves','cleansheets'];
  const upgraded=sanitizeConfig(old);
  for(const mode of ['season','competition']){
   assert.ok(upgraded.columns[mode].Portería.includes('savesper90'));
-  assert.ok(upgraded.columns[mode].Portería.includes('xaper90'));
+  assert.ok(!upgraded.columns[mode].Portería.includes('xaper90'));
  }
  assert.ok(upgraded.columns.season.Portería.includes('calc_goals_prevented'));
  assert.equal(upgraded.version,4);
