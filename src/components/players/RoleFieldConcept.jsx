@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React from "react";
 import {compactPositionValue} from "@/utils/compactPositionRatings";
 
 // Prototipo de disposición usando la imagen facilitada por el usuario.
@@ -29,7 +29,6 @@ const ROLE_RANGES=[
 const roleColor=(value)=>ROLE_RANGES.find(({min,max})=>value>=min&&value<=max)?.color||"#94A3B8";
 
 export default function RoleFieldConcept({ratings={}}){
- const [showLegend,setShowLegend]=useState(false);
  return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Vista de prueba de roles y posiciones">
   <img className="absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
   {NUMBERS.map(([key,label,x,y],i)=>{
@@ -40,18 +39,6 @@ export default function RoleFieldConcept({ratings={}}){
       <span className="rounded-b-md bg-white px-1.5 text-center font-black leading-tight text-slate-900 shadow-sm" style={{fontSize:"clamp(7px,.73vw,10px)"}}>{label}</span>
     </div>;
   })}
-  <div className="pointer-events-auto absolute right-0 top-0 z-30 flex flex-col items-end">
-   <button type="button" aria-expanded={showLegend} onClick={()=>setShowLegend(value=>!value)}
-     className="rounded-md border border-white/80 bg-white/90 px-2 py-1 text-[10px] font-bold text-slate-700 shadow-sm hover:bg-white">
-     Colores {showLegend?"−":"+"}
-   </button>
-   {showLegend&&<div className="mt-1 rounded-lg border border-white bg-white/95 p-2 shadow-lg" aria-label="Leyenda de colores de posiciones">
-     {ROLE_RANGES.map(({min,max,label,color})=><div key={min} className="flex items-center gap-2 py-0.5 text-[10px] text-slate-800">
-       <span className="h-3 w-5 rounded-sm" style={{backgroundColor:color}}/>
-       <span className="w-10 font-bold">{min}–{max}</span><span>{label}</span>
-     </div>)}
-     <div className="flex items-center gap-2 py-0.5 text-[10px] text-slate-800"><span className="h-3 w-5 rounded-sm bg-slate-400"/><span className="w-10 font-bold">–</span><span>Sin dato</span></div>
-   </div>}
-  </div>
+
  </div>;
 }
