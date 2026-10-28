@@ -1,3 +1,4 @@
+import {persistMarketHistory} from "@/utils/persistMarketHistory";
 import React, { useState } from "react";
 const key = id => `mf-legacy-market-history-preview-v1:${id}`;
 const parseCSV = (text) => {
@@ -41,7 +42,7 @@ export default function MarketCsvUpload({player}){
     setPreview(values);
     setMessage(values.length?`${values.length} valoraciones de ${match?.name||id}. Verifica la identidad antes de confirmar.`:"No hay valoraciones para este ID en el CSV.");
   };
-  const save=()=>{
+  const save=async()=>{
     if(!preview.length||!player?.id)return;
     try{
       const old=window.localStorage.getItem(key(player.id));
@@ -49,9 +50,8 @@ export default function MarketCsvUpload({player}){
       const existing=(Array.isArray(source)?source:[]).map(r=>({...r,date:String(r.date||"").slice(0,10),value:Number(r.value)})).filter(r=>/^\d{4}-\d\d-\d\d$/.test(r.date)&&Number.isFinite(r.value));
       const dates=new Set(existing.map(r=>r.date));
       const all=[...existing,...preview.filter(r=>!dates.has(r.date))].sort((a,b)=>a.date.localeCompare(b.date));
-      window.localStorage.setItem(key(player.id),JSON.stringify(all));
-      window.dispatchEvent(new CustomEvent("mf-legacy-market-preview-updated",{detail:{playerId:player.id}}));
-      setMessage(`${all.length} registros guardados localmente. Base44 no se ha modificado.`);
+      const saved=await persistMarketHistory(player.id,all);
+      setMessage(\`\${saved.length} registros guardados y verificados en Base44.\`);
     }catch(e){setMessage("Error al guardar: "+e.message);}
   };
   const linked=players?.find(r=>String(r.player_id)===id);

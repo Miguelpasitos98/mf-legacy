@@ -1,3 +1,4 @@
+import {persistMarketHistory} from "@/utils/persistMarketHistory";
 import React, { useState } from "react";
 import { Upload } from "lucide-react";
 
@@ -50,7 +51,7 @@ export default function MarketBulkImport({ player }) {
     try { const parsed = parseMarketBulk(raw); setPreview(parsed); setError(""); }
     catch(e) { setPreview(null); setError(e.message); }
   };
-  const save = () => {
+  const save = async () => {
     if (!preview || !player?.id) return;
     try {
       const oldRaw = window.localStorage.getItem(key(player.id));
@@ -59,15 +60,14 @@ export default function MarketBulkImport({ player }) {
         .filter(item=>item.date && Number.isFinite(item.value) && item.value>=0);
       const merged = mode === "replace" ? preview : [...normalizedExisting.filter(r => !preview.some(n => n.date === r.date)), ...preview];
       merged.sort((a,b)=>a.date.localeCompare(b.date));
-      window.localStorage.setItem(key(player.id), JSON.stringify(merged));
-      window.dispatchEvent(new CustomEvent("mf-legacy-market-preview-updated", { detail: { playerId: player.id } }));
-      setError(""); setPreview(null); setRaw("");
-      alert(`${merged.length} registros guardados en este navegador para ${player.name || "el jugador"}.`);
+      const saved=await persistMarketHistory(player.id,merged);
+      setError("");setPreview(null);setRaw("");
+      alert(\`\${saved.length} registros guardados y verificados en Base44.\`);
     } catch { setError("No se han podido guardar los datos en el navegador."); }
   };
   return <section className="rounded-2xl border border-slate-200 bg-white p-5">
     <div className="flex items-center gap-2"><Upload size={17}/><h3 className="text-sm font-black">Bulk Import · Valor de mercado</h3></div>
-    <p className="mt-2 text-xs text-slate-500">Pega registros por línea en formato <strong>DD/MM/AAAA | VALOR | CLUB</strong>, con importes en millones de euros. También admite JSON. Esta prueba guarda datos exclusivamente en tu navegador, no en Base44.</p>
+    <p className="mt-2 text-xs text-slate-500">Pega registros por línea en formato <strong>DD/MM/AAAA | VALOR | CLUB</strong>, con importes en millones de euros. También admite JSON. Se guardan en Base44.</p>
     <textarea aria-label="Datos de valor de mercado por lotes" value={raw} onChange={e=>{setRaw(e.target.value);setPreview(null);setError("");}} rows={7} placeholder={"DD/MM/AAAA | VALOR | CLUB\n06/08/2014 | 68 | FC Barcelona\n23/10/2015 | 95 | FC Barcelona\n15/05/2018 | 190 | Paris Saint-Germain"} className="mt-4 w-full rounded-xl border border-slate-200 p-3 font-mono text-xs outline-none focus:border-blue-600"/>
     <p className="mt-2 text-xs text-slate-500">JSON compatible: <code>[{"{"}"date":"2018-05-15","value":190,"team":"Paris Saint-Germain"{"}"}]</code></p>
     <div className="mt-4 flex flex-wrap items-center gap-4 text-xs">

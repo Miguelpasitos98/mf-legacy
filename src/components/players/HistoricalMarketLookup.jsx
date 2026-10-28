@@ -1,3 +1,4 @@
+import {persistMarketHistory} from "@/utils/persistMarketHistory";
 import React, { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { parseMarketBulk } from "./MarketBulkImport";
@@ -48,7 +49,7 @@ export default function HistoricalMarketLookup({ player }) {
       setHistory(parsed);setStatus(`${parsed.length} valoraciones encontradas`);
     }catch(e){setError(e.message);setStatus("");}
   }
-  function importRows(){
+  async function importRows(){
     if(!history?.length||!player?.id||!selected)return;
     if (!knownIds(player).includes(String(selected.id)) && normalize(player?.name) !== normalize(selected.name)) {
       setError("El nombre seleccionado no coincide exactamente con el jugador de MF Legacy. Comprueba su ID y nombre antes de importar.");
@@ -63,9 +64,8 @@ export default function HistoricalMarketLookup({ player }) {
       const dates=new Set(normalized.map(r=>r.date));
       // Conserva prioritariamente los valores manuales ya creados.
       const merged=[...normalized,...history.filter(r=>!dates.has(r.date))].sort((a,b)=>a.date.localeCompare(b.date));
-      window.localStorage.setItem(savedKey(player.id),JSON.stringify(merged));
-      window.dispatchEvent(new CustomEvent("mf-legacy-market-preview-updated",{detail:{playerId:player.id}}));
-      setStatus(`${merged.length} registros disponibles en la gráfica · guardados solo en este navegador`);
+      const saved=await persistMarketHistory(player.id,merged);
+      setStatus(\`\${saved.length} registros guardados y comprobados en Base44\`);
       setError("");
     }catch(e){setError("No se ha podido guardar el historial local: "+e.message);}
   }

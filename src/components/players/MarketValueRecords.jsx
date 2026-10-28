@@ -1,3 +1,4 @@
+import {persistMarketHistory} from "@/utils/persistMarketHistory";
 import React, { useEffect, useMemo, useState } from "react";
 import { Save, Trash2, Plus } from "lucide-react";
 import MarketClubPicker from "./MarketClubPicker";
@@ -75,7 +76,7 @@ export default function MarketValueRecords({player,clubs=[]}){
     setMessage(`${linked} registros asociados automáticamente. ${unmatched.size} nombres de clubes pendientes de revisión. Guarda los cambios para aplicarlos al gráfico.`);
   };
   const set=(i,patch)=>{setRows(old=>old.map((r,j)=>j===i?{...r,...patch}:r));setDirty(true);setMessage("");};
-  const save=()=>{
+  const save=async()=>{
     if(!player?.id)return setMessage("Falta el ID del jugador.");
     let normalized;
     try { normalized=rows.map((r,i)=>{
@@ -89,15 +90,15 @@ export default function MarketValueRecords({player,clubs=[]}){
       const dates=new Set();
       for(const r of normalized){if(dates.has(r.date))throw Error("Hay fechas duplicadas: "+r.date);dates.add(r.date);}
       normalized.sort((a,b)=>a.date.localeCompare(b.date));
-      window.localStorage.setItem(storageKey(player.id),JSON.stringify(normalized));
-      window.dispatchEvent(new CustomEvent("mf-legacy-market-preview-updated",{detail:{playerId:player.id}}));
-      setDirty(false);setSelectedRows([]);setMessage(`${normalized.length} registros guardados en este navegador con ${normalized.filter(r=>r.club_id).length} asociaciones de club.`);
+      const persisted=await persistMarketHistory(player.id,normalized);
+      setDirty(false);setSelectedRows([]);
+      setMessage(\`\${persisted.length} registros guardados y comprobados en Base44 con \${persisted.filter(r=>r.club_id).length} asociaciones de club.\`);
     }catch(e){setMessage(e.message);}
   };
   return <section className="rounded-2xl border border-slate-200 bg-white p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h3 className="text-sm font-black">Historial completo · {rows.length} valoraciones</h3>
-      <p className="mt-1 text-xs text-slate-500">Revisa fecha, valor y club. Vincula cada registro a un club de MF Legacy para obtener su color y escudo. Se guarda localmente en esta prueba.</p></div>
+      <p className="mt-1 text-xs text-slate-500">Revisa fecha, valor y club. Vincula cada registro a un club de MF Legacy para obtener su color y escudo. Los cambios se guardan en Base44.</p></div>
       <div className="flex flex-wrap gap-2"><button type="button" onClick={autoLink} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-900">Asociar clubes automáticamente</button><button type="button" onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white"><Save size={14}/> Guardar cambios{dirty?" *":""}</button></div>
     </div>
     <input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Filtrar por fecha o club" aria-label="Filtrar valoraciones" className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
