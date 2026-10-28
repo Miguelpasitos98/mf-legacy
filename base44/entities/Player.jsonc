@@ -12,27 +12,27 @@
     },
     "team_id": {
       "type": "string",
-      "description": "ID del Team asociado. Se resuelve automáticamente buscando el nombre del equipo y el país; si no existe, se crea el Team y se usa su nuevo ID."
+      "description": "ID del Team asociado. Se resuelve autom\u00e1ticamente buscando el nombre del equipo y el pa\u00eds; si no existe, se crea el Team y se usa su nuevo ID."
     },
     "country_id": {
       "type": "string",
-      "description": "ID del Country asociado. Se resuelve automáticamente por nombre; si no existe, se crea el Country y se usa su nuevo ID."
+      "description": "ID del Country asociado. Se resuelve autom\u00e1ticamente por nombre; si no existe, se crea el Country y se usa su nuevo ID."
     },
     "position_raw": {
       "type": "string",
-      "description": "Posición principal exactamente como aparece en el export de Football Manager, conservada para trazabilidad"
+      "description": "Posici\u00f3n principal exactamente como aparece en el export de Football Manager, conservada para trazabilidad"
     },
     "position": {
       "type": "string",
-      "description": "Posición principal normalizada al catálogo MF LEGACY (GK, DFC, LD, LI, CRD, CRI, CDM, CM, CAM, EI, ED, DC)"
+      "description": "Posici\u00f3n principal normalizada al cat\u00e1logo MF LEGACY (GK, DFC, LD, LI, CRD, CRI, CDM, CM, CAM, EI, ED, DC)"
     },
     "secondary_position_raw": {
       "type": "string",
-      "description": "Posición alternativa exactamente como aparece en el export de Football Manager, conservada para trazabilidad"
+      "description": "Posici\u00f3n alternativa exactamente como aparece en el export de Football Manager, conservada para trazabilidad"
     },
     "secondary_position": {
       "type": "string",
-      "description": "Posición alternativa normalizada al catálogo MF LEGACY"
+      "description": "Posici\u00f3n alternativa normalizada al cat\u00e1logo MF LEGACY"
     },
     "style": {
       "type": "string",
@@ -40,35 +40,35 @@
     },
     "height": {
       "type": "number",
-      "description": "Altura del jugador en centímetros. Ejemplo: '173 cm' -> 173"
+      "description": "Altura del jugador en cent\u00edmetros. Ejemplo: '173 cm' -> 173"
     },
     "right_foot": {
       "type": "string",
-      "description": "Valor 1–20 del pie en FM26 almacenado como texto por compatibilidad con el editor actual."
+      "description": "Valor 1\u201320 del pie en FM26 almacenado como texto por compatibilidad con el editor actual."
     },
     "left_foot": {
       "type": "string",
-      "description": "Valor 1–20 del pie en FM26 almacenado como texto por compatibilidad con el editor actual."
+      "description": "Valor 1\u201320 del pie en FM26 almacenado como texto por compatibilidad con el editor actual."
     },
     "shirt_number": {
       "type": "number",
-      "description": "Número de camiseta"
+      "description": "N\u00famero de camiseta"
     },
     "salary": {
       "type": "number",
-      "description": "Sueldo anual normalizado a número en la moneda del export. Ejemplo: '12,78M € p/a' -> 12780000"
+      "description": "Sueldo anual normalizado a n\u00famero en la moneda del export. Ejemplo: '12,78M \u20ac p/a' -> 12780000"
     },
     "photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del jugador para el perfil individual"
+      "description": "URL de la fotograf\u00eda del jugador para el perfil individual"
     },
     "card_photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del jugador utilizada en las tarjetas del listado cuando se muestran en contexto de club"
+      "description": "URL de la fotograf\u00eda del jugador utilizada en las tarjetas del listado cuando se muestran en contexto de club"
     },
     "national_card_photo_url": {
       "type": "string",
-      "description": "URL de la fotografía del jugador con la camiseta de su selección nacional, utilizada en las tarjetas del listado cuando se agrupan por países"
+      "description": "URL de la fotograf\u00eda del jugador con la camiseta de su selecci\u00f3n nacional, utilizada en las tarjetas del listado cuando se agrupan por pa\u00edses"
     },
     "ca": {
       "type": "number",
@@ -83,62 +83,62 @@
       "properties": {
         "portero": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "defensa_izquierdo": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "defensa_central": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "defensa_derecho": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "mediocentro": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "carrilero_izquierdo": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "carrilero_derecho": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "centrocampista_izquierdo": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "centrocampista": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "centrocampista_derecho": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "mediapunta_por_la_izquierda": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "mediapunta_central": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "mediapunta_por_la_derecha": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         },
         "delantero": {
           "type": "number",
-          "description": "Valoración original FM26 1–20"
+          "description": "Valoraci\u00f3n original FM26 1\u201320"
         }
       },
-      "description": "14 valoraciones de posición originales FM26"
+      "description": "14 valoraciones de posici\u00f3n originales FM26"
     },
     "stats": {
       "type": "object",
@@ -152,11 +152,11 @@
             },
             "anticipacion": {
               "type": "number",
-              "description": "Anticipación, 0-20; copia directa del export"
+              "description": "Anticipaci\u00f3n, 0-20; copia directa del export"
             },
             "valentia": {
               "type": "number",
-              "description": "Valentía, 0-20; copia directa del export"
+              "description": "Valent\u00eda, 0-20; copia directa del export"
             },
             "serenidad": {
               "type": "number",
@@ -164,7 +164,7 @@
             },
             "concentracion": {
               "type": "number",
-              "description": "Concentración, 0-20; copia directa del export"
+              "description": "Concentraci\u00f3n, 0-20; copia directa del export"
             },
             "consistencia": {
               "type": "number",
@@ -176,11 +176,11 @@
             },
             "determinacion": {
               "type": "number",
-              "description": "Determinación, 0-20; copia directa del export"
+              "description": "Determinaci\u00f3n, 0-20; copia directa del export"
             },
             "juego_sucio": {
               "type": "number",
-              "description": "Juego sucio, 0-20; se conserva el valor de Football Manager y no se interpreta como una métrica de 'mejor'"
+              "description": "Juego sucio, 0-20; se conserva el valor de Football Manager y no se interpreta como una m\u00e9trica de 'mejor'"
             },
             "talento": {
               "type": "number",
@@ -200,7 +200,7 @@
             },
             "colocacion": {
               "type": "number",
-              "description": "Colocación, 0-20; copia directa del export"
+              "description": "Colocaci\u00f3n, 0-20; copia directa del export"
             },
             "trabajo_de_equipo": {
               "type": "number",
@@ -208,21 +208,21 @@
             },
             "vision": {
               "type": "number",
-              "description": "Visión, 0-20; copia directa del export"
+              "description": "Visi\u00f3n, 0-20; copia directa del export"
             },
             "sacrificio": {
               "type": "number",
               "description": "Sacrificio, 0-20; copia directa del export"
             }
           },
-          "description": "Atributos mentales extraídos del export de Football Manager."
+          "description": "Atributos mentales extra\u00eddos del export de Football Manager."
         },
         "physical": {
           "type": "object",
           "properties": {
             "aceleracion": {
               "type": "number",
-              "description": "Aceleración, 0-20; copia directa"
+              "description": "Aceleraci\u00f3n, 0-20; copia directa"
             },
             "agilidad": {
               "type": "number",
@@ -234,7 +234,7 @@
             },
             "tendencia_a_lesionarse": {
               "type": "number",
-              "description": "Tendencia a lesionarse normalizada para MF LEGACY: el importador invierte el valor de FM para que 20 represente mayor resistencia a lesiones y 0 mayor propensión"
+              "description": "Tendencia a lesionarse normalizada para MF LEGACY: el importador invierte el valor de FM para que 20 represente mayor resistencia a lesiones y 0 mayor propensi\u00f3n"
             },
             "alcance_de_salto": {
               "type": "number",
@@ -242,11 +242,11 @@
             },
             "alcance_de_salto_recomendado_altura": {
               "type": "number",
-              "description": "Valor ajustado por altura. Reservado para cálculo posterior; no aparece directamente en el export actual"
+              "description": "Valor ajustado por altura. Reservado para c\u00e1lculo posterior; no aparece directamente en el export actual"
             },
             "recuperacion_fisica": {
               "type": "number",
-              "description": "Recuperación física, 0-20; copia directa"
+              "description": "Recuperaci\u00f3n f\u00edsica, 0-20; copia directa"
             },
             "velocidad": {
               "type": "number",
@@ -261,7 +261,7 @@
               "description": "Fuerza, 0-20; copia directa"
             }
           },
-          "description": "Atributos físicos extraídos del export de Football Manager."
+          "description": "Atributos f\u00edsicos extra\u00eddos del export de Football Manager."
         },
         "technical": {
           "type": "object",
@@ -320,33 +320,33 @@
             },
             "tecnica": {
               "type": "number",
-              "description": "Técnica, 0-20; copia directa"
+              "description": "T\u00e9cnica, 0-20; copia directa"
             },
             "polivalencia": {
               "type": "number",
               "description": "Polivalencia, 0-20; copia directa"
             }
           },
-          "description": "Atributos técnicos extraídos del export de Football Manager."
+          "description": "Atributos t\u00e9cnicos extra\u00eddos del export de Football Manager."
         },
         "goalkeeping": {
           "type": "object",
           "properties": {
             "balones_aereos": {
               "type": "number",
-              "description": "Alcance aéreo, 0-20; copia directa"
+              "description": "Alcance a\u00e9reo, 0-20; copia directa"
             },
             "balones_aereos_recomendado_altura": {
               "type": "number",
-              "description": "Valor ajustado por altura. Reservado para cálculo posterior; no aparece directamente en el export actual"
+              "description": "Valor ajustado por altura. Reservado para c\u00e1lculo posterior; no aparece directamente en el export actual"
             },
             "mando_en_el_area": {
               "type": "number",
-              "description": "Mando en el área, 0-20; copia directa"
+              "description": "Mando en el \u00e1rea, 0-20; copia directa"
             },
             "comunicacion": {
               "type": "number",
-              "description": "Comunicación, 0-20; copia directa"
+              "description": "Comunicaci\u00f3n, 0-20; copia directa"
             },
             "excentricidad": {
               "type": "number",
@@ -372,23 +372,23 @@
               "type": "number",
               "description": "Salidas (tendencia), 0-20; se conserva el valor de Football Manager"
             },
-            "salida_de_puños": {
+            "salida_de_pu\u00f1os": {
               "type": "number",
-              "description": "Puños/salida de puños, 0-20; copia directa"
+              "description": "Pu\u00f1os/salida de pu\u00f1os, 0-20; copia directa"
             },
             "saque_con_la_mano": {
               "type": "number",
               "description": "Saque con la mano, 0-20; copia directa"
             }
           },
-          "description": "Atributos específicos de portero extraídos del export de Football Manager."
+          "description": "Atributos espec\u00edficos de portero extra\u00eddos del export de Football Manager."
         }
       },
-      "description": "Estadísticas del jugador agrupadas en mental, físico, técnico y portero."
+      "description": "Estad\u00edsticas del jugador agrupadas en mental, f\u00edsico, t\u00e9cnico y portero."
     },
     "description": {
       "type": "string",
-      "description": "Perfil o descripción del jugador en MF LEGACY; no procede del CSV actual"
+      "description": "Perfil o descripci\u00f3n del jugador en MF LEGACY; no procede del CSV actual"
     },
     "fm26_uid": {
       "type": "string",
@@ -495,7 +495,7 @@
     },
     "fm26_source_record": {
       "type": "object",
-      "description": "Registro íntegro original de fmsave FM26, conservado para trazabilidad y nuevos campos futuros."
+      "description": "Registro \u00edntegro original de fmsave FM26, conservado para trazabilidad y nuevos campos futuros."
     },
     "fm_position": {
       "type": "string",
@@ -510,11 +510,11 @@
       "items": {
         "type": "string"
       },
-      "description": "IDs de países Base44 vinculados a las nacionalidades secundarias de FM26; se mantienen los IDs originales en fm26_second_nation_ids."
+      "description": "IDs de pa\u00edses Base44 vinculados a las nacionalidades secundarias de FM26; se mantienen los IDs originales en fm26_second_nation_ids."
     },
     "secondary_country_id": {
       "type": "string",
-      "description": "ID del país de nacionalidad secundaria principal en Country. Campo editable desde PlayerDetail."
+      "description": "ID del pa\u00eds de nacionalidad secundaria principal en Country. Campo editable desde PlayerDetail."
     },
     "career_status": {
       "type": "string",
@@ -523,15 +523,39 @@
         "free_agent",
         "retired"
       ],
-      "description": "Situación profesional del jugador"
+      "description": "Situaci\u00f3n profesional del jugador"
     },
     "last_team_id": {
       "type": "string",
-      "description": "Último club real del jugador; se conserva al pasar a libre o retirado"
+      "description": "\u00daltimo club real del jugador; se conserva al pasar a libre o retirado"
     },
     "retirement_year": {
       "type": "number",
-      "description": "Año de retirada opcional"
+      "description": "A\u00f1o de retirada opcional"
+    },
+    "market_value_history": {
+      "type": "array",
+      "description": "Historial persistente de cotizaciones de Transfermarkt por fecha, importes en millones de euros y asociaci\u00f3n opcional a club",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "team": {
+            "type": "string"
+          },
+          "club_id": {
+            "type": "string"
+          },
+          "linked_club_name": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
   "required": [
