@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceDot, CartesianGrid } from "recharts";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 
 // Prototipo aislado: nunca modifica la entidad Player ni otros datos de Base44.
 // Los cambios manuales se guardan exclusivamente en este navegador.
