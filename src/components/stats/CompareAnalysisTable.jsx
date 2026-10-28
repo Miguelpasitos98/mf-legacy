@@ -134,7 +134,7 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
          </span>
          <span className="block text-[10px] text-slate-500">{fmt(row.value,2)}{row.provisional&&<span className="text-amber-600"> *</span>}</span>
          <span className={"mt-0.5 inline-block rounded px-1.5 text-[10px] font-bold tabular-nums "+(isBest?"bg-emerald-600 text-white":"bg-rose-100 text-rose-800")} title={isBest?"Mejor percentil de la fila":"Diferencia en puntos de percentil frente al mejor de la fila"}>{isBest?"mejor":signed(delta)}</span>
-         <span className="mt-0.5 block text-[10px] font-semibold tabular-nums text-slate-500" title={"Aporte de "+indicator.name+" al Composite de "+season.summary.season+": percentil "+fmt(row.percentile,1)+" × peso "+(indicator.weight===null?"—":indicator.weight+" %")+" = "+signed(row.contribution)+" puntos"}>aporta {signed(row.contribution)}</span>
+         <span className={"mt-1 inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 text-[12px] font-extrabold tabular-nums "+(row.contribution===null?"border-slate-200 bg-slate-50 text-slate-500":row.contribution<0?"border-rose-200 bg-rose-50 text-rose-800":"border-blue-200 bg-blue-50 text-[#003399]")} title={"Aporte de "+indicator.name+" al Composite de "+season.summary.season+": percentil "+fmt(row.percentile,1)+" × peso "+(indicator.weight===null?"—":indicator.weight+" %")+" = "+signed(row.contribution)+" puntos"}><span className="text-[10px] font-semibold uppercase tracking-wide">Aporta</span><span>{signed(row.contribution)}</span></span>
         </td>;
        })}
       </tr>;
