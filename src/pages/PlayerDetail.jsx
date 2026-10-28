@@ -825,6 +825,19 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
     editablePlayer?.date_of_birth ||
     "";
   const age = calculateAge(dateOfBirth);
+  const jerseyValue=editablePlayer?.shirt_number ?? editablePlayer?.shirtNumber;
+  const jerseyDisplay=jerseyValue!==null && jerseyValue!==undefined && jerseyValue!=="" && Number(jerseyValue)>0 && Number(jerseyValue)<=99?String(jerseyValue):"";
+  const rawPosition=String(editablePlayer?.fm_position||editablePlayer?.position||editablePlayer?.position_raw||"").toUpperCase();
+  const jerseyPosition=(()=>{
+    const options=["GK","RWB","LWB","RB","LB","CB","CDM","CM","CAM","RW","LW","ST","CF","RM","LM"];
+    const found=options.find(value=>new RegExp("(^|[^A-Z])"+value+"([^A-Z]|$)").test(rawPosition));
+    if(found)return found;
+    if(/GOALKEEPER|PORTERO/.test(rawPosition))return "GK";
+    if(/CENTRE.BACK|CENTRAL|DEFENDER.*CENT/.test(rawPosition))return "CB";
+    if(/STRIKER|DELANTERO/.test(rawPosition))return "ST";
+    return rawPosition.length<=5?rawPosition:"";
+  })();
+
   const selectedCountry = countryMap.get(String(form.countryId)) || null;
   const selectedTeam = teamMap.get(String(form.teamId)) || null;
 
@@ -1130,6 +1143,13 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
       </section>
 
+      {typeof document !== "undefined" && (jerseyDisplay || jerseyPosition) && createPortal(
+        <div className="pointer-events-none fixed z-[65] hidden lg:flex flex-col items-start select-none" style={{left:"calc(50% - 335px)",top:"36%"}} aria-label={`Dorsal ${jerseyDisplay || "sin asignar"} · Posición ${jerseyPosition || "sin asignar"}`}>
+          {jerseyPosition && <div className="ml-3 mb-[-12px] text-[clamp(27px,3vw,44px)] font-black leading-none tracking-[-0.05em]" style={{color:"#123F79",WebkitTextStroke:"1px #F5D64C"}}>{jerseyPosition}</div>}
+          {jerseyDisplay && <span className="font-black leading-none tracking-[-0.09em] text-[clamp(108px,12vw,185px)]" style={{color:"#123F79",WebkitTextStroke:"3px #F5D64C",paintOrder:"stroke fill",filter:"drop-shadow(0 4px 0 rgba(10,25,60,.12))"}}>{jerseyDisplay}</span>}
+        </div>,document.body
+      )}
+
       {typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed bottom-8 left-1/2 z-[80] flex w-[min(1440px,calc(100vw-28px))] -translate-x-1/2 gap-5 sm:bottom-10 sm:gap-7">
           <AdjustableRoles ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} playerId={editablePlayer?.id} position={editablePlayer?.fm_position||editablePlayer?.position||editablePlayer?.position_raw} foot={{left:editablePlayer?.left_foot,right:editablePlayer?.right_foot}} storedRoles={editablePlayer?.tactical_roles} onSaved={(patch)=>{setEditablePlayer(current=>({...current,...patch}));setForm(current=>({...current,tacticalRoles:patch.tactical_roles}));onPlayerUpdated?.({...editablePlayer,...patch},patch);}} />
@@ -1364,7 +1384,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                             <input type="number" min={0} max={250} value={form.height} onChange={(event) => setForm((current) => ({ ...current, height: event.target.value }))} className={INPUT_CLASS} />
                           </div>
                           <div>
-                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Shirt number</label>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Dorsal (camiseta)</label>
                             <input type="number" min={0} max={99} value={form.shirtNumber} onChange={(event) => setForm((current) => ({ ...current, shirtNumber: event.target.value }))} className={INPUT_CLASS} />
                           </div>
                           <div>
