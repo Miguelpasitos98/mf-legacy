@@ -7,13 +7,13 @@ export const POSITION_FIELD_POINTS=[
  ["mediapunta_central","MP(C)",140,47],
  ["mediapunta_por_la_derecha","ED",195,45],
  ["centrocampista_izquierdo","MC(I)",94,70],
- ["centrocampista","MC",140,73],
  ["centrocampista_derecho","MC(D)",186,70],
  ["carrilero_izquierdo","CR(I)",56,98],
  ["mediocentro","MCD",140,102],
  ["carrilero_derecho","CR(D)",224,98],
  ["defensa_izquierdo","DF(I)",64,127],
- ["defensa_central","DF(C)",140,127],
+ ["defensa_central","DFC(I)",112,127],
+ ["defensa_central","DFC(D)",168,127],
  ["defensa_derecho","DF(D)",216,127],
  ["portero","POR",140,150]
 ];
