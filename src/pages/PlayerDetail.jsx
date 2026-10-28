@@ -1177,7 +1177,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       {typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed bottom-20 left-1/2 z-[80] flex w-[min(1200px,calc(100vw-28px))] -translate-x-1/2 gap-4 sm:bottom-20 sm:gap-5">
           <PlayerStatCard background={statCardColors.primaryColor} grow={1}>
-            <PositionFieldMini ratings={editablePlayer?.position_ratings||editablePlayer?.positionRatings||{}} />
+            <PositionFieldMini ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} />
           </PlayerStatCard>
           <PlayerStatCard background={statCardColors.middleColor} grow={2.1}>
             <TransferChartMini player={editablePlayer} clubs={teams} />
