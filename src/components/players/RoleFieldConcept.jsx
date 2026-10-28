@@ -30,13 +30,13 @@ const roleColor=(value)=>ROLE_RANGES.find(({min,max})=>value>=min&&value<=max)?.
 
 
 const ROLE_SETS={
- CB:[["Ball-Playing Defender","Central que construye con pases y conducción.","build"],["Aggressive Defender","Central que anticipa y presiona.","press"]],
- ST:[["False 9","Delantero que baja a combinar.","drop"],["Poacher","Rematador que ocupa el área.","attack"]],
- W:[["Winger","Extremo que da amplitud.","attack"],["Inverted Winger","Extremo que entra hacia dentro.","drop"]],
- FB:[["Full-Back","Lateral de apoyo por banda.","build"],["Inverted Full-Back","Lateral que ocupa posiciones interiores.","drop"]],
- CM:[["Deep-Lying Playmaker","Organiza la salida del balón.","build"],["Box-to-Box","Recorre ambas áreas.","press"]],
- CAM:[["Advanced Playmaker","Crea juego entre líneas.","drop"],["Shadow Striker","Ataca los espacios de remate.","attack"]],
- GK:[["Traditional Goalkeeper","Protege el área.","defend"],["Sweeper Keeper","Cubre la espalda de la defensa.","build"]]
+ CB:["Ball-Playing Defender","Aggressive Front-Foot Defender","Tactical Defender","Physical Dominator","Libero Defender"],
+ ST:["False 9","Poacher","Target Forward","Advanced Forward","Deep-Lying Forward"],
+ W:["Winger","Inverted Winger","Inside Forward","Wide Playmaker"],
+ FB:["Full-Back","Inverted Full-Back","Wing-Back","Defensive Full-Back"],
+ CM:["Deep-Lying Playmaker","Box-to-Box Midfielder","Ball-Winning Midfielder","Advanced Playmaker"],
+ CAM:["Advanced Playmaker","Shadow Striker","Attacking Midfielder"],
+ GK:["Traditional Goalkeeper","Sweeper Keeper","Ball-Playing Goalkeeper"]
 };
 const roleGroup=position=>{
  const v=String(position||"").toUpperCase().trim();
@@ -48,40 +48,48 @@ const roleGroup=position=>{
  if(["CAM","MPC","MP","AMC"].includes(v))return "CAM";
  return "CM";
 };
-const ZONES={defend:[36,78,64,78,62,87,38,87],build:[35,69,65,69,59,83,41,83],press:[34,62,66,62,60,78,40,78],drop:[35,56,65,56,59,73,41,73],attack:[35,46,65,46,59,62,41,62]};
-export default function RoleFieldConcept({ratings={},playerId,position,foot}){
- const roles=ROLE_SETS[roleGroup(position)];
- const key="mf-legacy-role-preview-v1:"+String(playerId||"preview");
- const [active,setActive]=useState(0);
- useEffect(()=>{try{setActive(window.localStorage.getItem(key)==="1"?1:0);}catch{setActive(0);}},[key]);
- const selectRole=i=>{setActive(i);try{window.localStorage.setItem(key,String(i));}catch{}};
- const selected=roles[active];
- const coords=ZONES[selected[2]];
- const left=Number(foot?.left)||0,right=Number(foot?.right)||0;
- const isWide=["W","FB"].includes(roleGroup(position));
- const flip=active===1;
- const shift=isWide&&left!==right?(left>right?(flip?-12:12):(flip?12:-12)):0;
- const polygon=coords.map((v,i)=>i%2===0?v+shift:v).join(" ");
-
- return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Vista de prueba de roles y posiciones">
-  <img className="absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
-  <svg className="pointer-events-none absolute inset-0 z-[1] h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-    <polygon points={polygon} fill="#05E17B" fillOpacity=".3"/>
-  </svg>
-  {roles.map((role,i)=><button key={role[0]} type="button" onClick={()=>selectRole(i)} title={role[1]}
-    aria-pressed={active===i} className="absolute z-20 flex items-center justify-between rounded-md px-2 text-left font-bold shadow-sm"
-    style={{left:"26%",top:i===0?"23.5%":"32%",width:"48%",height:"7.2%",fontSize:"clamp(9px,.85vw,12px)",background:active===i?"#A2F2C9":"#FFFFFF",color:"#10253B"}}>
-      <span className="truncate">{role[0]}</span><span className="ml-1 text-[#00A861]">{active===i?"✓":"+"}</span>
-    </button>)}
-  <span className="pointer-events-none absolute left-[26%] top-[40.5%] z-10 w-[48%] truncate text-center text-[9px] text-slate-600" title={selected[1]}>{selected[1]}</span>
+const EMPTY=[{name:"",description:""},{name:"",description:""}];
+export default function RoleFieldConcept({ratings={},playerId,position}){
+ const key="mf-legacy-tactical-role-settings-v1:"+String(playerId||"preview");
+ const [roles,setRoles]=useState(EMPTY);
+ const [editing,setEditing]=useState(null);
+ const [draft,setDraft]=useState({name:"",description:""});
+ useEffect(()=>{
+  try{
+   const stored=JSON.parse(window.localStorage.getItem(key)||"null");
+   setRoles(Array.isArray(stored)&&stored.length===2?stored.map(x=>({name:String(x?.name||""),description:String(x?.description||"")})):EMPTY);
+  }catch{setRoles(EMPTY);}
+  setEditing(null);
+ },[key]);
+ const openEditor=i=>{setDraft({...roles[i]});setEditing(i);};
+ const save=()=>{
+  const next=roles.map((r,i)=>i===editing?{name:draft.name.trim(),description:draft.description.trim()}:r);
+  setRoles(next);
+  try{window.localStorage.setItem(key,JSON.stringify(next));}catch{}
+  setEditing(null);
+ };
+ return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Roles y posiciones">
+  <img className="pointer-events-none absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
+  {roles.map((role,i)=><div key={i} className="absolute z-20 flex items-center" style={{left:"20%",top:i===0?"23.8%":"33.9%",width:"58.5%",height:"8.3%"}}>
+    {role.name&&<span className="pointer-events-none ml-2 max-w-[77%] truncate text-[clamp(9px,1vw,13px)] font-semibold text-slate-900">{role.name}</span>}
+    <button type="button" onClick={()=>openEditor(i)} aria-label={`Editar rol ${i+1}`} title="Seleccionar rol y escribir descripción" className="absolute inset-y-0 right-0 w-[16%] cursor-pointer rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"/>
+  </div>)}
   {NUMBERS.map(([key,label,x,y],i)=>{
     const n=compactPositionValue(ratings,key);
     const tone=roleColor(n);
-    return <div key={i} className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{left:`${x}%`,top:`${y}%`}}>
+    return <div key={i} className="pointer-events-none absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{left:`${x}%`,top:`${y}%`}}>
       <span className="flex items-center justify-center rounded-[5px] px-2 font-black leading-tight text-white shadow-sm" style={{background:tone,fontSize:"clamp(9px,1.1vw,14px)",minWidth:"clamp(21px,2.3vw,30px)",height:"clamp(15px,1.6vw,20px)"}}>{n||"–"}</span>
       <span className="rounded-b-md bg-white px-1.5 text-center font-black leading-tight text-slate-900 shadow-sm" style={{fontSize:"clamp(7px,.73vw,10px)"}}>{label}</span>
     </div>;
   })}
-
+  {editing!==null&&<div className="absolute left-[19%] top-[44%] z-50 w-[63%] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+    <p className="mb-2 text-xs font-bold text-slate-800">Editar rol {editing+1}</p>
+    <select value={draft.name} onChange={e=>setDraft(v=>({...v,name:e.target.value}))} aria-label="Seleccionar rol" className="mb-2 w-full rounded-md border border-slate-300 p-2 text-xs">
+      <option value="">Sin rol asignado</option>
+      {Array.from(new Set([...ROLE_SETS[roleGroup(position)],...(draft.name?[draft.name]:[])])).map(name=><option key={name} value={name}>{name}</option>)}
+    </select>
+    <textarea value={draft.description} onChange={e=>setDraft(v=>({...v,description:e.target.value}))} placeholder="Descripción personalizada (opcional)" rows={3} className="w-full resize-none rounded-md border border-slate-300 p-2 text-xs" aria-label="Descripción personalizada"/>
+    <div className="mt-2 flex justify-end gap-2"><button type="button" className="rounded px-2 py-1 text-xs text-slate-500" onClick={()=>setEditing(null)}>Cancelar</button><button type="button" className="rounded bg-blue-700 px-3 py-1 text-xs font-bold text-white" onClick={save}>Guardar</button></div>
+  </div>}
  </div>;
 }
