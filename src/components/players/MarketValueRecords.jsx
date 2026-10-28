@@ -32,7 +32,9 @@ export default function MarketValueRecords({player,clubs=[]}){
   const [dirty,setDirty]=useState(false);
   const [message,setMessage]=useState("");
   const [filter,setFilter]=useState("");
-  const reset=()=>{setRows((Array.isArray(read(player))?read(player):[]).map(r=>({...r,date:iso(r.date),value:String(r.value??""),team:r.team||"",club_id:r.club_id||""})).sort((a,b)=>a.date.localeCompare(b.date)));setDirty(false);};
+  const [selectedRows,setSelectedRows]=useState([]);
+  const [bulkClub,setBulkClub]=useState("");
+  const reset=()=>{setRows((Array.isArray(read(player))?read(player):[]).map(r=>({...r,date:iso(r.date),value:String(r.value??""),team:r.team||"",club_id:r.club_id||""})).sort((a,b)=>a.date.localeCompare(b.date)));setDirty(false);setSelectedRows([]);};
   useEffect(()=>{reset();},[player?.id]);
   useEffect(()=>{
     const handler=e=>{if(String(e.detail?.playerId)===String(player?.id))reset();};
@@ -40,7 +42,28 @@ export default function MarketValueRecords({player,clubs=[]}){
     return()=>window.removeEventListener("mf-legacy-market-preview-updated",handler);
   },[player?.id]);
   const candidates=useMemo(()=>clubs.filter(c=>c?.id&&c?.name).sort((a,b)=>a.name.localeCompare(b.name)),[clubs]);
+  const clubOptions=useMemo(()=>candidates.map(c=>({id:String(c.id),label:c.name})),[candidates]);
+  const getClubByLabel=(label)=>candidates.find(c=>normalize(c.name)===normalize(label));
+  const setClubForIndices=(indices,clubId)=>{
+    if(!indices.length)return;
+    setRows(old=>old.map((row,i)=>indices.includes(i)?{...row,club_id:clubId}:row));
+    setDirty(true);
+    setMessage(`${indices.length} valoraciones modificadas. Pulsa Guardar cambios para aplicarlas al gráfico.`);
+  };
   const visible=rows.map((r,i)=>({...r,index:i})).filter(r=>!filter||[r.date,r.team,candidates.find(c=>String(c.id)===String(r.club_id))?.name].some(v=>normalize(v).includes(normalize(filter))));
+  const selectedVisible=visible.filter(r=>selectedRows.includes(r.index));
+  const allVisibleSelected=visible.length>0&&selectedVisible.length===visible.length;
+  const toggleAll=checked=>setSelectedRows(old=>checked
+    ? Array.from(new Set([...old,...visible.map(r=>r.index)]))
+    : old.filter(i=>!visible.some(r=>r.index===i)));
+  const applyBulk=()=>{
+    const club=getClubByLabel(bulkClub);
+    if(!club){setMessage("Selecciona un club válido del buscador.");return;}
+    if(!selectedRows.length){setMessage("Selecciona primero una o varias valoraciones.");return;}
+    setClubForIndices(selectedRows,String(club.id));
+    setSelectedRows([]);
+    setBulkClub("");
+  };
   const autoLink=()=>{
     let linked=0, unmatched=new Set();
     setRows(old=>old.map(row=>{
@@ -69,7 +92,7 @@ export default function MarketValueRecords({player,clubs=[]}){
       normalized.sort((a,b)=>a.date.localeCompare(b.date));
       window.localStorage.setItem(storageKey(player.id),JSON.stringify(normalized));
       window.dispatchEvent(new CustomEvent("mf-legacy-market-preview-updated",{detail:{playerId:player.id}}));
-      setDirty(false);setMessage(`${normalized.length} registros guardados en este navegador.`);
+      setDirty(false);setSelectedRows([]);setMessage(`${normalized.length} registros guardados en este navegador.`);
     }catch(e){setMessage(e.message);}
   };
   return <section className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -79,20 +102,43 @@ export default function MarketValueRecords({player,clubs=[]}){
       <div className="flex flex-wrap gap-2"><button type="button" onClick={autoLink} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-900">Asociar clubes automáticamente</button><button type="button" onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white"><Save size={14}/> Guardar cambios{dirty?" *":""}</button></div>
     </div>
     <input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Filtrar por fecha o club" aria-label="Filtrar valoraciones" className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
+    <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+      <span className="text-xs font-semibold text-slate-700">{selectedRows.length} seleccionadas</span>
+      <label className="min-w-[185px] flex-1 text-xs text-slate-600">Buscar club para asignar
+        <input list="mf-market-bulk-clubs" type="search" value={bulkClub} onChange={e=>setBulkClub(e.target.value)}
+          placeholder="Escribe un nombre de club" className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"/>
+      </label>
+      <datalist id="mf-market-bulk-clubs">{clubOptions.map(c=><option key={c.id} value={c.label}/>)}</datalist>
+      <button type="button" onClick={applyBulk} disabled={!selectedRows.length}
+        className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Asignar a seleccionadas</button>
+      <button type="button" onClick={()=>setSelectedRows([])} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">Limpiar selección</button>
+    </div>
     <div className="mt-3 max-h-[380px] overflow-y-auto rounded-xl border border-slate-200">
       <table className="w-full min-w-[550px] text-left text-xs">
-        <thead className="sticky top-0 z-10 bg-slate-100 text-slate-600"><tr><th className="p-2">Fecha</th><th className="p-2">Valor (M€)</th><th className="p-2">Club histórico</th><th className="p-2">Asociar club MF Legacy</th><th className="p-2"></th></tr></thead>
+        <thead className="sticky top-0 z-10 bg-slate-100 text-slate-600"><tr><th className="p-2"><input type="checkbox" aria-label="Seleccionar todas las filas visibles" checked={allVisibleSelected} onChange={e=>toggleAll(e.target.checked)}/></th><th className="p-2">Fecha</th><th className="p-2">Valor (M€)</th><th className="p-2">Club histórico</th><th className="p-2">Asociar club MF Legacy</th><th className="p-2"></th></tr></thead>
         <tbody>{visible.map(r=>{
           const selected=candidates.find(c=>String(c.id)===String(r.club_id));
           return <tr key={r.index} className="border-t border-slate-100">
+            <td className="p-2"><input type="checkbox" aria-label={`Seleccionar valoración de ${r.date}`} checked={selectedRows.includes(r.index)}
+              onChange={e=>setSelectedRows(old=>e.target.checked?[...old,r.index]:old.filter(i=>i!==r.index))}/></td>
             <td className="p-2"><input type="date" value={r.date} onChange={e=>set(r.index,{date:e.target.value})} className="w-[125px] rounded border px-1 py-1"/></td>
             <td className="p-2"><input type="number" min="0" step="any" value={r.value} onChange={e=>set(r.index,{value:e.target.value})} className="w-[85px] rounded border px-1 py-1"/></td>
             <td className="p-2 text-slate-600">{r.team||"Sin información"}</td>
             <td className="p-2"><div className="flex items-center gap-2">{selected&&(selected.logo||selected.logo_url||selected.badge_url)&&<img src={selected.logo||selected.logo_url||selected.badge_url} alt="" className="h-5 w-5 object-contain"/>}
-              <select value={r.club_id} onChange={e=>{const club=candidates.find(c=>String(c.id)===e.target.value);setRows(old=>old.map(item=>clubKey(item.team)===clubKey(r.team)?{...item,club_id:e.target.value}:item));setDirty(true);setMessage("Asociación aplicada a todos los registros de "+r.team+". Guarda los cambios.");}} className="w-full min-w-[135px] max-w-[220px] rounded border bg-white p-1">
-                <option value="">Sin asociar</option>{candidates.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-              </select></div></td>
-            <td className="p-2"><button type="button" title="Eliminar registro" onClick={()=>{setRows(old=>old.filter((_,i)=>i!==r.index));setDirty(true);}} className="text-red-500"><Trash2 size={15}/></button></td>
+              <input type="search" list="mf-market-row-clubs" value={selected?.name ?? ""}
+                placeholder="Buscar y asociar club" aria-label={`Club asociado a ${r.date}`}
+                onChange={e=>{
+                  const club=getClubByLabel(e.target.value);
+                  if(club){
+                    const matching=rows.map((item,i)=>clubKey(item.team)===clubKey(r.team)?i:-1).filter(i=>i>=0);
+                    setClubForIndices(matching,String(club.id));
+                  }else if(!e.target.value){
+                    set(r.index,{club_id:""});
+                  }
+                }}
+                className="w-full min-w-[135px] max-w-[220px] rounded border bg-white p-1 text-xs"/>
+              <datalist id="mf-market-row-clubs">{clubOptions.map(c=><option key={c.id} value={c.label}/>)}</datalist></div></td>
+            <td className="p-2"><button type="button" title="Eliminar registro" onClick={()=>{setRows(old=>old.filter((_,i)=>i!==r.index));setSelectedRows([]);setDirty(true);}} className="text-red-500"><Trash2 size={15}/></button></td>
           </tr>;
         })}</tbody>
       </table>
