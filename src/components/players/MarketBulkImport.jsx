@@ -62,7 +62,7 @@ export default function MarketBulkImport({ player }) {
       merged.sort((a,b)=>a.date.localeCompare(b.date));
       const saved=await persistMarketHistory(player.id,merged);
       setError("");setPreview(null);setRaw("");
-      alert(\`\${saved.length} registros guardados y verificados en Base44.\`);
+      alert(`${saved.length} registros guardados y verificados en Base44.`);
     } catch { setError("No se han podido guardar los datos en el navegador."); }
   };
   return <section className="rounded-2xl border border-slate-200 bg-white p-5">

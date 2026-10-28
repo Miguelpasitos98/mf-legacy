@@ -92,7 +92,7 @@ export default function MarketValueRecords({player,clubs=[]}){
       normalized.sort((a,b)=>a.date.localeCompare(b.date));
       const persisted=await persistMarketHistory(player.id,normalized);
       setDirty(false);setSelectedRows([]);
-      setMessage(\`\${persisted.length} registros guardados y comprobados en Base44 con \${persisted.filter(r=>r.club_id).length} asociaciones de club.\`);
+      setMessage(`${persisted.length} registros guardados y comprobados en Base44 con ${persisted.filter(r=>r.club_id).length} asociaciones de club.`);
     }catch(e){setMessage(e.message);}
   };
   return <section className="rounded-2xl border border-slate-200 bg-white p-5">

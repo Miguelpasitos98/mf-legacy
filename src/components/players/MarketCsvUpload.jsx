@@ -51,7 +51,7 @@ export default function MarketCsvUpload({player}){
       const dates=new Set(existing.map(r=>r.date));
       const all=[...existing,...preview.filter(r=>!dates.has(r.date))].sort((a,b)=>a.date.localeCompare(b.date));
       const saved=await persistMarketHistory(player.id,all);
-      setMessage(\`\${saved.length} registros guardados y verificados en Base44.\`);
+      setMessage(`${saved.length} registros guardados y verificados en Base44.`);
     }catch(e){setMessage("Error al guardar: "+e.message);}
   };
   const linked=players?.find(r=>String(r.player_id)===id);

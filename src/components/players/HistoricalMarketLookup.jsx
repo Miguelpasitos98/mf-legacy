@@ -65,7 +65,7 @@ export default function HistoricalMarketLookup({ player }) {
       // Conserva prioritariamente los valores manuales ya creados.
       const merged=[...normalized,...history.filter(r=>!dates.has(r.date))].sort((a,b)=>a.date.localeCompare(b.date));
       const saved=await persistMarketHistory(player.id,merged);
-      setStatus(\`\${saved.length} registros guardados y comprobados en Base44\`);
+      setStatus(`${saved.length} registros guardados y comprobados en Base44`);
       setError("");
     }catch(e){setError("No se ha podido guardar el historial local: "+e.message);}
   }
