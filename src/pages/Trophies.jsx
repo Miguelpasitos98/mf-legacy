@@ -16,11 +16,11 @@ const cls=(active)=>"whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibol
 const input="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
 const label="mb-1.5 block text-[11px] font-bold uppercase tracking-[.12em] text-slate-500";
 
-function TrophyArtwork({trophy,className="h-24 w-full",onError}){
+function TrophyArtwork({trophy,manifest,className="h-24 w-full",onError}){
  const [bad,setBad]=useState(false);
  useEffect(()=>setBad(false),[trophy?.source_id,trophy?.image_url]);
  return <div className={"flex items-center justify-center overflow-hidden "+className}>
-   {bad?<Trophy size={42} strokeWidth={1.1} className="text-slate-300"/>:<img loading="lazy" src={trophyImageUrl(trophy)} alt="" className="h-full w-full object-contain drop-shadow-[0_8px_10px_rgba(15,23,42,0.10)]" onError={()=>{setBad(true);onError?.();}}/>}
+   {bad?<Trophy size={42} strokeWidth={1.1} className="text-slate-300"/>:<img loading="lazy" src={trophyImageUrl(trophy,manifest)} alt="" className="h-full w-full object-contain drop-shadow-[0_8px_10px_rgba(15,23,42,0.10)]" onError={()=>{setBad(true);onError?.();}}/>}
  </div>;
 }
 function Metric({value,label:caption,icon:Icon}){
@@ -29,10 +29,10 @@ function Metric({value,label:caption,icon:Icon}){
   <div className="mt-2 text-xl font-black tabular-nums text-slate-900">{value}</div>
  </div>;
 }
-function TrophyCard({trophy,open,count}){
+function TrophyCard({trophy,manifest,open,count}){
  return <button type="button" onClick={open} className="group relative flex min-h-[195px] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-[#003399]/30 hover:shadow-[0_12px_35px_rgba(20,35,65,.09)]">
    <div className="relative flex h-32 items-center justify-center bg-gradient-to-b from-[#F8F9FC] to-white px-5 pt-3">
-    <TrophyArtwork trophy={trophy} className="h-[110px] w-full"/>
+    <TrophyArtwork trophy={trophy} manifest={manifest} className="h-[110px] w-full"/>
     {trophy.identification_status==="Pending"&&<span className="absolute right-2 top-2 rounded-md bg-amber-50 px-1.5 py-1 text-[9px] font-bold text-amber-700">PENDIENTE</span>}
     {trophy.id&&<span className="absolute left-2 top-2 rounded-md bg-blue-50 px-1.5 py-1 text-[9px] font-bold text-blue-800">FICHA</span>}
    </div>
@@ -51,6 +51,7 @@ function DetailsField({title,children,wide}){
 export default function Trophies(){
  const qc=useQueryClient();
  const [catalog,setCatalog]=useState([]);
+ const [imageManifest,setImageManifest]=useState(null);
  const [catalogError,setCatalogError]=useState("");
  const [catalogLoading,setCatalogLoading]=useState(true);
  const [query,setQuery]=useState("");
@@ -71,6 +72,11 @@ export default function Trophies(){
  const trophyQuery=useQuery({...completeRecordQueryOptions(base44.entities.Trophy,TROPHY_KEY),retry:false});
  const honourQuery=useQuery({...completeRecordQueryOptions(base44.entities.TrophyHonour,HONOURS_KEY),retry:false});
 
+ useEffect(()=>{
+  const controller=new AbortController();
+  fetch("/trophy-images.json",{signal:controller.signal}).then(r=>r.ok?r.json():null).then(data=>{if(!controller.signal.aborted)setImageManifest(data);}).catch(()=>{});
+  return ()=>controller.abort();
+ },[]);
  useEffect(()=>{
   const controller=new AbortController();setCatalogLoading(true);
   fetch(TROPHY_CSV_URL,{signal:controller.signal}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.text();})
@@ -178,7 +184,7 @@ export default function Trophies(){
       <div className="flex items-baseline gap-2"><h2 className="text-sm font-black uppercase tracking-[.08em] text-slate-900">{group.title}</h2><span className="text-[10px] font-medium text-slate-400">{group.items.length} trofeos</span></div>
       {group.kind==="country"&&<span className="text-[10px] text-slate-400">{group.reputation!=null?"Reputación de liga: "+group.reputation:"Sin reputación de liga registrada"}</span>}
      </div>
-     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{group.items.slice(0,expandedGroups[group.key]?group.items.length:24).map(t=><TrophyCard key={t.source_id} trophy={t} count={honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
+     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{group.items.slice(0,expandedGroups[group.key]?group.items.length:24).map(t=><TrophyCard key={t.source_id} trophy={t} manifest={imageManifest} count={honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
      {group.items.length>24&&<button type="button" onClick={()=>setExpandedGroups(current=>({...current,[group.key]:!current[group.key]}))} className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{expandedGroups[group.key]?"Mostrar menos":"Ver todos los "+group.items.length+" trofeos"}</button>}
     </section>)}</div>:!catalogLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">No hay trofeos con estos filtros.</div>}
    <div className="my-6 flex items-center gap-2 text-[10px] text-slate-400"><ImageIcon size={13}/> Imágenes desde GitHub: <code>public/assets/trophies/ID.png</code>. Los archivos aún no incorporados muestran un icono neutro. Los datos originales no se modifican.</div>
@@ -190,7 +196,7 @@ export default function Trophies(){
     <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[1fr_1.05fr] lg:overflow-hidden">
      <div className="min-h-0 overflow-y-auto border-b border-slate-100 p-5 lg:border-b-0 lg:border-r md:p-7">
       <div className="mb-4 flex items-center gap-5 rounded-xl bg-[#F5F7FA] p-4">
-       <TrophyArtwork trophy={draft} className="h-28 w-28 shrink-0"/>
+       <TrophyArtwork trophy={draft} manifest={imageManifest} className="h-28 w-28 shrink-0"/>
        <div className="min-w-0"><p className="text-xs font-black text-slate-800">{draft.name}</p><p className="mt-1 text-[11px] text-slate-500">{draft.trophy_type||"Trophy Type pendiente"} · {draft.category||"Sin categoría"}</p><p className="mt-2 break-all font-mono text-[10px] text-slate-400">ID {draft.source_id}</p></div>
       </div>
       <form id="trophy-form" onSubmit={save} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
