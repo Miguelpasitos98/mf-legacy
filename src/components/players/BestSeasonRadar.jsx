@@ -74,7 +74,8 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
      <svg viewBox="0 0 250 245" className="min-h-0 w-full flex-1" role="img" aria-label={`Perfil estadístico de ${result.season}: ${valid} de ${result.axes.length} categorías`}>
        {valid===result.axes.length&&<polygon points={points(result.axes.map(a=>a.value))} fill={color} fillOpacity=".30" stroke="none"/>}
        {result.axes.map((a,i)=>{
-         const [x,y]=pt(i,111,result.axes.length);
+         const [rawX,y]=pt(i,111,result.axes.length);
+         const x=a.name==="Passing"?rawX-12:rawX;
          return <g key={a.name}>
            <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" fontSize="9.8" fontWeight="600" fill={a.value===null?"#A1A1AA":"#64748b"}>{a.name}</text>
          </g>;
