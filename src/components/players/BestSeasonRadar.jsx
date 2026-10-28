@@ -86,10 +86,8 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
        {valid===result.axes.length&&<polygon points={points(result.axes.map(a=>a.value))} fill={color} fillOpacity=".30" stroke="none"/>}
        {result.axes.map((a,i)=>{
          const [x,y]=pt(i,111,result.axes.length);
-         const [vx,vy]=pt(i,87*(a.value||0)/100,result.axes.length);
          return <g key={a.name}>
            <text x={x} y={y} textAnchor="middle" dominantBaseline="middle" fontSize="9.8" fontWeight="600" fill={a.value===null?"#A1A1AA":"#64748b"}>{a.name}</text>
-           {a.value!==null&&<circle cx={vx} cy={vy} r="3.6" fill={color} stroke="white" strokeWidth="1"/>}
          </g>;
        })}
      </svg>
