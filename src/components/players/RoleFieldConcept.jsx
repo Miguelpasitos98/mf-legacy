@@ -1,7 +1,8 @@
-import React, {useEffect,useState} from "react";
+import React, {useEffect,useId,useState} from "react";
 import {createPortal} from "react-dom";
 import {compactPositionValue} from "@/utils/compactPositionRatings";
 import {PLAYER_DESCRIPTIONS} from "@/components/players/playerFormShared";
+import {tacticalZoneForRole} from "@/utils/roleTacticalZones";
 
 // Prototipo de disposición usando la imagen facilitada por el usuario.
 // Solo los números son dinámicos; la ilustración original permanece intacta.
@@ -36,10 +37,12 @@ const ALL_ROLES=PLAYER_DESCRIPTIONS.flatMap(group=>group.options);
 const comparableRole=value=>String(value||"").replace(/^[^\p{L}\p{N}]+/u,"").trim().toLocaleLowerCase("es");
 const canonicalRole=value=>ALL_ROLES.find(option=>option===value||comparableRole(option)===comparableRole(value))||String(value||"");
 const EMPTY=[{name:"",description:""},{name:"",description:""}];
-export default function RoleFieldConcept({ratings={},playerId,position}){
+export default function RoleFieldConcept({ratings={},playerId,position,foot}){
  const key="mf-legacy-tactical-role-settings-v1:"+String(playerId||"preview");
  const [roles,setRoles]=useState(EMPTY);
  const [editing,setEditing]=useState(null);
+ const [activeRole,setActiveRole]=useState(null);
+ const svgId=useId().replace(/:/g,"");
  const [draft,setDraft]=useState({name:"",description:""});
  useEffect(()=>{
   try{
@@ -47,31 +50,50 @@ export default function RoleFieldConcept({ratings={},playerId,position}){
    setRoles(Array.isArray(stored)&&stored.length===2?stored.map(x=>({name:canonicalRole(x?.name),description:String(x?.description||"")})):EMPTY);
   }catch{setRoles(EMPTY);}
   setEditing(null);
+  setActiveRole(null);
  },[key]);
  const openEditor=i=>{setDraft({...roles[i]});setEditing(i);};
+ const toggleRole=i=>{if(!roles[i].name){openEditor(i);return;}setActiveRole(value=>value===i?null:i);};
  const save=()=>{
   const next=roles.map((r,i)=>i===editing?{name:draft.name.trim(),description:draft.description.trim()}:r);
   setRoles(next);
+  setActiveRole(next[editing]?.name?editing:null);
   try{window.localStorage.setItem(key,JSON.stringify(next));}catch{}
   setEditing(null);
  };
+ const zone=activeRole!==null?tacticalZoneForRole(roles[activeRole]?.name,position,foot):null;
  return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Roles y posiciones">
   <img className="pointer-events-none absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
-  {/* A single full-width hit target per white slot: both the title and the original green + open the same editor. */}
-  {roles.map((role,i)=><button
-    key={i}
-    type="button"
-    onClick={()=>openEditor(i)}
-    aria-label={role.name?`Editar rol ${i+1}: ${role.name}`:`Añadir rol ${i+1}`}
-    title={role.name?"Editar rol y descripción":"Seleccionar rol y escribir descripción"}
-    className="pointer-events-auto absolute z-30 flex cursor-pointer items-center rounded-md bg-transparent text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
-    style={{left:"16.4%",top:i===0?"13.4%":"calc(23.9% + 2px)",width:"56.7%",height:"8.8%",pointerEvents:"auto"}}
+  {zone&&<svg className="pointer-events-none absolute inset-0 z-[2] h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Zona táctica orientativa" role="img">
+    <defs>
+      <radialGradient id={svgId+"-field"}>
+        <stop offset="0%" stopColor="#00C977" stopOpacity=".57"/>
+        <stop offset="72%" stopColor="#03CC75" stopOpacity=".32"/>
+        <stop offset="100%" stopColor="#03CC75" stopOpacity=".04"/>
+      </radialGradient>
+      <clipPath id={svgId+"-clip"}><ellipse cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry}/></clipPath>
+    </defs>
+    <ellipse cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry} fill={`url(#${svgId}-field)`}/>
+    {zone.emphasis&&<ellipse cx={zone.cx+(zone.emphasis==="right"?1:-1)*zone.rx*.36} cy={zone.cy} rx={zone.rx*.68} ry={zone.ry*.9} fill="#006641" fillOpacity=".37" clipPath={`url(#${svgId}-clip)`}/>}
+  </svg>}
+  {/* Click the name to preview the zone. The existing green + independently edits the role. */}
+  {roles.map((role,i)=><div key={i}
+    className="pointer-events-none absolute z-30"
+    style={{left:"16.4%",top:i===0?"13.4%":"calc(23.9% + 2px)",width:"56.7%",height:"8.8%"}}
   >
-    {role.name&&<span
-      className="pointer-events-none flex h-full min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap pl-5 pr-10 font-bold text-slate-900"
-      style={{fontSize:role.name.length>30?"13px":role.name.length>25?"14px":"16px",lineHeight:"1.2",paddingTop:"11px"}}
-    >{role.name}</span>}
-  </button>)}
+    <button type="button" onClick={()=>toggleRole(i)} aria-pressed={activeRole===i}
+      aria-label={role.name?`Mostrar zona de ${role.name}`:`Añadir rol ${i+1}`}
+      title={role.description||(role.name?"Mostrar u ocultar zona táctica":"Seleccionar rol")}
+      className="pointer-events-auto absolute inset-y-0 left-0 flex w-[82%] items-center rounded-md bg-transparent text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+      {role.name&&<span
+        className="pointer-events-none flex h-full min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap pl-5 pr-1 font-bold"
+        style={{fontSize:role.name.length>30?"13px":role.name.length>25?"14px":"16px",lineHeight:"1.2",paddingTop:"11px",color:activeRole===i?"#057A49":"#0F172A"}}
+      >{role.name}</span>}
+    </button>
+    <button type="button" onClick={()=>openEditor(i)}
+      aria-label={`Editar rol ${i+1}`} title="Elegir rol y editar tu descripción"
+      className="pointer-events-auto absolute inset-y-0 right-0 w-[18%] cursor-pointer rounded-md bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"/>
+  </div>)}
   {NUMBERS.map(([key,label,x,y],i)=>{
     const n=compactPositionValue(ratings,key);
     const tone=roleColor(n);
