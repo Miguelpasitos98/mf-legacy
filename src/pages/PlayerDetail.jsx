@@ -832,7 +832,14 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   const lastName = rest.join(" ");
 
   const openEditor = () => {
-    setForm({...initialForm,tacticalRoles:Array.isArray(editablePlayer?.tactical_roles)?editablePlayer.tactical_roles:[{name:editablePlayer?.description||"",description:""},{name:"",description:""}]});
+    let savedRoles=editablePlayer?.tactical_roles;
+    if(!Array.isArray(savedRoles)){
+      try{
+        const draft=JSON.parse(window.localStorage.getItem("mf-legacy-tactical-role-settings-v1:"+String(editablePlayer?.id))||"null");
+        if(Array.isArray(draft)&&draft.length===2)savedRoles=draft;
+      }catch{}
+    }
+    setForm({...initialForm,tacticalRoles:Array.isArray(savedRoles)?savedRoles:[{name:editablePlayer?.description||"",description:""},{name:"",description:""}]});
     setEditError("");
     setEditTab("general");
     setEditOpen(true);
