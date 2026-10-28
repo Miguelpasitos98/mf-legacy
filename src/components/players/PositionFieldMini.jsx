@@ -4,9 +4,9 @@ import {compactPositionValue} from "@/utils/compactPositionRatings";
 // Exactly the same persisted position keys as PlayerDetail's editor.
 export const POSITION_FIELD_POINTS=[
  ["delantero","DL(C)",140,18],
- ["mediapunta_por_la_izquierda","EI",85,45],
+ ["mediapunta_por_la_izquierda","EI",65,45],
  ["mediapunta_central","MP(C)",140,47],
- ["mediapunta_por_la_derecha","ED",195,45],
+ ["mediapunta_por_la_derecha","ED",215,45],
  ["mc_left","MC",94,70],
  ["mc_right","MC",186,70],
  ["carrilero_izquierdo","CR(I)",56,98],
