@@ -3102,6 +3102,13 @@ export default function Players() {
           setSelectedPlayer(null);
           if (statsPlayerId) navigateFromStats("/players", { replace: true });
         }}
+        onTeamClick={(clubId) => {
+          setTeamFilterId(String(clubId));
+          setPositionFilter("");
+          setSearch("");
+          setSelectedPlayer(null);
+          if (statsPlayerId) navigateFromStats("/players", { replace: true });
+        }}
         onPlayerUpdated={(updatedPlayer, patch) => {
           setSelectedPlayer(updatedPlayer);
           // The update is already confirmed. Patch shared player cache in-place
