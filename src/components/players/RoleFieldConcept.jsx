@@ -41,8 +41,8 @@ const ROLE_SETS={
 const roleGroup=position=>{
  const v=String(position||"").toUpperCase().trim();
  if(["GK","POR"].includes(v))return "GK";
- if(["CB","DFC","DCB","DCL","DCR"].includes(v))return "CB";
- if(["ST","DC","CF"].includes(v))return "ST";
+ if(["CB","DFC","DCB","DCL","DCR","DC"].includes(v))return "CB";
+ if(["ST","CF","DEL"].includes(v))return "ST";
  if(["RB","LB","LD","LI","RWB","LWB"].includes(v))return "FB";
  if(["LW","RW","EI","ED","LM","RM"].includes(v))return "W";
  if(["CAM","MPC","MP","AMC"].includes(v))return "CAM";
@@ -60,8 +60,8 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot}){
  const left=Number(foot?.left)||0,right=Number(foot?.right)||0;
  const isWide=["W","FB"].includes(roleGroup(position));
  const flip=active===1;
- const shift=isWide&&left!==right?(left>right?!flip:flip?-1:1):0;
- const polygon=coords.map((v,i)=>i%2===0?v+(shift===true?-12:shift===-1?12:0):v).join(" ");
+ const shift=isWide&&left!==right?(left>right?(flip?-12:12):(flip?12:-12)):0;
+ const polygon=coords.map((v,i)=>i%2===0?v+shift:v).join(" ");
 
  return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Vista de prueba de roles y posiciones">
   <img className="absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
