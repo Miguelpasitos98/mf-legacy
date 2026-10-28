@@ -154,8 +154,7 @@ export default function Trophies(){
    <div className="flex items-center gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"><Upload size={14}/> Importar CSV<input type="file" accept=".csv,text/csv" className="hidden" onChange={importLocal}/></label><button type="button" onClick={create} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3.5 py-2 text-[11px] font-bold text-white hover:bg-[#002977]"><Plus size={14}/> Nuevo trofeo</button></div>
   </div>
   <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-7">
-   <div className="grid grid-cols-2 gap-2 md:grid-cols-4"><Metric value={counts.total.toLocaleString("es-ES")} label="Catálogo" icon={Database}/><Metric value={counts.identified.toLocaleString("es-ES")} label="Identificados" icon={ShieldCheck}/><Metric value={counts.pending.toLocaleString("es-ES")} label="Sin verificar" icon={AlertCircle}/><Metric value={honours.length.toLocaleString("es-ES")} label="Adjudicaciones" icon={Medal}/></div>
-   <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-3.5">
+   <div className="rounded-2xl border border-slate-200 bg-white p-3.5">
     <div className="flex flex-wrap items-center justify-between gap-3">
      <div className="flex gap-1 overflow-x-auto">{[["verified","Identificados"],["all","Todos"],["pending","Pendientes"],["registered","Con ficha"]].map(([k,v])=><button key={k} type="button" className={cls(tab===k)} onClick={()=>setTab(k)}>{v}</button>)}</div>
      <span className="text-[11px] font-semibold tabular-nums text-slate-400">{filtered.length.toLocaleString("es-ES")} resultados</span>
