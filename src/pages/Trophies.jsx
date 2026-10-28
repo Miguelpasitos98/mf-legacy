@@ -153,23 +153,23 @@ export default function Trophies(){
   e.target.value="";
  };
  return <div className="flex h-full min-h-0 flex-col bg-[#F5F6F8] text-slate-900">
-  <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 bg-white px-5 py-4 md:px-7">
-   <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-[#003399] text-white"><Trophy size={20}/></div><div><p className="text-[10px] font-bold uppercase tracking-[.23em] text-slate-400">MF LEGACY / ARCHIVE</p><h1 className="text-xl font-black tracking-tight">Trophies</h1></div></div>
-   <div className="flex items-center gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"><Upload size={14}/> Importar CSV<input type="file" accept=".csv,text/csv" className="hidden" onChange={importLocal}/></label><button type="button" onClick={create} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3.5 py-2 text-[11px] font-bold text-white hover:bg-[#002977]"><Plus size={14}/> Nuevo trofeo</button></div>
-  </div>
-  <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-7">
-   <div className="rounded-2xl border border-slate-200 bg-white p-3.5">
-    <div className="flex flex-wrap items-center justify-between gap-3">
+  <div className="flex shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white px-4 py-2 md:px-6">
+   <div className="flex shrink-0 items-center gap-2.5"><div className="grid h-9 w-9 place-items-center rounded-xl bg-[#003399] text-white"><Trophy size={19}/></div><div><p className="text-[9px] font-bold uppercase tracking-[.17em] text-slate-400">MF LEGACY / ARCHIVE</p><h1 className="text-lg font-black leading-tight tracking-tight">Trophies</h1></div></div>
+   <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-[#F8F9FC] px-2.5 py-2">
+    <div className="flex flex-wrap items-center justify-between gap-1.5">
      <div className="flex gap-1 overflow-x-auto">{[["verified","Identificados"],["all","Todos"],["pending","Pendientes"],["registered","Con ficha"]].map(([k,v])=><button key={k} type="button" className={cls(tab===k)} onClick={()=>setTab(k)}>{v}</button>)}</div>
      <span className="text-[11px] font-semibold tabular-nums text-slate-400">{filtered.length.toLocaleString("es-ES")} resultados</span>
     </div>
-    <div className="mt-3 flex flex-wrap gap-2">
-     <label className="relative min-w-[210px] flex-1"><Search size={16} className="absolute left-3 top-3 text-slate-400"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nombre, país o ID original…" className={input+" pl-9"}/></label>
-     <label className="relative min-w-[155px]"><Filter size={13} className="pointer-events-none absolute left-2.5 top-3.5 text-slate-400"/><select value={type} onChange={e=>setType(e.target.value)} className={input+" pl-8"}><option value="all">Todos los tipos</option>{TROPHY_TYPES.map(v=><option key={v} value={v}>{v}</option>)}</select></label>
-     <select value={category} onChange={e=>setCategory(e.target.value)} className={input+" min-w-[150px] w-auto"}><option value="all">Todas las categorías</option>{TROPHY_CATEGORIES.map(v=><option key={v} value={v}>{v}</option>)}</select>
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+     <label className="relative min-w-[210px] flex-1"><Search size={16} className="absolute left-3 top-3 text-slate-400"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nombre, país o ID original…" className={input+" h-8 pl-9 text-xs"}/></label>
+     <label className="relative min-w-[155px]"><Filter size={13} className="pointer-events-none absolute left-2.5 top-3.5 text-slate-400"/><select value={type} onChange={e=>setType(e.target.value)} className={input+" h-8 pl-8 text-xs"}><option value="all">Todos los tipos</option>{TROPHY_TYPES.map(v=><option key={v} value={v}>{v}</option>)}</select></label>
+     <select value={category} onChange={e=>setCategory(e.target.value)} className={input+" h-8 min-w-[145px] w-auto text-xs"}><option value="all">Todas las categorías</option>{TROPHY_CATEGORIES.map(v=><option key={v} value={v}>{v}</option>)}</select>
      {(query||type!=="all"||category!=="all")&&<button type="button" onClick={()=>{setQuery("");setType("all");setCategory("all");}} className="rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500" title="Limpiar filtros"><RotateCcw size={15}/></button>}
     </div>
    </div>
+   <div className="flex shrink-0 items-center gap-1.5"><label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"><Upload size={14}/> Importar CSV<input type="file" accept=".csv,text/csv" className="hidden" onChange={importLocal}/></label><button type="button" onClick={create} className="inline-flex items-center gap-1.5 rounded-lg bg-[#003399] px-2.5 py-2 text-[11px] font-bold text-white hover:bg-[#002977]"><Plus size={14}/> Nuevo trofeo</button></div>
+  </div>
+  <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3 md:px-7">
    {catalogLoading&&catalog.length===0&&<div className="mt-4 rounded-xl bg-white px-5 py-6 text-sm text-slate-500">Cargando catálogo de trofeos…</div>}
    {catalogError&&<div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><AlertCircle size={16}/><span>{catalogError} Puedes importarlo manualmente con «Importar CSV».</span></div>}
    {(trophyQuery.isError||honourQuery.isError)&&<div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[11px] text-slate-500">El catálogo puede consultarse; la base de fichas o ganadores aún no está disponible. Los cambios requieren las entidades Trophy y TrophyHonour sincronizadas en Base44.</div>}
