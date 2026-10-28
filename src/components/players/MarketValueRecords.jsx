@@ -23,6 +23,22 @@ export default function MarketValueRecords({player,clubs=[]}){
   },[player?.id]);
   const candidates=useMemo(()=>clubs.filter(c=>c?.id&&c?.name).sort((a,b)=>a.name.localeCompare(b.name)),[clubs]);
   const visible=rows.map((r,i)=>({...r,index:i})).filter(r=>!filter||[r.date,r.team,candidates.find(c=>String(c.id)===String(r.club_id))?.name].some(v=>normalize(v).includes(normalize(filter))));
+  const autoLink=()=>{
+    let linked=0;
+    setRows(old=>old.map(row=>{
+      if(row.club_id)return row;
+      const name=normalize(row.team);
+      const token=/bayern/.test(name)?"bayern":/tottenham|spurs/.test(name)?"tottenham":/norwich/.test(name)?"norwich":"";
+      const matches=candidates.filter(c=>{
+        const candidate=normalize(c.name);
+        return name && (candidate===name || (token==="bayern"&&candidate.includes("bayern")) ||
+          (token==="tottenham"&&candidate.includes("tottenham")) || (token==="norwich"&&candidate.includes("norwich")));
+      });
+      if(matches.length!==1)return row;
+      linked++;return {...row,club_id:matches[0].id};
+    }));
+    setDirty(true);setMessage(linked+` registros vinculados automáticamente. Revisa y pulsa Guardar cambios.`);
+  };
   const set=(i,patch)=>{setRows(old=>old.map((r,j)=>j===i?{...r,...patch}:r));setDirty(true);setMessage("");};
   const save=()=>{
     if(!player?.id)return setMessage("Falta el ID del jugador.");
@@ -47,7 +63,7 @@ export default function MarketValueRecords({player,clubs=[]}){
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h3 className="text-sm font-black">Historial completo · {rows.length} valoraciones</h3>
       <p className="mt-1 text-xs text-slate-500">Revisa fecha, valor y club. Vincula cada registro a un club de MF Legacy para obtener su color y escudo. Se guarda localmente en esta prueba.</p></div>
-      <button type="button" onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white"><Save size={14}/> Guardar cambios{dirty?" *":""}</button>
+      <div className="flex flex-wrap gap-2"><button type="button" onClick={autoLink} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-900">Asociar clubes automáticamente</button><button type="button" onClick={save} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white"><Save size={14}/> Guardar cambios{dirty?" *":""}</button></div>
     </div>
     <input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Filtrar por fecha o club" aria-label="Filtrar valoraciones" className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
     <div className="mt-3 max-h-[380px] overflow-y-auto rounded-xl border border-slate-200">
