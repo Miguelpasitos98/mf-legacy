@@ -72,6 +72,10 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
    !result?<div className="grid flex-1 place-items-center px-3 text-center text-[11px] text-slate-500">Sin temporada con Composite suficiente</div>:
    <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
      <svg viewBox="0 0 250 245" className="min-h-0 w-full flex-1" role="img" aria-label={`Perfil estadístico de ${result.season}: ${valid} de ${result.axes.length} categorías`}>
+       <g stroke="#94A3B8" strokeOpacity=".2" strokeWidth="1" fill="none" aria-hidden="true">
+         {[25,50,75,100].map(level=><polygon key={level} points={points(result.axes.map(()=>level))}/>)}
+         {result.axes.map((axis,i)=>{const [x,y]=pt(i,87,result.axes.length);return <line key={axis.name} x1="125" y1="128" x2={x} y2={y}/>;})}
+       </g>
        {valid===result.axes.length&&<polygon points={points(result.axes.map(a=>a.value))} fill={color} fillOpacity=".30" stroke="none"/>}
        {result.axes.map((a,i)=>{
          const [rawX,y]=pt(i,111,result.axes.length);
