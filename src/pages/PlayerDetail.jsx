@@ -1090,10 +1090,6 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         </div>
 
         <div className="relative z-20 flex h-full min-h-0 items-end justify-center overflow-visible">
-          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[clamp(12rem,25vw,24rem)] font-black leading-none tracking-[-0.1em] text-[#003399]/[0.06]">
-            {age ?? ""}
-          </div>
-
           {photoUrl ? (
             typeof document !== "undefined"
               ? createPortal(
