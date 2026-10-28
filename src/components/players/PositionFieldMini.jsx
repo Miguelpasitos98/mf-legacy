@@ -19,9 +19,9 @@ export default function PositionFieldMini({ratings={}}){
     <span className="text-[9px] font-semibold text-slate-600">/20</span>
    </div>
    <svg className="min-h-0 w-full flex-1" viewBox="0 0 280 182" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo de juego en perspectiva con las posiciones y sus valoraciones">
-    <path d="M65 10 H215 L275 178 H5 Z" fill="none" stroke="#142337" strokeOpacity=".62" strokeWidth="1.5"/>
-    <path d="M44 88 H236 M110 10 L105 40 H175 L170 10 M128 10 V22 H152 V10 M92 178 L100 153 H180 L188 178 M123 178 V166 H157 V178" fill="none" stroke="#142337" strokeOpacity=".4" strokeWidth="1"/>
-    <ellipse cx="140" cy="88" rx="28" ry="13" fill="none" stroke="#142337" strokeOpacity=".4" strokeWidth="1"/>
+    <path d="M65 10 H215 L275 178 H5 Z" fill="none" stroke="#FFFFFF" strokeOpacity=".95" strokeWidth="1.8"/>
+    <path d="M44 88 H236 M110 10 L105 40 H175 L170 10 M128 10 V22 H152 V10 M92 178 L100 153 H180 L188 178 M123 178 V166 H157 V178" fill="none" stroke="#FFFFFF" strokeOpacity=".8" strokeWidth="1.2"/>
+    <ellipse cx="140" cy="88" rx="28" ry="13" fill="none" stroke="#FFFFFF" strokeOpacity=".8" strokeWidth="1.2"/>
     {POINTS.map(([key,label,x,y])=>{
      const n=value(key);
      return <g key={key}>
