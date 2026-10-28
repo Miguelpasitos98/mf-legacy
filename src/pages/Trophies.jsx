@@ -3,6 +3,8 @@ import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {Search,Trophy,Plus,ChevronRight,X,Save,Image as ImageIcon,Filter,ShieldCheck,AlertCircle,Database,Trash2,Upload,Medal,Users,Link2,RotateCcw} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
+import {useLeaguesQuery,useCountriesQuery} from "@/hooks/useSharedData";
+import {groupTrophies} from "@/utils/trophyGrouping";
 import {TROPHY_CSV_URL,TROPHY_TYPES,TROPHY_CATEGORIES,parseTrophyCatalog,mergeTrophyCatalog,trophyImageUrl,normaliseSearch} from "@/utils/trophyCatalog";
 
 const TROPHY_KEY=["mf-legacy","trophies","definitions"];
@@ -55,7 +57,6 @@ export default function Trophies(){
  const [tab,setTab]=useState("verified");
  const [type,setType]=useState("all");
  const [category,setCategory]=useState("all");
- const [visible,setVisible]=useState(48);
  const [selectedId,setSelectedId]=useState("");
  const [newRecord,setNewRecord]=useState(false);
  const [draft,setDraft]=useState(null);
@@ -65,6 +66,7 @@ export default function Trophies(){
  const [recipientQuery,setRecipientQuery]=useState("");
  const [honourSaving,setHonourSaving]=useState(false);
  const [showHonours,setShowHonours]=useState(true);
+ const leaguesQuery=useLeaguesQuery(),countriesQuery=useCountriesQuery();
  const trophyQuery=useQuery({...completeRecordQueryOptions(base44.entities.Trophy,TROPHY_KEY),retry:false});
  const honourQuery=useQuery({...completeRecordQueryOptions(base44.entities.TrophyHonour,HONOURS_KEY),retry:false});
 
@@ -94,7 +96,8 @@ export default function Trophies(){
   const q=normaliseSearch(query);
   return !q||normaliseSearch([t.name,t.source_name,t.source_id,t.country,t.organizer,t.category].join(" ")).includes(q);
  }).sort((a,b)=>a.name.localeCompare(b.name,"es",{numeric:true})),[all,tab,type,category,query]);
- useEffect(()=>setVisible(48),[query,tab,type,category]);
+ const grouped=useMemo(()=>groupTrophies(filtered,rows(leaguesQuery.data),rows(countriesQuery.data)),[filtered,leaguesQuery.data,countriesQuery.data]);
+ 
  const selected=useMemo(()=>all.find(t=>String(t.source_id)===String(selectedId))||null,[all,selectedId]);
  const selectedHonours=useMemo(()=>honours.filter(h=>String(h.trophy_source_id)===String(selectedId)).sort((a,b)=>String(b.season).localeCompare(String(a.season),"es",{numeric:true})),[honours,selectedId]);
  const recipientType=honourDraft?.recipient_type||"Team";
@@ -169,7 +172,13 @@ export default function Trophies(){
    {catalogLoading&&catalog.length===0&&<div className="mt-4 rounded-xl bg-white px-5 py-6 text-sm text-slate-500">Cargando catálogo de trofeos…</div>}
    {catalogError&&<div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><AlertCircle size={16}/><span>{catalogError} Puedes importarlo manualmente con «Importar CSV».</span></div>}
    {(trophyQuery.isError||honourQuery.isError)&&<div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[11px] text-slate-500">El catálogo puede consultarse; la base de fichas o ganadores aún no está disponible. Los cambios requieren las entidades Trophy y TrophyHonour sincronizadas en Base44.</div>}
-   {filtered.length>0?<><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{filtered.slice(0,visible).map(t=><TrophyCard key={t.source_id} trophy={t} count={honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>{filtered.length>visible&&<div className="flex justify-center py-6"><button type="button" onClick={()=>setVisible(v=>v+48)} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50">Mostrar más · {Math.min(48,filtered.length-visible)} siguientes</button></div>}</>:!catalogLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">No hay trofeos con estos filtros.</div>}
+   {filtered.length>0?<div className="mt-4 space-y-7">{grouped.map(group=><section key={group.key}>
+     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+      <div className="flex items-baseline gap-2"><h2 className="text-sm font-black uppercase tracking-[.08em] text-slate-900">{group.title}</h2><span className="text-[10px] font-medium text-slate-400">{group.items.length} trofeos</span></div>
+      {group.kind==="country"&&<span className="text-[10px] text-slate-400">{group.reputation!=null?"Reputación de liga: "+group.reputation:"Sin reputación de liga registrada"}</span>}
+     </div>
+     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{group.items.map(t=><TrophyCard key={t.source_id} trophy={t} count={honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
+    </section>)}</div>:!catalogLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">No hay trofeos con estos filtros.</div>}
    <div className="my-6 flex items-center gap-2 text-[10px] text-slate-400"><ImageIcon size={13}/> Imágenes desde GitHub: <code>public/assets/trophies/ID.png</code>. Los archivos aún no incorporados muestran un icono neutro. Los datos originales no se modifican.</div>
   </div>
 
