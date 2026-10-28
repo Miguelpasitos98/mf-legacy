@@ -4,6 +4,7 @@ import {strengthOf} from "@/utils/compareAnalysis";
 import {shortSeason} from "@/utils/compareMetrics";
 import CompareDuelBar,{seasonColor} from "@/components/stats/CompareDuelBar";
 import IndicatorHistoricalRankingModal from "@/components/stats/IndicatorHistoricalRankingModal";
+import {indicatorDescription} from "@/utils/indicatorDescriptions";
 
 // Comparativa del análisis MF LEGACY: cada temporada se compara con su propio
 // arquetipo histórico, con el mismo motor que el Composite de STATS. Solo lectura.
@@ -114,7 +115,7 @@ export default function CompareAnalysisTable({model,observations=[],peerLoading=
      {indicators.map(indicator=>{
       const leaderCell=indicator.best?seasons[indicator.best.index]:null;
       return <tr key={indicator.key} className="border-t border-slate-100 odd:bg-white even:bg-[#f7f9fc]">
-       <td className="px-3 py-2 font-semibold text-slate-700"><button type="button" className="text-left font-bold text-[#003399] underline decoration-blue-200 underline-offset-2 hover:decoration-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500" title={"Ver ranking histórico de "+indicator.name} onClick={()=>setRankingIndicator({indicator,role:seasons.find(x=>x.analysis?.rows?.some(r=>r.key===indicator.key))?.role})}>{indicator.name}</button>{indicator.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
+       <td className="px-3 py-2 font-semibold text-slate-700"><button type="button" className="text-left font-bold text-[#003399] underline decoration-blue-200 underline-offset-2 hover:decoration-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500" title={"Ver ranking histórico de "+indicator.name} onClick={()=>setRankingIndicator({indicator,role:seasons.find(x=>x.analysis?.rows?.some(r=>r.key===indicator.key))?.role})}>{indicator.name}</button>{indicatorDescription(indicator.key)&&<span className="mt-0.5 block max-w-[250px] text-[10px] font-normal leading-snug text-slate-400">{indicatorDescription(indicator.key)}</span>}{indicator.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
        <td className="px-2 py-2 text-center tabular-nums text-slate-500">{indicator.weight===null?"—":(indicator.weight>0?"+":"")+indicator.weight+" %"}</td>
        <td className="px-3 py-2">
         {leaderCell?<>
