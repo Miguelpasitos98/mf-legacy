@@ -86,7 +86,7 @@ export default function MarketValueRecords({player,clubs=[]}){
           const selected=candidates.find(c=>String(c.id)===String(r.club_id));
           return <tr key={r.index} className="border-t border-slate-100">
             <td className="p-2"><input type="date" value={r.date} onChange={e=>set(r.index,{date:e.target.value})} className="w-[125px] rounded border px-1 py-1"/></td>
-            <td className="p-2"><input type="number" min="0" step="0.01" value={r.value} onChange={e=>set(r.index,{value:e.target.value})} className="w-[85px] rounded border px-1 py-1"/></td>
+            <td className="p-2"><input type="number" min="0" step="any" value={r.value} onChange={e=>set(r.index,{value:e.target.value})} className="w-[85px] rounded border px-1 py-1"/></td>
             <td className="p-2 text-slate-600">{r.team||"Sin información"}</td>
             <td className="p-2"><div className="flex items-center gap-2">{selected&&(selected.logo||selected.logo_url||selected.badge_url)&&<img src={selected.logo||selected.logo_url||selected.badge_url} alt="" className="h-5 w-5 object-contain"/>}
               <select value={r.club_id} onChange={e=>{const club=candidates.find(c=>String(c.id)===e.target.value);setRows(old=>old.map(item=>clubKey(item.team)===clubKey(r.team)?{...item,club_id:e.target.value}:item));setDirty(true);setMessage("Asociación aplicada a todos los registros de "+r.team+". Guarda los cambios.");}} className="w-full min-w-[135px] max-w-[220px] rounded border bg-white p-1">
