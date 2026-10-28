@@ -57,6 +57,7 @@ export default function Trophies(){
  const [tab,setTab]=useState("verified");
  const [type,setType]=useState("all");
  const [category,setCategory]=useState("all");
+ const [expandedGroups,setExpandedGroups]=useState({});
  const [selectedId,setSelectedId]=useState("");
  const [newRecord,setNewRecord]=useState(false);
  const [draft,setDraft]=useState(null);
@@ -177,7 +178,8 @@ export default function Trophies(){
       <div className="flex items-baseline gap-2"><h2 className="text-sm font-black uppercase tracking-[.08em] text-slate-900">{group.title}</h2><span className="text-[10px] font-medium text-slate-400">{group.items.length} trofeos</span></div>
       {group.kind==="country"&&<span className="text-[10px] text-slate-400">{group.reputation!=null?"Reputación de liga: "+group.reputation:"Sin reputación de liga registrada"}</span>}
      </div>
-     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{group.items.map(t=><TrophyCard key={t.source_id} trophy={t} count={honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
+     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{group.items.slice(0,expandedGroups[group.key]?group.items.length:24).map(t=><TrophyCard key={t.source_id} trophy={t} count={honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
+     {group.items.length>24&&<button type="button" onClick={()=>setExpandedGroups(current=>({...current,[group.key]:!current[group.key]}))} className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{expandedGroups[group.key]?"Mostrar menos":"Ver todos los "+group.items.length+" trofeos"}</button>}
     </section>)}</div>:!catalogLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">No hay trofeos con estos filtros.</div>}
    <div className="my-6 flex items-center gap-2 text-[10px] text-slate-400"><ImageIcon size={13}/> Imágenes desde GitHub: <code>public/assets/trophies/ID.png</code>. Los archivos aún no incorporados muestran un icono neutro. Los datos originales no se modifican.</div>
   </div>
