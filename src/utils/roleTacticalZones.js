@@ -111,21 +111,23 @@ export function tacticalZoneForRole(roleName,position,foot){
  const role=cleanRole(roleName);
  if(!role)return null;
  const family=tacticalRoleFamily(position);
- const match=Object.entries(ROLE_ZONE_SIGNATURES).find(([k])=>matches(k.split(":").slice(1).join(":"),role)&& (k.startsWith(family+":")||k.startsWith("SPECIAL:")));
+ const candidates=Object.entries(ROLE_ZONE_SIGNATURES).filter(([k])=>matches(k.split(":").slice(1).join(":"),role));
+ const match=candidates.find(([k])=>k.startsWith(family+":"))||candidates.find(([k])=>k.startsWith("SPECIAL:"))||candidates[0];
  if(!match)return null;
  const [key,signature]=match;
  const special=key.startsWith("SPECIAL:");
+ const effectiveFamily=special?family:key.split(":")[0];
  const base=BASE[family]||BASE.CM;
  let zone=special?{cx:base.cx+signature.cx,cy:base.cy+signature.cy,rx:base.rx*signature.rx,ry:base.ry*signature.ry,rotation:signature.rotation}:{...signature};
  const pos=String(position||"").toUpperCase().trim().replace(/\s+/g,"");
  const explicitlyLeft=LEFT.has(pos),explicitlyRight=RIGHT.has(pos);
- const flank=family==="FB"||family==="W";
+ const flank=effectiveFamily==="FB"||effectiveFamily==="W";
  if(flank&&explicitlyRight)zone={...zone,cx:100-zone.cx,rotation:-zone.rotation};
  else if(flank&&!explicitlyLeft&&!explicitlyRight){
    // No side is registered: don't guess an edge from the player's foot.
    zone={...zone,cx:50,rx:Math.max(zone.rx,19),rotation:0};
  }
- return {...zone,family,roleName:role,preferredFoot:dominantFoot(foot)};
+ return {...zone,family:effectiveFamily,roleName:role,preferredFoot:dominantFoot(foot)};
 }
 export const getUnmappedTacticalRoles=catalog=>catalog.flatMap(group=>group.options.map(o=>({group:group.group,name:cleanRole(o)}))).filter(item=>{
  const family={"Goalkeepers":"GK","Centre-Backs":"CB","Full-Backs / Wing-Backs":"FB","Central Midfielders":"CM","Attacking Midfielders":"CAM","Wingers":"W","Strikers":"ST","Special Roles":"SPECIAL"}[item.group];
