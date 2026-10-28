@@ -1173,7 +1173,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
       {typeof document !== "undefined" && (jerseyDisplay || jerseyPosition) && createPortal(
         <div className="pointer-events-none fixed z-[65] hidden lg:flex flex-col items-start select-none" style={{left:"calc(50% - 335px)",top:"36%"}} aria-label={`Dorsal ${jerseyDisplay || "sin asignar"} · Posición ${jerseyPosition || "sin asignar"}`}>
-          {jerseyPosition && <div className="ml-3 mb-[-12px] text-[clamp(27px,3vw,44px)] font-black leading-none tracking-[-0.05em]" style={{color:jerseyColors.fill,WebkitTextStroke:`2px ${jerseyColors.outline}`}}>{jerseyPosition}</div>}
+          {jerseyPosition && <div className="absolute left-[calc(100%+24px)] top-1 text-[clamp(27px,3vw,44px)] font-black leading-none tracking-[-0.05em] whitespace-nowrap" style={{color:jerseyColors.fill,WebkitTextStroke:`2px ${jerseyColors.outline}`}}>{jerseyPosition}</div>}
           {jerseyDisplay && <div className="relative">
             <span aria-hidden="true" className="pointer-events-none absolute -left-7 top-5 z-10 text-[clamp(30px,3vw,46px)] font-black leading-none" style={{color:jerseyColors.outline}}>#</span>
             <span className="relative block font-black leading-none tracking-[-0.09em] text-[clamp(108px,12vw,185px)]" style={{color:jerseyColors.fill,WebkitTextStroke:`5px ${jerseyColors.outline}`,paintOrder:"stroke fill",filter:"drop-shadow(0 4px 0 rgba(10,25,60,.12))"}}>{jerseyDisplay}</span>
