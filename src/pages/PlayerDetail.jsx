@@ -788,6 +788,24 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
     return { primaryColor, middleColor: pastel };
   }, [team?.primary_color, team?.primaryColor]);
 
+  // Colores del dorsal: los dos colores registrados en el club, con contraste sobre fondos claros.
+  const jerseyColors=useMemo(()=>{
+    const primary=normalizeHexColor(team?.primary_color||team?.primaryColor,"#003399");
+    const secondary=normalizeHexColor(team?.secondary_color||team?.secondaryColor,"#F5D64C");
+    const luminance=hex=>{
+      const rgb=hexToRgb(hex);
+      const linear=[rgb.r,rgb.g,rgb.b].map(v=>{const c=v/255;return c<=0.04045?c/12.92:((c+0.055)/1.055)**2.4;});
+      return linear[0]*0.2126+linear[1]*0.7152+linear[2]*0.0722;
+    };
+    // White/yellow club colors need darkening to remain readable on a light player background.
+    const fill=luminance(primary)>0.67?darkenHex(primary,0.62):primary;
+    let outline=luminance(secondary)>0.8?darkenHex(secondary,0.33):secondary;
+    if(Math.abs(luminance(fill)-luminance(outline))<0.16){
+      outline=luminance(fill)<0.35?mixHexColors(secondary,"#FFFFFF",0.45):mixHexColors(secondary,"#172554",0.42);
+    }
+    return {fill,outline};
+  },[team?.primary_color,team?.primaryColor,team?.secondary_color,team?.secondaryColor]);
+
   // Mapa de logos normalizado para la trayectoria (búsqueda O(1) por club).
   const historyLogoMap = useMemo(() => {
     const map = new Map();
@@ -1145,8 +1163,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
       {typeof document !== "undefined" && (jerseyDisplay || jerseyPosition) && createPortal(
         <div className="pointer-events-none fixed z-[65] hidden lg:flex flex-col items-start select-none" style={{left:"calc(50% - 335px)",top:"36%"}} aria-label={`Dorsal ${jerseyDisplay || "sin asignar"} · Posición ${jerseyPosition || "sin asignar"}`}>
-          {jerseyPosition && <div className="ml-3 mb-[-12px] text-[clamp(27px,3vw,44px)] font-black leading-none tracking-[-0.05em]" style={{color:"#123F79",WebkitTextStroke:"1px #F5D64C"}}>{jerseyPosition}</div>}
-          {jerseyDisplay && <span className="font-black leading-none tracking-[-0.09em] text-[clamp(108px,12vw,185px)]" style={{color:"#123F79",WebkitTextStroke:"3px #F5D64C",paintOrder:"stroke fill",filter:"drop-shadow(0 4px 0 rgba(10,25,60,.12))"}}>{jerseyDisplay}</span>}
+          {jerseyPosition && <div className="ml-3 mb-[-12px] text-[clamp(27px,3vw,44px)] font-black leading-none tracking-[-0.05em]" style={{color:jerseyColors.fill,WebkitTextStroke:`1px ${jerseyColors.outline}`}}>{jerseyPosition}</div>}
+          {jerseyDisplay && <span className="font-black leading-none tracking-[-0.09em] text-[clamp(108px,12vw,185px)]" style={{color:jerseyColors.fill,WebkitTextStroke:`3px ${jerseyColors.outline}`,paintOrder:"stroke fill",filter:"drop-shadow(0 4px 0 rgba(10,25,60,.12))"}}>{jerseyDisplay}</span>}
         </div>,document.body
       )}
 
