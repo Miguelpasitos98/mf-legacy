@@ -168,3 +168,28 @@ test('columnas personalizadas SV/90 y xA/90 de Keylor leen FotMob y no duplican 
  assert.equal(columnValue(league,'competition','calc_mvjxvg1a',config),94/22);
  assert.equal(columnValue(league,'competition','calc_mvjxxrw3',config),0.002165059516714378);
 });
+test('Keylor Navas: las columnas antiguas G received/90 y G Evited/90 se calculan con las tasas de FotMob',()=>{
+ const config=initialConfig();
+ config.computed.push({id:'calc_mvjxvmyr',name:'G recived /90',formula:'goalsconcededwhileonpitch * 90 / minutes',decimals:2});
+ const rows=[
+  {season:'2025/2026',competition:'Liga MX Clausura',minutes:null,appearances:22,metrics:[{name:'Goals conceded',value:24,per90:24/22},{name:'Goals prevented',value:7.62,per90:0.3463636419989846}]},
+  {season:'2025/2026',competition:'Liga MX Apertura',minutes:null,appearances:15,metrics:[{name:'Goals conceded',value:19,per90:19/15},{name:'Goals prevented',value:2.19,per90:0.14600000381469727}]}
+ ];
+ const summary={records:rows};
+ assert.ok(Math.abs(columnValue(summary,'season','calc_mvjxvmyr',config)-43/37)<1e-8);
+ assert.ok(Math.abs(columnValue(summary,'season','calc_goals_prevented_p90',config)-(0.3463636419989846*22+0.14600000381469727*15)/37)<1e-8);
+ assert.ok(Math.abs(columnValue(rows[0],'competition','calc_mvjxvmyr',config)-24/22)<1e-8);
+ assert.equal(columnValue(rows[0],'competition','calc_goals_prevented_p90',config),0.3463636419989846);
+});
+test('Portería mantiene SV/90, oculta xA/90 antiguo y conserva columna xA en otras categorías',()=>{
+ const config=initialConfig();config.version=3;
+ config.computed.push({id:'calc_oldxa',name:'xA/90',formula:'xa * 90 / minutes',decimals:2});
+ config.columns.season.Portería=['saves','calc_oldxa','calc_goals_prevented'];
+ config.columns.competition.Portería=['saves','xaper90'];
+ config.columns.season.Creación=['xaper90'];
+ const clean=sanitizeConfig(config);
+ assert.ok(clean.columns.season.Portería.includes('savesper90'));
+ assert.ok(!clean.columns.season.Portería.includes('calc_oldxa'));
+ assert.ok(!clean.columns.competition.Portería.includes('xaper90'));
+ assert.ok(clean.columns.season.Creación.includes('xaper90'));
+});
