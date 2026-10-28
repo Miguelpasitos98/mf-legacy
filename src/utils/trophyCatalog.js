@@ -6,9 +6,17 @@ export const TROPHY_CATEGORIES=["League","Cup","Supercup","International","Indiv
 const safe=v=>String(v??"").trim();
 export const normaliseSearch=v=>safe(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 export const trophyImagePath=id=>"/assets/trophies/"+encodeURIComponent(safe(id))+".png";
+const TROPHY_IMAGE_REPO="https://raw.githubusercontent.com/Miguelpasitos98/My-Legacy/main/";
+export const trophySourceImageUrl=sourcePath=>{
+ const path=safe(sourcePath).replace(/\\\\/g,"/");
+ if(!path.startsWith("Trofeos identificados/")||! /\\.(png|webp|jpe?g)$/i.test(path))return "";
+ return TROPHY_IMAGE_REPO+path.split("/").map(encodeURIComponent).join("/");
+};
 export const trophyImageUrl=(trophy,manifest)=>{
  const custom=safe(trophy?.image_url);if(custom)return custom;
  const id=safe(trophy?.source_id);
+ const direct=trophySourceImageUrl(trophy?.source_path);
+ if(direct)return direct;
  if(manifest?.byId?.[id])return manifest.byId[id];
  const names=[trophy?.source_name,trophy?.name, String(trophy?.source_path||"").split("/").pop()?.replace(/\.(png|webp|jpe?g)$/i,"")];
  for(const label of names){
