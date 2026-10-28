@@ -1,5 +1,4 @@
 import React, {useMemo} from "react";
-import LayoutEditor from "./LayoutEditor";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
 import {compareHistoricalObservation,historicalPercentile} from "@/utils/historicalPeers";
 
@@ -48,7 +47,7 @@ const scoreAxis=(keys,observation,peers)=>{
  return eligible.length?Math.round(eligible.reduce((a,b)=>a+b,0)/eligible.length):null;
 };
 // Replace with coordinates copied from the temporary layout editor.
-const DEFAULT_RADAR={left:16,top:130,width:240,height:296};
+const FIXED_RADAR={left:17.1112060546875,top:242.22222900390625,width:291.111083984375,height:333.77783203125};
 export default function BestSeasonRadar({playerId, color="#D62828"}){
  const {data,isLoading,isError}=useHistoricalPeerDataset(Boolean(playerId));
  const result=useMemo(()=>{
@@ -63,7 +62,7 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
       axes:axes.map(([name,keys])=>({name,value:scoreAxis(keys,best.o,obs.filter(o=>o.role===best.o.role))}))};
  },[data,playerId]);
  const valid=result?.axes.filter(a=>a.value!==null).length||0;
- return <LayoutEditor name="Player Profile" initial={DEFAULT_RADAR} legacyKey="mf-legacy-player-profile-position-v1" legacySizeKey="mf-legacy-player-profile-size-v1" zIndex={30}><div className="pointer-events-none flex h-full w-full flex-col overflow-hidden rounded-xl bg-white" style={{color:"#334155"}}>
+ return <div className="pointer-events-none absolute z-30" style={FIXED_RADAR}><div className="flex h-full w-full flex-col overflow-hidden rounded-xl bg-white" style={{color:"#334155"}}>
    <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3">
      <span className="truncate text-[11px] font-black tracking-wide">PLAYER PROFILE</span>
      <span className="shrink-0 text-[10px] font-semibold text-slate-500">{result?.season||""}</span>
@@ -84,5 +83,5 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
      <div className="shrink-0 px-2 pb-2 text-center text-[10px] font-medium text-slate-500">{valid}/{result.axes.length} categorías · {result.role} · {result.composite.toFixed(1)} Composite</div>
    </div>}
 
- </div></LayoutEditor>;
+ </div></div>;
 }
