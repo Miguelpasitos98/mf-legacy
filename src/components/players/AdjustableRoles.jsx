@@ -10,9 +10,9 @@ const load=()=>{
   return stored&&["left","bottom","width"].every(k=>Number.isFinite(stored[k]))?stored:DEFAULT;
  } catch {return DEFAULT;}
 };
-export default function AdjustableRoles({ratings}){
+export default function AdjustableRoles({ratings,playerId,position,foot}){
  const layout=useMemo(load,[]);
  return <div className="pointer-events-none absolute hidden lg:block" style={{...layout,zIndex:24}}>
-  <RoleFieldConcept ratings={ratings}/>
+  <RoleFieldConcept ratings={ratings} playerId={playerId} position={position} foot={foot}/>
  </div>;
 }
