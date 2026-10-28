@@ -135,10 +135,17 @@ export default function TransferChartMini({ player, clubs = [] }) {
             <Tooltip content={<MiniTooltip/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
             {segments.map((seg,i)=><Area key={i} type="monotone" dataKey={`s${i}`} stroke={seg.color} strokeWidth={2.6} fill={`url(#mini-market-${i})`} connectNulls={false} dot={false} activeDot={false} isAnimationActive={false}/>)}
             {segments.map((segment,i)=>{
-              const point=chartData[segment.indices[0]];
-              if(!point?.clubLogo)return null;
-              return <ReferenceDot key={i} x={point.timestamp} y={point.value} isFront={true} ifOverflow="visible"
-                shape={({cx,cy})=><image href={point.clubLogo} x={cx-11} y={cy-29} width={22} height={22} preserveAspectRatio="xMidYMid meet"/>}/>;
+              const first=chartData[segment.indices[0]];
+              const last=chartData[segment.indices[segment.indices.length-1]];
+              if(!first?.clubLogo || !last)return null;
+              // Punto medio temporal del tramo, con altura interpolada sobre la curva.
+              const midpoint=(first.timestamp+last.timestamp)/2;
+              const left=segment.indices.map(index=>chartData[index]).filter(point=>point.timestamp<=midpoint).at(-1)||first;
+              const right=segment.indices.map(index=>chartData[index]).find(point=>point.timestamp>=midpoint)||last;
+              const fraction=right.timestamp===left.timestamp?0:(midpoint-left.timestamp)/(right.timestamp-left.timestamp);
+              const height=left.value+(right.value-left.value)*fraction;
+              return <ReferenceDot key={i} x={midpoint} y={height} isFront={true} ifOverflow="visible"
+                shape={({cx,cy})=><image href={first.clubLogo} x={cx-11} y={cy-29} width={22} height={22} preserveAspectRatio="xMidYMid meet"/>}/>;
             })}
           </AreaChart>
         </ResponsiveContainer>
