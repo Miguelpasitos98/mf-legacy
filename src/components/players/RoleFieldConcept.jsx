@@ -1,5 +1,6 @@
 import React, {useEffect,useId,useState} from "react";
 import {createPortal} from "react-dom";
+import {base44} from "@/api/base44Client";
 import {compactPositionValue} from "@/utils/compactPositionRatings";
 import {PLAYER_DESCRIPTIONS} from "@/components/players/playerFormShared";
 import {tacticalZoneForRole} from "@/utils/roleTacticalZones";
@@ -37,29 +38,44 @@ const ALL_ROLES=PLAYER_DESCRIPTIONS.flatMap(group=>group.options);
 const comparableRole=value=>String(value||"").replace(/^[^\p{L}\p{N}]+/u,"").trim().toLocaleLowerCase("es");
 const canonicalRole=value=>ALL_ROLES.find(option=>option===value||comparableRole(option)===comparableRole(value))||String(value||"");
 const EMPTY=[{name:"",description:""},{name:"",description:""}];
-export default function RoleFieldConcept({ratings={},playerId,position,foot}){
+export default function RoleFieldConcept({ratings={},playerId,position,foot,storedRoles,onSaved}){
  const key="mf-legacy-tactical-role-settings-v1:"+String(playerId||"preview");
  const [roles,setRoles]=useState(EMPTY);
  const [editing,setEditing]=useState(null);
  const [activeRole,setActiveRole]=useState(null);
+ const [saving,setSaving]=useState(false);
+ const [saveError,setSaveError]=useState("");
  const svgId=useId().replace(/:/g,"");
  const [draft,setDraft]=useState({name:"",description:""});
+ const normalizedRoles=value=>Array.isArray(value)&&value.length===2?
+  value.map(x=>({name:canonicalRole(x?.name),description:String(x?.description||"")})):null;
  useEffect(()=>{
-  try{
-   const stored=JSON.parse(window.localStorage.getItem(key)||"null");
-   setRoles(Array.isArray(stored)&&stored.length===2?stored.map(x=>({name:canonicalRole(x?.name),description:String(x?.description||"")})):EMPTY);
-  }catch{setRoles(EMPTY);}
-  setEditing(null);
-  setActiveRole(null);
- },[key]);
- const openEditor=i=>{setDraft({...roles[i]});setEditing(i);};
+  // Canonical Base44 data wins over the old browser-only draft.
+  const persisted=normalizedRoles(storedRoles);
+  if(persisted){setRoles(persisted);}
+  else{
+   try{const legacy=JSON.parse(window.localStorage.getItem(key)||"null");setRoles(normalizedRoles(legacy)||EMPTY);}
+   catch{setRoles(EMPTY);}
+  }
+  setEditing(null);setActiveRole(null);setSaveError("");
+ },[key,storedRoles]);
+ const openEditor=i=>{setDraft({...roles[i]});setEditing(i);setSaveError("");};
  const toggleRole=i=>{if(!roles[i].name){openEditor(i);return;}setActiveRole(value=>value===i?null:i);};
- const save=()=>{
+ const save=async()=>{
+  if(saving||!playerId)return;
   const next=roles.map((r,i)=>i===editing?{name:draft.name.trim(),description:draft.description.trim()}:r);
-  setRoles(next);
-  setActiveRole(next[editing]?.name?editing:null);
-  try{window.localStorage.setItem(key,JSON.stringify(next));}catch{}
-  setEditing(null);
+  setSaving(true);setSaveError("");
+  try{
+   await base44.entities.Player.update(playerId,{tactical_roles:next});
+   setRoles(next);
+   setActiveRole(next[editing]?.name?editing:null);
+   onSaved?.({tactical_roles:next});
+   // Stop using local browser state after a successful server save.
+   try{window.localStorage.removeItem(key);}catch{}
+   setEditing(null);
+  }catch(error){
+   setSaveError(error?.message||"No se pudo guardar el rol en Base44.");
+  }finally{setSaving(false);}
  };
  const zone=activeRole!==null?tacticalZoneForRole(roles[activeRole]?.name,position,foot):null;
  return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Roles y posiciones">
@@ -119,9 +135,10 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot}){
      </select>
      <label htmlFor="role-description" className="mb-1 block text-xs font-bold text-slate-600">Tu descripción (opcional)</label>
      <textarea id="role-description" value={draft.description} onChange={e=>setDraft(v=>({...v,description:e.target.value}))} placeholder="Escribe aquí tu propia descripción del rol…" rows={4} className="w-full resize-y rounded-lg border border-slate-300 p-3 text-sm text-slate-900"/>
+     {saveError&&<p role="alert" className="mt-2 text-xs font-medium text-red-600">{saveError}</p>}
      <div className="mt-4 flex justify-end gap-2">
       <button type="button" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" onClick={()=>setEditing(null)}>Cancelar</button>
-      <button type="button" className="rounded-lg bg-[#003399] px-4 py-2 text-sm font-bold text-white" onClick={save}>Guardar rol</button>
+      <button type="button" className="rounded-lg bg-[#003399] px-4 py-2 text-sm font-bold text-white" onClick={save} disabled={saving||!playerId}>{saving?"Guardando…":"Guardar rol"}</button>
      </div>
     </div>
    </div>,document.body)}
