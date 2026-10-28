@@ -15,6 +15,7 @@ export default function TopNavbar() {
     { label: "POSESIÓN", path: "/possession" },
     { label: "PLAYERS", path: "/players" },
     { label: "TEAMS", path: "/teams" },
+    { label: "TROPHIES", path: "/trophies" },
     { label: "COUNTRIES", path: "/countries" },
   ];
 
