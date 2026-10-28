@@ -128,15 +128,15 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
         const isBest=indicator.best!==null&&strength===indicator.best.strength;
         const delta=indicator.best!==null?strength-indicator.best.strength:null;
         const title="Percentil bruto "+fmt(row.percentile,2)+" de 100 · valor "+fmt(row.value,2)+" · puesto "+row.rank+" de "+row.n+" temporadas de "+row.nPlayers+" jugadores"+(row.penalty?" · indicador penalizado (menos es mejor)":"")+" · aporta "+fmt(row.contribution,2)+(row.provisional?" · muestra reducida":"");
-        return <td key={season.summary.id} className={"px-3 py-2 text-right "+(isBest?"bg-emerald-50":"")} title={title}>
-         <span className="block text-sm tabular-nums" style={{color:isBest?undefined:seasonColor(cell.index)}}>
+        return <td key={season.summary.id} className={"min-w-[146px] px-3 py-3 text-right align-middle "+(isBest?"bg-emerald-50":"")} title={title}><div className="flex flex-col items-end gap-1">
+         <span className="block text-base leading-tight tabular-nums" style={{color:isBest?undefined:seasonColor(cell.index)}}>
           <span className={isBest?"font-black text-emerald-800":"font-bold"}>{fmt(row.percentile,1)}</span>
          </span>
-         <span className="block text-[10px] text-slate-500">{fmt(row.value,2)}{row.provisional&&<span className="text-amber-600"> *</span>}</span>
+         <span className="block text-[11px] font-medium tabular-nums text-slate-600" title="Valor real del indicador">Valor {fmt(row.value,2)}{row.provisional&&<span className="text-amber-600"> *</span>}</span>
          {Number.isInteger(row.rank)&&Number.isInteger(row.n)&&row.n>0&&<span className="mt-1 inline-flex items-baseline gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 font-semibold tabular-nums text-slate-700" title={"Puesto histórico de esta temporada en "+indicator.name+": "+row.rank+" de "+row.n+" temporadas comparables · "+row.nPlayers+" jugadores distintos"+(row.penalty?" · menos es mejor":"")}><span className="text-[11px] font-black text-[#003399]">#{row.rank}</span><span className="text-[10px] text-slate-500">/ {row.n}</span></span>}
-         <span className={"mt-0.5 inline-block rounded px-1.5 text-[10px] font-bold tabular-nums "+(isBest?"bg-emerald-600 text-white":"bg-rose-100 text-rose-800")} title={isBest?"Mejor percentil de la fila":"Diferencia en puntos de percentil frente al mejor de la fila"}>{isBest?"mejor":signed(delta)}</span>
+         <span className={"inline-block rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums "+(isBest?"bg-emerald-600 text-white":"bg-rose-100 text-rose-800")} title={isBest?"Mejor percentil de la fila":"Diferencia en puntos de percentil frente al mejor de la fila"}>{isBest?"mejor":signed(delta)}</span>
          <span className={"mt-1 inline-flex items-center justify-end gap-1 rounded-md border px-2 py-1 text-[12px] font-extrabold tabular-nums "+(row.contribution===null?"border-slate-200 bg-slate-50 text-slate-500":row.contribution<0?"border-rose-200 bg-rose-50 text-rose-800":"border-blue-200 bg-blue-50 text-[#003399]")} title={"Aporte de "+indicator.name+" al Composite de "+season.summary.season+": percentil "+fmt(row.percentile,1)+" × peso "+(indicator.weight===null?"—":indicator.weight+" %")+" = "+signed(row.contribution)+" puntos"}><span className="text-[10px] font-semibold uppercase tracking-wide">Aporta</span><span>{signed(row.contribution)}</span></span>
-        </td>;
+        </div></td>;
        })}
       </tr>;
      })}
