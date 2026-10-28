@@ -32,7 +32,7 @@ export default function SeasonCompareView({entries=[],compositeBySeason=new Map(
       {entries.map(({summary,player})=><ComparePlayerCard key={summary.id} summary={summary} player={player} composite={compositeBySeason.get(compositeSeasonKey(summary.player_id,summary.season))||null} onOpen={onOpenDetail} onTeam={onTeam}/>)}
      </div>
      <CompareAnalysisVerdict model={model}/>
-     <CompareAnalysisTable model={model} peerLoading={peerLoading} peerError={peerError}/>
+     <CompareAnalysisTable model={model} observations={observations} peerLoading={peerLoading} peerError={peerError}/>
      <h3 className="mb-2 mt-5 text-sm font-black uppercase tracking-wide text-[#0d315b]">Estadísticas de origen comparadas</h3>
      {entries.length>8&&<p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">Comparación amplia: usa el desplazamiento horizontal de la tabla para ver todas las columnas.</p>}
      <CompareMetricsTable entries={entries} config={config}/>

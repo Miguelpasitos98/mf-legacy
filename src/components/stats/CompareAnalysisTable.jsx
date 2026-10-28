@@ -1,8 +1,9 @@
-import React from "react";
+import React,{useState} from "react";
 import {AlertTriangle,Crown} from "lucide-react";
 import {strengthOf} from "@/utils/compareAnalysis";
 import {shortSeason} from "@/utils/compareMetrics";
 import CompareDuelBar,{seasonColor} from "@/components/stats/CompareDuelBar";
+import IndicatorHistoricalRankingModal from "@/components/stats/IndicatorHistoricalRankingModal";
 
 // Comparativa del análisis MF LEGACY: cada temporada se compara con su propio
 // arquetipo histórico, con el mismo motor que el Composite de STATS. Solo lectura.
@@ -47,9 +48,10 @@ const summaryDuel=(row,seasons)=>{
  return ranked.length>=2?{best:ranked[0],second:ranked[1],gap:ranked[0].strength-ranked[1].strength}:null;
 };
 
-export default function CompareAnalysisTable({model,peerLoading=false,peerError=null,onOpen}){
+export default function CompareAnalysisTable({model,observations=[],peerLoading=false,peerError=null,onOpen}){
  if(!model)return null;
  const {seasons=[],indicators=[],contested=0}=model;
+ const [rankingIndicator,setRankingIndicator]=useState(null);
  const nameOf=season=>season.player?.name||season.summary?.player_name||"Jugador";
  return <section className="rounded-xl border-2 border-indigo-200 bg-[#f8faff] p-4">
   <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
@@ -112,7 +114,7 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
      {indicators.map(indicator=>{
       const leaderCell=indicator.best?seasons[indicator.best.index]:null;
       return <tr key={indicator.key} className="border-t border-slate-100 odd:bg-white even:bg-[#f7f9fc]">
-       <td className="px-3 py-2 font-semibold text-slate-700">{indicator.name}{indicator.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
+       <td className="px-3 py-2 font-semibold text-slate-700"><button type="button" className="text-left font-bold text-[#003399] underline decoration-blue-200 underline-offset-2 hover:decoration-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500" title={"Ver ranking histórico de "+indicator.name} onClick={()=>setRankingIndicator({indicator,role:seasons.find(x=>x.analysis?.rows?.some(r=>r.key===indicator.key))?.role})}>{indicator.name}</button>{indicator.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
        <td className="px-2 py-2 text-center tabular-nums text-slate-500">{indicator.weight===null?"—":(indicator.weight>0?"+":"")+indicator.weight+" %"}</td>
        <td className="px-3 py-2">
         {leaderCell?<>
@@ -146,6 +148,7 @@ export default function CompareAnalysisTable({model,peerLoading=false,peerError=
    </table>
   </div>
   <p className="mt-2 text-[11px] text-slate-500">Una sola barra por indicador: el centro es el empate y la barra se extiende hacia el jugador que gana, pintada con su color, con la diferencia en puntos de percentil a su lado. Si los valores son iguales la barra se queda quieta en el medio. El color identifica a cada jugador en toda la tabla, la corona señala al mejor de cada fila y la cifra roja es la diferencia exacta frente a ese mejor. Los percentiles comparan temporadas de jugadores distintos, no partidos sueltos.</p>
+  {rankingIndicator?.role&&<IndicatorHistoricalRankingModal indicator={rankingIndicator.indicator} role={rankingIndicator.role} observations={observations} selectedPlayerIds={seasons.map(x=>String(x.summary.player_id))} onClose={()=>setRankingIndicator(null)}/>}
   {onOpen&&<p className="mt-1 text-[11px] text-slate-500">Pulsa «Desglose completo» en cualquier ficha para ver el análisis detallado con la muestra completa.</p>}
  </section>;
 }
