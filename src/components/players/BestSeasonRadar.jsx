@@ -1,4 +1,5 @@
 import React, {useMemo} from "react";
+import LayoutEditor from "./LayoutEditor";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
 import {compareHistoricalObservation,historicalPercentile} from "@/utils/historicalPeers";
 
@@ -62,7 +63,7 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
       axes:axes.map(([name,keys])=>({name,value:scoreAxis(keys,best.o,obs.filter(o=>o.role===best.o.role))}))};
  },[data,playerId]);
  const valid=result?.axes.filter(a=>a.value!==null).length||0;
- return <div className="pointer-events-none absolute z-30" style={FIXED_RADAR}><div className="flex h-full w-full flex-col overflow-hidden rounded-xl bg-white" style={{color:"#334155"}}>
+ return <LayoutEditor name="Player Profile" initial={FIXED_RADAR} zIndex={30}><div className="flex h-full w-full flex-col overflow-hidden rounded-xl bg-white" style={{color:"#334155"}}>
    <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3">
      <span className="truncate text-[11px] font-black tracking-wide">PLAYER PROFILE</span>
      <span className="shrink-0 text-[10px] font-semibold text-slate-500">{result?.season||""}</span>
@@ -83,5 +84,5 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
      <div className="shrink-0 px-2 pb-2 text-center text-[10px] font-medium text-slate-500">{valid}/{result.axes.length} categorías · {result.role} · {result.composite.toFixed(1)} Composite</div>
    </div>}
 
- </div></div>;
+ </div></LayoutEditor>;
 }
