@@ -21,8 +21,8 @@ const NUMBERS=[
 ];
 export default function RoleFieldConcept({ratings={}}){
  return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Vista de prueba de roles y posiciones">
-  <img className="absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
-  <div className="absolute left-[14%] top-[1%] z-10 flex h-[12%] items-center gap-2">
+  <img className="absolute inset-0 h-full w-full object-contain opacity-80" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
+  <div className="absolute left-[14%] top-[-3%] z-10 flex h-[12%] items-center gap-2">
     <span className="flex aspect-square h-full items-center justify-center rounded-xl bg-amber-50/95 text-amber-500 shadow-sm" aria-hidden="true">✩</span>
     <span className="rounded-xl bg-white/70 px-2 py-1 text-[clamp(12px,1.3vw,20px)] font-black text-slate-950">Roles</span>
   </div>
