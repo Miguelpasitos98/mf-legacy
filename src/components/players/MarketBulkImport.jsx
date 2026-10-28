@@ -63,7 +63,7 @@ export default function MarketBulkImport({ player }) {
       const saved=await persistMarketHistory(player.id,merged);
       setError("");setPreview(null);setRaw("");
       alert(`${saved.length} registros guardados y verificados en Base44.`);
-    } catch { setError("No se han podido guardar los datos en el navegador."); }
+    } catch (e) { setError(e?.message||"No se pudo guardar en Base44."); }
   };
   return <section className="rounded-2xl border border-slate-200 bg-white p-5">
     <div className="flex items-center gap-2"><Upload size={17}/><h3 className="text-sm font-black">Bulk Import · Valor de mercado</h3></div>

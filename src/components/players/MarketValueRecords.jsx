@@ -26,7 +26,10 @@ const iso = s => {const v=String(s||""); const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.e
 const read = player => {
   try {
     const saved=window.localStorage.getItem(storageKey(player?.id));
-    return saved === null ? (player?.market_value_history||[]) : JSON.parse(saved);
+    const remote=Array.isArray(player?.market_value_history)?player.market_value_history:[];
+    if(saved===null)return remote;
+    const local=JSON.parse(saved);
+    return [...new Map([...remote,...(Array.isArray(local)?local:[])].map(r=>[r.date,r])).values()].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
   }catch{return player?.market_value_history||[];}
 };
 export default function MarketValueRecords({player,clubs=[]}){
