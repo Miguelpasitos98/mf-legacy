@@ -115,19 +115,15 @@ export default function TransferChartMini({ player, clubs = [] }) {
     setRows(next); setOpen(false); setError("");
   };
   return <>
-    <div className="pointer-events-auto flex h-full min-w-0 flex-1 flex-col text-slate-900">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500">Evolución del valor de mercado</div>
-          <div className="mt-0.5 text-[18px] font-black leading-none">{latest ? prettyMoney(latest.value) : "Sin datos"}</div>
-        </div>
-        <button type="button" aria-label="Editar historial de valor de mercado" onClick={() => {setDraft(data.map(({date,value,team,club_id})=>({date,value:String(value),team,club_id})));setError("");setOpen(true);}} className="shrink-0 rounded-lg border border-slate-200 bg-white/65 p-2 text-slate-700 hover:bg-white">
-          {data.length ? <Pencil size={14}/> : <Plus size={16}/>}
-        </button>
-      </div>
-      {data.length>0 ? <div className="mt-1 min-h-0 flex-1" style={{minHeight:94}}>
+    <div className="pointer-events-auto relative flex h-full min-w-0 flex-1 flex-col text-slate-900">
+      <button type="button" aria-label="Editar historial de valor de mercado" title="Editar valores históricos"
+        onClick={() => {setDraft(data.map(({date,value,team,club_id})=>({date,value:String(value),team,club_id})));setError("");setOpen(true);}}
+        className="absolute right-3 top-3 z-10 rounded-lg border border-slate-200 bg-white/75 p-1.5 text-slate-700 hover:bg-white">
+        {data.length ? <Pencil size={13}/> : <Plus size={15}/>}
+      </button>
+      {data.length>0 ? <div className="min-h-0 flex-1" style={{minHeight:115}}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{top:17,right:5,bottom:0,left:0}}>
+          <AreaChart data={chartData} margin={{top:24,right:6,bottom:0,left:0}}>
             <defs>{segments.map((seg,i)=><linearGradient key={i} id={`mini-market-${i}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={seg.color} stopOpacity={0.35}/>
               <stop offset="100%" stopColor={seg.color} stopOpacity={0.02}/>
