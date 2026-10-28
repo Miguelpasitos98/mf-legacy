@@ -54,7 +54,7 @@ export const DEFAULT_COLS={
  Ataque:["goals","assists","ga","goalsper90","assistsper90","gaper90","xg","xa","xgper90","xaper90","xgaper90","shots","shotsontarget"],
  Creación:["chancescreated","bigchancescreated","accuratepasses","successfulcrosses","xa","xaper90","calc_xgchainper90","calc_xgbuildupper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","cleansheets","calc_groundduelspct"],
- Portería:["saves","savesper90","xaper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
+ Portería:["saves","savesper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
  Físico:["totaldistancecovered","numberofsprints"]
  },
  competition:{
@@ -62,7 +62,7 @@ export const DEFAULT_COLS={
  Ataque:["goals","assists","xg","xa","xgot","shots","shotsontarget","bigchancescreated"],
  Creación:["accuratepasses","chancescreated","bigchancescreated","xa","successfulcrosses","calc_xgchainper90","calc_xgbuildupper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","calc_groundduelspct"],
- Portería:["saves","savesper90","xaper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
+ Portería:["saves","savesper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
  Físico:["totaldistancecovered","numberofsprints"]
  }
 };
@@ -88,9 +88,13 @@ export function sanitizeConfig(data){
    const fromOldDefault=Number(value.version||1)<2&&category==="Resumen"&&Array.isArray(input)&&JSON.stringify(input)===JSON.stringify(legacyDefault);
    columns[mode][category]=Array.isArray(input)?[...new Set(input.filter(k=>typeof k==="string"&&ids.has(k)))].slice(0,30):[...DEFAULT_COLS[mode][category]];
    if(fromOldDefault&&!columns[mode][category].includes("playpct"))columns[mode][category].push("playpct");
+   if(category==="Portería")columns[mode][category]=columns[mode][category].filter(columnId=>{
+    const d=formulas.find(x=>x?.id===columnId)||COMPUTED.find(x=>x.id===columnId);
+    return String(d?.formula||"").replace(/\s+/g,"").toLowerCase()!=="xa*90/minutes";
+   });
    if(category==="Portería"){
     for(const id of ["calc_goals_prevented","calc_goals_prevented_p90"])if(!columns[mode][category].includes(id))columns[mode][category].push(id);
-    if(Number(value.version||1)<4)for(const id of ["savesper90","xaper90"]){
+    if(Number(value.version||1)<4)for(const id of ["savesper90"]){
      const standard=formulas.find(d=>d?.id===id)||COMPUTED.find(d=>d.id===id);
      const matches=(columns[mode][category]||[]).some(columnId=>{
       const other=formulas.find(d=>d?.id===columnId)||COMPUTED.find(d=>d.id===columnId);
@@ -228,6 +232,25 @@ export function columnValue(row,mode,id,config){
    const direct=(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===directRateMetric);
    const value=statNum(direct?.per90);
    if(value!==null)return value;
+  }
+  // Existing custom GK columns also need the safe source-rate fallback.
+  const normalized=normalizedFormula(definition.formula);
+  const concededPer90=normalized==="goalsconcededwhileonpitch*90/minutes";
+  const preventedPer90=normalized===normalizedFormula(COMPUTED.find(d=>d.id==="calc_goals_prevented_p90").formula);
+  if(concededPer90||preventedPer90){
+   const metricName=concededPer90?"goalsconceded":"goalsprevented";
+   if(mode==="competition"){
+    const direct=(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===metricName);
+    const rate=statNum(direct?.per90);
+    if(rate!==null)return rate;
+    const total=statNum(direct?.value);
+    const played=statNum(row.minutes)??((statNum(row.appearances)||0)*90);
+    if(total!==null&&played>0)return total*90/played;
+   }
+   if(mode==="season"&&Array.isArray(row.records)){
+    const direct=estimatedSeasonRate(row.records,metricName);
+    if(direct.value!==null&&direct.covered===direct.total)return direct.value;
+   }
   }
   if(definition.formula===COMPUTED.find(d=>d.id===id)?.formula){
    if(id==="playpct"){
