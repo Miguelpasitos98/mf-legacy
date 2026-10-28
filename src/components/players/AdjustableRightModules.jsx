@@ -2,7 +2,7 @@ import React from "react";
 import BestSeasonRadar from "./BestSeasonRadar";
 
 // Posición definitiva elegida en el editor visual. No depende del almacenamiento local.
-const IMAGE="/assets/mf-legacy-right-modules-v2.png";
+const IMAGE="https://media.base44.com/images/public/6a88359fd43f2af862874b12/e5579142f_ee23e23e_3_.png";
 const FALLBACK_IMAGE="https://media.base44.com/images/public/6a88359fd43f2af862874b12/b4d97cd52_modulos_derecha_mf_legacy_recortados.png";
 const LAYOUT={left:1009,bottom:378,width:654,zIndex:4};
 
