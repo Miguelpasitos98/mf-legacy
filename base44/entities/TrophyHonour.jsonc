@@ -1,0 +1,60 @@
+{
+  "name": "TrophyHonour",
+  "type": "object",
+  "properties": {
+    "trophy_id": {
+      "type": "string",
+      "description": "ID del registro Trophy"
+    },
+    "trophy_source_id": {
+      "type": "string",
+      "description": "ID original para poder reconciliar y migrar"
+    },
+    "season": {
+      "type": "string",
+      "description": "Temporada o edición oficial, ej. 2023/2024 o 2024"
+    },
+    "recipient_type": {
+      "type": "string",
+      "enum": [
+        "Team",
+        "Player"
+      ]
+    },
+    "recipient_id": {
+      "type": "string",
+      "description": "ID real de Team o Player"
+    },
+    "recipient_name": {
+      "type": "string",
+      "description": "Nombre histórico mostrado"
+    },
+    "award_rank": {
+      "type": "number",
+      "description": "Puesto en premios individuales si corresponde"
+    },
+    "goals": {
+      "type": "number",
+      "description": "Goles en premios de goleador si corresponde"
+    },
+    "edition_label": {
+      "type": "string"
+    },
+    "verified": {
+      "type": "boolean"
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "trophy_id",
+    "trophy_source_id",
+    "season",
+    "recipient_type",
+    "recipient_id"
+  ]
+}
