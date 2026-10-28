@@ -19,6 +19,7 @@ import { base44 } from "@/api/base44Client";
 import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryModal";
 import TransferChartMini from "@/components/players/TransferChartMini";
 import AdjustableRoles from "@/components/players/AdjustableRoles";
+import AdjustableRightModules from "@/components/players/AdjustableRightModules";
 import MarketBulkImport from "@/components/players/MarketBulkImport";
 import HistoricalMarketLookup from "@/components/players/HistoricalMarketLookup";
 import MarketCsvUpload from "@/components/players/MarketCsvUpload";
@@ -1122,6 +1123,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       {typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed bottom-8 left-1/2 z-[80] flex w-[min(1440px,calc(100vw-28px))] -translate-x-1/2 gap-5 sm:bottom-10 sm:gap-7">
           <AdjustableRoles ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} />
+          <AdjustableRightModules />
           <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
           <PlayerStatCard background={statCardColors.middleColor} grow={2.1}>
             <TransferChartMini player={editablePlayer} clubs={teams} />
