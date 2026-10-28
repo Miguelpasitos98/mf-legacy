@@ -2,9 +2,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceDot, CartesianGrid } from "recharts";
 import { Plus, Trash2, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { historicalMarketChartRows } from "@/utils/historicalMarketChartRows";
 
-// Prototipo aislado: nunca modifica la entidad Player ni otros datos de Base44.
-// Los cambios manuales se guardan exclusivamente en este navegador.
+// La gráfica lee valores históricos persistentes de Base44.
+// El editor local permanece como prototipo independiente hasta disponer de
+// un guardado de valoraciones con fechas verificadas.
 const storageKey = (id) => `mf-legacy-market-history-preview-v1:${id}`;
 const validDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
 const prettyMoney = (v) => `${Number(v).toLocaleString("es-ES", { maximumFractionDigits: 2 })} M€`;
@@ -72,21 +76,33 @@ function MiniTooltip({ active, payload, minimum, maximum }) {
 }
 export default function TransferChartMini({ player, clubs = [] }) {
   const id = player?.id;
-  const [rows, setRows] = useState(() => readStored(id) ?? originalRows(player));
+  const {data:historicalRows=[],isLoading:historyLoading}=useQuery({
+    queryKey:["mf-legacy","player-market-chart",id],
+    enabled:!!id,
+    queryFn:async()=>{
+      const res=await base44.entities.PlayerHistoricalValuation.filter({player_id:id},{limit:250});
+      return historicalMarketChartRows(Array.isArray(res)?res:res?.items||res?.data||[]);
+    },
+    staleTime:60000,refetchOnWindowFocus:false
+  });
+  const [localRows,setLocalRows]=useState(()=>readStored(id));
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState([]);
   const [error, setError] = useState("");
-  useEffect(() => { setRows(readStored(id) ?? originalRows(player)); setOpen(false); }, [id]);
+  useEffect(() => { setLocalRows(readStored(id)); setOpen(false); }, [id]);
   useEffect(() => {
     const sync = (event) => {
       if (event.type === "storage" && event.key !== storageKey(id)) return;
       if (event.type === "mf-legacy-market-preview-updated" && String(event.detail?.playerId) !== String(id)) return;
-      setRows(readStored(id) ?? originalRows(player));
+      setLocalRows(readStored(id));
     };
     window.addEventListener("mf-legacy-market-preview-updated", sync);
     window.addEventListener("storage", sync);
     return () => { window.removeEventListener("mf-legacy-market-preview-updated", sync); window.removeEventListener("storage", sync); };
   }, [id, player]);
+  // Production historical valuations are the canonical source. A local
+  // preview remains a fallback only, never an empty override of saved values.
+  const rows=historicalRows.length?historicalRows:localRows?.length?localRows:originalRows(player);
   const data = useMemo(() => validRows(rows).map((r) => {
     const club = resolveClub(r,clubs);
     return {...r, timestamp:new Date(r.date+"T12:00:00").getTime(),
@@ -150,7 +166,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
     const next = validRows(draft);
     try { window.localStorage.setItem(storageKey(id), JSON.stringify(next)); }
     catch { setError("El navegador no permite guardar los datos locales."); return; }
-    setRows(next); setOpen(false); setError("");
+    setLocalRows(next); setOpen(false); setError("");
   };
   return <>
     <div className="pointer-events-auto relative flex h-full min-w-0 flex-1 flex-col text-slate-900">
@@ -181,7 +197,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
             })}
           </AreaChart>
         </ResponsiveContainer>
-      </div> : <div className="mt-3 flex flex-1 items-center text-xs text-slate-500">Pulsa + para introducir el primer valor histórico.</div>}
+      </div> : <div className="mt-3 flex flex-1 items-center text-xs text-slate-500">{historyLoading?"Cargando valores de mercado históricos…":"No hay valores históricos de mercado con fecha disponibles."}</div>}
       <div className="mt-1 flex items-center justify-between gap-3 text-[10px]">
         <span className="text-slate-500">MÁXIMO <strong className="ml-1 font-black text-emerald-700">{maxValue === null ? "—" : prettyMoney(maxValue)}</strong></span>
         <span className="text-slate-500">MÍNIMO <strong className="ml-1 font-black text-rose-700">{minValue === null ? "—" : prettyMoney(minValue)}</strong></span>
