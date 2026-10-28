@@ -3,32 +3,25 @@ import {compactPositionValue} from "@/utils/compactPositionRatings";
 
 // Prototipo de disposición usando la imagen facilitada por el usuario.
 // Solo los números son dinámicos; la ilustración original permanece intacta.
-const IMAGE="https://media.base44.com/images/public/6a88359fd43f2af862874b12/d675c10b1_Campo_de_ftbol_azul_en_perspectiva.png";
+const IMAGE="https://media.base44.com/images/public/6a88359fd43f2af862874b12/6d8135465_ChatGPT_Image_21_ago_2026__12_30_18_4_.png";
 // Posiciones del campo anterior: únicamente cambia la capa de indicadores.
 const NUMBERS=[
- ["delantero","DL(C)",50,41.5],
- ["mediapunta_por_la_izquierda","EI",24,50.3],
- ["mediapunta_central","MP(C)",50,50.3],
- ["mediapunta_por_la_derecha","ED",76,50.3],
- ["mc_left","MC",39,59.3],
- ["mc_right","MC",61,59.3],
- ["carrilero_izquierdo","CR(I)",18,69.5],
- ["mediocentro","MCD",50,69.5],
- ["carrilero_derecho","CR(D)",82,69.5],
- ["defensa_central","DFC(I)",39,77],
- ["defensa_central","DFC(D)",61,77],
- ["portero","POR",50,85.1],
+ ["delantero","DL(C)",50,47.5],
+ ["mediapunta_por_la_izquierda","EI",24,57.5],
+ ["mediapunta_central","MP(C)",50,57.5],
+ ["mediapunta_por_la_derecha","ED",76,57.5],
+ ["mc_left","MC",39,66.1],
+ ["mc_right","MC",61,66.1],
+ ["carrilero_izquierdo","CR(I)",18,75.4],
+ ["mediocentro","MCD",50,75.4],
+ ["carrilero_derecho","CR(D)",82,75.4],
+ ["defensa_central","DFC(I)",39,82.2],
+ ["defensa_central","DFC(D)",61,82.2],
+ ["portero","POR",50,89.1],
 ];
 export default function RoleFieldConcept({ratings={}}){
  return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Vista de prueba de roles y posiciones">
-  <img className="absolute inset-0 h-full w-full object-contain opacity-80" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
-  <div className="absolute left-[14%] top-[-3%] z-10 flex h-[12%] items-center gap-2">
-    <span className="flex aspect-square h-full items-center justify-center rounded-xl bg-amber-50/95 text-amber-500 shadow-sm" aria-hidden="true">✩</span>
-    <span className="rounded-xl bg-white/70 px-2 py-1 text-[clamp(12px,1.3vw,20px)] font-black text-slate-950">Roles</span>
-  </div>
-  {[17,28].map(top=><div key={top} className="absolute left-[14%] z-10 flex h-[8.5%] w-[72%] items-center justify-end rounded-xl border border-slate-200 bg-white/95 px-3 shadow-sm" style={{top:`${top}%`}}>
-    <span className="text-[clamp(15px,2.1vw,26px)] font-black leading-none text-emerald-500">+</span>
-  </div>)}
+  <img className="absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
   {NUMBERS.map(([key,label,x,y],i)=>{
     const n=compactPositionValue(ratings,key);
     const tone=n>=16?"#079a56":n>=12?"#30a666":n>=7?"#ed8615":n>=2?"#ea6135":"#d74755";
