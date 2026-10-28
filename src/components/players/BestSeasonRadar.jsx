@@ -1,4 +1,4 @@
-import React, {useMemo} from "react";
+import React, {useMemo,useRef,useState} from "react";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
 import {compareHistoricalObservation,historicalPercentile} from "@/utils/historicalPeers";
 
@@ -36,7 +36,38 @@ const scoreAxis=(keys,observation,peers)=>{
  });
  return eligible.length?Math.round(eligible.reduce((a,b)=>a+b,0)/eligible.length):null;
 };
+const RADAR_POSITION_KEY="mf-legacy-player-profile-position-v1";
+const DEFAULT_POSITION={x:16,y:130};
+const readPosition=()=>{
+ try {
+   const stored=JSON.parse(window.localStorage.getItem(RADAR_POSITION_KEY)||"null");
+   return Number.isFinite(stored?.x)&&Number.isFinite(stored?.y)?stored:DEFAULT_POSITION;
+ } catch {return DEFAULT_POSITION;}
+};
 export default function BestSeasonRadar({playerId, color="#D62828"}){
+ const [position,setPosition]=useState(readPosition);
+ const drag=useRef(null);
+ const onPointerDown=e=>{
+   if(e.button!==0 && e.pointerType==="mouse")return;
+   e.preventDefault();
+   drag.current={pointer:e.pointerId,startX:e.clientX,startY:e.clientY,x:position.x,y:position.y};
+   e.currentTarget.setPointerCapture(e.pointerId);
+ };
+ const onPointerMove=e=>{
+   if(!drag.current||drag.current.pointer!==e.pointerId)return;
+   setPosition({x:drag.current.x+e.clientX-drag.current.startX,y:drag.current.y+e.clientY-drag.current.startY});
+ };
+ const onPointerEnd=e=>{
+   if(!drag.current||drag.current.pointer!==e.pointerId)return;
+   const next={x:drag.current.x+e.clientX-drag.current.startX,y:drag.current.y+e.clientY-drag.current.startY};
+   drag.current=null;
+   setPosition(next);
+   try {window.localStorage.setItem(RADAR_POSITION_KEY,JSON.stringify(next));}catch{}
+ };
+ const resetPosition=()=>{
+   setPosition(DEFAULT_POSITION);
+   try{window.localStorage.removeItem(RADAR_POSITION_KEY);}catch{}
+ };
  const {data,isLoading,isError}=useHistoricalPeerDataset(Boolean(playerId));
  const result=useMemo(()=>{
    const obs=data?.observations||[];
@@ -50,10 +81,10 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
       axes:axes.map(([name,keys])=>({name,value:scoreAxis(keys,best.o,obs.filter(o=>o.role===best.o.role))}))};
  },[data,playerId]);
  const valid=result?.axes.filter(a=>a.value!==null).length||0;
- return <div className="pointer-events-auto absolute z-10 flex flex-col overflow-hidden rounded-xl bg-white" style={{left:"2.5%",top:"34%",width:"35%",height:"48%",color:"#334155"}}>
-   <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3">
+ return <div className="pointer-events-auto absolute z-10 flex flex-col overflow-hidden rounded-xl bg-white" style={{left:position.x,top:position.y,width:240,height:296,color:"#334155",zIndex:30}}>
+   <div onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} className="flex shrink-0 cursor-grab select-none items-center justify-between gap-2 rounded-t-xl bg-slate-50 px-3 py-2 active:cursor-grabbing" style={{touchAction:"none"}} title="Arrastra para mover el radar">
      <span className="truncate text-[11px] font-black tracking-wide">PLAYER PROFILE</span>
-     <span className="shrink-0 text-[10px] font-semibold text-slate-500">{result?.season||""}</span>
+     <div className="flex items-center gap-2"><span className="shrink-0 text-[10px] font-semibold text-slate-500">{result?.season||""}</span><button type="button" onPointerDown={e=>e.stopPropagation()} onClick={resetPosition} className="cursor-pointer rounded px-1 text-[10px] text-slate-500 hover:bg-slate-200" title="Restablecer posición">↺</button></div>
    </div>
    {isLoading?<div className="grid flex-1 place-items-center text-[11px] text-slate-400">Cargando Stats…</div>:
    isError?<div className="grid flex-1 place-items-center px-3 text-center text-[11px] text-slate-500">No se pudo consultar Stats</div>:
