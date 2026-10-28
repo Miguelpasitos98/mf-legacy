@@ -12,6 +12,7 @@ import Layout from "@/components/Layout";
 import Home from "@/pages/Home";
 import Countries from "@/pages/Countries";
 import Teams from "@/pages/Teams";
+import Trophies from "@/pages/Trophies";
 import Kits from "@/pages/Kits";
 import Stadiums from "@/pages/Stadiums";
 import StadiumDetail from "@/pages/StadiumDetail";
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/teams" element={<Teams />} />
+        <Route path="/trophies" element={<Trophies />} />
         <Route path="/news" element={<Kits />} />
         <Route path="/schedule" element={<Stadiums />} />
         <Route path="/schedule/stadium/:stadiumKey" element={<StadiumDetail />} />
