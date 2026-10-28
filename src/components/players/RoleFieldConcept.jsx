@@ -1,4 +1,5 @@
 import React, {useEffect,useState} from "react";
+import {createPortal} from "react-dom";
 import {compactPositionValue} from "@/utils/compactPositionRatings";
 
 // Prototipo de disposición usando la imagen facilitada por el usuario.
@@ -82,14 +83,26 @@ export default function RoleFieldConcept({ratings={},playerId,position}){
       <span className="rounded-b-md bg-white px-1.5 text-center font-black leading-tight text-slate-900 shadow-sm" style={{fontSize:"clamp(7px,.73vw,10px)"}}>{label}</span>
     </div>;
   })}
-  {editing!==null&&<div className="pointer-events-auto absolute left-[19%] top-[44%] z-50 w-[63%] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
-    <p className="mb-2 text-xs font-bold text-slate-800">Editar rol {editing+1}</p>
-    <select value={draft.name} onChange={e=>setDraft(v=>({...v,name:e.target.value}))} aria-label="Seleccionar rol" className="mb-2 w-full rounded-md border border-slate-300 p-2 text-xs">
+  {editing!==null&&typeof document!=="undefined"&&createPortal(
+   <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={e=>{if(e.target===e.currentTarget)setEditing(null);}}>
+    <div role="dialog" aria-modal="true" aria-label={`Editar rol ${editing+1}`} className="pointer-events-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+     <div className="mb-4 flex items-center justify-between">
+      <h3 className="text-base font-extrabold text-slate-900">Rol {editing+1}</h3>
+      <button type="button" onClick={()=>setEditing(null)} aria-label="Cerrar" className="rounded-md p-1 text-slate-500 hover:bg-slate-100">✕</button>
+     </div>
+     <label htmlFor="role-choice" className="mb-1 block text-xs font-bold text-slate-600">Seleccionar rol</label>
+     <select id="role-choice" value={draft.name} onChange={e=>setDraft(v=>({...v,name:e.target.value}))} className="mb-4 w-full rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900">
       <option value="">Sin rol asignado</option>
       {Array.from(new Set([...ROLE_SETS[roleGroup(position)],...(draft.name?[draft.name]:[])])).map(name=><option key={name} value={name}>{name}</option>)}
-    </select>
-    <textarea value={draft.description} onChange={e=>setDraft(v=>({...v,description:e.target.value}))} placeholder="Descripción personalizada (opcional)" rows={3} className="w-full resize-none rounded-md border border-slate-300 p-2 text-xs" aria-label="Descripción personalizada"/>
-    <div className="mt-2 flex justify-end gap-2"><button type="button" className="rounded px-2 py-1 text-xs text-slate-500" onClick={()=>setEditing(null)}>Cancelar</button><button type="button" className="rounded bg-blue-700 px-3 py-1 text-xs font-bold text-white" onClick={save}>Guardar</button></div>
-  </div>}
+     </select>
+     <label htmlFor="role-description" className="mb-1 block text-xs font-bold text-slate-600">Tu descripción (opcional)</label>
+     <textarea id="role-description" value={draft.description} onChange={e=>setDraft(v=>({...v,description:e.target.value}))} placeholder="Escribe aquí tu propia descripción del rol…" rows={4} className="w-full resize-y rounded-lg border border-slate-300 p-3 text-sm text-slate-900"/>
+     <div className="mt-4 flex justify-end gap-2">
+      <button type="button" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" onClick={()=>setEditing(null)}>Cancelar</button>
+      <button type="button" className="rounded-lg bg-[#003399] px-4 py-2 text-sm font-bold text-white" onClick={save}>Guardar rol</button>
+     </div>
+    </div>
+   </div>,document.body)}
+
  </div>;
 }
