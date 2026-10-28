@@ -153,3 +153,18 @@ test('las tasas pequeñas no se convierten visualmente en cero',async()=>{
  assert.equal(formatStatRate(3.7567,2),'3,76');
  assert.equal(formatStatRate(0,2),'0,00');
 });
+test('columnas personalizadas SV/90 y xA/90 de Keylor leen FotMob y no duplican migración',()=>{
+ const old=initialConfig();old.version=3;
+ old.computed.push({id:'calc_mvjxvg1a',name:'SV/90',formula:'saves * 90 / minutes',decimals:2});
+ old.computed.push({id:'calc_mvjxxrw3',name:'xA/90',formula:'xa * 90 / minutes',decimals:2});
+ old.columns.season.Portería=['calc_mvjxvg1a','calc_mvjxxrw3','calc_goals_prevented'];
+ const config=sanitizeConfig(old);
+ assert.deepEqual(config.columns.season.Portería.filter(id=>['savesper90','xaper90'].includes(id)),[]);
+ const league={season:'2025/2026',competition:'Liga MX Clausura',minutes:null,appearances:22,metrics:[{name:'Saves',value:94,per90:94/22},{name:'xA',value:0.05,per90:0.002165059516714378}]};
+ const apertura={season:'2025/2026',competition:'Liga MX Apertura',minutes:null,appearances:15,metrics:[{name:'Saves',value:45,per90:3},{name:'xA',value:0.01,per90:0.0006570186465978623}]};
+ const summary={records:[league,apertura]};
+ assert.ok(Math.abs(columnValue(summary,'season','calc_mvjxvg1a',config)-139/37)<1e-9);
+ assert.ok(Math.abs(columnValue(summary,'season','calc_mvjxxrw3',config)-(0.002165059516714378*22+0.0006570186465978623*15)/37)<1e-9);
+ assert.equal(columnValue(league,'competition','calc_mvjxvg1a',config),94/22);
+ assert.equal(columnValue(league,'competition','calc_mvjxxrw3',config),0.002165059516714378);
+});
