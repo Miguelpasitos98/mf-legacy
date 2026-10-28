@@ -100,9 +100,16 @@ export default function TransferChartMini({ player, clubs = [] }) {
     window.addEventListener("storage", sync);
     return () => { window.removeEventListener("mf-legacy-market-preview-updated", sync); window.removeEventListener("storage", sync); };
   }, [id, player]);
-  // Production historical valuations are the canonical source. A local
-  // preview remains a fallback only, never an empty override of saved values.
-  const rows=historicalRows.length?historicalRows:localRows?.length?localRows:originalRows(player);
+  // Preserve full dated market history and its linked club identities from
+  // the existing editor. Season-level valuations are supplementary, never
+  // allowed to replace 23 dated quotes with a sparse 2-point chart.
+  const rows=useMemo(()=>{
+    const detailed=validRows(localRows?.length?localRows:originalRows(player));
+    if(!detailed.length)return historicalRows;
+    const byDate=new Map(historicalRows.map(r=>[r.date,r]));
+    detailed.forEach(r=>byDate.set(r.date,r));
+    return [...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  },[localRows,player,historicalRows]);
   const data = useMemo(() => validRows(rows).map((r) => {
     const club = resolveClub(r,clubs);
     return {...r, timestamp:new Date(r.date+"T12:00:00").getTime(),
