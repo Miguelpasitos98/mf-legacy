@@ -1175,7 +1175,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         <>
           {jerseyDisplay && <div className="pointer-events-none fixed z-[90] hidden select-none lg:block" style={{left:670,top:525,width:277}}>
             <div className="relative w-full">
-              <span aria-hidden="true" className="pointer-events-none absolute -left-[12%] top-[8%] z-10 font-black leading-none" style={{fontSize:Math.round(277*.22),color:jerseyColors.outline}}>#</span>
+              <span aria-hidden="true" className="pointer-events-none absolute -left-[12%] top-[8%] z-10 font-black leading-none" style={{fontSize:Math.round(277*.22),color:jerseyColors.fill,WebkitTextStroke:`${Math.max(2,Math.round(277*.22*.045))}px ${jerseyColors.outline}`,paintOrder:"stroke fill"}}>#</span>
               <span className="relative block w-max max-w-none font-black leading-none tracking-[-0.09em]" style={{fontSize:Math.round(277*.75),color:jerseyColors.fill,WebkitTextStroke:`${Math.max(2,Math.round(277*.023))}px ${jerseyColors.outline}`,paintOrder:"stroke fill",filter:"drop-shadow(0 4px 0 rgba(10,25,60,.12))"}}>{jerseyDisplay}</span>
             </div>
           </div>}
