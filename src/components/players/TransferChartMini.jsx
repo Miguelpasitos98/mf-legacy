@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceDot } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceDot, CartesianGrid } from "recharts";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 // Prototipo aislado: nunca modifica la entidad Player ni otros datos de Base44.
@@ -86,6 +86,8 @@ export default function TransferChartMini({ player, clubs = [] }) {
   const latest=data.at(-1);
   const maxValue=data.length?Math.max(...data.map(row=>row.value)):null;
   const minValue=data.length?Math.min(...data.map(row=>row.value)):null;
+  const axisTop=maxValue===null?1:Math.max(1,maxValue*1.05);
+  const axisTicks=[0,axisTop/2,axisTop].map(v=>Math.round(v*100)/100);
   const segments=useMemo(()=>{
     const result=[];
     data.forEach((point,i)=>{
@@ -133,15 +135,16 @@ export default function TransferChartMini({ player, clubs = [] }) {
     <div className="pointer-events-auto relative flex h-full min-w-0 flex-1 flex-col text-slate-900">
       {data.length>0 ? <div className="min-h-0 flex-1" style={{minHeight:115}}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{top:24,right:6,bottom:0,left:0}}>
+          <AreaChart data={chartData} margin={{top:24,right:9,bottom:0,left:1}}>
             <defs>{segments.map((seg,i)=><linearGradient key={i} id={`mini-market-${i}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={seg.color} stopOpacity={0.35}/>
               <stop offset="100%" stopColor={seg.color} stopOpacity={0.02}/>
             </linearGradient>)}</defs>
             <XAxis dataKey="timestamp" type="number" domain={["dataMin","dataMax"]} tickFormatter={v=>new Date(v).getFullYear()} tick={{fill:"#64748b",fontSize:9}} height={16} axisLine={false} tickLine={false} minTickGap={19}/>
-            <YAxis hide domain={[0, maxValue === null ? 1 : Math.max(1, maxValue * 1.05)]} allowDataOverflow={false}/>
+            <YAxis yAxisId="market" hide domain={[0, axisTop]} ticks={axisTicks} allowDataOverflow={false}/>
+            <CartesianGrid vertical={false} stroke="#64748b" strokeOpacity={0.13} strokeDasharray="3 4"/>
             <Tooltip content={<MiniTooltip/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
-            {segments.map((seg,i)=><Area key={i} type="natural" dataKey={`s${i}`} stroke={seg.color} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" fill={`url(#mini-market-${i})`} connectNulls={false} dot={false} activeDot={{r:3, strokeWidth:1.5}} isAnimationActive={false}/>)}
+            {segments.map((seg,i)=><Area yAxisId="market" key={i} type="natural" dataKey={`s${i}`} stroke={seg.color} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" fill={`url(#mini-market-${i})`} connectNulls={false} dot={false} activeDot={{r:3, strokeWidth:1.5}} isAnimationActive={false}/>)}
             {segments.map((segment,i)=>{
               const first=data[segment.indices[0]];
               const last=data[segment.indices[segment.indices.length-1]];
@@ -152,7 +155,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
               const right=segment.indices.map(index=>chartData[index]).find(point=>point.timestamp>=midpoint)||last;
               const fraction=right.timestamp===left.timestamp?0:(midpoint-left.timestamp)/(right.timestamp-left.timestamp);
               const height=left.value+(right.value-left.value)*fraction;
-              return <ReferenceDot key={i} x={midpoint} y={height} isFront={true} ifOverflow="visible"
+              return <ReferenceDot yAxisId="market" key={i} x={midpoint} y={height} isFront={true} ifOverflow="visible"
                 shape={({cx,cy})=><image href={first.clubLogo} x={cx-13} y={Math.max(0,cy-42)} width={26} height={26} preserveAspectRatio="xMidYMid meet"/>}/>;
             })}
           </AreaChart>
