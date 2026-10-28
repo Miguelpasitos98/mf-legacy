@@ -22,6 +22,7 @@ import TransferChartMini from "@/components/players/TransferChartMini";
 import MarketBulkImport from "@/components/players/MarketBulkImport";
 import HistoricalMarketLookup from "@/components/players/HistoricalMarketLookup";
 import MarketCsvUpload from "@/components/players/MarketCsvUpload";
+import MarketValueRecords from "@/components/players/MarketValueRecords";
 import {changedPlayerFields,playerEditHasChanges,applyPlayerEditPatch} from "@/utils/playerEditPatch";
 
 // MF LEGACY: logos de estado integrados, sin dependencias externas.
@@ -780,7 +781,9 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   // Colores de las tarjetas de estadísticas (solo dependen del color del equipo).
   const statCardColors = useMemo(() => {
     const primaryColor = normalizeHexColor(team?.primary_color || team?.primaryColor, "#003399");
-    return { primaryColor, middleColor: "#F6F1EA" };
+    const rgb = hexToRgb(primaryColor);
+    const pastel = rgbToHex(255 - (255-rgb.r)*0.09, 255 - (255-rgb.g)*0.09, 255 - (255-rgb.b)*0.09);
+    return { primaryColor, middleColor: pastel };
   }, [team?.primary_color, team?.primaryColor]);
 
   // Mapa de logos normalizado para la trayectoria (búsqueda O(1) por club).
@@ -1288,7 +1291,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 ))}
               </div>
 
-              {editTab === "market" && <div className="space-y-5"><HistoricalMarketLookup player={editablePlayer}/><MarketCsvUpload player={editablePlayer}/><MarketBulkImport player={editablePlayer}/></div>}
+              {editTab === "market" && <div className="space-y-5"><HistoricalMarketLookup player={editablePlayer}/><MarketValueRecords player={editablePlayer} clubs={teams}/><MarketCsvUpload player={editablePlayer}/><MarketBulkImport player={editablePlayer}/></div>}
 
               {editTab === "general" && (
                 <div className="space-y-5">
