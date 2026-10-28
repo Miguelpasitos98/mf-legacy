@@ -46,6 +46,16 @@ const scoreAxis=(keys,observation,peers)=>{
  });
  return eligible.length?Math.round(eligible.reduce((a,b)=>a+b,0)/eligible.length):null;
 };
+// Preserve team colors where visible; provide contrast for white/light shirts on white cards.
+const visibleRadarColor=(value)=>{
+ const raw=typeof value==="string"?value.trim():"";
+ const match=/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(raw);
+ if(!match)return raw||"#7C3AED";
+ const hex=match[1].length===3?match[1].split("").map(c=>c+c).join(""):match[1];
+ const rgb=[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16));
+ const luminance=rgb.map(v=>{const x=v/255;return x<=0.04045?x/12.92:((x+0.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[0.2126,0.7152,0.0722][i],0);
+ return luminance>0.72?"#7C3AED":raw;
+};
 // Replace with coordinates copied from the temporary layout editor.
 const FIXED_RADAR={left:12,top:-377,width:296,height:365,zIndex:30};
 export default function BestSeasonRadar({playerId, color="#D62828"}){
@@ -76,7 +86,7 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
          {[25,50,75,100].map(level=><polygon key={level} points={points(result.axes.map(()=>level))}/>)}
          {result.axes.map((axis,i)=>{const [x,y]=pt(i,87,result.axes.length);return <line key={axis.name} x1="125" y1="128" x2={x} y2={y}/>;})}
        </g>
-       {valid===result.axes.length&&<polygon points={points(result.axes.map(a=>a.value))} fill={color} fillOpacity=".30" stroke="none"/>}
+       {valid===result.axes.length&&<polygon points={points(result.axes.map(a=>a.value))} fill={visibleRadarColor(color)} fillOpacity=".30" stroke="none"/>}
        {result.axes.map((a,i)=>{
          const [rawX,y]=pt(i,111,result.axes.length);
          const x=a.name==="Passing"?rawX-12:rawX;
