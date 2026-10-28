@@ -37,6 +37,7 @@ export const COMPUTED=[
  {id:"gaper90",name:"G+A /90",formula:"(goals + assists) * 90 / minutes",decimals:2},
  {id:"xgper90",name:"xG /90",formula:"xg * 90 / minutes",decimals:2},
  {id:"xaper90",name:"xA /90",formula:"xa * 90 / minutes",decimals:2},
+ {id:"savesper90",name:"Paradas /90",formula:"saves * 90 / minutes",decimals:2},
  {id:"xgaper90",name:"xG+xA /90",formula:"(xg + xa) * 90 / minutes",decimals:2},
  {id:"playpct",name:"Play %",formula:"minutes / (team_matches * 90) * 100",decimals:1},
  {id:"calc_xgchainper90",name:"xG Chain /90 (Understat)",formula:"xgchain * 90 / understatminutes",decimals:2},
@@ -53,7 +54,7 @@ export const DEFAULT_COLS={
  Ataque:["goals","assists","ga","goalsper90","assistsper90","gaper90","xg","xa","xgper90","xaper90","xgaper90","shots","shotsontarget"],
  Creación:["chancescreated","bigchancescreated","accuratepasses","successfulcrosses","xa","xaper90","calc_xgchainper90","calc_xgbuildupper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","cleansheets","calc_groundduelspct"],
- Portería:["saves","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
+ Portería:["saves","savesper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
  Físico:["totaldistancecovered","numberofsprints"]
  },
  competition:{
@@ -61,7 +62,7 @@ export const DEFAULT_COLS={
  Ataque:["goals","assists","xg","xa","xgot","shots","shotsontarget","bigchancescreated"],
  Creación:["accuratepasses","chancescreated","bigchancescreated","xa","successfulcrosses","calc_xgchainper90","calc_xgbuildupper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","calc_groundduelspct"],
- Portería:["saves","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
+ Portería:["saves","savesper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
  Físico:["totaldistancecovered","numberofsprints"]
  }
 };
@@ -71,7 +72,7 @@ export function sanitizeConfig(data){
  const formulas=Array.isArray(value.computed)?value.computed:COMPUTED;
  const computed=[];
  for(const d of formulas.slice(0,80)){
-  if(!d||typeof d!=="object"||typeof d.id!=="string"||!/^(?:calc_[a-z0-9_]+|ga|xga|goalsper90|assistsper90|gaper90|xgper90|xaper90|xgaper90|playpct)$/.test(d.id))continue;
+  if(!d||typeof d!=="object"||typeof d.id!=="string"||!/^(?:calc_[a-z0-9_]+|ga|xga|goalsper90|assistsper90|gaper90|xgper90|xaper90|xgaper90|savesper90|playpct)$/.test(d.id))continue;
   if(typeof d.name!=="string"||!d.name.trim()||d.name.length>60||typeof d.formula!=="string")continue;
   try{parseFormula(d.formula);}catch{continue;}
   if(!computed.some(a=>a.id===d.id))computed.push({id:d.id,name:d.name.trim(),formula:d.formula,decimals:Math.min(4,Math.max(0,Number(d.decimals)||0))});
@@ -161,17 +162,60 @@ export function formulaCoverage(row,mode,id,config){
   return alignedFormulaInputs(row.records,vars);
  }catch{return null;}
 }
+// Conservative display-only fallback: do not write estimated minutes to Base44.
+export function estimatedSeasonRate(records,metricName){
+ let numerator=0,denominator=0,estimated=false,covered=0;
+ for(const record of records||[]){
+  const metric=(record.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===metricName);
+  if(!metric)continue;
+  const total=statNum(metric.value);
+  const supplied=statNum(metric.per90);
+  const actual=statNum(record.minutes);
+  const matches=statNum(record.appearances);
+  const minutes=actual>0?actual:(matches>0?matches*90:null);
+  if(!minutes)continue;
+  // Prefer source per90 over deriving a rate from a total with estimated mins.
+  if(supplied!==null)numerator+=supplied*minutes/90;
+  else if(total!==null)numerator+=total;
+  else continue;
+  denominator+=minutes;covered++;
+  if(!(actual>0))estimated=true;
+ }
+ return {value:denominator>0?numerator*90/denominator:null,
+   estimated,covered,total:(records||[]).length};
+}
+export function estimatedPlayPct(records){
+ let played=0,team=0,estimated=false,covered=0;
+ for(const r of records||[]){
+  const actual=statNum(r.minutes),appearances=statNum(r.appearances);
+  const teamMatches=statNum(r.team_matches);
+  if(!(teamMatches>0))continue;
+  if(actual!==null&&actual>=0){played+=actual;team+=teamMatches*90;covered++;}
+  else if(appearances!==null&&appearances>=0){played+=appearances*90;team+=teamMatches*90;covered++;estimated=true;}
+ }
+ return {value:team>0?played/team*100:null,estimated,covered,total:(records||[]).length};
+}
 export function columnValue(row,mode,id,config){
  if(!row)return null;
  const definition=config.computed.find(d=>d.id===id);
  if(definition){try{
   // Para columnas /90 estándar, preferir la tasa publicada por el proveedor
   // por competición, sin requerir minutos adicionales ni estimarlos desde PJ.
-  const directRateMetric={goalsper90:"goals",assistsper90:"assists",xgper90:"xg",xaper90:"xa"}[id];
+  const directRateMetric={goalsper90:"goals",assistsper90:"assists",xgper90:"xg",xaper90:"xa",savesper90:"saves"}[id];
   if(mode==="competition"&&directRateMetric&&definition.formula===COMPUTED.find(d=>d.id===id)?.formula){
    const direct=(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===directRateMetric);
    const value=statNum(direct?.per90);
    if(value!==null)return value;
+  }
+  if(definition.formula===COMPUTED.find(d=>d.id===id)?.formula){
+   if(id==="playpct"){
+    const direct=estimatedPlayPct(mode==="season"&&Array.isArray(row.records)?row.records:[row]);
+    if(direct.value!==null)return direct.value;
+   }
+   if(mode==="season"&&directRateMetric&&Array.isArray(row.records)){
+    const direct=estimatedSeasonRate(row.records,directRateMetric);
+    if(direct.value!==null&&direct.covered===direct.total)return direct.value;
+   }
   }
   if(["calc_xgchainper90","calc_xgbuildupper90"].includes(id)&&definition.formula===COMPUTED.find(d=>d.id===id)?.formula){
    const rates=advancedTotals(mode==="season"&&Array.isArray(row.records)?row.records:[row]);

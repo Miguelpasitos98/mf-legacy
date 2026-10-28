@@ -233,6 +233,21 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     for(const [metric,names] of Object.entries(PER90))
       values[metric]=alignedPer90(records,names,
         metric==="xg_chain_p90"||metric==="xg_buildup_p90"?"Understat minutes":null);
+    // Source-aligned xA rates can be available even without official minutes.
+    // Weight each competition by actual minutes when provided, otherwise by
+    // appearance-based *estimated* minutes and tag this estimate separately.
+    const xaRates=records.map(r=>{
+      const candidate=pickMetric(r,PER90.xa_p90);
+      const rate=num(candidate?.per90);
+      const actual=num(r.minutes),apps=num(r.appearances);
+      const minutes=actual>0?actual:(apps>0?apps*90:null);
+      return {rate,minutes,estimated:!(actual>0)};
+    }).filter(r=>r.rate!==null&&r.minutes>0);
+    const xaRateEstimated=xaRates.length===records.length&&xaRates.some(r=>r.estimated);
+    if(xaRates.length===records.length&&xaRates.length&&xaRateEstimated){
+      const minutes=xaRates.reduce((n,r)=>n+r.minutes,0);
+      values.xa_p90=xaRates.reduce((n,r)=>n+r.rate*r.minutes,0)/minutes;
+    }
     // A genuine season-wide /90 overrides competition-derived Understat totals.
     const directRates=advancedTotals(records);
     if(directRates.xg_chain_p90!==null)values.xg_chain_p90=directRates.xg_chain_p90;
@@ -277,6 +292,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       key,playerId:str(player.id),playerName:player.name||records[0].player_name||"",
       season:str(records[0].season),role,values,
       playShareEstimated:playShare.estimated,playShareCoverage:{covered:playShare.covered,total:playShare.total},
+      xaRateEstimated:typeof xaRateEstimated!=="undefined"&&xaRateEstimated,
       position:position.position,positionSource:position.source,positionMixed:Boolean(position.mixed),
       pAdjMethod:hasDirectPAdj?"provider_imported":values.def_actions_poss_adj_p90!==null?"mf_possession_50_experimental":"missing",
       pAdjCoverage:hasDirectPAdj?{covered:records.length,total:records.length,minutesCovered:records.reduce((n,r)=>n+(num(r.minutes)||0),0),excluded:[],methods:["provider"]}:pAdjDetail,
@@ -320,7 +336,7 @@ export function compareHistoricalObservation(observation,observations,minimum=10
     const rank=percentile===null?null:1+values.filter(v=>penalty?v<current:v>current).length;
     return {
       key,value:current,percentile,n:values.length,nPlayers,rank,
-      estimated:key==="play_share"&&observation.playShareEstimated===true,
+      estimated:(key==="play_share"&&observation.playShareEstimated===true)||(key==="xa_p90"&&observation.xaRateEstimated===true),
       provisional:percentile!==null && nPlayers<minimum,
       status:current===null?"no_value":percentile===null?"insufficient":nPlayers<minimum?"provisional":"ready",
       // Negative weights are signed: more losses -> higher raw percentile -> larger deduction.
