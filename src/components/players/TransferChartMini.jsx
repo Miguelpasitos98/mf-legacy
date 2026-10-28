@@ -84,6 +84,8 @@ export default function TransferChartMini({ player, clubs = [] }) {
       color:clubColor(club)};
   }), [rows, clubs]);
   const latest=data.at(-1);
+  const maxValue=data.length?Math.max(...data.map(row=>row.value)):null;
+  const minValue=data.length?Math.min(...data.map(row=>row.value)):null;
   const segments=useMemo(()=>{
     const result=[];
     data.forEach((point,i)=>{
@@ -150,7 +152,10 @@ export default function TransferChartMini({ player, clubs = [] }) {
           </AreaChart>
         </ResponsiveContainer>
       </div> : <div className="mt-3 flex flex-1 items-center text-xs text-slate-500">Pulsa + para introducir el primer valor histórico.</div>}
-      <span className="mt-1 text-[9px] text-slate-400">Valores históricos · última valoración disponible</span>
+      <div className="mt-1 flex items-center justify-between gap-3 text-[10px]">
+        <span className="text-slate-500">MÁXIMO <strong className="ml-1 font-black text-emerald-700">{maxValue === null ? "—" : prettyMoney(maxValue)}</strong></span>
+        <span className="text-slate-500">MÍNIMO <strong className="ml-1 font-black text-rose-700">{minValue === null ? "—" : prettyMoney(minValue)}</strong></span>
+      </div>
     </div>
     {open && typeof document !== "undefined" && createPortal(
       <div className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
