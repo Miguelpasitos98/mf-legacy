@@ -100,9 +100,24 @@ export default function TransferChartMini({ player, clubs = [] }) {
     const result=data.map(p=>({...p}));
     segments.forEach((segment,i)=>{
       segment.indices.forEach(j=>{result[j][`s${i}`]=result[j].value;});
-      if(i>0){const j=segment.indices[0];result[j][`s${i-1}`]=result[j].value;}
     });
-    return result;
+    // Frontera única entre etapas: punto interpolado a mitad del intervalo entre
+    // la última valoración del club anterior y la primera del siguiente.
+    // Ambas curvas comparten ese punto exacto sin inventar una nueva valoración.
+    const boundaries=[];
+    segments.slice(1).forEach((segment,i)=>{
+      const leftIndex=segments[i].indices.at(-1);
+      const rightIndex=segment.indices[0];
+      const left=data[leftIndex],right=data[rightIndex];
+      if(!left||!right||right.timestamp<=left.timestamp)return;
+      const boundaryTime=(left.timestamp+right.timestamp)/2;
+      const boundaryValue=(left.value+right.value)/2;
+      boundaries.push({
+        timestamp:boundaryTime,value:boundaryValue,date:"",
+        [`s${i}`]:boundaryValue,[`s${i+1}`]:boundaryValue,
+      });
+    });
+    return [...result,...boundaries].sort((a,b)=>a.timestamp-b.timestamp);
   },[data,segments]);
   const save = () => {
     if (!id) { setError("El jugador no tiene ID."); return; }
@@ -128,12 +143,12 @@ export default function TransferChartMini({ player, clubs = [] }) {
             <Tooltip content={<MiniTooltip/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
             {segments.map((seg,i)=><Area key={i} type="monotone" dataKey={`s${i}`} stroke={seg.color} strokeWidth={2.6} fill={`url(#mini-market-${i})`} connectNulls={false} dot={false} activeDot={false} isAnimationActive={false}/>)}
             {segments.map((segment,i)=>{
-              const first=chartData[segment.indices[0]];
-              const last=chartData[segment.indices[segment.indices.length-1]];
+              const first=data[segment.indices[0]];
+              const last=data[segment.indices[segment.indices.length-1]];
               if(!first?.clubLogo || !last)return null;
               // Punto medio temporal del tramo, con altura interpolada sobre la curva.
               const midpoint=(first.timestamp+last.timestamp)/2;
-              const left=segment.indices.map(index=>chartData[index]).filter(point=>point.timestamp<=midpoint).at(-1)||first;
+              const left=segment.indices.map(index=>data[index]).filter(point=>point.timestamp<=midpoint).at(-1)||first;
               const right=segment.indices.map(index=>chartData[index]).find(point=>point.timestamp>=midpoint)||last;
               const fraction=right.timestamp===left.timestamp?0:(midpoint-left.timestamp)/(right.timestamp-left.timestamp);
               const height=left.value+(right.value-left.value)*fraction;
