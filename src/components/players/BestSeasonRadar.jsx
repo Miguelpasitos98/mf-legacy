@@ -83,14 +83,7 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
    !result?<div className="grid flex-1 place-items-center px-3 text-center text-[11px] text-slate-500">Sin temporada con Composite suficiente</div>:
    <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
      <svg viewBox="0 0 250 245" className="min-h-0 w-full flex-1" role="img" aria-label={`Perfil estadístico de ${result.season}: ${valid} de ${result.axes.length} categorías`}>
-       {valid===result.axes.length&&<polygon points={points(result.axes.map(a=>a.value))} fill={color} fillOpacity=".30" stroke={color} strokeWidth="2.5" strokeLinejoin="round"/>}
-       {result.axes.map((a,i)=>{
-         const b=result.axes[(i+1)%result.axes.length];
-         if(a.value===null||b.value===null)return null;
-         const [x1,y1]=pt(i,87*a.value/100,result.axes.length);
-         const [x2,y2]=pt((i+1)%result.axes.length,87*b.value/100,result.axes.length);
-         return <line key={"edge"+i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="2.5" strokeLinecap="round"/>;
-       })}
+       {valid===result.axes.length&&<polygon points={points(result.axes.map(a=>a.value))} fill={color} fillOpacity=".30" stroke="none"/>}
        {result.axes.map((a,i)=>{
          const [x,y]=pt(i,111,result.axes.length);
          const [vx,vy]=pt(i,87*(a.value||0)/100,result.axes.length);
