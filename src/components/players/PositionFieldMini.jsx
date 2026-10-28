@@ -11,10 +11,8 @@ export const POSITION_FIELD_POINTS=[
  ["carrilero_izquierdo","CR(I)",56,98],
  ["mediocentro","MCD",140,102],
  ["carrilero_derecho","CR(D)",224,98],
- ["defensa_izquierdo","DF(I)",64,127],
  ["defensa_central","DFC(I)",112,127],
  ["defensa_central","DFC(D)",168,127],
- ["defensa_derecho","DF(D)",216,127],
  ["portero","POR",140,150]
 ];
 export default function PositionFieldMini({ratings={}}){
@@ -22,12 +20,19 @@ export default function PositionFieldMini({ratings={}}){
   const n=Number(ratings?.[k]);
   return Number.isFinite(n)&&n>0?Math.min(20,Math.max(0,n)):0;
  };
+ // En la vista compacta, CR muestra la mejor valoración lateral del lado correspondiente.
+ // Los valores originales de DF y CR permanecen separados y sin modificar.
+ const displayValue=key=>key==="carrilero_izquierdo"
+  ?Math.max(value("carrilero_izquierdo"),value("defensa_izquierdo"))
+  :key==="carrilero_derecho"
+   ?Math.max(value("carrilero_derecho"),value("defensa_derecho"))
+   :value(key);
  const color=n=>n>=16?"#159c5c":n>=12?"#49aa67":n>=7?"#df7d18":n>=2?"#dd6236":"#cf4052";
  return <div className="flex h-full w-full min-w-0 flex-col overflow-hidden" aria-label="Familiaridad por posición, escala de cero a veinte">
    <svg className="h-full w-full min-h-0 scale-[1.16]" viewBox="-5 -7 290 186" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo original de fútbol en perspectiva con posiciones y familiaridad">
     <image href="https://media.base44.com/images/public/6a88359fd43f2af862874b12/7e722efeb_Diagrama_minimalista_de_campo_de_ftbol__1_.png" x="0" y="5" width="280" height="154" preserveAspectRatio="xMidYMid meet" />
     {POSITION_FIELD_POINTS.map(([key,label,x,y])=>{
-     const n=value(key);
+     const n=displayValue(key);
      return <g key={key}>
       <rect x={x-12} y={y-7} width="24" height="15" rx="4" fill={color(n)} opacity={n?1:.65}/>
       <text x={x} y={y+4} fill="white" fontSize="10" fontWeight="800" textAnchor="middle">{n||"–"}</text>
