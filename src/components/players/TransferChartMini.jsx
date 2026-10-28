@@ -106,9 +106,9 @@ export default function TransferChartMini({ player, clubs = [] }) {
   const rows=useMemo(()=>{
     const detailed=validRows(localRows?.length?localRows:originalRows(player));
     if(!detailed.length)return historicalRows;
-    const byDate=new Map(historicalRows.map(r=>[r.date,r]));
-    detailed.forEach(r=>byDate.set(r.date,r));
-    return [...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));
+    // A complete dated series wins over coarse season-end valuation points.
+    // Do not mix estimated dates with actual Transfermarkt quotation dates.
+    return detailed;
   },[localRows,player,historicalRows]);
   const data = useMemo(() => validRows(rows).map((r) => {
     const club = resolveClub(r,clubs);
