@@ -63,7 +63,7 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
       axes:axes.map(([name,keys])=>({name,value:scoreAxis(keys,best.o,obs.filter(o=>o.role===best.o.role))}))};
  },[data,playerId]);
  const valid=result?.axes.filter(a=>a.value!==null).length||0;
- return <LayoutEditor name="Player Profile" initial={DEFAULT_RADAR} zIndex={30}><div className="pointer-events-none flex h-full w-full flex-col overflow-hidden rounded-xl bg-white" style={{color:"#334155"}}>
+ return <LayoutEditor name="Player Profile" initial={DEFAULT_RADAR} legacyKey="mf-legacy-player-profile-position-v1" legacySizeKey="mf-legacy-player-profile-size-v1" zIndex={30}><div className="pointer-events-none flex h-full w-full flex-col overflow-hidden rounded-xl bg-white" style={{color:"#334155"}}>
    <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3">
      <span className="truncate text-[11px] font-black tracking-wide">PLAYER PROFILE</span>
      <span className="shrink-0 text-[10px] font-semibold text-slate-500">{result?.season||""}</span>
