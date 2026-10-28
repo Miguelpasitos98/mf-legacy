@@ -6,7 +6,17 @@ export const TROPHY_CATEGORIES=["League","Cup","Supercup","International","Indiv
 const safe=v=>String(v??"").trim();
 export const normaliseSearch=v=>safe(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 export const trophyImagePath=id=>"/assets/trophies/"+encodeURIComponent(safe(id))+".png";
-export const trophyImageUrl=trophy=>safe(trophy?.image_url)||trophyImagePath(trophy?.source_id);
+export const trophyImageUrl=(trophy,manifest)=>{
+ const custom=safe(trophy?.image_url);if(custom)return custom;
+ const id=safe(trophy?.source_id);
+ if(manifest?.byId?.[id])return manifest.byId[id];
+ const names=[trophy?.source_name,trophy?.name, String(trophy?.source_path||"").split("/").pop()?.replace(/\.(png|webp|jpe?g)$/i,"")];
+ for(const label of names){
+  const key=normaliseSearch(label).replace(/\s*\(id\s*\d+\)\s*/ig," ").replace(/[^a-z0-9]+/g," ").trim();
+  if(key&&manifest?.byName?.[key])return manifest.byName[key];
+ }
+ return trophyImagePath(id);
+};
 export const trophyStatus=trophy=>trophy?.identification_status||"Pending";
 
 function parseDelimited(text,delimiter=";"){
