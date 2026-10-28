@@ -160,14 +160,18 @@ function teamMatchesLookup(matches=[]){
   }
   return map;
 }
-const playShare=(records, lookup)=>{
-  let mins=0,denominator=0;
+export const playShareDetail=(records,lookup=new Map())=>{
+  let minutes=0,denominator=0,estimated=false,covered=0;
   for(const r of records){
-    const m=statNum(r.minutes),tm=safeTeamMatches(r,lookup);
-    if(m===null||m<0||tm===null)continue;
-    mins+=m;denominator+=tm*90;
+    const m=minutesForDisplay(r),tm=safeTeamMatches(r,lookup);
+    if(m.value===null||m.value<0||tm===null)continue;
+    // When the provider has PJ but not minutes, PJ*90 is an upper-bound
+    // estimate (substitutions unknown); explicitly mark it as provisional.
+    minutes+=m.value;denominator+=tm*90;covered++;
+    if(m.estimated)estimated=true;
   }
-  return denominator>0?mins/denominator*100:null;
+  return {value:denominator>0?minutes/denominator*100:null,estimated,
+    covered,total:records.length};
 };
 const valKey=(playerId,season)=>playerId+"|"+season;
 // Historical club-only comparisons must also exclude competitions whose
@@ -223,8 +227,9 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       role=historicalRole(fallback);
     }
     if(!role)continue;
+    const playShare=playShareDetail(records,tmLookup);
     const values={rating:weightedRating(records),finishing_xgot_minus_npxg:pairedFinishing(records),
-      play_share:playShare(records,tmLookup)};
+      play_share:playShare.value};
     for(const [metric,names] of Object.entries(PER90))
       values[metric]=alignedPer90(records,names,
         metric==="xg_chain_p90"||metric==="xg_buildup_p90"?"Understat minutes":null);
@@ -271,6 +276,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     observations.push({
       key,playerId:str(player.id),playerName:player.name||records[0].player_name||"",
       season:str(records[0].season),role,values,
+      playShareEstimated:playShare.estimated,playShareCoverage:{covered:playShare.covered,total:playShare.total},
       position:position.position,positionSource:position.source,positionMixed:Boolean(position.mixed),
       pAdjMethod:hasDirectPAdj?"provider_imported":values.def_actions_poss_adj_p90!==null?"mf_possession_50_experimental":"missing",
       pAdjCoverage:hasDirectPAdj?{covered:records.length,total:records.length,minutesCovered:records.reduce((n,r)=>n+(num(r.minutes)||0),0),excluded:[],methods:["provider"]}:pAdjDetail,
@@ -314,6 +320,7 @@ export function compareHistoricalObservation(observation,observations,minimum=10
     const rank=percentile===null?null:1+values.filter(v=>penalty?v<current:v>current).length;
     return {
       key,value:current,percentile,n:values.length,nPlayers,rank,
+      estimated:key==="play_share"&&observation.playShareEstimated===true,
       provisional:percentile!==null && nPlayers<minimum,
       status:current===null?"no_value":percentile===null?"insufficient":nPlayers<minimum?"provisional":"ready",
       // Negative weights are signed: more losses -> higher raw percentile -> larger deduction.

@@ -105,6 +105,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           <button type="button" onClick={()=>refetch()} disabled={isFetching||!playerId} title="Actualizar comparación" className="rounded border border-indigo-200 bg-white px-2 py-1.5 text-[11px] font-bold text-[#003399] disabled:opacity-50"><RefreshCw size={13} className={"inline-block mr-1 "+(isFetching?"animate-spin":"")}/>{isFetching?"Actualizando…":"Actualizar"}</button>
         </div>
       </div>
+      {observation?.playShareEstimated&&<p role="note" className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">Participación de minutos provisional: FotMob no dispone de minutos oficiales en alguna competición; se utiliza PJ jugador / PJ equipo como aproximación de participación máxima. Se indica como estimación y no como minutos reales.</p>}
       {detailsOpen&&<div className="rounded border border-indigo-100 bg-white p-2 text-[11px] leading-relaxed text-slate-700">
         Percentiles propios por posición calculados con las temporadas de clubes de nuestra base de datos. Cada temporada se consolida entre competiciones antes de comparar; no se utilizan los percentiles originales de FotMob.
         {observation?.pAdjCoverage?.total>0&&observation.pAdjCoverage.covered<observation.pAdjCoverage.total&&<p className="mt-1 text-amber-800">Acciones defensivas ajustadas /90: cobertura parcial ({observation.pAdjCoverage.covered}/{observation.pAdjCoverage.total} competiciones, {show(observation.pAdjCoverage.minutesCovered,0)} minutos). {observation.pAdjCoverage.excluded.map(x=>x.competition+": "+x.reasons.join(", ")).join("; ")}</p>}
@@ -223,7 +224,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
                     title={(item.value===null?"Añadir":"Corregir")+" estadística de origen por competición (el Composite se recalcula después)"}>
                     {item.value===null?"Añadir +":show(item.value,2)}{item.value!==null&&<span className="text-[10px] text-blue-500">✎</span>}
                   </button>:
-                  item.key==="market_value"?formatEur(item.value):show(item.value,item.key==="fc27_ovr"?0:2)}
+                  item.key==="market_value"?formatEur(item.value):<>{show(item.value,item.key==="fc27_ovr"?0:2)}{item.estimated&&<span className="ml-1 text-[10px] text-amber-700" title="Estimación: PJ jugador × 90 / (PJ equipo × 90). No equivale a minutos oficiales.">estim.</span>}</>}
               </td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PercentileBar item={item}/></td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PositionBar item={item}/></td>
