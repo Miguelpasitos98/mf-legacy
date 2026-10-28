@@ -65,7 +65,7 @@ export default function RoleFieldConcept({ratings={},playerId,position}){
     aria-label={role.name?`Editar rol ${i+1}: ${role.name}`:`Añadir rol ${i+1}`}
     title={role.name?"Editar rol y descripción":"Seleccionar rol y escribir descripción"}
     className="pointer-events-auto absolute z-30 flex cursor-pointer items-center rounded-md bg-transparent text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
-    style={{left:"16.4%",top:i===0?"13.4%":"23.9%",width:"56.7%",height:"8.8%",pointerEvents:"auto"}}
+    style={{left:"16.4%",top:i===0?"13.4%":"calc(23.9% + 1px)",width:"56.7%",height:"8.8%",pointerEvents:"auto"}}
   >
     {role.name&&<span
       className="pointer-events-none flex h-full min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap pl-5 pr-10 font-bold text-slate-900"
