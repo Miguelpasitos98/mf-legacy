@@ -1,4 +1,5 @@
 import React, {useMemo} from "react";
+import LayoutEditor from "./LayoutEditor";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
 import {compareHistoricalObservation,historicalPercentile} from "@/utils/historicalPeers";
 
@@ -46,20 +47,9 @@ const scoreAxis=(keys,observation,peers)=>{
  });
  return eligible.length?Math.round(eligible.reduce((a,b)=>a+b,0)/eligible.length):null;
 };
-const RADAR_POSITION_KEY="mf-legacy-player-profile-position-v1";
-const RADAR_SIZE_KEY="mf-legacy-player-profile-size-v1";
-const DEFAULT_SIZE={width:240,height:296};
-const readSize=()=>{try{const v=JSON.parse(window.localStorage.getItem(RADAR_SIZE_KEY)||"null");return Number.isFinite(v?.width)&&Number.isFinite(v?.height)?{width:Math.max(200,Math.min(650,v.width)),height:Math.max(240,Math.min(750,v.height))}:DEFAULT_SIZE;}catch{return DEFAULT_SIZE;}};
-const DEFAULT_POSITION={x:16,y:130};
-const readPosition=()=>{
- try {
-   const stored=JSON.parse(window.localStorage.getItem(RADAR_POSITION_KEY)||"null");
-   return Number.isFinite(stored?.x)&&Number.isFinite(stored?.y)?stored:DEFAULT_POSITION;
- } catch {return DEFAULT_POSITION;}
-};
+// Replace with coordinates copied from the temporary layout editor.
+const DEFAULT_RADAR={left:16,top:130,width:240,height:296};
 export default function BestSeasonRadar({playerId, color="#D62828"}){
- const position=useMemo(readPosition,[]);
- const size=useMemo(readSize,[]);
  const {data,isLoading,isError}=useHistoricalPeerDataset(Boolean(playerId));
  const result=useMemo(()=>{
    const obs=data?.observations||[];
@@ -73,7 +63,7 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
       axes:axes.map(([name,keys])=>({name,value:scoreAxis(keys,best.o,obs.filter(o=>o.role===best.o.role))}))};
  },[data,playerId]);
  const valid=result?.axes.filter(a=>a.value!==null).length||0;
- return <div className="pointer-events-none absolute z-10 flex flex-col overflow-hidden rounded-xl bg-white" style={{left:position.x,top:position.y,width:size.width,height:size.height,color:"#334155",zIndex:30}}>
+ return <LayoutEditor name="Player Profile" initial={DEFAULT_RADAR} zIndex={30}><div className="pointer-events-none flex h-full w-full flex-col overflow-hidden rounded-xl bg-white" style={{color:"#334155"}}>
    <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3">
      <span className="truncate text-[11px] font-black tracking-wide">PLAYER PROFILE</span>
      <span className="shrink-0 text-[10px] font-semibold text-slate-500">{result?.season||""}</span>
@@ -94,5 +84,5 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
      <div className="shrink-0 px-2 pb-2 text-center text-[10px] font-medium text-slate-500">{valid}/{result.axes.length} categorías · {result.role} · {result.composite.toFixed(1)} Composite</div>
    </div>}
 
- </div>;
+ </div></LayoutEditor>;
 }
