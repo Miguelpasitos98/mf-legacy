@@ -845,15 +845,25 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   const age = calculateAge(dateOfBirth);
   const jerseyValue=editablePlayer?.shirt_number ?? editablePlayer?.shirtNumber;
   const jerseyDisplay=jerseyValue!==null && jerseyValue!==undefined && jerseyValue!=="" && Number(jerseyValue)>0 && Number(jerseyValue)<=99?String(jerseyValue):"";
-  const rawPosition=String(editablePlayer?.fm_position||editablePlayer?.position||editablePlayer?.position_raw||"").toUpperCase();
+  // Misma taxonomía de posiciones que el editor de MF Legacy (no códigos DC/DLC de FM).
   const jerseyPosition=(()=>{
-    const options=["GK","RWB","LWB","RB","LB","CB","CDM","CM","CAM","RW","LW","ST","CF","RM","LM"];
-    const found=options.find(value=>new RegExp("(^|[^A-Z])"+value+"([^A-Z]|$)").test(rawPosition));
-    if(found)return found;
-    if(/GOALKEEPER|PORTERO/.test(rawPosition))return "GK";
-    if(/CENTRE.BACK|CENTRAL|DEFENDER.*CENT/.test(rawPosition))return "CB";
-    if(/STRIKER|DELANTERO/.test(rawPosition))return "ST";
-    return rawPosition.length<=5?rawPosition:"";
+    const ratings={...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})};
+    const labels={
+      portero:"GK",defensa_izquierdo:"LB",defensa_central:"CB",defensa_derecho:"RB",
+      mediocentro:"CDM",carrilero_izquierdo:"LWB",carrilero_derecho:"RWB",
+      centrocampista_izquierdo:"LM",centrocampista:"CM",centrocampista_derecho:"RM",
+      mediapunta_por_la_izquierda:"LW",mediapunta_central:"CAM",mediapunta_por_la_derecha:"RW",
+      delantero:"ST"
+    };
+    const preferred=POSITION_RATING_FIELDS
+      .map(([key],index)=>({key,index,score:Number(ratings[key])}))
+      .filter(item=>Number.isFinite(item.score)&&item.score>0)
+      .sort((a,b)=>b.score-a.score||a.index-b.index)[0];
+    if(preferred)return labels[preferred.key]||"";
+    const raw=String(editablePlayer?.position||editablePlayer?.position_raw||editablePlayer?.fm_position||"").trim().toUpperCase();
+    const aliases={DC:"CB",DLC:"CB",DFC:"CB",DF:"CB",POR:"GK",PT:"GK",DL:"LB",DR:"RB",DLI:"LB",DLD:"RB",MC:"CM",MCD:"CDM",MCO:"CAM",MP:"CAM","MPC":"CAM"};
+    const token=raw.match(/[A-Z]+/g)?.[0]||"";
+    return aliases[token]||(["GK","CB","RB","LB","RWB","LWB","CDM","CM","CAM","LW","RW","LM","RM","ST","CF"].includes(token)?token:"");
   })();
 
   const selectedCountry = countryMap.get(String(form.countryId)) || null;
