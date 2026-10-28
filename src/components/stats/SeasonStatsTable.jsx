@@ -14,7 +14,7 @@ export const seasonColumns={
  Ataque:["goals","assists","ga","goalsper90","assistsper90","gaper90","xg","xa","xgper90","xaper90","xgaper90","shots","shotsontarget"],
  Creación:["chancescreated","bigchancescreated","accuratepasses","successfulcrosses","xa","xaper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","cleansheets"],
- Portería:["saves","cleansheets","goalsconcededwhileonpitch"],
+ Portería:["saves","savesper90","xaper90","cleansheets","goalsconcededwhileonpitch"],
  Físico:["totaldistancecovered","numberofsprints"]
 };
 const labels={ga:"G + A",gaper90:"G + A /90",xgaper90:"xG + xA /90",xga:"xG + xA",goalsper90:"Goles /90",assistsper90:"Asist. /90",xgper90:"xG /90",xaper90:"xA /90",totaldistancecovered:"Distancia (m)",numberofsprints:"Sprints",goalsconcededwhileonpitch:"Goles encajados (en campo)"};

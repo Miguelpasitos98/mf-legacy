@@ -54,7 +54,7 @@ export const DEFAULT_COLS={
  Ataque:["goals","assists","ga","goalsper90","assistsper90","gaper90","xg","xa","xgper90","xaper90","xgaper90","shots","shotsontarget"],
  Creación:["chancescreated","bigchancescreated","accuratepasses","successfulcrosses","xa","xaper90","calc_xgchainper90","calc_xgbuildupper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","cleansheets","calc_groundduelspct"],
- Portería:["saves","savesper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
+ Portería:["saves","savesper90","xaper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
  Físico:["totaldistancecovered","numberofsprints"]
  },
  competition:{
@@ -62,11 +62,11 @@ export const DEFAULT_COLS={
  Ataque:["goals","assists","xg","xa","xgot","shots","shotsontarget","bigchancescreated"],
  Creación:["accuratepasses","chancescreated","bigchancescreated","xa","successfulcrosses","calc_xgchainper90","calc_xgbuildupper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","calc_groundduelspct"],
- Portería:["saves","savesper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
+ Portería:["saves","savesper90","xaper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
  Físico:["totaldistancecovered","numberofsprints"]
  }
 };
-export const initialConfig=()=>({version:3,columns:structuredClone(DEFAULT_COLS),dividers:{season:{},competition:{}},computed:COMPUTED.map(x=>({...x})),labels:{}});
+export const initialConfig=()=>({version:4,columns:structuredClone(DEFAULT_COLS),dividers:{season:{},competition:{}},computed:COMPUTED.map(x=>({...x})),labels:{}});
 export function sanitizeConfig(data){
  const value=data&&typeof data==="object"?data:{};
  const formulas=Array.isArray(value.computed)?value.computed:COMPUTED;
@@ -88,7 +88,10 @@ export function sanitizeConfig(data){
    const fromOldDefault=Number(value.version||1)<2&&category==="Resumen"&&Array.isArray(input)&&JSON.stringify(input)===JSON.stringify(legacyDefault);
    columns[mode][category]=Array.isArray(input)?[...new Set(input.filter(k=>typeof k==="string"&&ids.has(k)))].slice(0,30):[...DEFAULT_COLS[mode][category]];
    if(fromOldDefault&&!columns[mode][category].includes("playpct"))columns[mode][category].push("playpct");
-   if(category==="Portería")for(const id of ["calc_goals_prevented","calc_goals_prevented_p90"])if(!columns[mode][category].includes(id))columns[mode][category].push(id);
+   if(category==="Portería"){
+    for(const id of ["calc_goals_prevented","calc_goals_prevented_p90"])if(!columns[mode][category].includes(id))columns[mode][category].push(id);
+    if(Number(value.version||1)<4)for(const id of ["savesper90","xaper90"])if(!columns[mode][category].includes(id))columns[mode][category].push(id);
+   }
   }
  }
  const dividers={season:{},competition:{}};
@@ -100,7 +103,7 @@ export function sanitizeConfig(data){
  if(value.labels&&typeof value.labels==="object")for(const [key,display] of Object.entries(value.labels)){
   if(RAW_IDS.has(key)&&typeof display==="string"&&display.trim().length&&display.length<=60)labels[key]=display.trim();
  }
- return {version:3,columns,dividers,computed,labels};
+ return {version:4,columns,dividers,computed,labels};
 }
 export function parseFormula(expression){
  const input=String(expression||"").trim();
