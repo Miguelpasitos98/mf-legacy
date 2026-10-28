@@ -34,7 +34,8 @@ export default function MarketValueRecords({player,clubs=[]}){
   const [filter,setFilter]=useState("");
   const [selectedRows,setSelectedRows]=useState([]);
   const [bulkClub,setBulkClub]=useState("");
-  const reset=()=>{setRows((Array.isArray(read(player))?read(player):[]).map(r=>({...r,date:iso(r.date),value:String(r.value??""),team:r.team||"",club_id:r.club_id||""})).sort((a,b)=>a.date.localeCompare(b.date)));setDirty(false);setSelectedRows([]);};
+  const [clubSearch,setClubSearch]=useState({});
+  const reset=()=>{setRows((Array.isArray(read(player))?read(player):[]).map(r=>({...r,date:iso(r.date),value:String(r.value??""),team:r.team||"",club_id:r.club_id||""})).sort((a,b)=>a.date.localeCompare(b.date)));setDirty(false);setSelectedRows([]);setClubSearch({});};
   useEffect(()=>{reset();},[player?.id]);
   useEffect(()=>{
     const handler=e=>{if(String(e.detail?.playerId)===String(player?.id))reset();};
@@ -125,13 +126,15 @@ export default function MarketValueRecords({player,clubs=[]}){
             <td className="p-2"><input type="number" min="0" step="any" value={r.value} onChange={e=>set(r.index,{value:e.target.value})} className="w-[85px] rounded border px-1 py-1"/></td>
             <td className="p-2 text-slate-600">{r.team||"Sin información"}</td>
             <td className="p-2"><div className="flex items-center gap-2">{selected&&(selected.logo||selected.logo_url||selected.badge_url)&&<img src={selected.logo||selected.logo_url||selected.badge_url} alt="" className="h-5 w-5 object-contain"/>}
-              <input type="search" list="mf-market-row-clubs" value={selected?.name ?? ""}
+              <input type="search" list="mf-market-row-clubs" value={clubSearch[r.index] ?? selected?.name ?? ""}
                 placeholder="Buscar y asociar club" aria-label={`Club asociado a ${r.date}`}
                 onChange={e=>{
+                  setClubSearch(old=>({...old,[r.index]:e.target.value}));
                   const club=getClubByLabel(e.target.value);
                   if(club){
                     const matching=rows.map((item,i)=>clubKey(item.team)===clubKey(r.team)?i:-1).filter(i=>i>=0);
                     setClubForIndices(matching,String(club.id));
+                    setClubSearch(old=>({...old,[r.index]:club.name}));
                   }else if(!e.target.value){
                     set(r.index,{club_id:""});
                   }
