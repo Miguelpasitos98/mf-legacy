@@ -2,20 +2,20 @@ import React from "react";
 
 // Exactly the same persisted position keys as PlayerDetail's editor.
 export const POSITION_FIELD_POINTS=[
- ["delantero","DL(C)",140,8],
- ["mediapunta_por_la_izquierda","EI",86,43],
- ["mediapunta_central","MP(C)",140,43],
- ["mediapunta_por_la_derecha","ED",194,43],
- ["centrocampista_izquierdo","MC(I)",91,83],
- ["centrocampista","MC",140,83],
- ["centrocampista_derecho","MC(D)",189,83],
- ["carrilero_izquierdo","CR(I)",48,126],
- ["mediocentro","MCD",140,127],
- ["carrilero_derecho","CR(D)",232,126],
- ["defensa_izquierdo","DF(I)",47,161],
- ["defensa_central","DF(C)",140,161],
- ["defensa_derecho","DF(D)",233,161],
- ["portero","POR",140,187]
+ ["delantero","DL(C)",140,18],
+ ["mediapunta_por_la_izquierda","EI",85,45],
+ ["mediapunta_central","MP(C)",140,47],
+ ["mediapunta_por_la_derecha","ED",195,45],
+ ["centrocampista_izquierdo","MC(I)",94,70],
+ ["centrocampista","MC",140,73],
+ ["centrocampista_derecho","MC(D)",186,70],
+ ["carrilero_izquierdo","CR(I)",56,98],
+ ["mediocentro","MCD",140,102],
+ ["carrilero_derecho","CR(D)",224,98],
+ ["defensa_izquierdo","DF(I)",64,127],
+ ["defensa_central","DF(C)",140,127],
+ ["defensa_derecho","DF(D)",216,127],
+ ["portero","POR",140,150]
 ];
 export default function PositionFieldMini({ratings={}}){
  const value=k=>{
@@ -28,16 +28,14 @@ export default function PositionFieldMini({ratings={}}){
     <span className="text-[10px] font-black uppercase tracking-[.12em] text-white">POSICIONES</span>
     <span className="text-[9px] font-semibold text-white">/20</span>
    </div>
-   <svg className="min-h-0 w-full flex-1" viewBox="0 0 280 207" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo de juego en perspectiva con las posiciones y sus valoraciones">
-    <path d="M93 2 H187 L278 201 H2 Z" fill="none" stroke="#FFFFFF" strokeOpacity=".95" strokeWidth="1.8"/>
-    <path d="M46 109 H234 M115 2 L106 38 H174 L165 2 M130 2 V18 H150 V2 M79 201 L91 170 H189 L201 201 M122 201 V188 H158 V201" fill="none" stroke="#FFFFFF" strokeOpacity=".8" strokeWidth="1.2"/>
-    <ellipse cx="140" cy="109" rx="32" ry="13" fill="none" stroke="#FFFFFF" strokeOpacity=".8" strokeWidth="1.2"/>
+   <svg className="min-h-0 w-full flex-1" viewBox="0 0 280 166" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo original de fútbol en perspectiva con posiciones y familiaridad">
+    <image href="https://media.base44.com/images/public/6a88359fd43f2af862874b12/7e722efeb_Diagrama_minimalista_de_campo_de_ftbol__1_.png" x="0" y="5" width="280" height="154" preserveAspectRatio="xMidYMid meet" />
     {POSITION_FIELD_POINTS.map(([key,label,x,y])=>{
      const n=value(key);
      return <g key={key}>
-      <rect x={x-15} y={y-9} width="30" height="18" rx="5" fill={color(n)} opacity={n?1:.65}/>
-      <text x={x} y={y+4} fill="white" fontSize="12" fontWeight="800" textAnchor="middle">{n||"–"}</text>
-      <text x={x} y={y+19} fill="#FFFFFF" fontSize="8.3" fontWeight="800" textAnchor="middle">{label}</text>
+      <rect x={x-12} y={y-7} width="24" height="15" rx="4" fill={color(n)} opacity={n?1:.65}/>
+      <text x={x} y={y+4} fill="white" fontSize="10" fontWeight="800" textAnchor="middle">{n||"–"}</text>
+      <text x={x} y={y+16} fill="#FFFFFF" fontSize="7.5" fontWeight="800" textAnchor="middle">{label}</text>
      </g>;
     })}
    </svg>
