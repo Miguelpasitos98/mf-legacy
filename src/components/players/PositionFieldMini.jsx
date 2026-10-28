@@ -24,11 +24,7 @@ export default function PositionFieldMini({ratings={}}){
  };
  const color=n=>n>=16?"#159c5c":n>=12?"#49aa67":n>=7?"#df7d18":n>=2?"#dd6236":"#cf4052";
  return <div className="flex h-full w-full min-w-0 flex-col overflow-hidden" aria-label="Familiaridad por posición, escala de cero a veinte">
-   <div className="flex items-center justify-between gap-1">
-    <span className="text-[10px] font-black uppercase tracking-[.12em] text-white">POSICIONES</span>
-    <span className="text-[9px] font-semibold text-white">/20</span>
-   </div>
-   <svg className="min-h-0 w-full flex-1" viewBox="0 0 280 166" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo original de fútbol en perspectiva con posiciones y familiaridad">
+   <svg className="h-full w-full min-h-0 scale-[1.2]" viewBox="0 0 280 166" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo original de fútbol en perspectiva con posiciones y familiaridad">
     <image href="https://media.base44.com/images/public/6a88359fd43f2af862874b12/7e722efeb_Diagrama_minimalista_de_campo_de_ftbol__1_.png" x="0" y="5" width="280" height="154" preserveAspectRatio="xMidYMid meet" />
     {POSITION_FIELD_POINTS.map(([key,label,x,y])=>{
      const n=value(key);
