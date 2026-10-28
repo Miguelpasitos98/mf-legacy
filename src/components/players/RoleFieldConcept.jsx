@@ -3,7 +3,7 @@ import {compactPositionValue} from "@/utils/compactPositionRatings";
 
 // Prototipo de disposición usando la imagen facilitada por el usuario.
 // Solo los números son dinámicos; la ilustración original permanece intacta.
-const IMAGE="https://media.base44.com/images/public/6a88359fd43f2af862874b12/9e1ed5c44_ChatGPT_Image_21_ago_2026__12_30_18_2_.png";
+const IMAGE="https://media.base44.com/images/public/6a88359fd43f2af862874b12/d675c10b1_Campo_de_ftbol_azul_en_perspectiva.png";
 // Posiciones del campo anterior: únicamente cambia la capa de indicadores.
 const NUMBERS=[
  ["delantero","DL(C)",50,41.5],
@@ -22,6 +22,13 @@ const NUMBERS=[
 export default function RoleFieldConcept({ratings={}}){
  return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Vista de prueba de roles y posiciones">
   <img className="absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
+  <div className="absolute left-[14%] top-[1%] z-10 flex h-[12%] items-center gap-2">
+    <span className="flex aspect-square h-full items-center justify-center rounded-xl bg-amber-50/95 text-amber-500 shadow-sm" aria-hidden="true">✩</span>
+    <span className="rounded-xl bg-white/70 px-2 py-1 text-[clamp(12px,1.3vw,20px)] font-black text-slate-950">Roles</span>
+  </div>
+  {[17,28].map(top=><div key={top} className="absolute left-[14%] z-10 flex h-[8.5%] w-[72%] items-center justify-end rounded-xl border border-slate-200 bg-white/95 px-3 shadow-sm" style={{top:`${top}%`}}>
+    <span className="text-[clamp(15px,2.1vw,26px)] font-black leading-none text-emerald-500">+</span>
+  </div>)}
   {NUMBERS.map(([key,label,x,y],i)=>{
     const n=compactPositionValue(ratings,key);
     const tone=n>=16?"#079a56":n>=12?"#30a666":n>=7?"#ed8615":n>=2?"#ea6135":"#d74755";
