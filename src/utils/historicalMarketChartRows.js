@@ -1,11 +1,11 @@
-const validDate=date=>/^\\d{4}-\\d{2}-\\d{2}$/.test(String(date||""))&&!Number.isNaN(Date.parse(date));
+const validDate=date=>/^\d{4}-\d{2}-\d{2}$/.test(String(date||""))&&!Number.isNaN(Date.parse(date));
 export function historicalMarketChartRows(valuations=[]){
  const byDate=new Map();
  for(const row of valuations||[]){
   const eur=Number(row.transfermarkt_value_eur);
   if(row.transfermarkt_value_eur===null||row.transfermarkt_value_eur===undefined||!Number.isFinite(eur)||eur<0)continue;
   const season=String(row.season||"");
-  const match=/^(\\d{4})\\/(\\d{4})$/.exec(season);
+  const match=/^(\d{4})\/(\d{4})$/.exec(season);
   // The season end is a display proxy, never a claimed Transfermarkt quote date.
   const date=validDate(row.market_value_as_of)?row.market_value_as_of:match?match[2]+"-06-30":null;
   if(!date)continue;
