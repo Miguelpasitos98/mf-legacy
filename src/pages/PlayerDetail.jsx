@@ -1117,32 +1117,6 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           )}
         </div>
 
-        <aside className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0">
-          <div className="rounded-2xl border border-white/70 bg-white/70 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.07)] backdrop-blur-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
-              {currentCareerStatus === "active" ? "Current club" : "Situación del jugador"}
-            </p>
-
-            <div className="mt-5 flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-slate-50">
-                {teamLogo ? (
-                  <img src={teamLogo} alt="" className="h-12 w-12 object-contain" />
-                ) : (
-                  <Building2 size={25} className="text-slate-300" />
-                )}
-              </div>
-
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black uppercase tracking-tight text-slate-900">
-                  {teamName}
-                </p>
-                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
-                  {currentCareerStatus === "active" ? "Official club" : (lastTeam ? `Último club: ${lastTeam.name}` : "Sin último club registrado")}
-                </p>
-              </div>
-            </div>
-          </div>
-        </aside>
       </section>
 
       {typeof document !== "undefined" && createPortal(
