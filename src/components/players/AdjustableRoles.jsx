@@ -3,7 +3,7 @@ import {Check,Copy,Grip,MoveDiagonal,RotateCcw,SlidersHorizontal} from "lucide-r
 import RoleFieldConcept from "./RoleFieldConcept";
 
 const STORAGE_KEY="mf-legacy-role-layout-v1";
-const DEFAULT={left:-24,bottom:240,width:440};
+const DEFAULT={left:-154,bottom:258,width:517};
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 const stored=()=>{
  try{
