@@ -18,7 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryModal";
 import TransferChartMini from "@/components/players/TransferChartMini";
-import RoleFieldConcept from "@/components/players/RoleFieldConcept";
+import AdjustableRoles from "@/components/players/AdjustableRoles";
 import MarketBulkImport from "@/components/players/MarketBulkImport";
 import HistoricalMarketLookup from "@/components/players/HistoricalMarketLookup";
 import MarketCsvUpload from "@/components/players/MarketCsvUpload";
@@ -1147,10 +1147,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
       {typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed bottom-8 left-1/2 z-[80] flex w-[min(1440px,calc(100vw-28px))] -translate-x-1/2 gap-5 sm:bottom-10 sm:gap-7">
-          {/* El campo flota sobre la columna izquierda, como en el concepto, sin ocupar la tarjeta inferior. */}
-          <div className="pointer-events-none absolute bottom-[calc(100%+12px)] left-[-24px] hidden w-[min(440px,38vw)] lg:block">
-            <RoleFieldConcept ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} />
-          </div>
+          <AdjustableRoles ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} />
           <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
           <PlayerStatCard background={statCardColors.middleColor} grow={2.1}>
             <TransferChartMini player={editablePlayer} clubs={teams} />
