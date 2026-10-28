@@ -108,8 +108,8 @@ export default function StatsControlBar({
         </label>
         <div className="field">
           <span className="text-[10px] font-semibold uppercase text-transparent select-none" aria-hidden="true">Actualizar</span>
-          <button type="button" onClick={onRefresh} disabled={refreshing} title="Actualizar estadísticas y Composite desde Base44" className="flex h-[34px] items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-blue-200 bg-blue-50 px-3 text-[11px] font-bold text-blue-900 hover:bg-blue-100 disabled:opacity-50">
-            <RefreshCw size={13} className={refreshing?"animate-spin":""}/> Actualizar datos
+          <button type="button" onClick={onRefresh} disabled={refreshing} title="Actualizar de una vez estadísticas, fichas y Composite desde Base44" className="flex h-[34px] items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-blue-200 bg-blue-50 px-3 text-[11px] font-bold text-blue-900 hover:bg-blue-100 disabled:opacity-50">
+            <RefreshCw size={13} className={refreshing?"animate-spin":""}/> Actualizar todo
           </button>
         </div>
         {viewMode === "season" && (

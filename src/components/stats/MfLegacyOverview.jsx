@@ -1,7 +1,7 @@
 import React,{useMemo,useState} from "react";
 import {useQuery} from "@tanstack/react-query";
 import {base44} from "@/api/base44Client";
-import {Activity,ArrowRight,BarChart3,CalendarDays,ChevronRight,Database,Pencil,Plus,RefreshCw,TrendingUp} from "lucide-react";
+import {Activity,ArrowRight,BarChart3,CalendarDays,ChevronRight,Database,Pencil,Plus,TrendingUp} from "lucide-react";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
 import {overviewHistoricalModel} from "@/utils/statsOverviewModel";
 import {historicalRole} from "@/utils/historicalPeers";
@@ -39,7 +39,7 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
   staleTime:60000
  });
  const singleRate=understatRows.length===1?understatRows[0]:null;
- const {data,isFetching,error,refetch}=useHistoricalPeerDataset(true);
+ const {data,isFetching,error}=useHistoricalPeerDataset(true);
  const model=useMemo(()=>overviewHistoricalModel(data,playerId,season,8),[data,playerId,season]);
  const {result,indicators,trend}=model;
  const composite=result?.composite;
@@ -62,10 +62,6 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
    <section className="overflow-hidden rounded-2xl border-2 border-blue-200 bg-[#f6f9fe]">
      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
        <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-[#003399]"><BarChart3 size={18}/> Resumen MF LEGACY <span className="rounded-full bg-white px-2 py-1 text-[10px] text-blue-700 ring-1 ring-blue-100">vs {role||"posición desconocida"}</span></h3>
-       <button type="button" onClick={()=>refetch()} disabled={isFetching||!playerId}
-         className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-[11px] font-bold text-blue-900 ring-1 ring-blue-200 disabled:opacity-50">
-         <RefreshCw size={14} className={isFetching?"animate-spin":""}/>{isFetching?"Actualizando…":"Actualizar comparación"}
-       </button>
      </div>
      <div className="grid gap-3 p-3 lg:grid-cols-[270px_minmax(0,1fr)]">
        <div className="flex flex-col justify-between gap-4 rounded-xl bg-[#102e51] p-4 text-white">

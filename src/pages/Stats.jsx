@@ -470,6 +470,19 @@ export default function Stats(){
   const [tab,setTab]=useState(savedView.tab||"con"),[category,setCategory]=useState(savedView.category||"Resumen"),[sort,setSort]=useState(savedView.sort||"composite"),[sortDirection,setSortDirection]=useState(savedView.sortDirection||"desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[page,setPage]=useState(savedView.page||0);
   const scrollRoot=useRef(null),restoredScroll=useRef(false);
   const {rows:sourceRows,allRows:sourceAllRows,hasMore,loadMore,applyLocalRecord,refresh:refreshStats,busy,error,cached,refreshedAt}=useStatsRows(season,competition);
+  // One refresh orchestrates raw records and dependent queries; React Query
+  // deduplicates in-flight requests and rebuilds the peer dataset automatically.
+  const [refreshingAll,setRefreshingAll]=useState(false);
+  const refreshAll=async()=>{
+    if(refreshingAll)return;
+    setRefreshingAll(true);
+    try{
+      await refreshStats();
+      await queryClient.invalidateQueries({queryKey:STATS_DETAIL_KEY,refetchType:"active"});
+      await queryClient.invalidateQueries({queryKey:["understat-season-rates"],refetchType:"active"});
+    }catch(e){console.error("Error actualizando STATS completo",e);}
+    finally{setRefreshingAll(false);}
+  };
   const rows=useMemo(()=>withoutCurrentStatsSeason(sourceRows),[sourceRows]);
   const allRows=useMemo(()=>withoutCurrentStatsSeason(sourceAllRows),[sourceAllRows]);
   const {data:peerDataset,isFetching:peerLoading,error:peerError}=useHistoricalPeerDataset(viewMode==="season");
@@ -817,7 +830,7 @@ export default function Stats(){
         sortOptions={sortOptions}
         onSort={changeSort}
         refreshing={busy||peerLoading}
-        onRefresh={refreshStats}
+        onRefresh={refreshAll}
         minMinutes={minMinutes}
         onMinMinutes={value=>{setMinMinutes(value);setPage(0);}}
         viewMode={viewMode}

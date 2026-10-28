@@ -1,5 +1,5 @@
 import React,{useMemo,useState} from "react";
-import { AlertTriangle, BarChart3, ClipboardList, Database, RefreshCw } from "lucide-react";
+import { AlertTriangle, BarChart3, ClipboardList, Database } from "lucide-react";
 import { useHistoricalPeerDataset } from "@/hooks/useHistoricalPeerDataset";
 import { compareHistoricalObservation, historicalRole, historicalNationalCompetition } from "@/utils/historicalPeers";
 import { POSITION_SOURCES } from "@/utils/historicalPositions";
@@ -53,7 +53,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const [copyStatus,setCopyStatus]=useState("");
   const [showSensitivity,setShowSensitivity]=useState(false);
   const [detailsOpen,setDetailsOpen]=useState(false);
-  const {data,error,isFetching,refetch}=useHistoricalPeerDataset(main);
+  const {data,error,isFetching}=useHistoricalPeerDataset(main);
   const season=seasons.includes(picked)?picked:seasons.includes(initialSeason)?initialSeason:seasons[0]||"";
   // La posición histórica efectiva de la temporada decide el arquetipo; la
   // posición actual de la ficha solo actúa como respaldo provisional.
@@ -102,7 +102,6 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
         </div>
         <div className="flex items-center gap-1.5">
           {main&&<button type="button" onClick={copyMissingPrompt} disabled={!playerId||!season} title="Copiar estadísticas vacías de todas las temporadas" className="rounded border border-indigo-200 bg-white px-2 py-1.5 text-[11px] font-bold text-[#003399] disabled:opacity-50"><ClipboardList size={13} className="inline-block mr-1"/>Investigar vacías</button>}
-          <button type="button" onClick={()=>refetch()} disabled={isFetching||!playerId} title="Actualizar comparación" className="rounded border border-indigo-200 bg-white px-2 py-1.5 text-[11px] font-bold text-[#003399] disabled:opacity-50"><RefreshCw size={13} className={"inline-block mr-1 "+(isFetching?"animate-spin":"")}/>{isFetching?"Actualizando…":"Actualizar"}</button>
         </div>
       </div>
       {observation?.playShareEstimated&&<p role="note" className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">Participación de minutos provisional: FotMob no dispone de minutos oficiales en alguna competición; se utiliza PJ jugador / PJ equipo como aproximación de participación máxima. Se indica como estimación y no como minutos reales.</p>}
