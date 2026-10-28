@@ -125,15 +125,15 @@ export default function TransferChartMini({ player, clubs = [] }) {
           {data.length ? <Pencil size={14}/> : <Plus size={16}/>}
         </button>
       </div>
-      {data.length>0 ? <div className="mt-1 min-h-0 flex-1" style={{minHeight:78}}>
+      {data.length>0 ? <div className="mt-1 min-h-0 flex-1" style={{minHeight:94}}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{top:27,right:5,bottom:0,left:0}}>
+          <AreaChart data={chartData} margin={{top:17,right:5,bottom:0,left:0}}>
             <defs>{segments.map((seg,i)=><linearGradient key={i} id={`mini-market-${i}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={seg.color} stopOpacity={0.35}/>
               <stop offset="100%" stopColor={seg.color} stopOpacity={0.02}/>
             </linearGradient>)}</defs>
-            <XAxis dataKey="timestamp" type="number" domain={["dataMin","dataMax"]} tickFormatter={v=>new Date(v).getFullYear()} tick={{fill:"#64748b",fontSize:9}} axisLine={false} tickLine={false} minTickGap={19}/>
-            <YAxis hide domain={[0,"auto"]}/>
+            <XAxis dataKey="timestamp" type="number" domain={["dataMin","dataMax"]} tickFormatter={v=>new Date(v).getFullYear()} tick={{fill:"#64748b",fontSize:9}} height={16} axisLine={false} tickLine={false} minTickGap={19}/>
+            <YAxis hide domain={[0, maxValue === null ? 1 : Math.max(1, maxValue * 1.05)]} allowDataOverflow={false}/>
             <Tooltip content={<MiniTooltip/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
             {segments.map((seg,i)=><Area key={i} type="monotone" dataKey={`s${i}`} stroke={seg.color} strokeWidth={2.6} fill={`url(#mini-market-${i})`} connectNulls={false} dot={false} activeDot={false} isAnimationActive={false}/>)}
             {segments.map((segment,i)=>{
@@ -147,7 +147,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
               const fraction=right.timestamp===left.timestamp?0:(midpoint-left.timestamp)/(right.timestamp-left.timestamp);
               const height=left.value+(right.value-left.value)*fraction;
               return <ReferenceDot key={i} x={midpoint} y={height} isFront={true} ifOverflow="visible"
-                shape={({cx,cy})=><image href={first.clubLogo} x={cx-11} y={cy-29} width={22} height={22} preserveAspectRatio="xMidYMid meet"/>}/>;
+                shape={({cx})=><image href={first.clubLogo} x={cx-10} y={0} width={20} height={20} preserveAspectRatio="xMidYMid meet"/>}/>;
             })}
           </AreaChart>
         </ResponsiveContainer>
