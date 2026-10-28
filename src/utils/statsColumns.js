@@ -259,3 +259,13 @@ export function columnValue(row,mode,id,config){
  }catch{return null;}}
  return mode==="season"?statDisplay(row,id):metricsValue(row,id);
 }
+
+// Small source rates (especially xA for goalkeepers) must never be rendered
+// as statistical zero solely because the column uses two decimal places.
+export function formatStatRate(value,decimals=2){
+ if(value===null||value===undefined||value===""||!Number.isFinite(Number(value)))return "—";
+ const n=Number(value);
+ const digits=n!==0&&Math.abs(n)<Math.pow(10,-decimals)/2
+   ?Math.min(6,Math.max(decimals,Math.ceil(-Math.log10(Math.abs(n)))+2)):decimals;
+ return n.toLocaleString("es-ES",{minimumFractionDigits:digits,maximumFractionDigits:digits});
+}

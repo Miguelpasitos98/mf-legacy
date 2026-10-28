@@ -147,3 +147,9 @@ test('preferencias antiguas de Portería reciben SV/90 y xA/90 sin perder column
  const personalized=sanitizeConfig({...upgraded,columns:{...upgraded.columns,season:{...upgraded.columns.season,Portería:['saves']}}});
  assert.deepEqual(personalized.columns.season.Portería.filter(x=>['savesper90','xaper90'].includes(x)),[]);
 });
+test('las tasas pequeñas no se convierten visualmente en cero',async()=>{
+ const {formatStatRate}=await import('../src/utils/statsColumns.js');
+ assert.equal(formatStatRate(0.001553,2),'0,00155');
+ assert.equal(formatStatRate(3.7567,2),'3,76');
+ assert.equal(formatStatRate(0,2),'0,00');
+});
