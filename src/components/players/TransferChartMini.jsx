@@ -141,7 +141,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
             <XAxis dataKey="timestamp" type="number" domain={["dataMin","dataMax"]} tickFormatter={v=>new Date(v).getFullYear()} tick={{fill:"#64748b",fontSize:9}} height={16} axisLine={false} tickLine={false} minTickGap={19}/>
             <YAxis hide domain={[0, maxValue === null ? 1 : Math.max(1, maxValue * 1.05)]} allowDataOverflow={false}/>
             <Tooltip content={<MiniTooltip/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
-            {segments.map((seg,i)=><Area key={i} type="monotone" dataKey={`s${i}`} stroke={seg.color} strokeWidth={2.6} fill={`url(#mini-market-${i})`} connectNulls={false} dot={false} activeDot={false} isAnimationActive={false}/>)}
+            {segments.map((seg,i)=><Area key={i} type="natural" dataKey={`s${i}`} stroke={seg.color} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" fill={`url(#mini-market-${i})`} connectNulls={false} dot={false} activeDot={{r:3, strokeWidth:1.5}} isAnimationActive={false}/>)}
             {segments.map((segment,i)=>{
               const first=data[segment.indices[0]];
               const last=data[segment.indices[segment.indices.length-1]];
