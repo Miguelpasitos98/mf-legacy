@@ -60,7 +60,7 @@ export default function RoleFieldConcept({ratings={},playerId,position}){
   {roles.map((role,i)=><div key={i} className="absolute z-20 flex items-center" style={{left:"16.4%",top:i===0?"13.4%":"23.9%",width:"56.7%",height:"8.8%"}}>
     {role.name&&<span
       className="pointer-events-none flex h-full min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap pl-5 pr-1 font-bold text-slate-900"
-      style={{fontSize:role.name.length>30?"13px":role.name.length>25?"14px":"16px",lineHeight:"1.2",paddingTop:"3px"}}
+      style={{fontSize:role.name.length>30?"13px":role.name.length>25?"14px":"16px",lineHeight:"1.2",paddingTop:"11px"}}
       title={role.description||role.name}
     >{role.name}</span>}
     <button type="button" onClick={()=>openEditor(i)} aria-label={`Editar rol ${i+1}`} title="Seleccionar rol y escribir descripción" className="pointer-events-auto h-full w-[12%] shrink-0 cursor-pointer rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"/>
