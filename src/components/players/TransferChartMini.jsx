@@ -163,7 +163,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
           <div className="mt-4 space-y-2">
             {draft.map((r, i) => <div key={i} className="grid grid-cols-[1fr_0.9fr_1.3fr_auto] items-center gap-2">
               <input aria-label="Fecha" type="date" className="min-w-0 rounded-lg border px-2 py-2 text-xs" value={r.date} onChange={(e) => setDraft((d) => d.map((x,j) => j===i?{...x,date:e.target.value}:x))}/>
-              <input aria-label="Valor en millones de euros" type="number" step="0.01" min="0" placeholder="M€" className="min-w-0 rounded-lg border px-2 py-2 text-xs" value={r.value} onChange={(e) => setDraft((d) => d.map((x,j) => j===i?{...x,value:e.target.value}:x))}/>
+              <input aria-label="Valor en millones de euros" type="number" step="any" min="0" placeholder="M€" className="min-w-0 rounded-lg border px-2 py-2 text-xs" value={r.value} onChange={(e) => setDraft((d) => d.map((x,j) => j===i?{...x,value:e.target.value}:x))}/>
               <input aria-label="Club" list="market-mini-clubs" placeholder="Club (opcional)" className="min-w-0 rounded-lg border px-2 py-2 text-xs" value={r.team} onChange={(e) => setDraft((d) => d.map((x,j) => j===i?{...x,team:e.target.value,club_id:""}:x))}/>
               <button type="button" title="Eliminar registro" aria-label="Eliminar registro" className="rounded-lg p-2 text-red-600" onClick={() => setDraft((d) => d.filter((_,j)=>j!==i))}><Trash2 size={16}/></button>
             </div>)}
