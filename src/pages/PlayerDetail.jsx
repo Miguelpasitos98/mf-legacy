@@ -657,11 +657,11 @@ const getBestPosition = (ratings) => {
   return `${valid[0].label} · ${valid[0].value}/20`;
 };
 
-const PlayerStatCard = ({ background, grow = 1, children }) => {
+const PlayerStatCard = ({ background, grow = 1, children, compact = false }) => {
   return (
     <div
       aria-hidden={children ? undefined : "true"}
-      className="flex h-[clamp(190px,18vw,228px)] min-w-0 flex-1 rounded-[20px] border border-black/10 px-6 py-6 shadow-[0_24px_52px_rgba(15,23,42,0.22)]"
+      className={`flex h-[clamp(190px,18vw,228px)] min-w-0 flex-1 rounded-[20px] border border-black/10 shadow-[0_24px_52px_rgba(15,23,42,0.22)] ${compact ? "px-3 py-3" : "px-6 py-6"}`}
       style={{ backgroundColor: background, flex: grow }}
     >{children}</div>
   );
@@ -1176,7 +1176,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
       {typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed bottom-8 left-1/2 z-[80] flex w-[min(1440px,calc(100vw-28px))] -translate-x-1/2 gap-5 sm:bottom-10 sm:gap-7">
-          <PlayerStatCard background={statCardColors.primaryColor} grow={1}>
+          <PlayerStatCard background={statCardColors.primaryColor} grow={1} compact>
             <PositionFieldMini ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} />
           </PlayerStatCard>
           <PlayerStatCard background={statCardColors.middleColor} grow={2.1}>
