@@ -35,7 +35,7 @@ export default function MarketValueRecords({player,clubs=[]}){
   const [selectedRows,setSelectedRows]=useState([]);
   const [bulkClub,setBulkClub]=useState("");
   const [clubSearch,setClubSearch]=useState({});
-  const reset=()=>{setRows((Array.isArray(read(player))?read(player):[]).map(r=>({...r,date:iso(r.date),value:String(r.value??""),team:r.team||"",club_id:r.club_id||""})).sort((a,b)=>a.date.localeCompare(b.date)));setDirty(false);setSelectedRows([]);setClubSearch({});};
+  const reset=()=>{setRows((Array.isArray(read(player))?read(player):[]).map(r=>({...r,date:iso(r.date),value:String(r.value??""),team:r.team||"",club_id:r.club_id||"",linked_club_name:r.linked_club_name||""})).sort((a,b)=>a.date.localeCompare(b.date)));setDirty(false);setSelectedRows([]);setClubSearch({});};
   useEffect(()=>{reset();},[player?.id]);
   useEffect(()=>{
     const handler=e=>{if(String(e.detail?.playerId)===String(player?.id))reset();};
@@ -47,7 +47,7 @@ export default function MarketValueRecords({player,clubs=[]}){
   const getClubByLabel=(label)=>candidates.find(c=>normalize(c.name)===normalize(label));
   const setClubForIndices=(indices,clubId)=>{
     if(!indices.length)return;
-    setRows(old=>old.map((row,i)=>indices.includes(i)?{...row,club_id:clubId}:row));
+    setRows(old=>old.map((row,i)=>indices.includes(i)?{...row,club_id:clubId,linked_club_name:candidates.find(c=>String(c.id)===String(clubId))?.name||row.linked_club_name||""}:row));
     setDirty(true);
     setMessage(`${indices.length} valoraciones modificadas. Pulsa Guardar cambios para aplicarlas al gráfico.`);
   };
@@ -71,7 +71,7 @@ export default function MarketValueRecords({player,clubs=[]}){
       if(row.club_id)return row;
       const match=matchedClub(row.team,candidates);
       if(!match){if(row.team)unmatched.add(row.team);return row;}
-      linked++;return {...row,club_id:match.id};
+      linked++;return {...row,club_id:match.id,linked_club_name:match.name};
     }));
     if(linked)setDirty(true);
     setMessage(`${linked} registros asociados automáticamente. ${unmatched.size} nombres de clubes pendientes de revisión. Guarda los cambios para aplicarlos al gráfico.`);
@@ -85,7 +85,7 @@ export default function MarketValueRecords({player,clubs=[]}){
       const valid=/^\d{4}-\d{2}-\d{2}$/.test(r.date)&&!Number.isNaN(Date.parse(r.date))&&Number.isFinite(value)&&value>=0;
       if(!valid)throw new Error(`Registro ${i+1}: fecha o importe inválido`);
       const linked=candidates.find(c=>String(c.id)===String(r.club_id));
-      return {date:r.date,value,team:r.team||linked?.name||"",club_id:linked?.id||""};
+      return {date:r.date,value,team:r.team||linked?.name||"",club_id:String(r.club_id||""),linked_club_name:linked?.name||r.linked_club_name||""};
     }); } catch(e){setMessage(e.message);return;}
     try{
       const dates=new Set();
@@ -93,7 +93,7 @@ export default function MarketValueRecords({player,clubs=[]}){
       normalized.sort((a,b)=>a.date.localeCompare(b.date));
       window.localStorage.setItem(storageKey(player.id),JSON.stringify(normalized));
       window.dispatchEvent(new CustomEvent("mf-legacy-market-preview-updated",{detail:{playerId:player.id}}));
-      setDirty(false);setSelectedRows([]);setMessage(`${normalized.length} registros guardados en este navegador.`);
+      setDirty(false);setSelectedRows([]);setMessage(`${normalized.length} registros guardados en este navegador con ${normalized.filter(r=>r.club_id).length} asociaciones de club.`);
     }catch(e){setMessage(e.message);}
   };
   return <section className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -126,7 +126,7 @@ export default function MarketValueRecords({player,clubs=[]}){
             <td className="p-2"><input type="number" min="0" step="any" value={r.value} onChange={e=>set(r.index,{value:e.target.value})} className="w-[85px] rounded border px-1 py-1"/></td>
             <td className="p-2 text-slate-600">{r.team||"Sin información"}</td>
             <td className="p-2"><div className="flex items-center gap-2">{selected&&(selected.logo||selected.logo_url||selected.badge_url)&&<img src={selected.logo||selected.logo_url||selected.badge_url} alt="" className="h-5 w-5 object-contain"/>}
-              <input type="search" list="mf-market-row-clubs" value={clubSearch[r.index] ?? selected?.name ?? ""}
+              <input type="search" list="mf-market-row-clubs" value={clubSearch[r.index] ?? selected?.name ?? r.linked_club_name ?? ""}
                 placeholder="Buscar y asociar club" aria-label={`Club asociado a ${r.date}`}
                 onChange={e=>{
                   setClubSearch(old=>({...old,[r.index]:e.target.value}));
@@ -136,7 +136,7 @@ export default function MarketValueRecords({player,clubs=[]}){
                     setClubForIndices(matching,String(club.id));
                     setClubSearch(old=>({...old,[r.index]:club.name}));
                   }else if(!e.target.value){
-                    set(r.index,{club_id:""});
+                    set(r.index,{club_id:"",linked_club_name:""});
                   }
                 }}
                 className="w-full min-w-[135px] max-w-[220px] rounded border bg-white p-1 text-xs"/>
