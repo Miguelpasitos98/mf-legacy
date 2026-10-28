@@ -49,9 +49,9 @@ const summaryDuel=(row,seasons)=>{
 };
 
 export default function CompareAnalysisTable({model,observations=[],peerLoading=false,peerError=null,onOpen}){
+ const [rankingIndicator,setRankingIndicator]=useState(null);
  if(!model)return null;
  const {seasons=[],indicators=[],contested=0}=model;
- const [rankingIndicator,setRankingIndicator]=useState(null);
  const nameOf=season=>season.player?.name||season.summary?.player_name||"Jugador";
  return <section className="rounded-xl border-2 border-indigo-200 bg-[#f8faff] p-4">
   <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
