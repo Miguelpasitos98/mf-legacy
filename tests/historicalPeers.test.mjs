@@ -186,3 +186,25 @@ test("DM obtiene percentiles por posición pero no Composite sin ponderación pr
  assert.equal(result.role,"DM");
  assert.equal(result.composite,null);
 });
+test('Keylor Navas Pumas: participación provisional con 22/23 y 15/18 cuando faltan minutos',()=>{
+ const stats=[
+  {player_id:'h',season:'2025/2026',competition:'Liga MX Clausura',team_name:'Pumas',appearances:22,minutes:null,team_matches:23,metrics:[]},
+  {player_id:'h',season:'2025/2026',competition:'Liga MX Apertura',team_name:'Pumas',appearances:15,minutes:null,team_matches:18,metrics:[]},
+ ];
+ const observations=buildHistoricalObservations({stats,players});
+ const keylor=observations.find(o=>o.playerId==='h');
+ assert.ok(keylor);
+ assert.ok(Math.abs(keylor.values.play_share-(37/41*100))<1e-8);
+ assert.equal(keylor.playShareEstimated,true);
+ assert.deepEqual(keylor.playShareCoverage,{covered:2,total:2});
+ assert.equal(stats[0].minutes,null);
+});
+test('La participación conserva prioridad de minutos oficiales sobre PJ estimados',()=>{
+ const stats=[
+  {player_id:'h',season:'2025/2026',competition:'Liga MX Clausura',team_name:'Pumas',appearances:22,minutes:1710,team_matches:23,metrics:[]},
+  {player_id:'h',season:'2025/2026',competition:'Liga MX Apertura',team_name:'Pumas',appearances:15,minutes:1230,team_matches:18,metrics:[]},
+ ];
+ const keylor=buildHistoricalObservations({stats,players}).find(o=>o.playerId==='h');
+ assert.ok(Math.abs(keylor.values.play_share-(2940/(41*90)*100))<1e-8);
+ assert.equal(keylor.playShareEstimated,false);
+});
