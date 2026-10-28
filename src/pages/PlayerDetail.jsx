@@ -3,7 +3,6 @@ import {formatBirthDate,birthAge} from "@/utils/playerDate";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
-  CalendarDays,
   Building2,
   UserRound,
   X,
@@ -1048,10 +1047,6 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       </header>
 
       <section className="relative z-10 grid h-full min-h-0 grid-cols-1 items-center gap-4 overflow-visible px-6 pb-2 pt-20 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20">
-        <div className="pointer-events-none absolute bottom-[2%] left-[3%] select-none whitespace-nowrap text-[clamp(5rem,14vw,15rem)] font-black uppercase leading-[0.72] tracking-[-0.09em] text-slate-900/[0.055]">
-          {playerName}
-        </div>
-
         <div className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0 lg:-translate-y-[184px]">
           <h1 className="max-w-lg text-5xl font-bold leading-[0.9] tracking-[-0.045em] text-slate-950 md:text-6xl xl:text-7xl">
             {playerName.split(/\s+/).filter(Boolean).map((word, index) => (
@@ -1076,30 +1071,6 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-slate-600">
-              <CalendarDays size={18} />
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                  Date of birth
-                </p>
-                <p className="font-bold text-slate-900">
-                  {formatDate(dateOfBirth)}
-                  {age !== null ? ` · ${age} years` : ""}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 text-slate-600">
-              <UserRound size={18} />
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                  Player ID
-                </p>
-                <p className="max-w-[220px] truncate font-mono text-xs font-semibold text-slate-700">
-                  {player?.id || "—"}
-                </p>
-              </div>
-            </div>
           </div>
         </div>
 
