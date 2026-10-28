@@ -7,7 +7,8 @@ export function historicalMarketChartRows(valuations=[]){
   const season=String(row.season||"");
   const match=/^(\d{4})\/(\d{4})$/.exec(season);
   // The season end is a display proxy, never a claimed Transfermarkt quote date.
-  const date=validDate(row.market_value_as_of)?row.market_value_as_of:match?match[2]+"-06-30":null;
+  const fallback=match?match[2]+"-06-30":null;
+  const date=validDate(row.market_value_as_of)?row.market_value_as_of:(fallback&&fallback<=new Date().toISOString().slice(0,10)?fallback:null);
   if(!date)continue;
   const value=eur/1000000;
   const old=byDate.get(date);
