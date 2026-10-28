@@ -93,6 +93,17 @@ export default function TransferChartMini({ player, clubs = [] }) {
       team:r.team||club?.name||"", club, clubLogo:club?.logo||club?.logo_url||club?.badge_url||"",
       color:clubColor(club)};
   }), [rows, clubs]);
+  const yearTicks=useMemo(()=>{
+    if(!data.length)return [];
+    const start=new Date(data[0].timestamp).getFullYear();
+    const end=new Date(data[data.length-1].timestamp).getFullYear();
+    const ticks=[];
+    for(let year=Math.ceil(start/2)*2;year<=end;year+=2) {
+      const time=new Date(year,0,1,12).getTime();
+      if(time>=data[0].timestamp&&time<=data[data.length-1].timestamp)ticks.push(time);
+    }
+    return ticks;
+  },[data]);
   const latest=data.at(-1);
   const maxValue=data.length?Math.max(...data.map(row=>row.value)):null;
   const minValue=data.length?Math.min(...data.map(row=>row.value)):null;
@@ -150,7 +161,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
               <stop offset="0%" stopColor={seg.color} stopOpacity={0.35}/>
               <stop offset="100%" stopColor={seg.color} stopOpacity={0.02}/>
             </linearGradient>)}</defs>
-            <XAxis dataKey="timestamp" type="number" domain={["dataMin","dataMax"]} tickFormatter={v=>new Date(v).getFullYear()} tick={{fill:"#64748b",fontSize:9}} height={16} axisLine={false} tickLine={false} minTickGap={19}/>
+            <XAxis dataKey="timestamp" type="number" domain={["dataMin","dataMax"]} ticks={yearTicks} interval={0} tickFormatter={v=>new Date(v).getFullYear()} tick={{fill:"#64748b",fontSize:9}} height={16} axisLine={false} tickLine={false} minTickGap={19}/>
             <YAxis yAxisId="market" hide domain={[0, axisTop]} ticks={axisTicks} allowDataOverflow={false}/>
             <CartesianGrid vertical={false} stroke="#64748b" strokeOpacity={0.13} strokeDasharray="3 4"/>
             <Tooltip content={<MiniTooltip minimum={minValue} maximum={maxValue}/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
