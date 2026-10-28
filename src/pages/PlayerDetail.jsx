@@ -720,6 +720,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       ca: player?.ca ?? "",
       cp: player?.cp ?? "",
       description: player?.description || "",
+      tacticalRoles: Array.isArray(player?.tactical_roles)?player.tactical_roles:[{name:player?.description||"",description:""},{name:"",description:""}],
       positionRatings: initialPositionRatings,
       stats: getPlayerStats(player),
     }),
@@ -831,7 +832,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   const lastName = rest.join(" ");
 
   const openEditor = () => {
-    setForm(initialForm);
+    setForm({...initialForm,tacticalRoles:Array.isArray(editablePlayer?.tactical_roles)?editablePlayer.tactical_roles:[{name:editablePlayer?.description||"",description:""},{name:"",description:""}]});
     setEditError("");
     setEditTab("general");
     setEditOpen(true);
@@ -954,9 +955,15 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         cp: numericCP,
         position_ratings: positionRatings,
         stats: normalizedStats,
-        description: form.description || "",
+        description: form.tacticalRoles?.[0]?.name || form.description || "",
       };
       const patch=changedPlayerFields(form,initialForm,fullPayload);
+      // Keep the legacy single Description field aligned with the primary tactical role.
+      if((form.tacticalRoles?.[0]?.name||"")!==(editablePlayer?.description||""))patch.description=form.tacticalRoles?.[0]?.name||"";
+      const nextRoles=(form.tacticalRoles||[]).map(role=>({name:String(role?.name||""),description:String(role?.description||"")}));
+      if(JSON.stringify(nextRoles)!==JSON.stringify(editablePlayer?.tactical_roles||[{name:editablePlayer?.description||"",description:""},{name:"",description:""}])){
+        patch.tactical_roles=nextRoles;
+      }
       if(!playerEditHasChanges(patch)){
         setEditOpen(false);
         return;
@@ -1122,7 +1129,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
       {typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed bottom-8 left-1/2 z-[80] flex w-[min(1440px,calc(100vw-28px))] -translate-x-1/2 gap-5 sm:bottom-10 sm:gap-7">
-          <AdjustableRoles ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} playerId={editablePlayer?.id} position={editablePlayer?.fm_position||editablePlayer?.position||editablePlayer?.position_raw} foot={{left:editablePlayer?.left_foot,right:editablePlayer?.right_foot}} storedRoles={editablePlayer?.tactical_roles} onSaved={(patch)=>{setEditablePlayer(current=>({...current,...patch}));onPlayerUpdated?.({...editablePlayer,...patch},patch);}} />
+          <AdjustableRoles ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} playerId={editablePlayer?.id} position={editablePlayer?.fm_position||editablePlayer?.position||editablePlayer?.position_raw} foot={{left:editablePlayer?.left_foot,right:editablePlayer?.right_foot}} storedRoles={editablePlayer?.tactical_roles} onSaved={(patch)=>{setEditablePlayer(current=>({...current,...patch}));setForm(current=>({...current,tacticalRoles:patch.tactical_roles}));onPlayerUpdated?.({...editablePlayer,...patch},patch);}} />
           <AdjustableRightModules playerId={editablePlayer?.id} color={statCardColors.primaryColor} />
           <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
           <PlayerStatCard background={statCardColors.middleColor} grow={2.1}>
@@ -1406,18 +1413,17 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                             </div>
                           </div>
 
-                          <div>
-                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Description</label>
-                            <select value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className={INPUT_CLASS}>
-                              <option value="">Sin descripción</option>
-                              {DESCRIPTION_OPTIONS.map((group) => (
-                                <optgroup key={group.group} label={group.group}>
-                                  {group.options.map((option) => (
-                                    <option key={option} value={option}>{option}</option>
-                                  ))}
-                                </optgroup>
-                              ))}
-                            </select>
+                          <div className="space-y-3">
+                            {([0,1]).map((slot)=><div key={slot} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                              <label className="mb-1.5 block text-xs font-semibold text-slate-700">{`Description ${slot+1}`} · Rol {slot+1}</label>
+                              <select value={form.tacticalRoles?.[slot]?.name||""} onChange={event=>setForm(current=>{const roles=[...(current.tacticalRoles||[{name:"",description:""},{name:"",description:""}])];roles[slot]={...roles[slot],name:event.target.value};return {...current,tacticalRoles:roles};})} className={INPUT_CLASS}>
+                                <option value="">Sin descripción</option>
+                                {DESCRIPTION_OPTIONS.map(group=><optgroup key={group.group} label={group.group}>
+                                  {group.options.map(option=><option key={option} value={option}>{option}</option>)}
+                                </optgroup>)}
+                              </select>
+                              <textarea rows={2} value={form.tacticalRoles?.[slot]?.description||""} onChange={event=>setForm(current=>{const roles=[...(current.tacticalRoles||[{name:"",description:""},{name:"",description:""}])];roles[slot]={...roles[slot],description:event.target.value};return {...current,tacticalRoles:roles};})} placeholder="Descripción personal (opcional)" className="mt-2 w-full resize-y rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-800"/>
+                            </div>)}
                           </div>
 
                           <div>
