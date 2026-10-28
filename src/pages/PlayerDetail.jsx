@@ -667,7 +667,7 @@ const PlayerStatCard = ({ background, grow = 1, children, compact = false }) => 
   );
 };
 
-export default function PlayerDetail({ player, team, country, teams = [], countries = [], onBack, onPlayerUpdated }) {
+export default function PlayerDetail({ player, team, country, teams = [], countries = [], onBack, onPlayerUpdated, onTeamClick }) {
   const navigate = useNavigate();
   const [showDbHistory, setShowDbHistory] = useState(false);
   const initialPositionRatings = useMemo(
@@ -1058,7 +1058,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           </h1>
 
           <div className="mt-6 space-y-4 text-sm">
-            <div className="flex items-center gap-3 text-slate-600">
+            <button type="button" disabled={!team?.id || currentCareerStatus !== "active"} onClick={() => onTeamClick?.(String(team.id))} aria-label={`Ver jugadores de ${teamName}`} className="flex items-center gap-3 text-left text-slate-600 transition hover:text-[#003399] enabled:cursor-pointer disabled:cursor-default">
               {teamLogo ? (
                 <img src={teamLogo} alt="" className="h-6 w-6 object-contain" />
               ) : (
@@ -1070,7 +1070,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 </p>
                 <p className="font-bold text-slate-900">{teamName}</p>
               </div>
-            </div>
+            </button>
 
           </div>
         </div>
