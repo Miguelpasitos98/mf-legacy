@@ -33,7 +33,7 @@ const roleColor=(value)=>ROLE_RANGES.find(({min,max})=>value>=min&&value<=max)?.
 
 // Reutilizar exactamente el catálogo del editor del jugador, incluidos sus emojis.
 const ALL_ROLES=PLAYER_DESCRIPTIONS.flatMap(group=>group.options);
-const comparableRole=value=>String(value||"").replace(/^[^\\p{L}\\p{N}]+/u,"").trim().toLocaleLowerCase("es");
+const comparableRole=value=>String(value||"").replace(/^[^\p{L}\p{N}]+/u,"").trim().toLocaleLowerCase("es");
 const canonicalRole=value=>ALL_ROLES.find(option=>option===value||comparableRole(option)===comparableRole(value))||String(value||"");
 const EMPTY=[{name:"",description:""},{name:"",description:""}];
 export default function RoleFieldConcept({ratings={},playerId,position}){
