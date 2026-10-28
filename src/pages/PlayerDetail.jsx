@@ -1288,11 +1288,14 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <div className="min-w-[100px] rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-center">
+                          <label htmlFor="player-shirt-number" className="block text-[10px] font-bold uppercase tracking-[0.16em] text-[#003399]">Dorsal</label>
+                          <input id="player-shirt-number" aria-label="Editar dorsal de camiseta" type="number" min={1} max={99} placeholder="—" value={form.shirtNumber ?? ""} onChange={event=>setForm(current=>({...current,shirtNumber:event.target.value}))} className="mt-1 w-full min-w-0 rounded-lg border border-blue-200 bg-white px-2 py-1 text-center text-sm font-extrabold text-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"/>
+                        </div>
                         {[
                           ["CA", form.ca || "—"],
                           ["CP", form.cp || "—"],
                           ["Altura", form.height ? `${form.height} cm` : "—"],
-                          ["Dorsal", form.shirtNumber || "—"],
                         ].map(([label, value]) => (
                           <div key={label} className="min-w-[92px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{label}</p>
@@ -1382,10 +1385,6 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                           <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-700">Height (cm)</label>
                             <input type="number" min={0} max={250} value={form.height} onChange={(event) => setForm((current) => ({ ...current, height: event.target.value }))} className={INPUT_CLASS} />
-                          </div>
-                          <div>
-                            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Dorsal (camiseta)</label>
-                            <input type="number" min={0} max={99} value={form.shirtNumber} onChange={(event) => setForm((current) => ({ ...current, shirtNumber: event.target.value }))} className={INPUT_CLASS} />
                           </div>
                           <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-700">Right foot</label>
