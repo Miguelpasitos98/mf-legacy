@@ -5,6 +5,7 @@ import { compareHistoricalObservation, historicalRole, historicalNationalCompeti
 import { POSITION_SOURCES } from "@/utils/historicalPositions";
 import { analyzeCompositeSensitivity } from "@/utils/compositeEngine";
 import OverviewManualEditor from "@/components/stats/OverviewManualEditor";
+import IndicatorHistoricalRankingModal from "@/components/stats/IndicatorHistoricalRankingModal";
 import { formatEur } from "@/utils/historicalValuation";
 const EDIT_METRIC_NAMES={npxg_p90:"xG excl. penalty",xa_p90:"xA",xgot_p90:"xGOT",shots_on_target_p90:"Shots on target",big_chances_created_p90:"Big chances created",possession_won_final_3rd_p90:"Possession won final 3rd",accurate_long_balls_p90:"Accurate long balls",successful_dribbles_p90:"Dribbles",dispossessed_p90:"Dispossessed",dribbled_past_p90:"Dribbled past",goals_prevented_p90:"Goals prevented",accurate_passes_p90:"Accurate passes",def_actions_poss_adj_p90:"PAdj defensive actions",aerial_duels_won_pct:"Aerials won %",ground_duels_won_pct:"Ground duels won %",save_pct:"Save percentage"};
 const NON_EDITABLE_COMPOSITE=new Set(["fc27_ovr","market_value","play_share","finishing_xgot_minus_npxg"]);
@@ -53,6 +54,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
   const [copyStatus,setCopyStatus]=useState("");
   const [showSensitivity,setShowSensitivity]=useState(false);
   const [detailsOpen,setDetailsOpen]=useState(false);
+  const [rankingIndicator,setRankingIndicator]=useState(null);
   const {data,error,isFetching}=useHistoricalPeerDataset(main);
   const season=seasons.includes(picked)?picked:seasons.includes(initialSeason)?initialSeason:seasons[0]||"";
   // La posición histórica efectiva de la temporada decide el arquetipo; la
@@ -214,7 +216,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
               </tr>
             </thead>
             <tbody>{displayedRows.map(item=><tr className={"border-t border-slate-100 "+(item.value===null?"bg-slate-50 text-slate-400":"hover:bg-slate-50")} key={item.key}>
-              <td className={"px-3 py-2.5 font-semibold "+(item.value===null?"text-slate-400":"text-slate-800")}>{item.name}{result.role==="CB"&&["xg_buildup_p90","xg_chain_p90"].includes(item.key)&&item.value===null&&<span className="mt-1 block max-w-[320px] text-[10px] font-normal italic leading-snug text-slate-400">Sin datos · peso redistribuido: pases precisos /90 (45 %), pases largos precisos /90 (40 %) y acciones defensivas ajustadas /90 (15 %)</span>}{result.role==="GK"&&item.key==="xg_buildup_p90"&&item.value===null&&<span className="mt-1 block max-w-[290px] text-[10px] font-normal italic leading-snug text-slate-400">Sin datos · peso redistribuido: pases largos precisos /90 (60 %) y pases precisos /90 (40 %)</span>}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
+              <td className={"px-3 py-2.5 font-semibold "+(item.value===null?"text-slate-400":"text-slate-800")}><button type="button" disabled={!role||!data?.observations?.length} onClick={()=>setRankingIndicator({key:item.key,name:item.name,penalty:item.penalty})} title={"Abrir ranking histórico de "+item.name+" para "+(role||"el arquetipo")} className="text-left text-[#003399] underline decoration-blue-200 underline-offset-2 hover:decoration-blue-700 disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline">{item.name}</button>{result.role==="CB"&&["xg_buildup_p90","xg_chain_p90"].includes(item.key)&&item.value===null&&<span className="mt-1 block max-w-[320px] text-[10px] font-normal italic leading-snug text-slate-400">Sin datos · peso redistribuido: pases precisos /90 (45 %), pases largos precisos /90 (40 %) y acciones defensivas ajustadas /90 (15 %)</span>}{result.role==="GK"&&item.key==="xg_buildup_p90"&&item.value===null&&<span className="mt-1 block max-w-[290px] text-[10px] font-normal italic leading-snug text-slate-400">Sin datos · peso redistribuido: pases largos precisos /90 (60 %) y pases precisos /90 (40 %)</span>}{item.penalty&&<span className="ml-1 text-[10px] text-rose-700">(penalización)</span>}</td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right font-semibold tabular-nums text-slate-800">
                 {onSetMetric&&!NON_EDITABLE_COMPOSITE.has(item.key)?
                   <button type="button"
@@ -235,6 +237,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
             </tr>)}</tbody>
           </table>
         </div>
+        {rankingIndicator&&role&&<IndicatorHistoricalRankingModal indicator={rankingIndicator} role={role} observations={data?.observations||[]} selectedPlayerIds={[String(playerId)]} onClose={()=>setRankingIndicator(null)}/>}
         <p className="flex items-center gap-2 text-[11px] text-slate-500">
           <Database size={14}/> Consulta de solo lectura · FotMob, FC histórico y Transfermarkt previamente almacenados en MF LEGACY · {new Date(data.loadedAt).toLocaleString("es-ES")}
         </p>
