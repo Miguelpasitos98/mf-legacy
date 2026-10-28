@@ -27,7 +27,7 @@ export default function AdjustableJerseyLabel({name,initial,children,minWidth=45
   else window.prompt("Copia las coordenadas:",value);
  };
  return <div className="pointer-events-none fixed z-[90] hidden lg:block select-none" style={{left:layout.left,top:layout.top,width:layout.width}}>
-  <div className="relative w-full">{children}</div>
+  <div className="relative w-full">{typeof children==="function"?children(layout):children}</div>
   <button type="button" className="pointer-events-auto absolute -top-8 left-0 z-[92] whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-blue-900 shadow" onClick={()=>setEditing(v=>!v)}>{editing?"Terminar ajuste":"Ajustar "+name}</button>
   {editing&&<>
    <div className="pointer-events-auto absolute inset-0 z-[91] cursor-move rounded border-2 border-dashed border-blue-500 bg-blue-400/10" title="Arrastrar para mover" style={{touchAction:"none"}} onPointerDown={e=>start(e,"move")} onPointerMove={move} onPointerUp={end} onPointerCancel={end}/>
