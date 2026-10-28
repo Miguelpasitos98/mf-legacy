@@ -143,7 +143,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
               const fraction=right.timestamp===left.timestamp?0:(midpoint-left.timestamp)/(right.timestamp-left.timestamp);
               const height=left.value+(right.value-left.value)*fraction;
               return <ReferenceDot key={i} x={midpoint} y={height} isFront={true} ifOverflow="visible"
-                shape={({cx})=><image href={first.clubLogo} x={cx-10} y={0} width={20} height={20} preserveAspectRatio="xMidYMid meet"/>}/>;
+                shape={({cx})=><image href={first.clubLogo} x={cx-13} y={0} width={26} height={26} preserveAspectRatio="xMidYMid meet"/>}/>;
             })}
           </AreaChart>
         </ResponsiveContainer>
