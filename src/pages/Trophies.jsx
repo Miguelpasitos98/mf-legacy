@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from "react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
-import {Search,Trophy,Plus,ChevronRight,X,Save,Image as ImageIcon,Filter,ShieldCheck,AlertCircle,Database,Trash2,Upload,Medal,Users,Link2,RotateCcw} from "lucide-react";
+import {Search,Trophy,Plus,ChevronRight,X,Save,Image as ImageIcon,Filter,AlertCircle,Trash2,Upload,Medal,Users,Link2,RotateCcw} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {useLeaguesQuery,useCountriesQuery} from "@/hooks/useSharedData";
