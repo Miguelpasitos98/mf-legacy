@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Save, Trash2, Plus } from "lucide-react";
+import MarketClubPicker from "./MarketClubPicker";
 const storageKey = id => `mf-legacy-market-history-preview-v1:${id}`;
 const normalize = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\b(fc|cf|football club|futbol club)\b/g,"").replace(/[^a-z0-9]/g,"");
 const clubKey = name => {
@@ -34,8 +35,7 @@ export default function MarketValueRecords({player,clubs=[]}){
   const [filter,setFilter]=useState("");
   const [selectedRows,setSelectedRows]=useState([]);
   const [bulkClub,setBulkClub]=useState("");
-  const [clubSearch,setClubSearch]=useState({});
-  const reset=()=>{setRows((Array.isArray(read(player))?read(player):[]).map(r=>({...r,date:iso(r.date),value:String(r.value??""),team:r.team||"",club_id:r.club_id||"",linked_club_name:r.linked_club_name||""})).sort((a,b)=>a.date.localeCompare(b.date)));setDirty(false);setSelectedRows([]);setClubSearch({});};
+  const reset=()=>{setRows((Array.isArray(read(player))?read(player):[]).map(r=>({...r,date:iso(r.date),value:String(r.value??""),team:r.team||"",club_id:r.club_id||"",linked_club_name:r.linked_club_name||""})).sort((a,b)=>a.date.localeCompare(b.date)));setDirty(false);setSelectedRows([]);};
   useEffect(()=>{reset();},[player?.id]);
   useEffect(()=>{
     const handler=e=>{if(String(e.detail?.playerId)===String(player?.id))reset();};
@@ -43,8 +43,6 @@ export default function MarketValueRecords({player,clubs=[]}){
     return()=>window.removeEventListener("mf-legacy-market-preview-updated",handler);
   },[player?.id]);
   const candidates=useMemo(()=>clubs.filter(c=>c?.id&&c?.name).sort((a,b)=>a.name.localeCompare(b.name)),[clubs]);
-  const clubOptions=useMemo(()=>candidates.map(c=>({id:String(c.id),label:c.name})),[candidates]);
-  const getClubByLabel=(label)=>candidates.find(c=>normalize(c.name)===normalize(label));
   const setClubForIndices=(indices,clubId)=>{
     if(!indices.length)return;
     setRows(old=>old.map((row,i)=>indices.includes(i)?{...row,club_id:clubId,linked_club_name:candidates.find(c=>String(c.id)===String(clubId))?.name||row.linked_club_name||""}:row));
@@ -58,7 +56,7 @@ export default function MarketValueRecords({player,clubs=[]}){
     ? Array.from(new Set([...old,...visible.map(r=>r.index)]))
     : old.filter(i=>!visible.some(r=>r.index===i)));
   const applyBulk=()=>{
-    const club=getClubByLabel(bulkClub);
+    const club=candidates.find(c=>String(c.id)===String(bulkClub));
     if(!club){setMessage("Selecciona un club válido del buscador.");return;}
     if(!selectedRows.length){setMessage("Selecciona primero una o varias valoraciones.");return;}
     setClubForIndices(selectedRows,String(club.id));
@@ -105,11 +103,10 @@ export default function MarketValueRecords({player,clubs=[]}){
     <input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Filtrar por fecha o club" aria-label="Filtrar valoraciones" className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"/>
     <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
       <span className="text-xs font-semibold text-slate-700">{selectedRows.length} seleccionadas</span>
-      <label className="min-w-[185px] flex-1 text-xs text-slate-600">Buscar club para asignar
-        <input list="mf-market-bulk-clubs" type="search" value={bulkClub} onChange={e=>setBulkClub(e.target.value)}
-          placeholder="Escribe un nombre de club" className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"/>
-      </label>
-      <datalist id="mf-market-bulk-clubs">{clubOptions.map(c=><option key={c.id} value={c.label}/>)}</datalist>
+      <div className="min-w-[185px] flex-1">
+        <div className="mb-1 text-xs text-slate-600">Buscar club para asignar</div>
+        <MarketClubPicker clubs={candidates} value={bulkClub} onChange={setBulkClub} placeholder="Escribe el nombre del club..."/>
+      </div>
       <button type="button" onClick={applyBulk} disabled={!selectedRows.length}
         className="rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Asignar a seleccionadas</button>
       <button type="button" onClick={()=>setSelectedRows([])} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">Limpiar selección</button>
@@ -125,22 +122,11 @@ export default function MarketValueRecords({player,clubs=[]}){
             <td className="p-2"><input type="date" value={r.date} onChange={e=>set(r.index,{date:e.target.value})} className="w-[125px] rounded border px-1 py-1"/></td>
             <td className="p-2"><input type="number" min="0" step="any" value={r.value} onChange={e=>set(r.index,{value:e.target.value})} className="w-[85px] rounded border px-1 py-1"/></td>
             <td className="p-2 text-slate-600">{r.team||"Sin información"}</td>
-            <td className="p-2"><div className="flex items-center gap-2">{selected&&(selected.logo||selected.logo_url||selected.badge_url)&&<img src={selected.logo||selected.logo_url||selected.badge_url} alt="" className="h-5 w-5 object-contain"/>}
-              <input type="search" list="mf-market-row-clubs" value={clubSearch[r.index] ?? selected?.name ?? r.linked_club_name ?? ""}
-                placeholder="Buscar y asociar club" aria-label={`Club asociado a ${r.date}`}
-                onChange={e=>{
-                  setClubSearch(old=>({...old,[r.index]:e.target.value}));
-                  const club=getClubByLabel(e.target.value);
-                  if(club){
-                    const matching=rows.map((item,i)=>clubKey(item.team)===clubKey(r.team)?i:-1).filter(i=>i>=0);
-                    setClubForIndices(matching,String(club.id));
-                    setClubSearch(old=>({...old,[r.index]:club.name}));
-                  }else if(!e.target.value){
-                    set(r.index,{club_id:"",linked_club_name:""});
-                  }
-                }}
-                className="w-full min-w-[135px] max-w-[220px] rounded border bg-white p-1 text-xs"/>
-              <datalist id="mf-market-row-clubs">{clubOptions.map(c=><option key={c.id} value={c.label}/>)}</datalist></div></td>
+            <td className="p-2"><MarketClubPicker clubs={candidates} compact value={r.club_id}
+              onChange={clubId=>{
+                const matching=rows.map((item,i)=>clubKey(item.team)===clubKey(r.team)?i:-1).filter(i=>i>=0);
+                setClubForIndices(matching,clubId);
+              }} placeholder="Buscar club..."/></td>
             <td className="p-2"><button type="button" title="Eliminar registro" onClick={()=>{setRows(old=>old.filter((_,i)=>i!==r.index));setSelectedRows([]);setDirty(true);}} className="text-red-500"><Trash2 size={15}/></button></td>
           </tr>;
         })}</tbody>
