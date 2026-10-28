@@ -90,7 +90,14 @@ export function sanitizeConfig(data){
    if(fromOldDefault&&!columns[mode][category].includes("playpct"))columns[mode][category].push("playpct");
    if(category==="Portería"){
     for(const id of ["calc_goals_prevented","calc_goals_prevented_p90"])if(!columns[mode][category].includes(id))columns[mode][category].push(id);
-    if(Number(value.version||1)<4)for(const id of ["savesper90","xaper90"])if(!columns[mode][category].includes(id))columns[mode][category].push(id);
+    if(Number(value.version||1)<4)for(const id of ["savesper90","xaper90"]){
+     const standard=formulas.find(d=>d?.id===id)||COMPUTED.find(d=>d.id===id);
+     const matches=(columns[mode][category]||[]).some(columnId=>{
+      const other=formulas.find(d=>d?.id===columnId)||COMPUTED.find(d=>d.id===columnId);
+      return other&&String(other.formula).replace(/\s+/g,"").toLowerCase()===String(standard.formula).replace(/\s+/g,"").toLowerCase();
+     });
+     if(!matches&&!columns[mode][category].includes(id))columns[mode][category].push(id);
+    }
    }
   }
  }
@@ -198,14 +205,26 @@ export function estimatedPlayPct(records){
  }
  return {value:team>0?played/team*100:null,estimated,covered,total:(records||[]).length};
 }
+// User-created columns may use the very same default formula under a
+// different ID. Treat identical mathematics identically while preserving
+// truly custom calculations.
+const normalizedFormula=formula=>String(formula||"").replace(/\s+/g,"").toLowerCase();
+const directSourceRate=definition=>{
+ const formula=normalizedFormula(definition?.formula);
+ const byFormula={goalsper90:"goals",assistsper90:"assists",xgper90:"xg",xaper90:"xa",savesper90:"saves"};
+ for(const [id,name] of Object.entries(byFormula)){
+  if(formula===normalizedFormula(COMPUTED.find(d=>d.id===id)?.formula))return name;
+ }
+ return null;
+};
 export function columnValue(row,mode,id,config){
  if(!row)return null;
  const definition=config.computed.find(d=>d.id===id);
  if(definition){try{
   // Para columnas /90 estándar, preferir la tasa publicada por el proveedor
   // por competición, sin requerir minutos adicionales ni estimarlos desde PJ.
-  const directRateMetric={goalsper90:"goals",assistsper90:"assists",xgper90:"xg",xaper90:"xa",savesper90:"saves"}[id];
-  if(mode==="competition"&&directRateMetric&&definition.formula===COMPUTED.find(d=>d.id===id)?.formula){
+  const directRateMetric=directSourceRate(definition);
+  if(mode==="competition"&&directRateMetric){
    const direct=(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===directRateMetric);
    const value=statNum(direct?.per90);
    if(value!==null)return value;
@@ -215,10 +234,10 @@ export function columnValue(row,mode,id,config){
     const direct=estimatedPlayPct(mode==="season"&&Array.isArray(row.records)?row.records:[row]);
     if(direct.value!==null)return direct.value;
    }
-   if(mode==="season"&&directRateMetric&&Array.isArray(row.records)){
-    const direct=estimatedSeasonRate(row.records,directRateMetric);
-    if(direct.value!==null&&direct.covered===direct.total)return direct.value;
-   }
+  }
+  if(mode==="season"&&directRateMetric&&Array.isArray(row.records)){
+   const direct=estimatedSeasonRate(row.records,directRateMetric);
+   if(direct.value!==null&&direct.covered===direct.total)return direct.value;
   }
   if(["calc_xgchainper90","calc_xgbuildupper90"].includes(id)&&definition.formula===COMPUTED.find(d=>d.id===id)?.formula){
    const rates=advancedTotals(mode==="season"&&Array.isArray(row.records)?row.records:[row]);
