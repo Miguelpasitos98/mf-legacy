@@ -17,6 +17,7 @@ export default function Layout() {
   const isTeamsPage = location.pathname.startsWith("/teams");
   const isKitsPage = location.pathname === "/news";
   const isStadiumsPage = location.pathname.startsWith("/schedule");
+  const isTrophiesPage = location.pathname.startsWith("/trophies");
   // El tema de un club solo puede aplicarse dentro de TEAMS.
   // Al navegar a STADIUMS, KITS u otra sección, la barra lateral usa siempre el azul de MF LEGACY.
   const sidebarTheme = isTeamsPage
@@ -80,7 +81,7 @@ export default function Layout() {
                 className={
                   isPlayerProfile
                     ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
-                    : isTeamsPage || isKitsPage || isStadiumsPage
+                    : isTeamsPage || isKitsPage || isStadiumsPage || isTrophiesPage
                       ? "relative z-0 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
                       : "relative z-0 flex-1 min-h-0 min-w-0 overflow-visible"
                 }
