@@ -66,10 +66,10 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
   const next=roles.map((r,i)=>i===editing?{name:draft.name.trim(),description:draft.description.trim()}:r);
   setSaving(true);setSaveError("");
   try{
-   await base44.entities.Player.update(playerId,{tactical_roles:next});
+   await base44.entities.Player.update(playerId,{tactical_roles:next,description:next[0]?.name||""});
    setRoles(next);
    setActiveRole(next[editing]?.name?editing:null);
-   onSaved?.({tactical_roles:next});
+   onSaved?.({tactical_roles:next,description:next[0]?.name||""});
    // Stop using local browser state after a successful server save.
    try{window.localStorage.removeItem(key);}catch{}
    setEditing(null);
