@@ -80,17 +80,16 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
  const zone=activeRole!==null?tacticalZoneForRole(roles[activeRole]?.name,position,foot):null;
  return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Roles y posiciones">
   <img className="pointer-events-none absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
-  {zone&&<svg className="pointer-events-none absolute inset-0 z-[2] h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Zona táctica orientativa" role="img">
+  {zone&&<svg className="pointer-events-none absolute inset-0 z-[2] h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label={`Zona táctica orientativa: ${zone.roleName}`} role="img">
     <defs>
       <radialGradient id={svgId+"-field"}>
-        <stop offset="0%" stopColor="#00C977" stopOpacity=".57"/>
-        <stop offset="72%" stopColor="#03CC75" stopOpacity=".32"/>
-        <stop offset="100%" stopColor="#03CC75" stopOpacity=".04"/>
+        <stop offset="0%" stopColor="#059669" stopOpacity=".65"/>
+        <stop offset="58%" stopColor="#10B981" stopOpacity=".38"/>
+        <stop offset="100%" stopColor="#10B981" stopOpacity="0"/>
       </radialGradient>
-      <clipPath id={svgId+"-clip"}><ellipse cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry}/></clipPath>
     </defs>
-    <ellipse cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry} fill={`url(#${svgId}-field)`}/>
-    {zone.emphasis&&<ellipse cx={zone.cx+(zone.emphasis==="right"?1:-1)*zone.rx*.36} cy={zone.cy} rx={zone.rx*.68} ry={zone.ry*.9} fill="#006641" fillOpacity=".37" clipPath={`url(#${svgId}-clip)`}/>}
+    <ellipse cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry} transform={`rotate(${zone.rotation||0} ${zone.cx} ${zone.cy})`} fill={`url(#${svgId}-field)`}/>
+    <ellipse cx={zone.cx} cy={zone.cy} rx={zone.rx*.55} ry={zone.ry*.62} transform={`rotate(${zone.rotation||0} ${zone.cx} ${zone.cy})`} fill="#047857" fillOpacity=".13"/>
   </svg>}
   {/* Click the name to preview the zone. The existing green + independently edits the role. */}
   {roles.map((role,i)=><div key={i}
