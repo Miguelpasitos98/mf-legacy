@@ -83,7 +83,7 @@ const seasonForView=r=>{
  const start=summerNational?year-1:year;
  return start+"/"+(start+1);
 };
-function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,onOpenSettings,onSetTeamMatches,onSetMetric,config}) {
+function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTeams,onOpenSettings,onSetTeamMatches,onSetMetric,onRefreshAll,refreshingAll=false,config}) {
   const queryClient=useQueryClient();
   const seasons=useMemo(()=>[...new Set(stats.map(seasonForView).filter(Boolean))].sort().reverse(),[stats]);
   const {valuations:historicalValuations,loading:historicalLoading,refresh:historicalRefresh}=useHistoricalValuations(player?.id||stats[0]?.player_id);
@@ -256,6 +256,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
               <p className="mt-1 hidden truncate text-[11px] text-blue-200/85 sm:block">Estadísticas por temporada · fuentes externas · independientes de FM26</p>
             </div>
             <nav aria-label="Acciones del informe" className="hidden shrink-0 items-center gap-2 lg:flex">
+              <button type="button" onClick={onRefreshAll} disabled={refreshingAll} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-400/50 px-3 text-xs font-bold hover:bg-white/10 disabled:opacity-50"><RefreshCw size={14} className={refreshingAll?"animate-spin":""}/>Actualizar todo</button>
               <button type="button" onClick={()=>onOpenSettings(category,shown[0]||stats[0]||null)} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-400/50 px-3 text-xs font-bold hover:bg-white/10"><Settings2 size={15}/> Ajustes</button>
               {player&&<button type="button" onClick={()=>onPlayer(player.id)} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-400/50 px-3 text-xs font-bold hover:bg-white/10">Ver en PLAYERS <ArrowRight size={14}/></button>}
             </nav>
@@ -884,7 +885,7 @@ export default function Stats(){
         </div>
       </div>,document.body
     )}
-    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onOpenSettings={openDetailSettings} onSetTeamMatches={updateTeamMatches} onSetMetric={updateMetric} onClose={()=>{detailRequest.current++;setSelected(null);}} onPlayer={id=>{detailRequest.current++;setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
+    {selected&&<StatDetail player={selected.player} stats={detailRows.length?detailRows:selected.record?[selected.record]:[]} initialSeason={selected.season||selected.record?.season||""} teams={teams} config={columnConfig} onLinkTeams={linkHistoricalTeams} onOpenSettings={openDetailSettings} onSetTeamMatches={updateTeamMatches} onSetMetric={updateMetric} onRefreshAll={refreshAll} refreshingAll={refreshingAll||busy} onClose={()=>{detailRequest.current++;setSelected(null);}} onPlayer={id=>{detailRequest.current++;setSelected(null);navigate("/players?stats_player="+encodeURIComponent(id));}} />}
     {compareOpen&&bulkRows.length>1&&<SeasonCompareView entries={bulkRows} compositeBySeason={compositeIndex} config={columnConfig} observations={peerDataset?.observations||[]} peerLoading={peerLoading} peerError={peerError} onClose={()=>setCompareOpen(false)} onOpenDetail={(summary,player)=>{setCompareOpen(false);openSeasonDetail(summary,player);}} onTeam={id=>navigate("/teams?stats_team="+encodeURIComponent(id))}/>}
   </div>;
 }
