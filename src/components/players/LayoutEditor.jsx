@@ -1,8 +1,26 @@
 import React,{useRef,useState} from "react";
 
 // Editor temporal. Las medidas solo quedan en memoria hasta copiarlas y fijarlas en código.
-export default function LayoutEditor({name,initial,children,aspectRatio,zIndex=30}){
- const [layout,setLayout]=useState(()=>({...initial}));
+export default function LayoutEditor({name,initial,children,aspectRatio,zIndex=30,legacyKey,legacySizeKey}){
+ const [layout,setLayout]=useState(()=>{
+  const defaults={...initial};
+  try{
+   const old=legacyKey?JSON.parse(window.localStorage.getItem(legacyKey)||"null"):null;
+   if(old){
+    if(Number.isFinite(old.left))defaults.left=old.left;
+    if(Number.isFinite(old.bottom))defaults.bottom=old.bottom;
+    if(Number.isFinite(old.x))defaults.left=old.x;
+    if(Number.isFinite(old.y))defaults.top=old.y;
+    if(Number.isFinite(old.width))defaults.width=old.width;
+   }
+   const oldSize=legacySizeKey?JSON.parse(window.localStorage.getItem(legacySizeKey)||"null"):null;
+   if(oldSize){
+    if(Number.isFinite(oldSize.width))defaults.width=oldSize.width;
+    if(Number.isFinite(oldSize.height))defaults.height=oldSize.height;
+   }
+  }catch{}
+  return defaults;
+ });
  const [editing,setEditing]=useState(false);
  const pointer=useRef(null);
  const start=(event,mode)=>{
