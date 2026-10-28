@@ -1,0 +1,63 @@
+{
+  "name": "Trophy",
+  "type": "object",
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "description": "ID original estable del archivo de trofeo (no cambiar)"
+    },
+    "name": {
+      "type": "string"
+    },
+    "trophy_type": {
+      "type": "string",
+      "enum": [
+        "Team Trophy",
+        "Individual Trophy"
+      ],
+      "description": "Trophy Type: Team Trophy or Individual Trophy"
+    },
+    "image_url": {
+      "type": "string",
+      "description": "URL opcional. Por defecto el asset GitHub /assets/trophies/<source_id>.png"
+    },
+    "category": {
+      "type": "string",
+      "description": "League, Cup, Supercup, International, Individual Award, Other"
+    },
+    "country": {
+      "type": "string"
+    },
+    "organizer": {
+      "type": "string"
+    },
+    "competition_id": {
+      "type": "string",
+      "description": "ID opcional de League en MF Legacy"
+    },
+    "description": {
+      "type": "string"
+    },
+    "founded_year": {
+      "type": "number"
+    },
+    "is_active": {
+      "type": "boolean"
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "identification_status": {
+      "type": "string",
+      "description": "Verified, Pending, Manual"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_id",
+    "name",
+    "trophy_type"
+  ]
+}
