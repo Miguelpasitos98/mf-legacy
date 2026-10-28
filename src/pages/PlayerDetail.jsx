@@ -1176,9 +1176,17 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
       {typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed bottom-8 left-1/2 z-[80] flex w-[min(1440px,calc(100vw-28px))] -translate-x-1/2 gap-5 sm:bottom-10 sm:gap-7">
-          <PlayerStatCard background={statCardColors.primaryColor} grow={1} compact>
-            <PositionFieldMini ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} />
-          </PlayerStatCard>
+          {/* El campo flota sobre la columna izquierda, como en el concepto, sin ocupar la tarjeta inferior. */}
+          <div className="pointer-events-none absolute bottom-[calc(100%+32px)] left-0 hidden w-[min(320px,28vw)] flex-col lg:flex">
+            <div className="mb-2 flex items-center gap-2 pl-3 text-slate-950">
+              <span className="rounded-xl border border-amber-200/70 bg-amber-50/90 px-2.5 py-1 text-lg font-bold text-amber-500">✦</span>
+              <span className="text-lg font-black tracking-tight">Roles</span>
+            </div>
+            <div className="h-[190px] w-full overflow-visible">
+              <PositionFieldMini ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} />
+            </div>
+          </div>
+          <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
           <PlayerStatCard background={statCardColors.middleColor} grow={2.1}>
             <TransferChartMini player={editablePlayer} clubs={teams} />
           </PlayerStatCard>
