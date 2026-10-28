@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceDot } from "recharts";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 // Prototipo aislado: nunca modifica la entidad Player ni otros datos de Base44.
@@ -134,12 +134,12 @@ export default function TransferChartMini({ player, clubs = [] }) {
             <YAxis hide domain={[0,"auto"]}/>
             <Tooltip content={<MiniTooltip/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
             {segments.map((seg,i)=><Area key={i} type="monotone" dataKey={`s${i}`} stroke={seg.color} strokeWidth={2.6} fill={`url(#mini-market-${i})`} connectNulls={false} dot={false} activeDot={false} isAnimationActive={false}/>)}
-            <Area dataKey="value" stroke="none" fill="none" isAnimationActive={false} dot={props=>{
-              const point=chartData[props.index];
-              const first=segments.find(seg=>seg.indices[0]===props.index);
-              if(!point?.clubLogo||!first||props.cx==null||props.cy==null)return <g/>;
-              return <image key={props.index} href={point.clubLogo} x={props.cx-9} y={Math.max(1,props.cy-26)} width={18} height={18} preserveAspectRatio="xMidYMid meet"/>;
-            }}/>
+            {segments.map((segment,i)=>{
+              const point=chartData[segment.indices[0]];
+              if(!point?.clubLogo)return null;
+              return <ReferenceDot key={i} x={point.timestamp} y={point.value} isFront={true} ifOverflow="visible"
+                shape={({cx,cy})=><image href={point.clubLogo} x={cx-11} y={cy-29} width={22} height={22} preserveAspectRatio="xMidYMid meet"/>}/>;
+            })}
           </AreaChart>
         </ResponsiveContainer>
       </div> : <div className="mt-3 flex flex-1 items-center text-xs text-slate-500">Pulsa + para introducir el primer valor histórico.</div>}
