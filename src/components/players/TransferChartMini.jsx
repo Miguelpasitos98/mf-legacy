@@ -50,14 +50,24 @@ const clubColor = club => {
   const n = /^#[0-9a-f]{6}$/i.test(primary) ? [1,3,5].map(i=>parseInt(primary.slice(i,i+2),16)) : [30,45,80];
   return n.every(v=>v>225) ? secondary : primary;
 };
-function MiniTooltip({ active, payload }) {
+function MiniTooltip({ active, payload, minimum, maximum }) {
   if (!active || !payload?.length) return null;
-  const entry = payload.find(p=>p.payload)?.payload;
-  if (!entry) return null;
-  return <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-xl">
-    <div>{new Date(entry.date + "T12:00:00").toLocaleDateString("es-ES")}</div>
-    <strong>{prettyMoney(entry.value)}</strong>
-    {entry.team && <div className="mt-1 flex items-center gap-1.5 text-slate-500">{entry.clubLogo && <img src={entry.clubLogo} alt="" className="h-4 w-4 object-contain"/>}{entry.team}</div>}
+  const entry = payload.find(p => p?.payload?.date)?.payload;
+  // Los puntos de unión entre equipos son interpolaciones visuales, no registros reales.
+  if (!entry?.date || !Number.isFinite(entry.value)) return null;
+  const isMax = entry.value === maximum;
+  const isMin = entry.value === minimum;
+  return <div className="min-w-[170px] rounded-xl border border-slate-200 bg-white/95 px-3 py-2.5 text-xs text-slate-900 shadow-xl">
+    <div className="text-[10px] font-semibold text-slate-500">{new Date(entry.date + "T12:00:00").toLocaleDateString("es-ES", {day:"2-digit",month:"long",year:"numeric"})}</div>
+    <div className="mt-1 text-lg font-black">{prettyMoney(entry.value)}</div>
+    {entry.team && <div className="mt-1.5 flex items-center gap-2 border-t border-slate-100 pt-2 text-slate-700">
+      {entry.clubLogo && <img src={entry.clubLogo} alt="" className="h-6 w-6 object-contain"/>}
+      <span className="font-semibold">{entry.club?.name || entry.team}</span>
+    </div>}
+    {(isMax || isMin) && <div className="mt-2 flex gap-1.5">
+      {isMax && <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">Máximo histórico</span>}
+      {isMin && <span className="rounded-md bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-700">Mínimo histórico</span>}
+    </div>}
   </div>;
 }
 export default function TransferChartMini({ player, clubs = [] }) {
@@ -143,7 +153,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
             <XAxis dataKey="timestamp" type="number" domain={["dataMin","dataMax"]} tickFormatter={v=>new Date(v).getFullYear()} tick={{fill:"#64748b",fontSize:9}} height={16} axisLine={false} tickLine={false} minTickGap={19}/>
             <YAxis yAxisId="market" hide domain={[0, axisTop]} ticks={axisTicks} allowDataOverflow={false}/>
             <CartesianGrid vertical={false} stroke="#64748b" strokeOpacity={0.13} strokeDasharray="3 4"/>
-            <Tooltip content={<MiniTooltip/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
+            <Tooltip content={<MiniTooltip minimum={minValue} maximum={maxValue}/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
             {segments.map((seg,i)=><Area yAxisId="market" key={i} type="natural" dataKey={`s${i}`} stroke={seg.color} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" fill={`url(#mini-market-${i})`} connectNulls={false} dot={false} activeDot={{r:3, strokeWidth:1.5}} isAnimationActive={false}/>)}
             {segments.map((segment,i)=>{
               const first=data[segment.indices[0]];
