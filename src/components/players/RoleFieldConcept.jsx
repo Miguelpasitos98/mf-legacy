@@ -72,7 +72,7 @@ export default function RoleFieldConcept({ratings={},playerId,position}){
   <img className="pointer-events-none absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
   {roles.map((role,i)=><div key={i} className="absolute z-20 flex items-center" style={{left:"20%",top:i===0?"23.8%":"33.9%",width:"58.5%",height:"8.3%"}}>
     {role.name&&<span className="pointer-events-none ml-2 max-w-[77%] truncate text-[clamp(9px,1vw,13px)] font-semibold text-slate-900">{role.name}</span>}
-    <button type="button" onClick={()=>openEditor(i)} aria-label={`Editar rol ${i+1}`} title="Seleccionar rol y escribir descripción" className="absolute inset-y-0 right-0 w-[16%] cursor-pointer rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"/>
+    <button type="button" onClick={()=>openEditor(i)} aria-label={`Editar rol ${i+1}`} title="Seleccionar rol y escribir descripción" className="pointer-events-auto absolute inset-y-0 right-0 w-[16%] cursor-pointer rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"/>
   </div>)}
   {NUMBERS.map(([key,label,x,y],i)=>{
     const n=compactPositionValue(ratings,key);
@@ -82,7 +82,7 @@ export default function RoleFieldConcept({ratings={},playerId,position}){
       <span className="rounded-b-md bg-white px-1.5 text-center font-black leading-tight text-slate-900 shadow-sm" style={{fontSize:"clamp(7px,.73vw,10px)"}}>{label}</span>
     </div>;
   })}
-  {editing!==null&&<div className="absolute left-[19%] top-[44%] z-50 w-[63%] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+  {editing!==null&&<div className="pointer-events-auto absolute left-[19%] top-[44%] z-50 w-[63%] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
     <p className="mb-2 text-xs font-bold text-slate-800">Editar rol {editing+1}</p>
     <select value={draft.name} onChange={e=>setDraft(v=>({...v,name:e.target.value}))} aria-label="Seleccionar rol" className="mb-2 w-full rounded-md border border-slate-300 p-2 text-xs">
       <option value="">Sin rol asignado</option>
