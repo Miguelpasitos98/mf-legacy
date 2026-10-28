@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryModal";
 import TransferChartMini from "@/components/players/TransferChartMini";
+import PositionFieldMini from "@/components/players/PositionFieldMini";
 import MarketBulkImport from "@/components/players/MarketBulkImport";
 import HistoricalMarketLookup from "@/components/players/HistoricalMarketLookup";
 import MarketCsvUpload from "@/components/players/MarketCsvUpload";
@@ -1175,7 +1176,9 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
       {typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed bottom-20 left-1/2 z-[80] flex w-[min(1200px,calc(100vw-28px))] -translate-x-1/2 gap-4 sm:bottom-20 sm:gap-5">
-          <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
+          <PlayerStatCard background={statCardColors.primaryColor} grow={1}>
+            <PositionFieldMini ratings={editablePlayer?.position_ratings||editablePlayer?.positionRatings||{}} />
+          </PlayerStatCard>
           <PlayerStatCard background={statCardColors.middleColor} grow={2.1}>
             <TransferChartMini player={editablePlayer} clubs={teams} />
           </PlayerStatCard>
