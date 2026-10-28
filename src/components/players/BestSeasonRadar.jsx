@@ -10,9 +10,19 @@ const AXES=[
  ["Passing",["accurate_passes_p90","accurate_long_balls_p90","xg_buildup_p90"]],
  ["Dribbling",["successful_dribbles_p90","dispossessed_p90"]],
  ["Defending",["def_actions_poss_adj_p90","possession_won_final_3rd_p90"]],
- ["Physical",["ground_duels_won_pct","play_share"]],
+ ["Ground duels",["ground_duels_won_pct"]],
  ["Aerial",["aerial_duels_won_pct"]],
- ["Finishing",["finishing_xgot_minus_npxg"]],
+ ["Build-up",["xg_chain_p90","xg_buildup_p90"]],
+];
+const CB_AXES=[
+ ["Attacking",["npxg_p90","shots_on_target_p90"]],
+ ["Creativity",["xa_p90"]],
+ ["Passing",["accurate_passes_p90","accurate_long_balls_p90"]],
+ ["Build-up",["xg_buildup_p90","xg_chain_p90"]],
+ ["Defending",["def_actions_poss_adj_p90"]],
+ ["Ground duels",["ground_duels_won_pct"]],
+ ["Aerial",["aerial_duels_won_pct"]],
+ ["Ball security",["dispossessed_p90","dribbled_past_p90"]],
 ];
 const GK_AXES=[
  ["Shot stop",["goals_prevented_p90","save_pct"]],
@@ -30,7 +40,7 @@ const scoreAxis=(keys,observation,peers)=>{
    const current=observation.values?.[key];
    if(current===null||current===undefined||!Number.isFinite(Number(current)))return [];
    const comparable=peers.filter(p=>Number.isFinite(Number(p.values?.[key]))&&p.values[key]!==null);
-   if(new Set(comparable.map(p=>p.playerId)).size<2)return [];
+   if(new Set(comparable.map(p=>p.playerId)).size<10)return [];
    const percentile=historicalPercentile(Number(current),comparable.map(p=>Number(p.values[key])));
    return percentile===null?[]:[NEGATIVE.has(key)?100-percentile:percentile];
  });
@@ -76,7 +86,7 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
       .filter(x=>Number.isFinite(x.c?.composite?.score) && x.c?.composite?.coverage>=40);
    seasons.sort((a,b)=>b.c.composite.score-a.c.composite.score||b.o.minutes-a.o.minutes||String(b.o.season).localeCompare(String(a.o.season)));
    if(!seasons.length)return null;
-   const best=seasons[0], axes=best.o.role==="GK"?GK_AXES:AXES;
+   const best=seasons[0], axes=best.o.role==="GK"?GK_AXES:best.o.role==="CB"?CB_AXES:AXES;
    return {season:best.o.season,role:best.o.role,composite:best.c.composite.score,
       axes:axes.map(([name,keys])=>({name,value:scoreAxis(keys,best.o,obs.filter(o=>o.role===best.o.role))}))};
  },[data,playerId]);
