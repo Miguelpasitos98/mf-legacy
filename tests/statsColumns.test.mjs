@@ -117,3 +117,19 @@ test('el porcentaje de duelos importado se identifica por su nombre real',()=>{
  assert.equal(columnValue(row,'competition','dribblessuccessrate',config),70.1);
  assert.equal(columnValue(row,'competition','goalsconcededwhileonpitch',config),null);
 });
+test('Keylor Navas: Play %, SV/90 y xA/90 usan fuentes existentes sin crear minutos',()=>{
+ const rows=[
+  {season:'2025/2026',competition:'Liga MX Clausura',minutes:null,appearances:22,team_matches:23,metrics:[{name:'Saves',value:94,per90:94/22},{name:'xA',value:0.05,per90:0.002165059516714378}]},
+  {season:'2025/2026',competition:'Liga MX Apertura',minutes:null,appearances:15,team_matches:18,metrics:[{name:'Saves',value:45,per90:3},{name:'xA',value:0.01,per90:0.0006570186465978623}]}
+ ];
+ const config=initialConfig();
+ assert.ok(Math.abs(columnValue(rows[0],'competition','playpct',config)-22/23*100)<1e-8);
+ assert.ok(Math.abs(columnValue(rows[0],'competition','savesper90',config)-94/22)<1e-8);
+ assert.ok(Math.abs(columnValue(rows[0],'competition','xaper90',config)-0.002165059516714378)<1e-8);
+ const season={records:rows};
+ assert.ok(Math.abs(columnValue(season,'season','playpct',config)-37/41*100)<1e-8);
+ assert.ok(Math.abs(columnValue(season,'season','savesper90',config)-139/37)<1e-8);
+ const xaRate=(0.002165059516714378*22+0.0006570186465978623*15)/37;
+ assert.ok(Math.abs(columnValue(season,'season','xaper90',config)-xaRate)<1e-8);
+ assert.equal(rows[0].minutes,null);
+});
