@@ -20,7 +20,6 @@ import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryMod
 import TransferChartMini from "@/components/players/TransferChartMini";
 import AdjustableRoles from "@/components/players/AdjustableRoles";
 import AdjustableRightModules from "@/components/players/AdjustableRightModules";
-import AdjustableJerseyLabel from "@/components/players/AdjustableJerseyLabel";
 import MarketBulkImport from "@/components/players/MarketBulkImport";
 import HistoricalMarketLookup from "@/components/players/HistoricalMarketLookup";
 import MarketCsvUpload from "@/components/players/MarketCsvUpload";
@@ -1174,15 +1173,15 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
       {typeof document !== "undefined" && (jerseyDisplay || jerseyPosition) && createPortal(
         <>
-          {jerseyDisplay && <AdjustableJerseyLabel name="Dorsal" initial={{left:Math.round(window.innerWidth/2-335),top:Math.round(window.innerHeight*.36),width:225}} minWidth={85}>
-            {layout=><div className="relative w-full">
-              <span aria-hidden="true" className="pointer-events-none absolute -left-[12%] top-[8%] z-10 font-black leading-none" style={{fontSize:Math.round(layout.width*.22),color:jerseyColors.outline}}>#</span>
-              <span className="relative block w-max max-w-none font-black leading-none tracking-[-0.09em]" style={{fontSize:Math.round(layout.width*.75),color:jerseyColors.fill,WebkitTextStroke:`${Math.max(2,Math.round(layout.width*.023))}px ${jerseyColors.outline}`,paintOrder:"stroke fill",filter:"drop-shadow(0 4px 0 rgba(10,25,60,.12))"}}>{jerseyDisplay}</span>
-            </div>}
-          </AdjustableJerseyLabel>}
-          {jerseyPosition && <AdjustableJerseyLabel name="Posición" initial={{left:Math.round(window.innerWidth/2-80),top:Math.round(window.innerHeight*.36),width:100}} minWidth={42}>
-            {layout=><span className="block w-max whitespace-nowrap font-black leading-none tracking-[-0.05em]" style={{fontSize:Math.round(layout.width*.38),color:jerseyColors.fill,WebkitTextStroke:`${Math.max(1,Math.round(layout.width*.018))}px ${jerseyColors.outline}`}}>{jerseyPosition}</span>}
-          </AdjustableJerseyLabel>}
+          {jerseyDisplay && <div className="pointer-events-none fixed z-[90] hidden select-none lg:block" style={{left:670,top:525,width:277}}>
+            <div className="relative w-full">
+              <span aria-hidden="true" className="pointer-events-none absolute -left-[12%] top-[8%] z-10 font-black leading-none" style={{fontSize:Math.round(277*.22),color:jerseyColors.outline}}>#</span>
+              <span className="relative block w-max max-w-none font-black leading-none tracking-[-0.09em]" style={{fontSize:Math.round(277*.75),color:jerseyColors.fill,WebkitTextStroke:`${Math.max(2,Math.round(277*.023))}px ${jerseyColors.outline}`,paintOrder:"stroke fill",filter:"drop-shadow(0 4px 0 rgba(10,25,60,.12))"}}>{jerseyDisplay}</span>
+            </div>
+          </div>}
+          {jerseyPosition && <div className="pointer-events-none fixed z-[90] hidden select-none lg:block" style={{left:1212,top:486,width:148}}>
+            <span className="block w-max whitespace-nowrap font-black leading-none tracking-[-0.05em]" style={{fontSize:Math.round(148*.38),color:jerseyColors.fill,WebkitTextStroke:`${Math.max(1,Math.round(148*.018))}px ${jerseyColors.outline}`}}>{jerseyPosition}</span>
+          </div>}
         </>,document.body
       )}
 
