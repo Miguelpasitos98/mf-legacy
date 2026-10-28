@@ -1,4 +1,5 @@
 import React from "react";
+import {compactPositionValue} from "@/utils/compactPositionRatings";
 
 // Exactly the same persisted position keys as PlayerDetail's editor.
 export const POSITION_FIELD_POINTS=[
@@ -6,8 +7,8 @@ export const POSITION_FIELD_POINTS=[
  ["mediapunta_por_la_izquierda","EI",85,45],
  ["mediapunta_central","MP(C)",140,47],
  ["mediapunta_por_la_derecha","ED",195,45],
- ["centrocampista_izquierdo","MC(I)",94,70],
- ["centrocampista_derecho","MC(D)",186,70],
+ ["mc_left","MC",94,70],
+ ["mc_right","MC",186,70],
  ["carrilero_izquierdo","CR(I)",56,98],
  ["mediocentro","MCD",140,102],
  ["carrilero_derecho","CR(D)",224,98],
@@ -16,17 +17,7 @@ export const POSITION_FIELD_POINTS=[
  ["portero","POR",140,150]
 ];
 export default function PositionFieldMini({ratings={}}){
- const value=k=>{
-  const n=Number(ratings?.[k]);
-  return Number.isFinite(n)&&n>0?Math.min(20,Math.max(0,n)):0;
- };
- // En la vista compacta, CR muestra la mejor valoración lateral del lado correspondiente.
- // Los valores originales de DF y CR permanecen separados y sin modificar.
- const displayValue=key=>key==="carrilero_izquierdo"
-  ?Math.max(value("carrilero_izquierdo"),value("defensa_izquierdo"))
-  :key==="carrilero_derecho"
-   ?Math.max(value("carrilero_derecho"),value("defensa_derecho"))
-   :value(key);
+ const displayValue=key=>compactPositionValue(ratings,key);
  const color=n=>n>=16?"#159c5c":n>=12?"#49aa67":n>=7?"#df7d18":n>=2?"#dd6236":"#cf4052";
  return <div className="flex h-full w-full min-w-0 flex-col overflow-hidden" aria-label="Familiaridad por posición, escala de cero a veinte">
    <svg className="h-full w-full min-h-0 scale-[1.16]" viewBox="-5 -7 290 186" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo original de fútbol en perspectiva con posiciones y familiaridad">
