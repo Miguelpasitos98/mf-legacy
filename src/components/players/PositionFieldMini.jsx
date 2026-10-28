@@ -25,8 +25,8 @@ export default function PositionFieldMini({ratings={}}){
  const color=n=>n>=16?"#159c5c":n>=12?"#49aa67":n>=7?"#df7d18":n>=2?"#dd6236":"#cf4052";
  return <div className="flex h-full w-full min-w-0 flex-col overflow-hidden" aria-label="Familiaridad por posición, escala de cero a veinte">
    <div className="flex items-center justify-between gap-1">
-    <span className="text-[10px] font-black uppercase tracking-[.12em] text-slate-900">POSICIONES</span>
-    <span className="text-[9px] font-semibold text-slate-600">/20</span>
+    <span className="text-[10px] font-black uppercase tracking-[.12em] text-white">POSICIONES</span>
+    <span className="text-[9px] font-semibold text-white">/20</span>
    </div>
    <svg className="min-h-0 w-full flex-1" viewBox="0 0 280 213" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo de juego en perspectiva con las posiciones y sus valoraciones">
     <path d="M66 8 H214 L275 205 H5 Z" fill="none" stroke="#FFFFFF" strokeOpacity=".95" strokeWidth="1.8"/>
@@ -37,7 +37,7 @@ export default function PositionFieldMini({ratings={}}){
      return <g key={key}>
       <rect x={x-15} y={y-9} width="30" height="18" rx="5" fill={color(n)} opacity={n?1:.65}/>
       <text x={x} y={y+4} fill="white" fontSize="12" fontWeight="800" textAnchor="middle">{n||"–"}</text>
-      <text x={x} y={y+19} fill="#18243b" fontSize="8.3" fontWeight="800" textAnchor="middle">{label}</text>
+      <text x={x} y={y+19} fill="#FFFFFF" fontSize="8.3" fontWeight="800" textAnchor="middle">{label}</text>
      </g>;
     })}
    </svg>
