@@ -23,7 +23,26 @@ const isoDate = (d) => {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : v;
 };
 const originalRows = (player) => validRows((player?.market_value_history || []).map((r) => ({ ...r, date: isoDate(r.date) })));
-const normClub = s => String(s || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/\\b(fc|cf|football club|futbol club)\\b/g, "").replace(/[^a-z0-9]/g, "");
+const normClub = name => String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(fc|cf|football club|futbol club)\b/g, "").replace(/[^a-z0-9]/g, "");
+const clubAliases = name => {
+  const clean = normClub(name);
+  const aliases = [clean];
+  if (/bayern/.test(clean)) aliases.push("bayern");
+  if (/tottenham|spurs/.test(clean)) aliases.push("tottenham");
+  if (/norwich/.test(clean)) aliases.push("norwich");
+  return aliases;
+};
+const resolveClub = (row, clubs) => {
+  const byId = clubs.find(c => row.club_id && String(c.id) === String(row.club_id));
+  if (byId) return byId;
+  const aliases = clubAliases(row.team);
+  const exact = clubs.find(c => aliases.includes(normClub(c.name)) || aliases.includes(normClub(c.short_name)));
+  if (exact) return exact;
+  const alias = aliases.find(x => ["bayern", "tottenham", "norwich"].includes(x));
+  if (!alias) return null;
+  const matching = clubs.filter(c => clubAliases(c.name).includes(alias));
+  return matching.length === 1 ? matching[0] : null;
+};
 const clubColor = club => {
   const primary = club?.primary_color || club?.primaryColor || "#23345a";
   const secondary = club?.secondary_color || club?.secondaryColor || "#23345a";
@@ -58,13 +77,12 @@ export default function TransferChartMini({ player, clubs = [] }) {
     window.addEventListener("storage", sync);
     return () => { window.removeEventListener("mf-legacy-market-preview-updated", sync); window.removeEventListener("storage", sync); };
   }, [id, player]);
-  const clubMap = useMemo(()=>new Map(clubs.map(c=>[normClub(c.name),c])),[clubs]);
   const data = useMemo(() => validRows(rows).map((r) => {
-    const club = clubs.find(c=>String(c.id)===String(r.club_id)) || clubMap.get(normClub(r.team));
+    const club = resolveClub(r,clubs);
     return {...r, timestamp:new Date(r.date+"T12:00:00").getTime(),
       team:r.team||club?.name||"", club, clubLogo:club?.logo||club?.logo_url||club?.badge_url||"",
       color:clubColor(club)};
-  }), [rows, clubs, clubMap]);
+  }), [rows, clubs]);
   const latest=data.at(-1);
   const segments=useMemo(()=>{
     const result=[];
