@@ -145,11 +145,19 @@ export default function TrophyReviewCenter({honours=[],honoursLoading=false,hono
    return apply(plan,{confirmMessage:"¿Excluir "+plan.length+" adjudicaciones seleccionadas? No se contabilizarán como títulos de los futbolistas."});
   }catch(e){setError(e.message);}
  };
- const toggle=idValue=>setSelected(previous=>previous.includes(idValue)?previous.filter(x=>x!==idValue):previous.length<50?[...previous,idValue]:previous);
+ const toggle=idValue=>{
+  setSelected(previous=>{
+   if(previous.includes(idValue))return previous.filter(x=>x!==idValue);
+   if(previous.length>=50)return previous;
+   setExpanded(expandedRows=>expandedRows.includes(idValue)?expandedRows:[...expandedRows,idValue]);
+   return [...previous,idValue];
+  });
+ };
  const toggleRow=idValue=>setExpanded(previous=>previous.includes(idValue)?previous.filter(x=>x!==idValue):[...previous,idValue]);
  const selectVisible=()=>{
   const available=visibleRows.filter(row=>row.pending&&!row.blocked).slice(0,50).map(row=>id(row.id));
   const already=available.length>0&&available.every(value=>selected.includes(value));
+  if(!already)setExpanded(previous=>Array.from(new Set([...previous,...available])));
   setSelected(already?selected.filter(value=>!available.includes(value)):Array.from(new Set([...selected,...available])).slice(0,50));
  };
  return <section className="space-y-4 pb-8">
@@ -266,7 +274,7 @@ export default function TrophyReviewCenter({honours=[],honoursLoading=false,hono
        <p className="mt-1">{row.reasons.join(" · ")}</p></div>}
       {row.evidence_note&&<p className="line-clamp-2 text-[10px] leading-4 text-slate-500">{row.evidence_note}</p>}
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
-       {row.honour?.source_url&&<a href={row.honour.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-bold text-[#003399] hover:underline">
+       {validTrophyEvidenceUrl(row.honour?.source_url)&&<a href={row.honour.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-bold text-[#003399] hover:underline">
         Fuente del campeón <ExternalLink size={12}/></a>}
        {validTrophyEvidenceUrl(row.source_url)&&<a href={row.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:underline">Fuente del jugador <ExternalLink size={12}/></a>}
        {ready&&<button type="button" onClick={()=>toggleRow(id(row.id))}
