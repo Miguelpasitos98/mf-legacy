@@ -57,6 +57,7 @@ export function previewTrophyHonours(entries,{catalog=[],trophies=[],honours=[],
   if(!team){status="review";reason="ID de equipo desconocido";}
   else if(!season){status="review";reason="Temporada o edición inválida";}
   else if(!trophy){status="review";reason=explicit?"ID de trofeo no encontrado":aliases.length>1?"Nombre de trofeo ambiguo":"Sin coincidencia exacta de trofeo";}
+  else if(trophy.identification_status==="Pending"||/sin identificar/i.test(trophy.name)){status="review";reason="Trofeo original sin identificar";}
   else if(trophy.trophy_type==="Individual Trophy"){status="review";reason="El registro corresponde a un premio individual";}
   else if(identity&&seen.has(identity)){status="duplicate";reason="Duplicado dentro del lote";}
   else if(identity&&existing.has(identity)){status="existing";reason="Adjudicación ya registrada";}
