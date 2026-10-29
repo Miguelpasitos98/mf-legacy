@@ -7,9 +7,18 @@ const metricPer90 = (record,name) => numeric((record.metrics||[]).find(m=>key(m.
 export function advancedTotals(records=[],{includeSeasonRates=true}={}){
   const seasons=new Set(records.map(r=>r.season));
   const clubs=new Set(records.map(r=>String(r.team_id||r.fotmob_team_id||r.team_name||"").trim()).filter(Boolean));
-  const seasonRates=includeSeasonRates&&seasons.size===1&&clubs.size<=1?records.map(r=>({chain:metric(r,"xG Chain season /90"),buildup:metric(r,"xG Buildup season /90")})):[];
-  const seasonChain=seasonRates.find(r=>r.chain!==null)?.chain??null;
-  const seasonBuildup=seasonRates.find(r=>r.buildup!==null)?.buildup??null;
+  // An explicit "season /90" entry covers the PLAYER'S full season, not
+  // the club/competition row where the editor stores the input. Therefore a
+  // mid-season transfer must not discard the user's season-wide datum.
+  // Reject conflicting full-season values instead of choosing arbitrarily.
+  const seasonRates=includeSeasonRates&&seasons.size===1?records.map(r=>({chain:metric(r,"xG Chain season /90"),buildup:metric(r,"xG Buildup season /90")})):[];
+  const fullSeasonRate=kind=>{
+    const rates=seasonRates.map(r=>r[kind]).filter(v=>v!==null);
+    if(!rates.length)return {value:null,conflict:false};
+    if(rates.some(v=>v<0)||rates.some(v=>Math.abs(v-rates[0])>1e-9))return {value:null,conflict:true};
+    return {value:rates[0],conflict:false};
+  };
+  const seasonChain=fullSeasonRate("chain"),seasonBuildup=fullSeasonRate("buildup");
   let chain=0,buildup=0,chainMinutes=0,buildupMinutes=0,chainRows=0,buildupRows=0,duelsWon=0,duelsTotal=0,duelRows=0;
   const directChain=[],directBuildup=[];
   for(const r of records){
@@ -32,7 +41,8 @@ export function advancedTotals(records=[],{includeSeasonRates=true}={}){
     }
   }
   const rate=(seasonRate,direct,total,minutes,rows)=>{
-    if(seasonRate!==null)return seasonRate;
+    if(seasonRate.conflict)return null;
+    if(seasonRate.value!==null)return seasonRate.value;
     if(direct.length===1&&records.length===1)return direct[0].rate;
     if(direct.length===1&&direct[0].scoped)return direct[0].rate;
     if(direct.length){
