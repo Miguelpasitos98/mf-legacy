@@ -115,7 +115,7 @@ test('el porcentaje de duelos importado se identifica por su nombre real',()=>{
  assert.equal(columnValue(row,'competition','duelswonvariante2',config),54.3);
  assert.equal(columnValue(row,'competition','aerialswonvariante2',config),62.5);
  assert.equal(columnValue(row,'competition','dribblessuccessrate',config),70.1);
- assert.equal(columnValue(row,'competition','goalsconcededwhileonpitch',config),null);
+ assert.equal(columnValue(row,'competition','goalsconcededwhileonpitch',config),12);
 });
 test('Keylor Navas: Play %, SV/90 y xA/90 usan fuentes existentes sin crear minutos',()=>{
  const rows=[
@@ -192,4 +192,30 @@ test('Portería mantiene SV/90, oculta xA/90 antiguo y conserva columna xA en ot
  assert.ok(!clean.columns.season.Portería.includes('calc_oldxa'));
  assert.ok(!clean.columns.competition.Portería.includes('xaper90'));
  assert.ok(clean.columns.season.Creación.includes('xaper90'));
+});
+
+test("Porteros FotMob: Goals conceded y Conceded representan el mismo total, sin duplicar",()=>{
+ const config=initialConfig();
+ const bundesliga={player_id:"kobel",season:"2020/2021",competition:"Bundesliga",appearances:33,minutes:2970,metrics:[
+  {name:"Saves",value:106,per90:3.21},
+  {name:"Goals conceded",value:54,per90:1.63636},
+  {name:"Conceded",value:54,per90:1.63636}
+ ]};
+ const champions={...bundesliga,competition:"Champions League",appearances:6,minutes:540,metrics:[
+  {name:"Goals conceded",value:11,per90:1.8333},
+  {name:"Conceded",value:11,per90:1.8333}
+ ]};
+ assert.equal(columnValue(bundesliga,"competition","goalsconcededwhileonpitch",config),54);
+ const season=buildSeasonSummaries([bundesliga,champions],[])[0];
+ assert.equal(columnValue(season,"season","goalsconcededwhileonpitch",config),65);
+ assert.equal(columnValue({...bundesliga,metrics:[]},"competition","goalsconcededwhileonpitch",config),null);
+});
+test("El alias Conceded y la traducción Goles en contra se reconocen sin inventar ceros",()=>{
+ const config=initialConfig();
+ for(const label of ["Conceded","Goles en contra","Goals against"]){
+  const record={player_id:"gk",season:"2025/2026",competition:"LaLiga",metrics:[{name:label,value:18}]};
+  assert.equal(columnValue(record,"competition","goalsconcededwhileonpitch",config),18);
+ }
+ const zero={player_id:"gk",season:"2025/2026",competition:"Copa",metrics:[{name:"Goals conceded",value:0}]};
+ assert.equal(columnValue(zero,"competition","goalsconcededwhileonpitch",config),0);
 });
