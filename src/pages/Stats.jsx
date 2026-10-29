@@ -217,10 +217,13 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const columnMetricName=(r,id)=>{
     const names={goals:"Goals",assists:"Assists",xg:"xG",xa:"xA",xgot:"xGOT",shots:"Shots",
       shotsontarget:"Shots on target",bigchancescreated:"Big chances created",
-      xgexclpenalty:"xG excl. penalty",duelswon:"Duels won",
+      xgexclpenalty:"xG excl. penalty",dribbles:"Dribbles",dispossessed:"Dispossessed",duelswon:"Duels won",
       duelswonvariante2:"Duels won %",aerialswon:"Aerials won",aerialswonvariante2:"Aerials won %"};
     const candidate=names[id]||id;
-    return (r.metrics||[]).find(m=>metricName(m.name)===metricName(candidate))?.name||candidate;
+    const aliases=id==="dribbles"?["Dribbles","Successful dribbles","Dribbles completed","Dribbles won"]
+      :id==="dispossessed"?["Dispossessed","Times dispossessed"]:[candidate];
+    return aliases.map(name=>(r.metrics||[]).find(m=>metricName(m.name)===metricName(name))?.name)
+      .find(Boolean)||candidate;
   };
   const teamCell=r=>{
     const linked=nationalLinks[String(r.id)];
