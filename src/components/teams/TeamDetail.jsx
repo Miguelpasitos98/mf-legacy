@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { normalizeImageUrl, formatMarketValue } from "./teamUtils";
 import { AddTeamModal } from "./TeamFormComponents";
 import KitImage from "./KitImage";
+import PalmaresButton from "@/components/trophies/PalmaresButton";
 
 export default function TeamDetail({ team, onClose, onEdit, form, setForm, countries, leagues, onCloseEdit, onSubmit, formError = "" }) {
   const [editPanelOpen, setEditPanelOpen] = useState(false);
@@ -118,6 +119,7 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
 
           <div className="relative z-30 flex items-center justify-between gap-4 px-5 pt-5 md:px-8 md:pt-7">
             <button type="button" onClick={onClose} className="rounded-full border border-white/40 bg-black/10 px-4 py-2 text-[11px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/20">← Volver a equipos</button>
+            <PalmaresButton ownerType="Team" ownerId={team?.id} dark/>
             <button type="button" onClick={() => { setEditPanelOpen(true); onEdit(team); }} className="cursor-pointer rounded-sm text-[10px] font-bold uppercase tracking-[0.3em] text-white/75 transition hover:text-white focus:outline-none focus:ring-1 focus:ring-white/60">Team profile</button>
           </div>
 
