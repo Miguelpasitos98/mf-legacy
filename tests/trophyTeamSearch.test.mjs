@@ -12,7 +12,7 @@ const teams=[
 ];
 test("Trophies team search matches aliases, city and accent-insensitive club names",()=>{
  assert.deepEqual(filterTrophyTeams(teams,"bar").map(t=>t.id),["1"]);
- assert.deepEqual(filterTrophyTeams(teams,"RMA").map(t=>t.id),["2"]);
+ assert.equal(filterTrophyTeams(teams,"RMA")[0].id,"2"); // exact abbreviation before other substring matches
  assert.deepEqual(filterTrophyTeams(teams,"atletico").map(t=>t.id),["3"]);
  assert.deepEqual(filterTrophyTeams(teams,"munchen").map(t=>t.id),["4"]);
  assert.deepEqual(filterTrophyTeams(teams,"PARIS").map(t=>t.id),["5"]);
