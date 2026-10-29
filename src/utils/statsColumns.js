@@ -1,5 +1,5 @@
 // Calculadora segura y configurable para columnas de STATS: nunca ejecuta JavaScript del usuario.
-import {metricsValue,statNum,goalkeeperConcededMetric} from "./statsViews.js";
+import {metricsValue,statNum,goalkeeperConcededMetric,minutesForDisplay} from "./statsViews.js";
 import {statDisplay} from "./statsSeason.js";
 import {alignedFormulaInputs} from "./statsAligned.js";
 import {advancedTotals} from "./statsAdvanced.js";
@@ -201,11 +201,13 @@ export function estimatedSeasonRate(records,metricName){
 export function estimatedPlayPct(records){
  let played=0,team=0,estimated=false,covered=0;
  for(const r of records||[]){
-  const actual=statNum(r.minutes),appearances=statNum(r.appearances);
+  const minutes=minutesForDisplay(r);
   const teamMatches=statNum(r.team_matches);
-  if(!(teamMatches>0))continue;
-  if(actual!==null&&actual>=0){played+=actual;team+=teamMatches*90;covered++;}
-  else if(appearances!==null&&appearances>=0){played+=appearances*90;team+=teamMatches*90;covered++;estimated=true;}
+  if(!(teamMatches>0)||minutes.value===null||minutes.value<0)continue;
+  played+=minutes.value;
+  team+=teamMatches*90;
+  covered++;
+  if(minutes.estimated)estimated=true;
  }
  return {value:team>0?played/team*100:null,estimated,covered,total:(records||[]).length};
 }
