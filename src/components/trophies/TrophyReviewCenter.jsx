@@ -37,7 +37,7 @@ function PhotoOfTrophy({trophy,manifest}){
   {!bad&&trophy?<img src={trophyImageUrl(trophy,manifest)} loading="lazy" alt="" onError={()=>setBad(true)} className="h-full w-full object-contain p-1"/>:<Trophy size={22} className="text-slate-300"/>}
  </span>;
 }
-export default function TrophyReviewCenter({honours=[],catalog=[],imageManifest,onSync,onOpenTrophy}){
+export default function TrophyReviewCenter({honours=[],honoursLoading=false,honoursError=false,catalog=[],imageManifest,onSync}){
  const qc=useQueryClient(),navigate=useNavigate();
  const [status,setStatus]=useState("candidate"),[teamId,setTeamId]=useState(""),[trophyId,setTrophyId]=useState("all");
  const [season,setSeason]=useState("all"),[query,setQuery]=useState(""),[showBlocked,setShowBlocked]=useState("all");
@@ -47,8 +47,8 @@ export default function TrophyReviewCenter({honours=[],catalog=[],imageManifest,
  const creditsQuery=useQuery({...completeRecordQueryOptions(base44.entities.PlayerTrophyCredit,CREDIT_KEY),retry:false});
  const teamsQuery=useQuery({...completeRecordQueryOptions(base44.entities.Team,TEAM_KEY),retry:false});
  const playersQuery=useQuery({...completeRecordQueryOptions(base44.entities.Player,PLAYER_KEY),retry:false});
- const readsError=creditsQuery.isError||teamsQuery.isError||playersQuery.isError;
- const loading=creditsQuery.isLoading||teamsQuery.isLoading||playersQuery.isLoading;
+ const readsError=creditsQuery.isError||teamsQuery.isError||playersQuery.isError||honoursError;
+ const loading=creditsQuery.isLoading||teamsQuery.isLoading||playersQuery.isLoading||honoursLoading;
  const records=useMemo(()=>trophyReviewRows({
   credits:creditsQuery.data||[],honours,teams:teamsQuery.data||[],players:playersQuery.data||[],catalog
  }),[creditsQuery.data,honours,teamsQuery.data,playersQuery.data,catalog]);
