@@ -1,51 +1,40 @@
-// Experimental interpretation of the public CraftedFC "Ball security" tooltip.
-// NOT verified as CraftedFC's exact private formula.
-// Use paired totals: do not mix seasons/competitions with missing denominators.
-export const BALL_SECURITY_RESEARCH_STATUS="experimental-tooltip-derived";
+// MF Legacy approximation of the public CraftedFC Ball Security tooltip.
+// The screenshot describes successful dribbles / (successful dribbles + times
+// dispossessed), with low-volume values pulled toward the population midpoint.
+// CraftedFC's private smoothing constant is UNKNOWN; this is our own transparent
+// symmetric Beta(5,5) regularisation, NOT a reproduction of its internal formula.
+export const BALL_SECURITY_RESEARCH_STATUS="mf_legacy_tooltip_approximation_v2";
+export const BALL_SECURITY_PRIOR_ACTIONS=10;
 const numeric=value=>value!==null&&value!==undefined&&value!==""&&Number.isFinite(Number(value))?Number(value):null;
-export function ballSecurityFromTotals(completed,attempted,dispossessed){
- const c=numeric(completed),a=numeric(attempted),d=numeric(dispossessed);
- if([c,a,d].some(v=>v===null)||c<0||a<0||d<0||c>a||a+d<=0)return null;
- return Math.round((c/(a+d))*10000)/100; // percentage, two decimals
+
+export function ballSecurityFromTotals(dribbles,dispossessed,{priorActions=BALL_SECURITY_PRIOR_ACTIONS}={}){
+ const d=numeric(dribbles),lost=numeric(dispossessed),prior=numeric(priorActions);
+ if(d===null||lost===null||prior===null||d<0||lost<0||prior<0||d+lost<=0)return null;
+ // 5 notional retained involvements and 5 notional lost involvements.
+ // The prior is applied ONCE to the season totals, never per competition.
+ return Math.round(((d+prior/2)/(d+lost+prior))*10000)/100;
 }
-// Recover the unique integer attempt count consistent with FotMob's rounded
-// success percentage. The source can show one decimal (55.0) while preserving
-// a longer unrounded rate (54.9618). Accept either only when unique.
-export function inferDribbleAttempts(completed,successRate){
- const c=numeric(completed),rate=numeric(successRate);
- if(c===null||rate===null||!Number.isInteger(c)||c<0||rate<=0||rate>100)return null;
- const center=100*c/rate;
- if(!Number.isFinite(center)||center>1000000)return null;
- const candidates=[];
- const radius=Math.max(2,Math.ceil(center*.003));
- for(let a=Math.max(c,Math.floor(center-radius));a<=Math.ceil(center+radius);a++){
-  if(a<=0)continue;
-  const calculated=100*c/a;
-  // A percentile-like 0-100 success rate is only accepted if it rounds
-  // to the reported precision (one decimal) or is numerically more exact.
-  if(Math.abs(calculated-rate)<=.0500001)candidates.push(a);
- }
- return candidates.length===1?candidates[0]:null;
-}
+
 export function ballSecurityFromRecords(records=[],metricTotal){
  if(typeof metricTotal!=="function")throw Error("Falta extractor de totales alineados.");
- const completedNames=["Successful dribbles","Dribbles completed","Dribbles won","Dribbles"];
- const attemptedNames=["Dribbles attempted","Attempted dribbles","Dribble attempts","Total dribbles","Dribbles contested"];
+ // FotMob's Dribbles is successful take-ons, not total dribble attempts.
+ // Do not use the success-rate field to fabricate missing counts.
+ const dribblesNames=["Successful dribbles","Dribbles completed","Dribbles won","Dribbles","Successful take-ons"];
  const dispossessedNames=["Dispossessed","Times dispossessed"];
- let completed=0,attempted=0,dispossessed=0,paired=0,excluded=0;
+ let dribbles=0,dispossessed=0,paired=0,excluded=0;
  for(const row of records){
-  const c=metricTotal(row,completedNames);
-  let a=metricTotal(row,attemptedNames);
-  if(a===null){
-    const rate=metricTotal(row,["Dribbles success rate","Dribble success rate","Successful dribbles %","Dribbles won %"]);
-    a=inferDribbleAttempts(c,rate);
-  }
-  const d=metricTotal(row,dispossessedNames);
-  if([c,a,d].some(v=>v===null)){excluded++;continue;}
-  if(c<0||a<0||d<0||c>a){excluded++;continue;}
-  completed+=c;attempted+=a;dispossessed+=d;paired++;
+  const d=numeric(metricTotal(row,dribblesNames));
+  const lost=numeric(metricTotal(row,dispossessedNames));
+  if(d===null||lost===null||d<0||lost<0){excluded++;continue;}
+  dribbles+=d;dispossessed+=lost;paired++;
  }
- return {value:paired?ballSecurityFromTotals(completed,attempted,dispossessed):null,
-  paired,excluded,partial:excluded>0,inputs:paired?{completed,attempted,dispossessed}:null,
-  method:BALL_SECURITY_RESEARCH_STATUS};
+ const actionCount=dribbles+dispossessed;
+ return {
+  value:paired&&actionCount>0?ballSecurityFromTotals(dribbles,dispossessed):null,
+  rawValue:paired&&actionCount>0?Math.round(dribbles/actionCount*10000)/100:null,
+  paired,excluded,partial:excluded>0,
+  inputs:paired?{dribbles,dispossessed,actions:actionCount}:null,
+  smoothing:{priorActions:BALL_SECURITY_PRIOR_ACTIONS,centerPct:50},
+  method:BALL_SECURITY_RESEARCH_STATUS
+ };
 }
