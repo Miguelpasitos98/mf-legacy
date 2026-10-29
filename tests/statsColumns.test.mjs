@@ -144,7 +144,7 @@ test('preferencias antiguas de Portería mantienen SV/90 sin reintroducir xA/90'
   assert.ok(!upgraded.columns[mode].Portería.includes('xaper90'));
  }
  assert.ok(upgraded.columns.season.Portería.includes('calc_goals_prevented'));
- assert.equal(upgraded.version,4);
+ assert.equal(upgraded.version,5);
  const personalized=sanitizeConfig({...upgraded,columns:{...upgraded.columns,season:{...upgraded.columns.season,Portería:['saves']}}});
  assert.deepEqual(personalized.columns.season.Portería.filter(x=>['savesper90','xaper90'].includes(x)),[]);
 });
