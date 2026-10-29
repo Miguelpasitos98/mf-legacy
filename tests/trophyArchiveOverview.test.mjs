@@ -51,7 +51,7 @@ test("A verified credit needs the right team, edition, player and winner status"
 });
 test("Archive search matches accents and season but not missing records",()=>{
  const result=archiveOverview(honours,[],trophies);
- assert.equal(searchArchiveRows(result.competitions,"la liga").length,0);
+ assert.equal(searchArchiveRows(result.competitions,"la liga").length,1);
  assert.equal(searchArchiveRows(result.competitions,"laliga").length,1);
  assert.equal(searchArchiveRows(result.competitions,"Supercopa de Espana").length,1);
  assert.deepEqual(searchArchiveRows(result.clubs,"NoExiste"),[]);
