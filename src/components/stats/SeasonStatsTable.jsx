@@ -80,7 +80,10 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
       <td className={"px-2 py-2 text-right"+line("minutes")}>{fmt(statDisplay(summary,"minutes"))}</td>
       {(()=>{const x=compositeBySeason.get(compositeSeasonKey(summary.player_id,summary.season));return <>
         <td className="px-2 py-2 text-center font-bold text-slate-700" title={x?.source==="fallback"?"Posición actual, solo respaldo provisional":x?.source==="fifa"?"Posición de la carta FIFA/FC":x?.source==="season"?"Posición histórica manual":x?.source==="competition"?"Posición manual por competición":"Posición histórica no disponible"}>{displaySeasonPosition(x?.position)}{x?.source==="fallback"&&<span className="text-amber-600">*</span>}</td>
-        <td className={"px-2 py-2 text-right font-extrabold tabular-nums "+(x?.score!=null?"text-[#003399]":"text-slate-400")} title={x?.score!=null?"Composite "+x.role+" · cobertura "+fmt(x.coverage,1)+"% · no es el Legacy Rating definitivo":peerError?"No se pudo sincronizar toda la base; se conserva la comparación cargada":peerLoading?"Calculando con la base completa":"Sin Composite calculable"}>{x?.score==null?"—":fmt(x.score,1)}</td>
+        <td className={"px-2 py-2 text-right font-extrabold tabular-nums "+(x?.score!=null?"text-[#003399]":"text-slate-400")} title={x?.score!=null?"Composite "+x.role+" · cobertura "+fmt(x.coverage,1)+"% · no es el Legacy Rating definitivo":peerError?"No se pudo sincronizar toda la base; se conserva la comparación cargada":peerLoading?"Calculando con la base completa":"Sin Composite calculable"}><span className="inline-flex items-center justify-end gap-1.5">
+         {x?.quality?.level!=="ok"&&<span aria-label={x?.quality?.reason||"Cobertura pendiente"} title={x?.quality?.reason||"Cobertura pendiente"} className={"inline-block h-[6px] w-[6px] shrink-0 rounded-full "+(x?.quality?.level==="partial"?"bg-amber-500":"bg-red-500")}/>}
+         <span>{x?.score==null?"—":fmt(x.score,1)}</span>
+        </span></td>
       </>})()}
       {columns.map(k=>{
        const computed=columnValue(summary,"season",k,config);
