@@ -1187,7 +1187,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
       {typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed bottom-8 left-1/2 z-[80] flex w-[min(1440px,calc(100vw-28px))] -translate-x-1/2 gap-5 sm:bottom-10 sm:gap-7">
-          <AdjustableRoles ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} playerId={editablePlayer?.id} position={editablePlayer?.fm_position||editablePlayer?.position||editablePlayer?.position_raw} foot={{left:editablePlayer?.left_foot,right:editablePlayer?.right_foot}} storedRoles={editablePlayer?.tactical_roles} onSaved={(patch)=>{setEditablePlayer(current=>({...current,...patch}));setForm(current=>({...current,tacticalRoles:patch.tactical_roles}));onPlayerUpdated?.({...editablePlayer,...patch},patch);}} />
+          <AdjustableRoles ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} playerId={editablePlayer?.id} position={jerseyPosition||editablePlayer?.position||editablePlayer?.position_raw||editablePlayer?.fm_position} foot={{left:editablePlayer?.left_foot,right:editablePlayer?.right_foot}} storedRoles={editablePlayer?.tactical_roles} onSaved={(patch)=>{setEditablePlayer(current=>({...current,...patch}));setForm(current=>({...current,tacticalRoles:patch.tactical_roles}));onPlayerUpdated?.({...editablePlayer,...patch},patch);}} />
           <AdjustableRightModules playerId={editablePlayer?.id} color={statCardColors.primaryColor} />
           <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
           <PlayerStatCard background={statCardColors.middleColor} grow={2.1}>
