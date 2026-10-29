@@ -13,6 +13,16 @@ export function buildCompositeSeasonIndex(observations=[]){
    map.set(compositeSeasonKey(obs.playerId,obs.season),{
      score:comparison?.composite?.score??null,
      coverage:comparison?.composite?.coverage??null,
+     quality:(()=>{
+       const c=comparison?.composite;
+       if(!c)return {level:"critical",reason:"Composite no calculable"};
+       const missing=(c.rows||[]).filter(r=>r.percentile===null && Math.abs(Number(r.weight)||0)>0);
+       const critical=missing.filter(r=>c.role==="GK"?r.key==="goals_prevented_p90":Math.abs(Number(r.weight)||0)>=15);
+       if(c.score===null)return {level:"critical",reason:"Datos insuficientes para calcular Composite"};
+       if(critical.length)return {level:"critical",reason:"Falta indicador esencial: "+critical.map(r=>r.name).join(", ")};
+       if(c.coverage<80)return {level:"partial",reason:"Cobertura efectiva "+c.coverage+"%. Pendientes: "+missing.slice(0,4).map(r=>r.name).join(", ")};
+       return {level:"ok",reason:"Cobertura suficiente"};
+     })(),
      position:obs.position||"",
      source:obs.positionSource||"",
      role:comparison?.role||obs.role||"",
