@@ -88,7 +88,7 @@ export function prepareTrophyDecision(row,{status,source="",acknowledged=false}=
   return {
    status:"confirmed",verified:true,source_url:id(source),
    evidence_type:"official_roster",
-   evidence_note:"Elegibilidad para esta edición comprobada individualmente con la fuente oficial."
+   evidence_note:[id(row.evidence_note),"Elegibilidad para esta edición comprobada individualmente con fuente oficial."].filter(Boolean).join(" ").slice(0,1200)
   };
  }
  if(status==="excluded")return {
