@@ -33,7 +33,7 @@ async function verifiedLink(db, playerId) {
   const pid = unique[0];
   const backlinks = rows(await db.PlayerFotmobLink.filter({fotmob_player_id:pid},undefined,30));
   if (backlinks.some(row=>str(row.player_id)!==playerId)) throw Error("El ID FotMob está asociado a otro jugador.");
-  const allowed = new Set(["verified","confirmed","manual","manual_confirmada","confirmada","automatic_exact_name_unique"]);
+  const allowed = new Set(["verified","confirmed","manual","manual_confirmada","confirmada","automatic_exact_name_unique","automatic_existing_stats_unique"]);
   const approved = exact.some(r=>allowed.has(str(r.verification).toLowerCase()));
   if (!approved) throw Error("La vinculación FotMob necesita revisión.");
   return {pid, automatic:exact.every(r=>str(r.verification).toLowerCase()==="automatic_exact_name_unique")};
@@ -51,11 +51,21 @@ export default async function(req) {
     if(action === "health")return reply({ok:true,coordinator:"ready",worker_credentials_configured:String(Deno.env.get("MF_V3_WORKER_TOKEN")||"").length>=32});
     if (action==="link") {
       const playerId=str(body.player_id);
-      const pid=str(body.fotmob_player_id);
-      if(!/^[a-f0-9]{24}$/i.test(playerId) || !/^\d{1,15}$/.test(pid))return bad("IDs de jugador no válidos.");
-      if(body.confirmed!==true)return bad("Debes confirmar que has contrastado el ID de FotMob.",409);
+      const fromStats=body.use_stored_fotmob_id===true;
+      if(!/^[a-f0-9]{24}$/i.test(playerId))return bad("ID interno de jugador no válido.");
       const player=await db.Player.get(playerId);
       if(!player?.id)return bad("Jugador inexistente.",404);
+      let pid=str(body.fotmob_player_id);
+      if(fromStats){
+        // Only auto-link an unambiguous, already stored FotMob player ID.
+        // Never infer IDs from a name, or approve conflicting/truncated rows.
+        const stats=rows(await db.PlayerSeasonStats.filter({player_id:playerId},undefined,200));
+        if(!stats.length||stats.length>=200)return bad("No se puede resolver automáticamente un ID FotMob único a partir de STATS.",409);
+        const ids=[...new Set(stats.map(x=>str(x.fotmob_player_id)).filter(Boolean))];
+        if(ids.length!==1||!/^\d{1,15}$/.test(ids[0]))return bad("Los registros de STATS no contienen un ID FotMob único válido.",409);
+        pid=ids[0];
+      }else if(body.confirmed!==true)return bad("El ID FotMob introducido debe confirmarse al solicitar la recuperación.",409);
+      if(!/^\d{1,15}$/.test(pid))return bad("ID FotMob no válido.",409);
       const related=rows(await db.PlayerFotmobLink.filter({player_id:playerId},undefined,30));
       if(related.length){
         if(related.every(x=>str(x.fotmob_player_id)===pid))return reply({ok:true,already_linked:true,pid});
@@ -65,7 +75,8 @@ export default async function(req) {
       if(backlinks.some(x=>str(x.player_id)!==playerId))return bad("Este ID FotMob está vinculado a otro jugador.",409);
       await db.PlayerFotmobLink.create({
         player_id:playerId,fotmob_player_id:pid,player_name:player.name,
-        verification:"manual",note:"Vinculación explícita confirmada por administrador en Import V3"
+        verification:fromStats?"automatic_existing_stats_unique":"manual",
+        note:fromStats?"ID FotMob único recuperado de temporadas guardadas en STATS":"ID FotMob introducido al solicitar recuperación en Import V3"
       });
       return reply({ok:true,pid});
     }
