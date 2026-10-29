@@ -8,36 +8,53 @@ export function buildClubTrophyHistory(teamId,{honours=[],credits=[],catalog=[],
  const owner=txt(teamId);
  const trophyById=new Map(catalog.map(t=>[txt(t.source_id),t]));
  const people=new Map(players.map(p=>[txt(p.id),p]));
- const verified=new Map();
+ const verified=new Map(),aliases=new Map();
  for(const h of honours){
   if(!good(h)||txt(h.recipient_id)!==owner||!txt(h.trophy_source_id)||!txt(h.season))continue;
-  const key=[h.trophy_source_id,h.season].map(txt).join("|");
+  const key=[txt(h.trophy_source_id),txt(h.season)].join("|");
   const previous=verified.get(key);
-  // A duplicate import must never add a second championship.
+  // Deduplicate editions while preserving the IDs of duplicate imports:
+  // previously confirmed players may still point at an older winner ID.
+  if(!aliases.has(key))aliases.set(key,new Set());
+  if(txt(h.id))aliases.get(key).add(txt(h.id));
   if(!previous||(h.source_url&&!previous.source_url))verified.set(key,h);
  }
  const editions=[...verified.values()].sort(latestFirst);
- const creditsByHonour=new Map();
+ const winnerById=new Map();
+ for(const h of editions){
+  const key=[txt(h.trophy_source_id),txt(h.season)].join("|");
+  for(const aliasId of aliases.get(key)||[])winnerById.set(aliasId,h);
+ }
+ const creditGroups=new Map();
  for(const c of credits){
-  if(c.status!=="confirmed"||c.verified!==true||txt(c.team_id)!==owner||!txt(c.player_id))continue;
-  const h=editions.find(h=>txt(h.id)===txt(c.trophy_honour_id));
-  if(!h||txt(c.season)!==txt(h.season)||txt(c.trophy_source_id||h.trophy_source_id)!==txt(h.trophy_source_id))continue;
-  const key=txt(h.id),group=creditsByHonour.get(key)||new Map();
-  if(!group.has(txt(c.player_id)))group.set(txt(c.player_id),{
-   id:txt(c.player_id),
-   name:people.get(txt(c.player_id))?.name||"Jugador",
-   player:people.get(txt(c.player_id))||null,
-   evidence_url:txt(c.source_url)
-  });
-  creditsByHonour.set(key,group);
+  if(!["candidate","confirmed"].includes(c.status)||txt(c.team_id)!==owner||!txt(c.player_id))continue;
+  if(c.status==="confirmed"&&c.verified!==true)continue;
+  const winner=winnerById.get(txt(c.trophy_honour_id));
+  if(!winner||txt(c.season)!==txt(winner.season)||txt(c.trophy_source_id||winner.trophy_source_id)!==txt(winner.trophy_source_id))continue;
+  const key=[txt(winner.trophy_source_id),txt(winner.season)].join("|");
+  const group=creditGroups.get(key)||new Map();
+  const playerId=txt(c.player_id);
+  const prior=group.get(playerId);
+  if(!prior||c.status==="confirmed"&&prior.status!=="confirmed"){
+   group.set(playerId,{
+    id:playerId,status:c.status,
+    name:people.get(playerId)?.name||"Jugador",
+    player:people.get(playerId)||null,
+    evidence_url:txt(c.source_url)
+   });
+  }
+  creditGroups.set(key,group);
  }
  const competitions=new Map(),years=new Map(),playerCounts=new Map(),detailedEditions=[];
  for(const h of editions){
   const trophyId=txt(h.trophy_source_id);
   const trophy=trophyById.get(trophyId)||{source_id:trophyId,name:trophyId};
-  const confirmed=[...(creditsByHonour.get(txt(h.id))||new Map()).values()]
-   .sort((a,b)=>a.name.localeCompare(b.name,"es"));
-  const record={...h,trophy,confirmedPlayers:confirmed,confirmedPlayerCount:confirmed.length};
+  const linked=[...(creditGroups.get([trophyId,txt(h.season)].join("|"))||new Map()).values()];
+  const byName=(a,b)=>a.name.localeCompare(b.name,"es");
+  const confirmed=linked.filter(c=>c.status==="confirmed").sort(byName);
+  const candidates=linked.filter(c=>c.status==="candidate").sort(byName);
+  const record={...h,trophy,confirmedPlayers:confirmed,confirmedPlayerCount:confirmed.length,
+   candidatePlayers:candidates,candidatePlayerCount:candidates.length};
   detailedEditions.push(record);
   const comp=competitions.get(trophyId)||{source_id:trophyId,trophy,name:trophy.name,count:0,editions:[],latest:""};
   comp.count++;comp.editions.push(record);
