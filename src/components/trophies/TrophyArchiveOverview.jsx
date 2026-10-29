@@ -12,7 +12,7 @@ const MODES=[["competiciones","Competiciones",Trophy],["equipos","Equipos",Shiel
 const small="text-[10px] font-bold uppercase tracking-[.13em] text-slate-400";
 function TrophyPhoto({trophy,manifest,size="large"}){
  const [broken,setBroken]=useState(false);
- return <span className={"flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white "+(size==="large"?"h-24 w-24":"h-14 w-14")}>
+ return <span className={"flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white "+(size==="large"?"h-[142px] w-[142px]":"h-14 w-14")}>
   {!broken?<img src={trophyImageUrl(trophy,manifest)} alt="" loading="lazy" onError={()=>setBroken(true)} className="h-full w-full object-contain p-1.5 drop-shadow-sm"/>:<Trophy size={30} className="text-slate-300"/>}
  </span>;
 }
@@ -25,17 +25,20 @@ function Stat({label,value,icon:Icon}){
 export default function TrophyArchiveOverview({honours=[],catalog=[],imageManifest,onOpenTrophy,onSync}){
  const navigate=useNavigate();
  const [mode,setMode]=useState("competiciones"),[search,setSearch]=useState(""),[visible,setVisible]=useState(24);
+ const [seasonFilter,setSeasonFilter]=useState("all");
  const teamQuery=useQuery({...completeRecordQueryOptions(base44.entities.Team,["mf-legacy","teams"]),enabled:mode==="equipos",retry:false});
  const playerQuery=useQuery({...completeRecordQueryOptions(base44.entities.Player,["mf-legacy","players"]),enabled:mode==="jugadores",retry:false});
  const creditQuery=useQuery({...completeRecordQueryOptions(base44.entities.PlayerTrophyCredit,["mf-legacy","trophies","credits"]),enabled:mode==="jugadores",retry:false});
- const summary=useMemo(()=>archiveOverview(honours,mode==="jugadores"?creditQuery.data||[]:[],catalog,mode==="jugadores"?playerQuery.data||[]:[]),[honours,creditQuery.data,playerQuery.data,mode,catalog]);
+ const seasons=useMemo(()=>[...new Set(honours.map(h=>String(h.season||"").trim()).filter(Boolean))].sort((a,b)=>b.localeCompare(a,"es",{numeric:true})),[honours]);
+ const scopedHonours=useMemo(()=>seasonFilter==="all"?honours:honours.filter(h=>h.season===seasonFilter),[honours,seasonFilter]);
+ const summary=useMemo(()=>archiveOverview(scopedHonours,mode==="jugadores"?creditQuery.data||[]:[],catalog,mode==="jugadores"?playerQuery.data||[]:[]),[scopedHonours,creditQuery.data,playerQuery.data,mode,catalog]);
  const teamMap=useMemo(()=>new Map((teamQuery.data||[]).map(t=>[String(t.id),t])),[teamQuery.data]);
  const playerMap=useMemo(()=>new Map((playerQuery.data||[]).map(p=>[String(p.id),p])),[playerQuery.data]);
  const trophiesById=useMemo(()=>new Map(catalog.map(t=>[String(t.source_id),t])),[catalog]);
  const raw=mode==="competiciones"?summary.competitions:mode==="equipos"?summary.clubs:summary.players;
  const results=useMemo(()=>searchArchiveRows(raw,search),[raw,search]);
  const rendered=results.slice(0,visible);
- const pending=honours.filter(h=>h.verified!==true).length;
+ const pending=scopedHonours.filter(h=>h.verified!==true).length;
  const isLoading=mode==="equipos"?teamQuery.isLoading:mode==="jugadores"?playerQuery.isLoading||creditQuery.isLoading:false;
  const isError=mode==="equipos"?teamQuery.isError:mode==="jugadores"?playerQuery.isError||creditQuery.isError:false;
  const changeMode=v=>{setMode(v);setSearch("");setVisible(24);};
@@ -67,6 +70,14 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
        <Icon size={14}/>{label}
       </button>)}
     </div>
+    <div className="flex items-center gap-2">
+     <label htmlFor="palmares-season" className="text-[10px] font-semibold text-slate-500">Temporada</label>
+     <select id="palmares-season" value={seasonFilter} onChange={e=>{setSeasonFilter(e.target.value);setVisible(24);}}
+      className="h-9 min-w-[133px] rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-700 outline-none focus:border-[#003399]">
+      <option value="all">Todas</option>
+      {seasons.map(y=><option key={y} value={y}>{y}</option>)}
+     </select>
+    </div>
     <div className="relative min-w-[220px] flex-1 sm:max-w-[350px]">
      <Search size={15} className="pointer-events-none absolute left-3 top-[11px] text-slate-400"/>
      <input type="search" value={search} onChange={e=>{setSearch(e.target.value);setVisible(24);}} placeholder={"Buscar "+(mode==="competiciones"?"trofeo o competición":mode==="equipos"?"club":"jugador")+"…"}
@@ -85,16 +96,25 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
    <p className="mt-1 text-[11px] leading-5 text-slate-400">{search?"Prueba con otro nombre o competición.":"Investiga los campeones y verifica sus fuentes desde Sincronizar para empezar a construir el palmarés."}</p>
    {!search&&<button type="button" onClick={onSync} className="mt-4 rounded-lg bg-[#003399] px-3 py-2 text-[11px] font-bold text-white">Ir a Sincronizar</button>}
   </div>}
-  {!isError&&!isLoading&&mode==="competiciones"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+  {!isError&&!isLoading&&mode==="competiciones"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
    {rendered.map(item=><button type="button" key={item.source_id} onClick={()=>openCompetition(item.source_id)}
-    className="group flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md">
-    <TrophyPhoto trophy={item.trophy||{source_id:item.source_id,name:item.name}} manifest={imageManifest}/>
-    <div className="min-w-0 flex-1">
-     <p className={small}>Competiciones · {item.latest||"Sin fecha"}</p>
-     <h3 className="mt-1 line-clamp-2 text-[13px] font-black text-slate-900">{item.name}</h3>
-     <p className="mt-1 text-[11px] text-slate-500">{item.count} títulos verificados · {item.winnerCount} ganadores</p>
+    className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_15px_38px_rgba(20,35,65,.09)]">
+    <div className="relative flex min-h-[158px] items-center justify-center bg-gradient-to-b from-[#f1f5fb] to-white px-4 py-3">
+     <TrophyPhoto trophy={item.trophy||{source_id:item.source_id,name:item.name}} manifest={imageManifest}/>
+     <span className="absolute right-3 top-3 rounded-lg bg-[#003399] px-2 py-1 text-[11px] font-black tabular-nums text-white">{item.count} {item.count===1?"título":"títulos"}</span>
     </div>
-    <ArrowUpRight size={16} className="shrink-0 text-slate-300 group-hover:text-[#003399]"/>
+    <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+     <p className={small}>{item.trophy?.category||"Trofeo oficial"}</p>
+     <h3 className="mt-1 line-clamp-2 text-sm font-black text-slate-900">{item.name}</h3>
+     <p className="mt-1 text-[11px] text-slate-500">{item.winnerCount} {item.winnerCount===1?"ganador diferente":"ganadores diferentes"}</p>
+     <div className="mt-auto flex min-w-0 items-center justify-between gap-3 border-t border-slate-100 pt-3">
+      <div className="min-w-0">
+       <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Último campeón registrado</p>
+       <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-700">{item.latestWinner||"—"} · {item.latest||"—"}</p>
+      </div>
+      <ArrowUpRight size={17} className="shrink-0 text-slate-300 group-hover:text-[#003399]"/>
+     </div>
+    </div>
    </button>)}
   </div>}
   {!isError&&!isLoading&&mode==="equipos"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
