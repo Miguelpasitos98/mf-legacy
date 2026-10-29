@@ -37,6 +37,7 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
  const trophiesById=useMemo(()=>new Map(catalog.map(t=>[String(t.source_id),t])),[catalog]);
  const raw=mode==="competiciones"?summary.competitions:mode==="equipos"?summary.clubs:summary.players;
  const results=useMemo(()=>searchArchiveRows(raw,search),[raw,search]);
+ const rankById=useMemo(()=>new Map(raw.map((item,index)=>[String(item.id),index+1])),[raw]);
  const rendered=results.slice(0,visible);
  const pending=scopedHonours.filter(h=>h.verified!==true).length;
  const isLoading=mode==="equipos"?teamQuery.isLoading:mode==="jugadores"?playerQuery.isLoading||creditQuery.isLoading:false;
@@ -119,7 +120,7 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
   </div>}
   {!isError&&!isLoading&&mode==="equipos"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
    {rendered.map((item,index)=><TrophyRankingCard
-     key={item.id} item={item} rank={index+1} entity={teamMap.get(item.id)}
+     key={item.id} item={item} rank={rankById.get(String(item.id))||index+1} entity={teamMap.get(item.id)}
      kind="team" manifest={imageManifest} trophiesById={trophiesById}
      onOpenTrophy={openCompetition}
      onOpenProfile={id=>navigate("/teams?stats_team="+encodeURIComponent(id))}
@@ -127,7 +128,7 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
   </div>}
   {!isError&&!isLoading&&mode==="jugadores"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
    {rendered.map((item,index)=><TrophyRankingCard
-     key={item.id} item={item} rank={index+1} entity={playerMap.get(item.id)}
+     key={item.id} item={item} rank={rankById.get(String(item.id))||index+1} entity={playerMap.get(item.id)}
      kind="player" manifest={imageManifest} trophiesById={trophiesById}
      onOpenTrophy={openCompetition}
      onOpenProfile={id=>navigate("/players?stats_player="+encodeURIComponent(id))}
