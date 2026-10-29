@@ -31,13 +31,14 @@ export function buildClubTrophyHistory(teamId,{honours=[],credits=[],catalog=[],
   });
   creditsByHonour.set(key,group);
  }
- const competitions=new Map(),years=new Map(),playerCounts=new Map();
+ const competitions=new Map(),years=new Map(),playerCounts=new Map(),detailedEditions=[];
  for(const h of editions){
   const trophyId=txt(h.trophy_source_id);
   const trophy=trophyById.get(trophyId)||{source_id:trophyId,name:trophyId};
   const confirmed=[...(creditsByHonour.get(txt(h.id))||new Map()).values()]
    .sort((a,b)=>a.name.localeCompare(b.name,"es"));
   const record={...h,trophy,confirmedPlayers:confirmed,confirmedPlayerCount:confirmed.length};
+  detailedEditions.push(record);
   const comp=competitions.get(trophyId)||{source_id:trophyId,trophy,name:trophy.name,count:0,editions:[],latest:""};
   comp.count++;comp.editions.push(record);
   if(!comp.latest||txt(h.season)>comp.latest)comp.latest=txt(h.season);
@@ -62,7 +63,7 @@ export function buildClubTrophyHistory(teamId,{honours=[],credits=[],catalog=[],
  return {
   teamId:owner,total:editions.length,distinct:competitionList.length,
   earliest:timeline.at(-1)?.season||"",latest:timeline[0]?.season||"",
-  editions,competitions:competitionList,timeline,players:playerRanking,
+  editions:detailedEditions,competitions:competitionList,timeline,players:playerRanking,
   confirmedPlayerCount:playerRanking.length
  };
 }
