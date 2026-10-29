@@ -14,9 +14,9 @@ const CREDIT_KEY=["mf-legacy","trophies","credits"];
 const txt=v=>String(v??"").trim();
 const button="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 hover:border-blue-200 hover:text-[#003399] disabled:opacity-40";
 const primary="rounded-lg bg-[#003399] px-4 py-2 text-[11px] font-bold text-white hover:bg-[#002b82] disabled:opacity-40";
-export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[],standalone=false}){
+export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[],standalone=false,initialPhase="champions"}){
  const qc=useQueryClient();
- const [open,setOpen]=useState(standalone),[phase,setPhase]=useState("champions");
+ const [open,setOpen]=useState(standalone),[phase,setPhase]=useState(initialPhase);
  const [teamId,setTeamId]=useState(""),[from,setFrom]=useState("2015/2016"),[to,setTo]=useState("2025/2026");
  const [research,setResearch]=useState(""),[entries,setEntries]=useState([]);
  const [generatedPrompt,setGeneratedPrompt]=useState("");
