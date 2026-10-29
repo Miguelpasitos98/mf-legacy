@@ -64,7 +64,7 @@ test("Trophies has three primary sections with original editor and one dedicated
  assert.match(page,/section==="palmares"/);
  assert.match(page,/section==="sync"/);
  assert.match(page,/<TrophyArchiveOverview/);
- assert.match(page,/<TrophySyncWorkbench standalone/);
+ assert.match(page,/<TrophySyncWorkbench[^>]*standalone/);
  assert.match(workbench,/useState\(standalone\)/);
  assert.match(page,/detailTab==="Editar"/);
 });
