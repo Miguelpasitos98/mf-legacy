@@ -9,7 +9,7 @@ export const trophyImagePath=id=>"/assets/trophies/"+encodeURIComponent(safe(id)
 const TROPHY_IMAGE_REPO="https://raw.githubusercontent.com/Miguelpasitos98/My-Legacy/main/";
 export const trophySourceImageUrl=sourcePath=>{
  const path=safe(sourcePath).replace(/\\\\/g,"/");
- if(!path.startsWith("Trofeos identificados/")||! /\\.(png|webp|jpe?g)$/i.test(path))return "";
+ if(!path.startsWith("Trofeos identificados/")||! /\.(png|webp|jpe?g)$/i.test(path))return "";
  return TROPHY_IMAGE_REPO+path.split("/").map(encodeURIComponent).join("/");
 };
 export const trophyImageUrl=(trophy,manifest)=>{
