@@ -51,6 +51,15 @@ test("Duplicated candidate credits cannot be reviewed independently or counted t
  assert.equal(rows.every(row=>row.blocked),true);
  assert.equal(rows.every(row=>row.reasons.some(reason=>reason.includes("duplicada"))),true);
 });
+test("Same player and same championship through two duplicate winner records are blocked",()=>{
+ const history=[...honours,{...honours[0],id:"h1-mirror"}];
+ const first=candidate("one","p1");
+ const second=candidate("two","p1",{trophy_honour_id:"h1-mirror"});
+ const rows=trophyReviewRows({credits:[first,second],honours:history,teams,players,catalog});
+ assert.equal(rows.length,2);
+ assert.equal(rows.every(row=>row.blocked),true);
+ assert.equal(rows.every(row=>row.reasons.some(reason=>reason.includes("duplicada"))),true);
+});
 test("Approval requires valid HTTPS evidence and an explicit individual attestation",()=>{
  const row=sample([candidate("ok")])[0];
  const bad=["", "http://uefa.com/player", "javascript:alert(1)", "https://localhost/x", "https://x", "https://x.com/@space in URL", "https://username:secret@official.com/x"];
