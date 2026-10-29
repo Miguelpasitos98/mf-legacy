@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from "react";
 import {useNavigate} from "react-router-dom";
-import {ArrowLeft,ArrowUpRight,BookOpen,CalendarDays,CheckCircle2,ExternalLink,Medal,Search,Shield,ShieldCheck,Trophy,Users,UserRoundCheck,Clock3,Info} from "lucide-react";
+import {ArrowLeft,ArrowUpRight,BookOpen,CheckCircle2,ExternalLink,Search,Shield,ShieldCheck,Trophy,Users,UserRoundCheck,Clock3,Info} from "lucide-react";
 import {trophyImageUrl} from "@/utils/trophyCatalog";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
 
