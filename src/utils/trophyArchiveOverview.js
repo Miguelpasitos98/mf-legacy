@@ -1,7 +1,6 @@
 import {normaliseSearch} from "./trophyCatalog.js";
 import {trophyEditionRows} from "./trophyDetailData.js";
 const str=value=>String(value??"").trim();
-const seasonSort=(a,b)=>str(b.season).localeCompare(str(a.season),"es",{numeric:true});
 
 export function archiveOverview(honours=[],credits=[],catalog=[],players=[]){
  const verified=trophyEditionRows(honours).filter(h=>h.verified===true);
@@ -13,8 +12,10 @@ export function archiveOverview(honours=[],credits=[],catalog=[],players=[]){
  const addPlayer=(playerId,h,kind)=>{
   const key=[str(playerId),str(h.trophy_source_id),str(h.season),kind].join("|");
   if(seenPlayers.has(key)||!playerId)return;seenPlayers.add(key);
-  const p=playerMap.get(str(playerId))||{id:str(playerId),name:playersById.get(str(playerId))?.name||"Jugador",total:0,collective:0,individual:0,seasons:[],trophies:new Set()};
-  p.total++;p[kind]++;p.trophies.add(str(h.trophy_source_id));p.seasons.push(h.season);playerMap.set(p.id,p);
+  const p=playerMap.get(str(playerId))||{id:str(playerId),name:playersById.get(str(playerId))?.name||"Jugador",total:0,collective:0,individual:0,seasons:[],trophies:new Set(),trophyCounts:new Map()};
+  p.total++;p[kind]++;p.trophies.add(str(h.trophy_source_id));
+  p.trophyCounts.set(str(h.trophy_source_id),(p.trophyCounts.get(str(h.trophy_source_id))||0)+1);
+  p.seasons.push(h.season);playerMap.set(p.id,p);
  };
  for(const h of verified){
   const trophyId=str(h.trophy_source_id),teamId=str(h.recipient_id);
@@ -28,8 +29,10 @@ export function archiveOverview(honours=[],credits=[],catalog=[],players=[]){
    competitionMap.set(trophyId,row);
   }
   if(h.recipient_type==="Team"&&teamId){
-   const row=clubMap.get(teamId)||{id:teamId,name:h.recipient_name||"Equipo",total:0,trophies:new Set(),seasons:[],latest:""};
-   row.total++;row.trophies.add(trophyId);row.seasons.push(h.season);
+   const row=clubMap.get(teamId)||{id:teamId,name:h.recipient_name||"Equipo",total:0,trophies:new Set(),trophyCounts:new Map(),seasons:[],latest:""};
+   row.total++;row.trophies.add(trophyId);
+   row.trophyCounts.set(trophyId,(row.trophyCounts.get(trophyId)||0)+1);
+   row.seasons.push(h.season);
    if(!row.latest||h.season>row.latest)row.latest=h.season;
    clubMap.set(teamId,row);
   }
