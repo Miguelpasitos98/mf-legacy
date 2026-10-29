@@ -6,6 +6,7 @@ import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {useLeaguesQuery,useCountriesQuery} from "@/hooks/useSharedData";
 import {groupTrophies} from "@/utils/trophyGrouping";
 import TrophySyncWorkbench from "@/components/trophies/TrophySyncWorkbench";
+import TrophyDetailVisual from "@/components/trophies/TrophyDetailVisual";
 import {TROPHY_CSV_URL,TROPHY_TYPES,TROPHY_CATEGORIES,parseTrophyCatalog,mergeTrophyCatalog,trophyImageUrl,normaliseSearch} from "@/utils/trophyCatalog";
 
 const TROPHY_KEY=["mf-legacy","trophies","definitions"];
@@ -69,6 +70,7 @@ export default function Trophies(){
  const [recipientQuery,setRecipientQuery]=useState("");
  const [honourSaving,setHonourSaving]=useState(false);
  const [showHonours,setShowHonours]=useState(true);
+ const [detailTab,setDetailTab]=useState("Resumen");
  const leaguesQuery=useLeaguesQuery(),countriesQuery=useCountriesQuery();
  const trophyQuery=useQuery({...completeRecordQueryOptions(base44.entities.Trophy,TROPHY_KEY),retry:false});
  const honourQuery=useQuery({...completeRecordQueryOptions(base44.entities.TrophyHonour,HONOURS_KEY),retry:false});
@@ -112,8 +114,8 @@ export default function Trophies(){
  const candidateQuery=useQuery({...completeRecordQueryOptions(base44.entities[recipientType],["mf-legacy","trophies","recipients",recipientType]),enabled:Boolean(honourDraft),retry:false});
  const candidates=useMemo(()=>rows(candidateQuery.data).filter(x=>normaliseSearch(x.name).includes(normaliseSearch(recipientQuery))).slice(0,8),[candidateQuery.data,recipientQuery]);
 
- const open=t=>{setSelectedId(String(t.source_id));setDraft({...t});setNewRecord(false);setHonourDraft(null);setError("");setShowHonours(true);};
- const create=()=>{const d=emptyTrophy();setSelectedId("");setDraft(d);setNewRecord(true);setHonourDraft(null);setError("");};
+ const open=t=>{setSelectedId(String(t.source_id));setDraft({...t});setNewRecord(false);setHonourDraft(null);setError("");setShowHonours(true);setDetailTab("Resumen");};
+ const create=()=>{const d=emptyTrophy();setSelectedId("");setDraft(d);setNewRecord(true);setHonourDraft(null);setError("");setDetailTab("Editar");};
  const close=()=>{if(saving||honourSaving)return;setDraft(null);setSelectedId("");setHonourDraft(null);setNewRecord(false);setError("");};
  const save=async e=>{
   e.preventDefault();if(saving)return;setError("");
@@ -129,7 +131,7 @@ export default function Trophies(){
   }catch(e){setError("No se pudo guardar en Base44: "+(e?.message||e));}
   finally{setSaving(false);}
  };
- const startHonour=()=>{if(!selected?.id){setError("Guarda primero la ficha del trofeo para registrar sus ganadores.");return;}setError("");setHonourDraft(emptyHonour(selected));setRecipientQuery("");};
+ const startHonour=()=>{setDetailTab("Editar");if(!selected?.id){setError("Guarda primero la ficha del trofeo para registrar sus ganadores.");return;}setError("");setHonourDraft(emptyHonour(selected));setRecipientQuery("");};
  const saveHonour=async e=>{
   e.preventDefault();if(honourSaving||!selected?.id)return;
   setError("");
@@ -204,8 +206,20 @@ export default function Trophies(){
 
   {draft&&<div className="fixed inset-0 z-[9997] flex items-center justify-center bg-slate-950/40 p-3 backdrop-blur-[2px]" onMouseDown={e=>{if(e.target===e.currentTarget)close();}}>
    <div role="dialog" aria-modal="true" aria-label="Ficha de trofeo" className="flex max-h-[min(94vh,920px)] w-full max-w-[1050px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_25px_90px_rgba(0,0,0,.2)]">
-    <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 md:px-7"><div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-400">{newRecord?"NUEVA FICHA":"TROPHY ARCHIVE · "+draft.source_id}</p><h2 className="max-w-[630px] truncate text-lg font-black text-slate-900">{draft.name||"Nuevo trofeo"}</h2></div><button type="button" onClick={close} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={19}/></button></div>
-    <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[1fr_1.05fr] lg:overflow-hidden">
+    <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 md:px-7">
+     <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-400">{newRecord?"NUEVA FICHA":"TROPHY ARCHIVE · "+draft.source_id}</p><h2 className="max-w-[720px] truncate text-lg font-black text-slate-900">{draft.name||"Nuevo trofeo"}</h2></div>
+     <button type="button" onClick={close} aria-label="Cerrar ficha del trofeo" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={19}/></button>
+    </div>
+    <nav aria-label="Secciones del trofeo" className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 md:px-7">
+     {(newRecord?["Editar"]:["Resumen","Ediciones","Clubes","Jugadores","Editar"]).map(section=>
+      <button key={section} type="button" onClick={()=>{setDetailTab(section);setError("");}}
+       aria-current={detailTab===section?"page":undefined}
+       className={"shrink-0 rounded-lg px-3 py-2 text-[11px] font-bold transition "+(detailTab===section?"bg-[#003399] text-white":"text-slate-500 hover:bg-slate-100 hover:text-slate-800")}>
+       {section}
+      </button>
+     )}
+    </nav>
+    {detailTab==="Editar"?<div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[1fr_1.05fr] lg:overflow-hidden">
      <div className="min-h-0 overflow-y-auto border-b border-slate-100 p-5 lg:border-b-0 lg:border-r md:p-7">
       <div className="mb-4 flex items-center gap-5 rounded-xl bg-[#F5F7FA] p-4">
        <TrophyArtwork trophy={draft} manifest={imageManifest} className="h-28 w-28 shrink-0"/>
@@ -243,7 +257,11 @@ export default function Trophies(){
        <div className="space-y-2">{selectedHonours.map(a=><div key={a.id} className="flex items-start justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3"><div><div className="flex items-center gap-2 text-xs font-extrabold text-slate-800">{a.season}<span className={"rounded px-1.5 py-0.5 text-[9px] font-bold "+(a.verified?"bg-emerald-50 text-emerald-700":"bg-slate-100 text-slate-400")}>{a.verified?"VERIFICADO":"SIN VERIFICAR"}</span></div><p className="mt-1 text-xs text-slate-600">{a.recipient_name||a.recipient_id}{a.award_rank?" · "+a.award_rank+".º":""}{a.goals!=null?" · "+a.goals+" goles":""}</p>{a.source_url&&<a className="mt-1 inline-flex items-center gap-1 text-[10px] text-blue-700 hover:underline" target="_blank" rel="noreferrer" href={a.source_url}><Link2 size={10}/> Fuente</a>}</div>{!a.verified&&a.source_url&&<button type="button" disabled={honourSaving} className="rounded-lg border border-emerald-200 px-2 py-1 text-[10px] font-semibold text-emerald-700 disabled:opacity-50" onClick={()=>verifyHonour(a)}>Verificar</button>}<button type="button" className="p-1 text-slate-300 hover:text-red-600" title="Eliminar adjudicación" onClick={()=>deleteHonour(a)}><Trash2 size={15}/></button></div>)}</div>}
       <div className="mt-4 rounded-xl bg-slate-50 p-3 text-[11px] leading-5 text-slate-500">Los palmarés de Teams y Players podrán calcularse utilizando <strong>TrophyHonour</strong> por ID, sin duplicar registros.</div>
      </div>
-    </div>
+    </div>:<TrophyDetailVisual
+      key={selectedId} trophy={selected||draft} manifest={imageManifest}
+      tab={detailTab} honours={selectedHonours} onEdit={()=>setDetailTab("Editar")}
+      onAdd={startHonour} onVerify={verifyHonour} honourSaving={honourSaving}
+    />}
    </div>
   </div>}
  </div>;
