@@ -1,7 +1,7 @@
 // STATS visual filters: legacy MF Legacy positions and FIFA card positions
 // map to the same functional groups WITHOUT modifying historical season data.
 // The precise historical position still determines the Composite archetype.
-import {normalizeHistoricalPosition,positionGroup} from "./historicalPositions.js";
+import {normalizeHistoricalPosition} from "./historicalPositions.js";
 
 const codes={
   goalkeepers:["GK","POR"],
@@ -28,13 +28,13 @@ export const STATS_POSITION_FILTER_OPTIONS=[
  {group:"Grupos principales",value:"grupo:def",label:"Defensas"},
  {group:"Grupos principales",value:"grupo:mid",label:"Centrocampistas"},
  {group:"Grupos principales",value:"grupo:att",label:"Atacantes"},
+ {group:"Grupos principales",value:"grupo:wing",label:"Extremos (ambas bandas)"},
  {group:"Posiciones unificadas",value:"grupo:cb",label:"Centrales"},
  {group:"Posiciones unificadas",value:"grupo:fb",label:"Laterales"},
  {group:"Posiciones unificadas",value:"grupo:wb",label:"Carrileros"},
  {group:"Posiciones unificadas",value:"grupo:dm",label:"Pivotes defensivos"},
  {group:"Posiciones unificadas",value:"grupo:cm",label:"Mediocentros"},
  {group:"Posiciones unificadas",value:"grupo:cam",label:"Mediapuntas"},
- {group:"Posiciones unificadas",value:"grupo:wing",label:"Extremos (ambas bandas)"},
  {group:"Posiciones unificadas",value:"grupo:st",label:"Delanteros"},
  {group:"Por banda",value:"grupo:wing:left",label:"Extremos izquierdos"},
  {group:"Por banda",value:"grupo:wing:right",label:"Extremos derechos"},
