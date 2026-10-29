@@ -67,7 +67,7 @@ export default function ClubTrophyHistory({teamId,team,honours=[],catalog=[],man
  if(chosenEdition)return <TrophyEditionDetail
   key={selectedEditionKey} edition={chosenEdition} team={team} teamId={teamId}
   manifest={manifest} onBack={()=>setSelectedEditionKey("")}
-  onOpenTrophy={onOpenTrophy} onSync={onSync}
+  onOpenTrophy={onOpenTrophy} onSync={()=>onSync?.("players")}
   creditsLoading={creditsLoading} creditsError={creditsQuery.isError||playersQuery.isError}
  />;
  return <section className="space-y-4 pb-7">
