@@ -287,10 +287,11 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       values[metric]=metric==="ground_duels_won_pct"
         ? groundDuelPercentage(records)
         :metric==="save_pct"?savePctDetail.value:weightedPct(records,names).value;
-    // Ball Security is a derived percentage; do not use partial competitor
-    // coverage as if it represented a complete player-season.
+    // Ball Security: complete season OR explicitly provisional coverage of
+    // >=98% of verified minutes. Never extrapolate missing events or pretend
+    // the unreported competitions contain zero actions.
     const security=ballSecurityFromRecords(records,metricTotal);
-    values.ball_security=["W","CAM","FB","WB"].includes(role)&&!security.partial?security.value:null;
+    values.ball_security=["W","CAM","FB","WB"].includes(role)&&security.eligible?security.value:null;
     // Never fall back to seasonless FC/Transfermarkt or snapshot CraftedFC fields.
     values.fc27_ovr=valuation?num(valuation.fifa_fc_overall):null;
     values.market_value=valuation?num(valuation.transfermarkt_value_eur):null;
