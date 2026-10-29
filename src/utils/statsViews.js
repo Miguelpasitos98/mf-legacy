@@ -52,10 +52,22 @@ export const resolveTeam=(record,teams,peers=[])=>{
  if(candidates.length===1)return {team:candidates[0],status:"suggested",label:"Posible: "+candidates[0].name};
  return {team:null,status:"unknown",label:"Club no identificado"};
 };
+// FotMob exposes a goalkeeper's GA as "Goals conceded" and sometimes also
+// as "Conceded". Both describe the SAME total; select one, never add them.
+const CONCEDED_NAMES=["Goals conceded while on pitch","Goals conceded","Conceded","Goles en contra","Goles encajados en campo","Goles encajados","Goals against"];
+export const goalkeeperConcededMetric=record=>{
+ const metrics=Array.isArray(record?.metrics)?record.metrics:[];
+ for(const alias of CONCEDED_NAMES){
+  const match=metrics.find(m=>metricNorm(m?.name)===metricNorm(alias));
+  if(match)return match;
+ }
+ return null;
+};
 export const metricsValue=(r,name)=>{
  if(!r)return null;
  if(name==="minutes")return minutesForDisplay(r).value;
  if(["appearances","rating","team_matches"].includes(name))return statNum(r[name]);
+ if(name==="goalsconcededwhileonpitch")return statNum(goalkeeperConcededMetric(r)?.value);
  const aliases={goals:["goals","goles"],assists:["assists","asistencias"],xg:["xg","expectedgoals"],xa:["xa","expectedassists"],shots:["shots","tiros"],tackles:["tackles","entradas"],recoveries:["recoveries","recuperaciones"],shotsontarget:["shotsontarget","tirosapuerta"],goals_prevented:["goalsprevented","goals_prevented","golesevitados"],goalsconcededwhileonpitch:["goalsconcededwhileonpitch","golesencajadosencampo"],duelswonvariante2:["duelswon%","duelswonpercentage"],aerialswonvariante2:["aerialswon%","aerialswonpercentage"],dribblessuccessrate:["dribblessuccessrate","dribblessuccess%"],passaccuracy:["passaccuracy"],longballaccuracy:["longballaccuracy"],crossaccuracy:["crossaccuracy"],groundduelswon:["groundduelswon"],groundduelscontested:["groundduelscontested"]};
  const candidate=(r.metrics||[]).find(m=>(aliases[name]||[name]).some(alias=>metricNorm(alias)===metricNorm(m.name)));
  return candidate?statNum(candidate.value):null;
