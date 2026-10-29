@@ -1,6 +1,6 @@
 import React,{useMemo} from "react";
 import {useQuery} from "@tanstack/react-query";
-import {Trophy,Medal,Shield,ShieldCheck,CalendarDays,Users,ArrowUpRight,Plus,CheckCircle2,Clock3,Info,ChevronRight,Star} from "lucide-react";
+import {Trophy,Medal,Shield,ShieldCheck,CalendarDays,Users,ArrowUpRight,Plus,CheckCircle2,Clock3,Info} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {trophyImageUrl} from "@/utils/trophyCatalog";
