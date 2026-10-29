@@ -7,6 +7,7 @@ import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {trophyImageUrl} from "@/utils/trophyCatalog";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
 import {buildClubTrophyHistory} from "@/utils/trophyClubHistory";
+import TrophyEditionDetail from "@/components/trophies/TrophyEditionDetail";
 
 const options=[["overview","Resumen"],["timeline","Cronología"],["players","Jugadores"]];
 const low="text-[10px] font-black uppercase tracking-[.13em] text-slate-400";
@@ -35,11 +36,12 @@ function Empty({title,description}){
   <p className="mt-1 text-[11px] leading-5 text-slate-500">{description}</p>
  </div>;
 }
-export default function ClubTrophyHistory({teamId,team,honours=[],catalog=[],manifest,onBack,onOpenTrophy}){
+export default function ClubTrophyHistory({teamId,team,honours=[],catalog=[],manifest,onBack,onOpenTrophy,onSync}){
  const navigate=useNavigate();
  const [tab,setTab]=useState("overview");
  const [competition,setCompetition]=useState("all");
  const [expanded,setExpanded]=useState(null);
+ const [selectedEditionKey,setSelectedEditionKey]=useState("");
  // These tables are only fetched while the club archive is open.
  const creditsQuery=useQuery({...completeRecordQueryOptions(base44.entities.PlayerTrophyCredit,["mf-legacy","trophies","credits"]),retry:false});
  const playersQuery=useQuery({...completeRecordQueryOptions(base44.entities.Player,["mf-legacy","players"]),retry:false});
@@ -59,6 +61,15 @@ export default function ClubTrophyHistory({teamId,team,honours=[],catalog=[],man
  })).filter(group=>group.editions.length);
  const expandYear=year=>setExpanded(current=>current===year?null:year);
  const creditsLoading=creditsQuery.isLoading||playersQuery.isLoading;
+ const editionKey=h=>[String(h.trophy_source_id),String(h.season)].join("|");
+ const showEdition=h=>{setSelectedEditionKey(editionKey(h));};
+ const chosenEdition=history.editions.find(h=>editionKey(h)===selectedEditionKey);
+ if(chosenEdition)return <TrophyEditionDetail
+  key={selectedEditionKey} edition={chosenEdition} team={team} teamId={teamId}
+  manifest={manifest} onBack={()=>setSelectedEditionKey("")}
+  onOpenTrophy={onOpenTrophy} onSync={onSync}
+  creditsLoading={creditsLoading} creditsError={creditsQuery.isError||playersQuery.isError}
+ />;
  return <section className="space-y-4 pb-7">
   <div className="flex flex-wrap items-center justify-between gap-3">
    <button type="button" onClick={onBack} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:border-blue-300 hover:text-[#003399]">
@@ -162,14 +173,15 @@ export default function ClubTrophyHistory({teamId,team,honours=[],catalog=[],man
      </button>
      {expanded===group.season&&<div className="grid gap-3 border-t border-slate-100 bg-[#f8fafd] p-3 md:grid-cols-2 xl:grid-cols-3">
       {group.editions.map(h=><div key={h.id||h.trophy_source_id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
-       <div className="flex gap-3">
+       <button type="button" onClick={()=>showEdition(h)} aria-label={"Abrir edición "+h.trophy.name+" "+h.season}
+        className="flex w-full gap-3 rounded-lg p-1 text-left transition hover:bg-blue-50">
         <Picture src={trophyImageUrl(h.trophy,manifest)} size="h-[76px] w-[76px]"/>
-        <div className="min-w-0 flex-1">
-         <p className="line-clamp-2 text-xs font-black leading-5 text-slate-900">{h.trophy.name}</p>
-         <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700"><CheckCircle2 size={12}/> Campeón verificado</p>
-         <p className="mt-1 text-[10px] text-slate-500">{creditsLoading?"Consultando jugadores…":h.confirmedPlayerCount+" jugadores acreditados"}</p>
-        </div>
-       </div>
+        <span className="min-w-0 flex-1">
+         <span className="line-clamp-2 text-xs font-black leading-5 text-slate-900">{h.trophy.name}</span>
+         <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-emerald-700"><CheckCircle2 size={12}/> Campeón verificado</span>
+         <span className="mt-1 block text-[10px] text-slate-500">{creditsLoading?"Consultando jugadores…":h.confirmedPlayerCount+" jugadores acreditados"}</span>
+        </span>
+       </button>
        {h.confirmedPlayers.length>0&&<div className="mt-3 border-t border-slate-100 pt-2">
         <p className={low}>Jugadores confirmados</p>
         <div className="mt-2 flex flex-wrap gap-1.5">{h.confirmedPlayers.slice(0,6).map(p=><button key={p.id} type="button"
@@ -180,7 +192,13 @@ export default function ClubTrophyHistory({teamId,team,honours=[],catalog=[],man
        </div>}
        {!creditsLoading&&h.confirmedPlayers.length===0&&<p className="mt-3 text-[10px] text-slate-400">Sin jugadores confirmados todavía. No implica ausencia de participantes.</p>}
        <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
-        <button type="button" onClick={()=>openTrophy(h.trophy_source_id)} className="text-[10px] font-bold text-[#003399] hover:underline">Ficha del trofeo</button>
+        <div className="flex flex-wrap items-center gap-3">
+         <button type="button" onClick={()=>showEdition(h)}
+          className="inline-flex items-center gap-1 rounded-lg bg-[#003399] px-2.5 py-1.5 text-[10px] font-bold text-white hover:bg-[#002b7a]">
+          Ver edición <ArrowUpRight size={12}/>
+         </button>
+         <button type="button" onClick={()=>openTrophy(h.trophy_source_id)} className="text-[10px] font-bold text-[#003399] hover:underline">Ficha del trofeo</button>
+        </div>
         {linkOk(h.source_url)&&<a target="_blank" rel="noreferrer" href={h.source_url} className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-[#003399]">Fuente oficial <ExternalLink size={11}/></a>}
        </div>
       </div>)}
