@@ -208,3 +208,39 @@ test('La participación conserva prioridad de minutos oficiales sobre PJ estimad
  assert.ok(Math.abs(keylor.values.play_share-(2940/(41*90)*100))<1e-8);
  assert.equal(keylor.playShareEstimated,false);
 });
+
+test("Ter Stegen 25/26: saved Save percentage and season-wide xG Buildup are valued without official minutes",()=>{
+ const keeper={id:"terstegen-test",name:"Marc-André ter Stegen",position:"GK"};
+ const stats=[
+  {player_id:keeper.id,player_name:keeper.name,season:"2025/2026",competition:"Copa del Rey",team_id:"barcelona",appearances:1,minutes:null,
+   metrics:[{name:"Save percentage",value:66.7},{name:"Saves",value:3}]},
+  {player_id:keeper.id,player_name:keeper.name,season:"2025/2026",competition:"LaLiga",team_id:"girona",appearances:2,minutes:null,
+   metrics:[{name:"Save percentage",value:66.7},{name:"Saves",value:4},{name:"xG Buildup season /90",value:0.01}]}
+ ];
+ const [observation]=buildHistoricalObservations({stats,players:[keeper]});
+ assert.equal(observation.role,"GK");
+ assert.equal(observation.values.xg_buildup_p90,0.01);
+ assert.equal(observation.values.save_pct,66.7);
+ assert.equal(observation.savePctDetail.estimated,true);
+ assert.equal(observation.savePctDetail.covered,2);
+ assert.equal(observation.savePctDetail.total,2);
+ assert.equal(stats[0].minutes,null);
+ assert.equal(stats[1].minutes,null);
+});
+test("GK Save percentage prefers real minute weights, rejects missing and preserves zero",()=>{
+ const keeper={id:"gk-test",name:"Portero",position:"GK"};
+ const stats=[
+  {player_id:keeper.id,season:"2025/2026",competition:"LaLiga",minutes:900,appearances:20,metrics:[{name:"Save percentage",value:80}]},
+  {player_id:keeper.id,season:"2025/2026",competition:"Champions League",minutes:null,appearances:5,metrics:[{name:"Save percentage",value:50}]},
+  {player_id:keeper.id,season:"2025/2026",competition:"Copa del Rey",minutes:null,appearances:2,metrics:[]}
+ ];
+ const [observation]=buildHistoricalObservations({stats,players:[keeper]});
+ assert.equal(observation.values.save_pct,70);
+ assert.equal(observation.savePctDetail.estimated,true);
+ assert.equal(observation.savePctDetail.covered,2);
+ assert.equal(observation.savePctDetail.total,3);
+ const [zero]=buildHistoricalObservations({players:[keeper],stats:[{...stats[0],metrics:[{name:"Save percentage",value:0}]}]});
+ assert.equal(zero.values.save_pct,0);
+ const [missing]=buildHistoricalObservations({players:[keeper],stats:[{...stats[0],metrics:[]}]});
+ assert.equal(missing.values.save_pct,null);
+});
