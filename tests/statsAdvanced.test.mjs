@@ -53,3 +53,23 @@ test("Los nuevos indicadores son columnas configurables por competición",()=>{
  assert.equal(columnValue(r,"competition","calc_groundduelspct",config),11/28*100);
  assert.equal(getColumn(config,"calc_groundduelspct").unit,"%");
 });
+
+test("Ter Stegen: rate explicitly entered for the full season survives Barcelona → Girona transfer",()=>{
+ const records=[
+  {season:"2025/2026",team_id:"barcelona",competition:"Copa del Rey",minutes:null,appearances:1,metrics:[]},
+  {season:"2025/2026",team_id:"girona",competition:"LaLiga",minutes:null,appearances:2,metrics:[{name:"xG Buildup season /90",value:0.01}]}
+ ];
+ assert.equal(advancedTotals(records).xg_buildup_p90,0.01);
+ assert.equal(advancedTotals(records,{includeSeasonRates:false}).xg_buildup_p90,null);
+ // A season-wide rate must not be projected into a single club/competition.
+ assert.equal(advancedTotals([records[0]],{includeSeasonRates:false}).xg_buildup_p90,null);
+});
+test("A conflicting full-season rate is rejected, never chosen from an arbitrary club",()=>{
+ const original=[
+  {season:"2025/2026",team_id:"barcelona",metrics:[{name:"xG Buildup season /90",value:0.5}]},
+  {season:"2025/2026",team_id:"girona",metrics:[{name:"xG Buildup season /90",value:0.9}]}
+ ];
+ assert.equal(advancedTotals(original).xg_buildup_p90,null);
+ assert.equal(advancedTotals(original.map(v=>({...v,metrics:[{name:"xG Buildup season /90",value:0.5}]}))).xg_buildup_p90,0.5);
+ assert.equal(advancedTotals([{...original[0],season:"2024/2025"},original[1]]).xg_buildup_p90,null);
+});
