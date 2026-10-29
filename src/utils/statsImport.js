@@ -191,7 +191,7 @@ export const metricGroups = [
   ["Ataque",["goals","assists","xg","xa","xgot","shots","shots_on_target","bigchancescreated"]],
   ["Creación",["accuratepasses","passaccuracy","chancescreated","keypasses","xa","crossaccuracy"]],
   ["Defensa",["tackles","interceptions","clearances","recoveries","duelswon","cleansheets"]],
-  ["Portería",["saves","savepercentage","cleansheets","goalsconceded"]],
+  ["Portería",["saves","savepercentage","cleansheets","goalsconceded","goalsconcededwhileonpitch","conceded"]],
   ["Físico",["topspeed","totaldistancecovered","numberofsprints"]],
 ];
 export const metricLabel = (name) => {
@@ -214,7 +214,8 @@ export const metricLabel = (name) => {
     tackles:"Entradas",interceptions:"Intercepciones",blockedscoringattempt:"Tiros bloqueados",
     foulscommitted:"Faltas",recoveries:"Recuperaciones",possessionwonfinal3rd:"Recuperaciones en campo rival",
     dribbledpast:"Regateado",clearances:"Despejes",cleansheets:"Porterías a cero",
-    goalsconcededwhileonpitch:"Goles encajados en el campo",xgagainstwhileonpitch:"xG encajado en el campo",
+    goalsconceded:"Goles encajados en campo",conceded:"Goles encajados en campo",goalsagainst:"Goles encajados en campo",golesencontra:"Goles encajados en campo",
+    goalsconcededwhileonpitch:"Goles encajados en campo",xgagainstwhileonpitch:"xG encajado en el campo",
     yellowcards:"Tarjetas amarillas",redcards:"Tarjetas rojas",
     saves:"Paradas",savepercentage:"Porcentaje de paradas",
     minutes:"Minutos",appearances:"Partidos",rating:"Nota FotMob",
