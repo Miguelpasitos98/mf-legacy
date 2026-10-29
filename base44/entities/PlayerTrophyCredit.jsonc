@@ -1,0 +1,23 @@
+{
+ "name":"PlayerTrophyCredit",
+ "type":"object",
+ "properties":{
+  "trophy_honour_id":{"type":"string","description":"ID interno de TrophyHonour: edición y club campeón"},
+  "trophy_source_id":{"type":"string","description":"ID original del catálogo Trophies"},
+  "player_id":{"type":"string","description":"ID Base44 Player confirmado"},
+  "team_id":{"type":"string","description":"ID Base44 Team del campeón"},
+  "season":{"type":"string","description":"Temporada/edición oficial"},
+  "status":{"type":"string","enum":["candidate","confirmed","excluded"],"default":"candidate"},
+  "evidence_type":{"type":"string","enum":["competition_appearance","career_stage","official_roster","manual"]},
+  "evidence_note":{"type":"string"},
+  "source_url":{"type":"string"},
+  "verified":{"type":"boolean","default":false}
+ },
+ "required":["trophy_honour_id","player_id","team_id","season","status"],
+ "rls":{
+  "read":{},
+  "create":{"user_condition":{"role":"admin"}},
+  "update":{"user_condition":{"role":"admin"}},
+  "delete":{"user_condition":{"role":"admin"}}
+ }
+}
