@@ -21,13 +21,14 @@ const sample=credits=>trophyReviewRows({credits,honours,teams,players,catalog});
 test("Candidate reviews resolve exact Base44 teams, player identities and competitions",()=>{
  const rows=sample([candidate("a"),candidate("b","p2",{trophy_honour_id:"h2",trophy_source_id:"C"})]);
  assert.equal(rows.length,2);
- assert.equal(rows[0].player_name,"Jugador García");
- assert.equal(rows[0].team_name,"FC Barcelona");
- assert.equal(rows[0].trophy_name,"LaLiga");
- assert.equal(rows[0].pending,true);
- assert.equal(rows[0].blocked,false);
- assert.equal(rows[1].blocked,true);
- assert.match(rows[1].reasons.join(" "),/pendiente de verificar/);
+ const valid=rows.find(row=>row.id==="a"),blocked=rows.find(row=>row.id==="b");
+ assert.equal(valid.player_name,"Jugador García");
+ assert.equal(valid.team_name,"FC Barcelona");
+ assert.equal(valid.trophy_name,"LaLiga");
+ assert.equal(valid.pending,true);
+ assert.equal(valid.blocked,false);
+ assert.equal(blocked.blocked,true);
+ assert.match(blocked.reasons.join(" "),/pendiente de verificar/);
 });
 test("Missing, mismatched or individual champions are blocked from approval",()=>{
  const rows=sample([
