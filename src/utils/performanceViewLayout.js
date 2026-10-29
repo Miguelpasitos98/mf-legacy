@@ -10,6 +10,7 @@ export const performanceAdvancedKeys=category=>
  category==="Resumen"?["chain","buildup","ground"]:
  category==="Creación"?["chain","buildup"]:
  category==="Defensa"?["ground"]:[];
-export const visiblePerformanceMetricColumns=(columns,category)=>
- showPerformanceGeneral(category)?(columns||[]):
+export const visiblePerformanceMetricColumns=(columns,_category)=>
+ // The general quartet is provided by the fixed columns in Resumen and
+ // Portería; never duplicate it from saved custom layouts in any category.
  (columns||[]).filter(id=>!GENERAL_PERFORMANCE_COLUMNS.includes(id));
