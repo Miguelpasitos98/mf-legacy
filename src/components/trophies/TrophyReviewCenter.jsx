@@ -146,12 +146,9 @@ export default function TrophyReviewCenter({honours=[],honoursLoading=false,hono
   }catch(e){setError(e.message);}
  };
  const toggle=idValue=>{
-  setSelected(previous=>{
-   if(previous.includes(idValue))return previous.filter(x=>x!==idValue);
-   if(previous.length>=50)return previous;
-   setExpanded(expandedRows=>expandedRows.includes(idValue)?expandedRows:[...expandedRows,idValue]);
-   return [...previous,idValue];
-  });
+  if(!selected.includes(idValue)&&selected.length<50)
+   setExpanded(previous=>previous.includes(idValue)?previous:[...previous,idValue]);
+  setSelected(previous=>previous.includes(idValue)?previous.filter(x=>x!==idValue):previous.length<50?[...previous,idValue]:previous);
  };
  const toggleRow=idValue=>setExpanded(previous=>previous.includes(idValue)?previous.filter(x=>x!==idValue):[...previous,idValue]);
  const selectVisible=()=>{
