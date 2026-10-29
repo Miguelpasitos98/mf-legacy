@@ -1,5 +1,5 @@
 // Calculadora segura y configurable para columnas de STATS: nunca ejecuta JavaScript del usuario.
-import {metricsValue,statNum} from "./statsViews.js";
+import {metricsValue,statNum,goalkeeperConcededMetric} from "./statsViews.js";
 import {statDisplay} from "./statsSeason.js";
 import {alignedFormulaInputs} from "./statsAligned.js";
 import {advancedTotals} from "./statsAdvanced.js";
@@ -180,7 +180,7 @@ export function formulaCoverage(row,mode,id,config){
 export function estimatedSeasonRate(records,metricName){
  let numerator=0,denominator=0,estimated=false,covered=0;
  for(const record of records||[]){
-  const metric=(record.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===metricName);
+  const metric=metricName==="goalsconceded"?goalkeeperConcededMetric(record):(record.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===metricName);
   if(!metric)continue;
   const total=statNum(metric.value);
   const supplied=statNum(metric.per90);
@@ -240,7 +240,7 @@ export function columnValue(row,mode,id,config){
   if(concededPer90||preventedPer90){
    const metricName=concededPer90?"goalsconceded":"goalsprevented";
    if(mode==="competition"){
-    const direct=(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===metricName);
+    const direct=concededPer90?goalkeeperConcededMetric(row):(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===metricName);
     const rate=statNum(direct?.per90);
     if(rate!==null)return rate;
     const total=statNum(direct?.value);
