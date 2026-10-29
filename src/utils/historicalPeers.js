@@ -291,6 +291,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     observations.push({
       key,playerId:str(player.id),playerName:player.name||records[0].player_name||"",
       season:str(records[0].season),role,values,
+      ballSecurityDetail:["W","CAM","FB","WB"].includes(role)?security:null,
       playShareEstimated:playShare.estimated,playShareCoverage:{covered:playShare.covered,total:playShare.total},
       xaRateEstimated:typeof xaRateEstimated!=="undefined"&&xaRateEstimated,
       position:position.position,positionSource:position.source,positionMixed:Boolean(position.mixed),
