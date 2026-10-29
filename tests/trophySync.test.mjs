@@ -56,3 +56,19 @@ test("Competition aliases include FIFA/UEFA names without treating all tournamen
  assert.equal(canonicalTrophyCompetition("UEFA Champions League"),canonicalTrophyCompetition("Champions League"));
  assert.notEqual(canonicalTrophyCompetition("Europa League"),canonicalTrophyCompetition("UEFA Champions League"));
 });
+
+test("A verified career stage only appears as a review lead, never a confirmed trophy",()=>{
+ const honour={id:"h1",recipient_type:"Team",recipient_id:"b1",season:"2024/2025",verified:true};
+ const players=[{id:"p2",name:"Jugador B"}];
+ const careers=[
+  {player_id:"p2",team_id:"b1",start_date:"2023-07",end_date:"2025-06",review_status:"approved",is_reserve:false},
+  {player_id:"p2",team_id:"b1",start_date:"2023-07",end_date:"2025-06",review_status:"pending",is_reserve:false}
+ ];
+ const lead=previewPlayerTrophyCredits(honour,{stats:[],players,careers,trophy:catalog[0]});
+ assert.equal(lead.length,1);
+ assert.equal(lead[0].status,"review");
+ assert.equal(lead[0].fromCareer,true);
+ assert.equal(lead[0].verified,false);
+ const none=previewPlayerTrophyCredits(honour,{stats:[],players,careers:[careers[1]],trophy:catalog[0]});
+ assert.deepEqual(none,[]);
+});
