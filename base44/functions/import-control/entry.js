@@ -69,6 +69,69 @@ export default async function(req) {
       });
       return reply({ok:true,pid});
     }
+    if(action==="stage-public") {
+      const playerId=str(body.player_id),seasonId=str(body.season_stats_id);
+      if(!/^[a-f0-9]{24}$/i.test(playerId)||!/^[a-f0-9]{24}$/i.test(seasonId))return bad("Identificadores no válidos.");
+      if(body.confirmed!==true)return bad("Revisa expresamente el dato publicado y su ámbito.",409);
+      const [player,season]=await Promise.all([db.Player.get(playerId),db.PlayerSeasonStats.get(seasonId)]);
+      if(!player?.id||!season?.id||season.player_id!==playerId)return bad("El registro no corresponde al jugador seleccionado.",409);
+      const {pid}=await verifiedLink(db,playerId);
+      if(str(season.fotmob_player_id)&&str(season.fotmob_player_id)!==pid)return bad("El ID FotMob del registro no coincide.",409);
+      if(!/^\\d{1,15}$/.test(str(season.fotmob_team_id))||!/^\\d{1,15}$/.test(str(season.fotmob_tournament_id))||!str(season.competition)||!/^20\\d{2}\\/20\\d{2}$/.test(str(season.season)))
+        return bad("Primero concilia el ID de club, competición y temporada de STATS.",409);
+      const metric=str(body.metric_name),unit=str(body.metric_unit);
+      if(!["xGOT","Goals Prevented","xG","xA"].includes(metric)||!["total","per90"].includes(unit))return bad("Indicador o unidad no admitida.");
+      const value=body.value;
+      if(typeof value!=="number"||!Number.isFinite(value)||(value<0&&metric!=="Goals Prevented")||Math.abs(value)>10000)return bad("Valor estadístico no válido.");
+      const excerpt=str(body.source_excerpt);
+      if(excerpt.length<8||excerpt.length>1200)return bad("Pega una frase breve o celda del dato publicado (máx. 1200 caracteres).");
+      const evidence=str(body.evidence_url);
+      if(evidence.length>800)return bad("Enlace demasiado largo.");
+      let validUrl;
+      try {validUrl=new URL(evidence);}catch{return bad("Enlace no válido.");}
+      const domain=validUrl.hostname.toLowerCase();
+      if(validUrl.protocol!=="https:"||validUrl.username||validUrl.password||
+        !["theanalyst.com","statsperform.com","premierleague.com","uefa.com"].some(d=>domain===d||domain.endsWith("."+d)))
+        return bad("Solo páginas oficiales HTTPS de Opta Analyst, Stats Perform, Premier League o UEFA.");
+      const compact=excerpt.replace(/\\s+/g," ").toLowerCase();
+      const check=metric==="Goals Prevented"?/(goals? prevented|goles? evitados|psxg)/:
+        metric==="xGOT"?/xgot/:metric==="xA"?/\\bxa\\b/:/\\bxg\\b/;
+      if(!check.test(compact))return bad("El fragmento no menciona el indicador indicado.",409);
+      const numberText=String(value);
+      if(!compact.includes(numberText.toLowerCase())&&!compact.includes(numberText.replace(".",",")))
+        return bad("El fragmento no contiene la cifra introducida: revisa la transcripción.",409);
+      const active=rows(await db.ImportJob.filter({player_id:playerId},undefined,100))
+        .some(j=>RUNNING.has(j.status));
+      if(active)return bad("Existe una importación activa; termina ese trabajo antes de crear referencias nuevas.",409);
+      const now=new Date().toISOString();
+      const job=await db.ImportJob.create({
+        job_key:"mfv3:public:"+playerId+":"+crypto.randomUUID(),
+        player_id:playerId,player_name:player.name,fotmob_player_id:pid,
+        sources:["public_reference"],status:"review",progress:100,
+        requested_at:now,finished_at:now,
+        phase:"Referencia publicada pendiente de verificación manual",
+        source_results:{public_reference:{status:"complete",note:"Dato publicado propuesto por el usuario; no se ha consultado automáticamente el sitio."}},
+        completed_sources:["public_reference"],received_candidates:1
+      });
+      const candidate={
+        candidate_key:"mfv3:public:"+job.id+":"+crypto.randomUUID(),
+        job_id:job.id,player_id:playerId,fotmob_player_id:pid,
+        source:"public_reference",kind:"metric",
+        season:season.season,competition:season.competition,
+        fotmob_team_id:str(season.fotmob_team_id),fotmob_tournament_id:str(season.fotmob_tournament_id),
+        team_name:str(season.team_name),...(typeof season.is_national_team==="boolean"?{is_national_team:season.is_national_team}:{}),
+        metric_name:metric,metric_unit:unit,value,
+        source_record_id:"public:"+seasonId+":"+metric+":"+unit,
+        evidence_url:validUrl.toString(),verification_status:"unverified",review_status:"pending",
+        derivation:"Dato publicado introducido y confirmado por usuario; verificar en origen antes de aplicar.",
+        received_at:now,
+        provenance:{provider:"public_reference",archive_url:validUrl.toString(),scope:"player_team_season_competition",
+          identity_rule:"verified_fotmob_link_and_existing_stats_row",rate_kind:unit==="per90"?"published_per90":"published_total"}
+      };
+      try {await db.ImportCandidate.create(candidate);}
+      catch(e){await db.ImportJob.update(job.id,{status:"failed",last_error:"No se pudo crear el candidato; no se modificó STATS."});throw e;}
+      return reply({ok:true,job:{id:job.id,status:"review"},candidate_count:1});
+    }
     if (action === "start" || action === "retry" || action === "retry-pending" || action === "retry-fotmob" || action === "resume") {
       const playerId = str(body.player_id);
       if (!/^[a-f0-9]{24}$/i.test(playerId)) return bad("ID interno de jugador no válido.");
