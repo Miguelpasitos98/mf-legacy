@@ -1,61 +1,72 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {ballSecurityFromTotals,ballSecurityFromRecords,inferDribbleAttempts} from "../src/utils/ballSecurity.js";
 import {readFileSync} from "node:fs";
-test("Ball Security calcula completados/(intentados+desposeído), expresado como porcentaje",()=>{
- assert.equal(ballSecurityFromTotals(80,110,25),59.26);
- assert.equal(ballSecurityFromTotals(0,20,0),0);
+import {ballSecurityFromTotals,ballSecurityFromRecords,BALL_SECURITY_PRIOR_ACTIONS} from "../src/utils/ballSecurity.js";
+
+const metric=(row,names)=>row.metrics.find(m=>names.includes(m.name))?.value??null;
+const row=(dribbles,dispossessed,extra=[])=>({metrics:[
+ ...(dribbles===null?[]:[{name:"Dribbles",value:dribbles}]),
+ ...(dispossessed===null?[]:[{name:"Dispossessed",value:dispossessed}]),
+ ...extra
+]});
+
+test("Ball Security: dribbles / (dribbles + dispossessions), smoothed towards 50%",()=>{
+ assert.equal(BALL_SECURITY_PRIOR_ACTIONS,10);
+ assert.equal(ballSecurityFromTotals(80,25),73.91); // (80+5)/(80+25+10)
+ assert.equal(ballSecurityFromTotals(0,20),16.67);
+ assert.equal(ballSecurityFromTotals(1,0),54.55);
+ assert.equal(ballSecurityFromTotals(100,0),95.45);
 });
-test("No inventa valor si falta uno de los tres totales",()=>{
- assert.equal(ballSecurityFromTotals(15,null,5),null);
- assert.equal(ballSecurityFromTotals(15,20,undefined),null);
- assert.equal(ballSecurityFromTotals(10,8,4),null);
- assert.equal(ballSecurityFromTotals(0,0,0),null);
+
+test("Unknown data, zero-volume and invalid totals never turn into invented percentages",()=>{
+ assert.equal(ballSecurityFromTotals(15,null),null);
+ assert.equal(ballSecurityFromTotals(null,5),null);
+ assert.equal(ballSecurityFromTotals(0,0),null);
+ assert.equal(ballSecurityFromTotals(-1,4),null);
+ assert.equal(ballSecurityFromTotals(2,-3),null);
+ assert.equal(ballSecurityFromRecords([row(null,5)],metric).value,null);
+ assert.equal(ballSecurityFromRecords([row(0,0)],metric).value,null);
 });
-test("Agrupa totales emparejados por competición, no medias de porcentajes",()=>{
- const rows=[
-  {metrics:[{name:"Successful dribbles",value:80},{name:"Dribbles attempted",value:110},{name:"Dispossessed",value:25}]},
-  {metrics:[{name:"Successful dribbles",value:10},{name:"Dribbles attempted",value:12},{name:"Dispossessed",value:8}]}
- ];
- const extract=(row,names)=>row.metrics.find(m=>names.includes(m.name))?.value??null;
- const x=ballSecurityFromRecords(rows,extract);
- assert.equal(x.value,Math.round(90/(110+12+25+8)*10000)/100);
- assert.equal(x.paired,2);
- assert.equal(x.excluded,0);
+
+test("Season smoothing occurs once after adding covered competitions",()=>{
+ const result=ballSecurityFromRecords([row(80,25),row(10,8)],metric);
+ assert.equal(result.value,Math.round((90+5)/(90+33+10)*10000)/100);
+ assert.deepEqual(result.inputs,{dribbles:90,dispossessed:33,actions:123});
+ assert.equal(result.rawValue,Math.round(90/123*10000)/100);
+ assert.equal(result.partial,false);
+ assert.equal(result.paired,2);
+ assert.equal(result.excluded,0);
 });
-test("Diferencias de cobertura no permiten un porcentaje completo engañoso",()=>{
- const rows=[
-  {metrics:[{name:"Dribbles",value:10},{name:"Dribbles attempted",value:15},{name:"Dispossessed",value:2}]},
-  {metrics:[{name:"Dribbles",value:5},{name:"Dispossessed",value:3}]}
- ];
- const extract=(row,names)=>row.metrics.find(m=>names.includes(m.name))?.value??null;
- const x=ballSecurityFromRecords(rows,extract);
- assert.equal(x.partial,true);
- assert.equal(x.paired,1);
- assert.equal(x.excluded,1);
-});
-test("Musiala Bayern 2024/2025: intenta 131+61+15, genera 36.76%",()=>{
- const pairs=[
-  [72,54.961832061068705,33],
-  [23,37.704918032786885,26],
-  [5,33.333333333333336,6]
- ];
- assert.deepEqual(pairs.map(([c,r])=>inferDribbleAttempts(c,r)),[131,61,15]);
- const rows=pairs.map(([c,r,d])=>({metrics:[
-  {name:"Dribbles",value:c},{name:"Dribbles success rate",value:r},{name:"Dispossessed",value:d}]}));
- const get=(row,names)=>row.metrics.find(m=>names.includes(m.name))?.value??null;
- const result=ballSecurityFromRecords(rows,get);
- assert.equal(result.value,36.76);
- assert.deepEqual(result.inputs,{completed:100,attempted:207,dispossessed:65});
+
+test("FotMob's Dribbles works even without attempts or dribble success percentage",()=>{
+ const result=ballSecurityFromRecords([row(22,9)],metric);
+ assert.equal(result.value,Math.round((22+5)/(22+9+10)*10000)/100);
  assert.equal(result.partial,false);
 });
-test("El redondeo ambiguo, ratio cero y ausencia de tasa NO inventan intentos",()=>{
- assert.equal(inferDribbleAttempts(0,0),null);
- assert.equal(inferDribbleAttempts(13,null),null);
- assert.equal(inferDribbleAttempts(1,0.1),null);
- assert.equal(inferDribbleAttempts(5,120),null);
+
+test("Reported attempted dribbles cannot replace missing completed dribbles",()=>{
+ const result=ballSecurityFromRecords([row(null,3,[{name:"Dribbles attempted",value:30},{name:"Dribbles success rate",value:60}])],metric);
+ assert.equal(result.value,null);
+ assert.equal(result.partial,true);
+ assert.equal(result.excluded,1);
 });
-test("El índice histórico lo calcula solo para W/CAM/FB/WB y no finge ser una fórmula oficial",()=>{
+
+test("Partial competition coverage cannot pretend to be full-season data",()=>{
+ const result=ballSecurityFromRecords([row(10,2),row(5,null),row(null,4)],metric);
+ assert.equal(result.paired,1);
+ assert.equal(result.excluded,2);
+ assert.equal(result.partial,true);
+ assert.notEqual(result.value,null); // intermediate diagnostics only, Composite rejects partial
+});
+
+test("Identical count across few actions is pulled closer to average than a large sample",()=>{
+ const small=ballSecurityFromTotals(3,1);
+ const large=ballSecurityFromTotals(300,100);
+ assert.ok(small<large);
+ assert.ok(Math.abs(small-50)<Math.abs(large-50));
+});
+
+test("Winger Ball Security is exposed to the historical Composite with non-partial data",()=>{
  const source=readFileSync(new URL("../src/utils/historicalPeers.js",import.meta.url),"utf8");
  assert.match(source,/values\.ball_security=\["W","CAM","FB","WB"\]\.includes\(role\)&&!security\.partial\?security\.value:null/);
  assert.match(source,/ballSecurityFromRecords\(records,metricTotal\)/);
