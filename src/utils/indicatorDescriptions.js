@@ -2,6 +2,6 @@
 export const INDICATOR_DESCRIPTIONS={
   xg_chain_p90:"xG de las jugadas en las que participa, incluido el tiro y la asistencia.",
   xg_buildup_p90:"xG de las jugadas que construye, excluyendo tiro y asistencia final.",
-  ball_security:"Seguridad de balón (MF Legacy): regates completados ÷ (regates completados + veces desposeído). Suavizado hacia el 50 % con 10 acciones virtuales por temporada. Si alguna competición no aporta ambos valores, solo se muestra provisionalmente cuando las competiciones válidas cubren ≥98 % de los minutos oficiales; no se imputan ceros ni regates a los registros ausentes. Aproximación experimental, no fórmula interna confirmada de CraftedFC."
+  ball_security:"Regates completados ÷ (regates + desposesiones), ajustado por muestra."
 };
 export const indicatorDescription=key=>INDICATOR_DESCRIPTIONS[key]||null;
