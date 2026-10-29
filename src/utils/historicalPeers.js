@@ -253,8 +253,11 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     // competition rows. For xA, rate-only sources can contribute if there is
     // an aligned duration for that row; other competitions need not provide xA.
     const xaRateEstimated=records.some(row=>{
-      const candidate=pickMetric(row,PER90.xa_p90);
-      return candidate&&num(candidate.per90)!==null&&minutesForDisplay(row).estimated;
+      const candidate=pickMetric(row,PER90.xa_p90)||(row.metrics||[]).find(m=>
+        PER90.xa_p90.some(name=>metricName(m.name)===metricName(name)||
+          metricName(m.name)===metricName(name+" /90")));
+      const duration=minutesForDisplay(row);
+      return num(candidate?.per90)!==null&&duration.estimated&&duration.value>0;
     });
     // A genuine season-wide /90 overrides competition-derived Understat totals.
     const directRates=advancedTotals(records);
