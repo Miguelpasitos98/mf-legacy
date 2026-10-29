@@ -30,10 +30,6 @@ export const normalizedTrophyCompetition=value=>{
 };
 export const trophyCreditLogicalKey=(teamId,season,trophySourceId,playerId)=>
  [id(teamId),trophySeason(season),id(trophySourceId),id(playerId)].join("|");
-export const trophySyncFingerprint=(stats=[])=>stats.map(r=>
- [id(r.id||r.external_record_id),id(r.player_id),id(r.team_id),id(r.season),id(r.competition),Number(r.appearances)||0].join(":")
-).sort().join(";");
-
 // Creates a plan, not persisted credits. Never creates a title.
 // Exact identity and competition are mandatory; no name-only player matching.
 export function planIncrementalTrophyCredits({
@@ -53,7 +49,7 @@ export function planIncrementalTrophyCredits({
    if(winner)existing.add(trophyCreditLogicalKey(c.team_id,c.season,winner.trophy_source_id,c.player_id));
   }
  }
- const seasons=new Map(),participants=new Map(),invalid=new Set();
+ const seasons=new Map(),participants=new Map();
  // Aggregate per player, per team, per season, per normalized competition.
  for(const row of stats){
   const playerId=id(row.player_id),teamId=id(row.team_id),season=trophySeason(row.season);
