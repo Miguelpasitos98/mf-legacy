@@ -104,7 +104,7 @@ export function previewPlayerTrophyCredits(honour,{stats=[],players=[],careers=[
  const start=season.slice(0,4),end=season.includes("/")?season.slice(5):start;
  const lower=season.includes("/")?start+"-07-01":start+"-01-01";
  const upper=season.includes("/")?end+"-06-30":end+"-12-31";
- const boundary=value=>{const text=str(value);return /^\\d{4}$/.test(text)?text+"-01-01":/^\\d{4}-\\d{2}$/.test(text)?text+"-01":/^\\d{4}-\\d{2}-\\d{2}$/.test(text)?text:"";};
+ const boundary=value=>{const text=str(value);return /^\d{4}$/.test(text)?text+"-01-01":/^\d{4}-\d{2}$/.test(text)?text+"-01":/^\d{4}-\d{2}-\d{2}$/.test(text)?text:"";};
  for(const stage of careers){
   if(str(stage.team_id)!==teamId||stage.is_reserve===true||!(stage.review_status==="approved"||stage.manually_verified===true))continue;
   const id=str(stage.player_id);if(!playersById.has(id)||perPlayer.has(id))continue;
