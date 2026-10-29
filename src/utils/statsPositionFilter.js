@@ -22,6 +22,13 @@ const codes={
 };
 const positions=Object.fromEntries(Object.entries(codes).map(([key,values])=>[key,new Set(values)]));
 const matches=(value,...keys)=>keys.some(key=>positions[key].has(value));
+const effectivePositionCode=raw=>{
+ const value=String(raw??"").trim();
+ // FM's "D (C)" means centre-back, while MF Legacy "DC" means striker.
+ // Preserve the parenthesized shorthand before normalizing punctuation.
+ if(/^D\\s*\\(\\s*C\\s*\\)$/i.test(value))return "DFC";
+ return normalizeHistoricalPosition(value);
+};
 
 export const STATS_POSITION_FILTER_OPTIONS=[
  {group:"Grupos principales",value:"grupo:gk",label:"Porteros"},
@@ -48,7 +55,7 @@ const supported=new Set(STATS_POSITION_FILTER_OPTIONS.map(o=>o.value));
 
 export function matchesStatsPosition(rawPosition,filter="Todas"){
  if(!filter||filter==="Todas")return true;
- const value=normalizeHistoricalPosition(rawPosition);
+ const value=effectivePositionCode(rawPosition);
  if(!value)return false;
  switch(filter){
  case "grupo:gk":return matches(value,"goalkeepers");
@@ -80,7 +87,7 @@ export function matchesStatsPosition(rawPosition,filter="Todas"){
 export function migrateStatsPositionFilter(value){
  if(!value||value==="Todas")return "Todas";
  if(supported.has(value))return value;
- const code=normalizeHistoricalPosition(value);
+ const code=effectivePositionCode(value);
  for(const [keys,target] of [
   [["goalkeepers"],"grupo:gk"],
   [["centralDefenders"],"grupo:cb"],
