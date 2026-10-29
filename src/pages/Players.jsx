@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Plus, X, Upload, FileText, CheckCircle2, AlertCircle,
   Loader2, Users, Building2, Globe2, ChevronDown,
@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
 import {updatePlayerCacheRows} from "@/utils/playerEditPatch";
+import {readPlayersViewState,savePlayersViewState} from "@/utils/playersViewState";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 
 import { parseFootballManagerCsv } from "@/utils/playerCsvImporter";
@@ -1295,6 +1296,10 @@ const inferImportedCountryContinent = (countryName) =>
   ] || "Europe";
 
 export default function Players() {
+  const rememberedView = useMemo(() => readPlayersViewState(), []);
+  const listScrollRef = useRef(null);
+  const storedScrollTop = useRef(rememberedView.scrollTop);
+  const restoreScrollPending = useRef(true);
   const [leagues, setLeagues] = useState([]);
 
   const queryClient = useQueryClient();const countriesQuery = useCountriesQuery();const teamsQuery = useTeamsQuery();const playersQuery = usePlayersQuery();const isLoading = countriesQuery.isLoading||teamsQuery.isLoading||playersQuery.isLoading;
@@ -1308,14 +1313,14 @@ export default function Players() {
   const countries = useMemo(() => (countriesQuery.data || []).map(normalizeCountry).filter(c => c.id && c.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })), [countriesQuery.data]);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(rememberedView.searchOpen);
+  const [search, setSearch] = useState(rememberedView.search);
 
-  const [sortBy, setSortBy] = useState("");
+  const [sortBy, setSortBy] = useState(rememberedView.sortBy);
 
   // Persistent player filters. They remain active when opening/closing a player.
-  const [teamFilterId, setTeamFilterId] = useState("");
-  const [positionFilter, setPositionFilter] = useState("");
+  const [teamFilterId, setTeamFilterId] = useState(rememberedView.teamFilterId);
+  const [positionFilter, setPositionFilter] = useState(rememberedView.positionFilter);
 
   const [addModalOpen, setAddModalOpen] = useState(false);
 
@@ -1409,7 +1414,7 @@ export default function Players() {
   const rawViewMode = searchParams.get("view");
   const viewMode = PLAYER_VIEW_MODES.includes(rawViewMode)
     ? rawViewMode
-    : "all";
+    : rememberedView.view;
 
   const fm26Clubs = useMemo(() => {
     const groups = new Map(); const norm = n => String(n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -1644,7 +1649,11 @@ export default function Players() {
   const toggleBulkPlayer = useCallback((id) => {
     const key = String(id);
     setBulkIds(old => old.includes(key) ? old.filter(x => x !== key) : [...old, key]);
-  }, []); const handleSelectPlayer = useCallback((player) => setSelectedPlayer(player), []);
+  }, []); const handleSelectPlayer = useCallback((player) => {
+    // The list is temporarily unmounted while PlayerDetail is on screen.
+    restoreScrollPending.current = true;
+    setSelectedPlayer(player);
+  }, []);
   const applyBulkAction = async (deleting = false) => {
     const selected = players.filter(p => bulkIds.includes(String(p.id)));
     if (!selected.length || bulkBusy) return;
@@ -1768,6 +1777,55 @@ export default function Players() {
         return cmp(a, b);
       });
   }, [players, search, teamById, countryById, sortBy, teamFilterId, positionFilter]);
+
+  // A deliberately small local cache: list choices + the last visible position.
+  // Never store players, photos, private details or imported data in this cache.
+  const listContext = JSON.stringify([viewMode,teamFilterId,positionFilter,sortBy,search]);
+  const previousListContext = useRef(JSON.stringify([
+    rememberedView.view,rememberedView.teamFilterId,rememberedView.positionFilter,
+    rememberedView.sortBy,rememberedView.search
+  ]));
+  const rememberedSnapshot = useCallback((offset=storedScrollTop.current)=>({
+    view:viewMode,teamFilterId,positionFilter,sortBy,search,searchOpen,scrollTop:offset
+  }),[viewMode,teamFilterId,positionFilter,sortBy,search,searchOpen]);
+
+  useEffect(()=>{
+    savePlayersViewState(rememberedSnapshot());
+  },[rememberedSnapshot]);
+
+  const rememberListScroll = useCallback(event=>{
+    const y=event.currentTarget.scrollTop;
+    storedScrollTop.current=y;
+    savePlayersViewState(rememberedSnapshot(y));
+  },[rememberedSnapshot]);
+
+  // A changed filter/search/order is a *new* list, so start at its beginning.
+  // Returning from PlayerDetail, or reopening the same view, retains its offset.
+  useLayoutEffect(()=>{
+    if(previousListContext.current===listContext)return;
+    previousListContext.current=listContext;
+    storedScrollTop.current=0;
+    restoreScrollPending.current=true;
+    const list=listScrollRef.current;
+    if(list){
+      const behavior=list.style.scrollBehavior;
+      list.style.scrollBehavior="auto";
+      list.scrollTop=0;
+      list.style.scrollBehavior=behavior;
+    }
+    savePlayersViewState(rememberedSnapshot(0));
+  },[listContext,rememberedSnapshot]);
+
+  useLayoutEffect(()=>{
+    if(selectedPlayer||!restoreScrollPending.current||isLoading&&!players.length)return;
+    const list=listScrollRef.current;
+    if(!list)return;
+    const behavior=list.style.scrollBehavior;
+    list.style.scrollBehavior="auto";
+    list.scrollTop=storedScrollTop.current;
+    list.style.scrollBehavior=behavior;
+    restoreScrollPending.current=false;
+  },[selectedPlayer,isLoading,filteredPlayers.length,viewMode]);
 
   // Una lectura ligera y compartida para todas las vistas de PLAYERS.
   // No se descargan las métricas completas ni se marca a quienes solo tienen
@@ -3122,7 +3180,7 @@ export default function Players() {
   }
 
   return (
-    <div data-mf-players-scroll className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
+    <div data-mf-players-scroll ref={listScrollRef} onScroll={rememberListScroll} className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
       <div className="w-full">
 
         {/* HEADER */}
