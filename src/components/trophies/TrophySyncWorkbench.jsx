@@ -5,6 +5,7 @@ import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {statsSnapshotOptions} from "@/api/recordQueries";
 import {flattenStatsPages} from "@/utils/statsRowsCache";
+import TeamSearchPicker from "@/components/trophies/TeamSearchPicker";
 import {trophyResearchPrompt,parseTrophyResearch,previewTrophyHonours,previewPlayerTrophyCredits} from "@/utils/trophySync";
 
 const TROPHY_KEY=["mf-legacy","trophies","definitions"];
@@ -163,9 +164,8 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
    {error&&<p className="rounded-lg bg-rose-50 p-2 text-xs text-rose-800" role="alert">{error}</p>}
    {phase==="champions"?<>
     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_130px_auto]">
-     <select aria-label="Equipo para investigar" className="min-w-0 rounded-lg border border-slate-200 p-2 text-xs" value={teamId} onChange={e=>setTeamId(e.target.value)}>
-      <option value="">Selecciona un equipo</option>{teams.map(t=><option value={t.id} key={t.id}>{t.name}</option>)}
-     </select>
+     <TeamSearchPicker teams={teams} value={teamId} loading={teamsQuery.isLoading}
+      error={teamsQuery.isError} onChange={id=>{setTeamId(id);setGeneratedPrompt("");}}/>
      <input aria-label="Desde" value={from} onChange={e=>setFrom(e.target.value)} className="min-w-0 rounded-lg border border-slate-200 p-2 text-xs"/>
      <input aria-label="Hasta" value={to} onChange={e=>setTo(e.target.value)} className="min-w-0 rounded-lg border border-slate-200 p-2 text-xs"/>
      <button type="button" className={button} onClick={doCopy} disabled={!chosenTeam}><ClipboardCopy className="mr-1 inline" size={13}/> Copiar prompt</button>
