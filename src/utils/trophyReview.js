@@ -20,12 +20,17 @@ export function trophyReviewRows({credits=[],honours=[],teams=[],players=[],cata
  const playerMap=new Map(players.map(player=>[id(player.id),player]));
  const trophyMap=new Map(catalog.map(trophy=>[id(trophy.source_id),trophy]));
  const honourMap=new Map(honours.map(honour=>[id(honour.id),honour]));
- const creditGroups=new Map();
+ const creditGroups=new Map(),logicalGroups=new Map();
  for(const credit of credits){
   if(!credit?.id)continue;
   const key=creditReviewKey(credit);
   if(!creditGroups.has(key))creditGroups.set(key,[]);
   creditGroups.get(key).push(credit);
+  const winner=honourMap.get(id(credit.trophy_honour_id));
+  const titleId=id(credit.trophy_source_id||winner?.trophy_source_id);
+  const logical=[id(credit.team_id),id(credit.season),titleId,id(credit.player_id)].join("|");
+  if(!logicalGroups.has(logical))logicalGroups.set(logical,[]);
+  logicalGroups.get(logical).push(credit);
  }
  return credits.filter(credit=>credit?.id).map(credit=>{
   const honour=honourMap.get(id(credit.trophy_honour_id))||null;
@@ -34,7 +39,9 @@ export function trophyReviewRows({credits=[],honours=[],teams=[],players=[],cata
   const trophyId=id(credit.trophy_source_id||honour?.trophy_source_id);
   const trophy=trophyMap.get(trophyId)||null;
   const sameSource=!credit.trophy_source_id||id(credit.trophy_source_id)===id(honour?.trophy_source_id);
-  const duplicate=(creditGroups.get(creditReviewKey(credit))||[]).length>1;
+  const logical=[id(credit.team_id),id(credit.season),trophyId,id(credit.player_id)].join("|");
+  const duplicate=(creditGroups.get(creditReviewKey(credit))||[]).length>1||
+   (logicalGroups.get(logical)||[]).length>1;
   const reasons=[];
   if(!honour)reasons.push("Título de equipo no encontrado");
   else{
