@@ -232,6 +232,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
                     {item.value===null?"Añadir +":show(item.value,2)}{item.value!==null&&<span className="text-[10px] text-blue-500">✎</span>}
                   </button>:
                   item.key==="market_value"?formatEur(item.value):<>{show(item.value,item.key==="fc27_ovr"?0:2)}{item.estimated&&<span className="ml-1 text-[10px] text-amber-700" title="Estimación: PJ jugador × 90 / (PJ equipo × 90). No equivale a minutos oficiales.">estim.</span>}</>}
+                {item.key==="save_pct"&&item.value!==null&&observation?.savePctDetail?.estimated&&<span className="ml-1 text-[9px] font-normal text-amber-700" title="Los porcentajes de FotMob están guardados; solo la ponderación entre competiciones usa PJ × 90 porque faltan minutos oficiales. No altera los datos originales.">peso estim.</span>}
               </td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PercentileBar item={item}/></td>
               <td className="bg-indigo-50/50 px-3 py-2.5 text-right"><PositionBar item={item}/></td>
