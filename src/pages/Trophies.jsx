@@ -233,7 +233,7 @@ export default function Trophies(){
     <TrophySyncWorkbench key={syncPhase} standalone initialPhase={syncPhase} catalog={catalog} trophies={rows(trophyQuery.data)} honours={honours}/>
    </div>}
    {section==="review"&&<TrophyReviewCenter honours={honours} honoursLoading={honourQuery.isLoading} honoursError={honourQuery.isError}
-    catalog={all} imageManifest={imageManifest} onOpenTrophy={open}
+    catalog={all} catalogReady={!catalogLoading&&!catalogError&&!trophyQuery.isLoading&&!trophyQuery.isError} imageManifest={imageManifest} onOpenTrophy={open}
     onSync={()=>{setSyncPhase("players");setSection("sync");}}/>}
   </div>
 
