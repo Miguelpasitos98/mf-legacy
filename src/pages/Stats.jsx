@@ -27,6 +27,7 @@ import StatsColumnSettings from "@/components/stats/StatsColumnSettings";
 import TeamLinkPicker from "@/components/stats/TeamLinkPicker";
 import {saveTeamLinkSafely} from "@/utils/teamLinkSave";
 import {initialConfig,sanitizeConfig,getColumn,columnValue,RAW_METRICS} from "@/utils/statsColumns";
+import {showPerformanceGeneral,showPerformanceOverviewCards,performanceAdvancedKeys,visiblePerformanceMetricColumns} from "@/utils/performanceViewLayout";
 import {auditStatsTransfer} from "@/utils/statsTransferAudit";
 import {bestSeasonPerPlayer} from "@/utils/statsBestSeason";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
@@ -194,7 +195,9 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const ratingRows=shown.filter(r=>num(r.rating)!==null&&num(r.appearances)>0);
   const ratedGames=ratingRows.reduce((v,r)=>v+Number(r.appearances),0);
   const estimatedRating=ratedGames?ratingRows.reduce((v,r)=>v+Number(r.rating)*Number(r.appearances),0)/ratedGames:null;
-  const selected=config.columns.competition[category]||[];
+  const performanceGeneral=showPerformanceGeneral(category);
+  const advancedKeys=performanceAdvancedKeys(category);
+  const selected=visiblePerformanceMetricColumns(config.columns.competition[category]||[],category);
   const divider=new Set(config.dividers?.competition?.[category]||[]);
   const line=id=>divider.has(id)?" border-r-[3px] border-r-blue-300":"";
   const allSeasons=activeSeason==="Todas";
@@ -323,40 +326,40 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             {allSeasons&&<span className="rounded bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-900">Varias temporadas: no es una cifra oficial de carrera</span>}
             {partial&&<span className="rounded bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-900">Cobertura parcial</span>}
           </div>
-          <div className="mb-3 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-[#f8fbff] px-4 py-3 text-xs text-slate-700"><span><strong>PJ:</strong> {show(summaryBasics.appearances.value)}{summaryBasics.appearances.partial?" (parcial)":""}</span><span><strong>Minutos:</strong> {show(summaryBasics.minutes.value)}{summaryBasics.minutes.partial?" (parcial)":""}</span><span><strong>Nota media aproximada:</strong> {show(estimatedRating,2)}{ratingRows.length<shown.length?" (parcial)":""}</span><span className="text-slate-500">Media ponderada por partidos; no equivale al rating Crafted.</span></div>
-          <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-5">
+          {performanceGeneral&&<div className="mb-3 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-[#f8fbff] px-4 py-3 text-xs text-slate-700"><span><strong>PJ:</strong> {show(summaryBasics.appearances.value)}{summaryBasics.appearances.partial?" (parcial)":""}</span><span><strong>Minutos:</strong> {show(summaryBasics.minutes.value)}{summaryBasics.minutes.partial?" (parcial)":""}</span><span><strong>Nota media aproximada:</strong> {show(estimatedRating,2)}{ratingRows.length<shown.length?" (parcial)":""}</span><span className="text-slate-500">Media ponderada por partidos; no equivale al rating Crafted.</span></div>}
+          {showPerformanceOverviewCards(category)&&<div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-5">
             {[["Goles",sums.goals],["Asistencias",sums.assists],["xG",sums.xg],["xA",sums.xa],["Tiros",sums.shots]].map(([label,d])=><div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
               <div className="text-[10px] font-bold uppercase text-slate-500">{label}</div>
               <div className="mt-1 text-2xl font-black text-[#0d315b]">{d.value===null?"—":show(d.value,["xG","xA"].includes(label)?2:0)}</div>
               <p className="text-[10px] text-slate-500">{d.value===null?"Sin datos":d.available+"/"+d.total+" competiciones con cifra"}</p>
             </div>)}
-          </div>
-          <div className="mb-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+          </div>}
+          {advancedKeys.length>0&&<div className="mb-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
             <h4 className="mb-2 text-xs font-black uppercase tracking-wider text-[#003399]">Estadísticas avanzadas · temporada / competición</h4>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {[
-                ["xG Chain /90",advanced.xg_chain_p90,"Understat",advanced.understatRows],
-                ["xG Buildup /90",advanced.xg_buildup_p90,"Understat",advanced.understatRows],
-                ["Duelos terrestres ganados (%)",advanced.ground_duels_won_pct,"FotMob · derivado",advanced.duelRows]
-              ].map(([label,value,source,count])=><div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                ["chain","xG Chain /90",advanced.xg_chain_p90,"Understat",advanced.understatRows],
+                ["buildup","xG Buildup /90",advanced.xg_buildup_p90,"Understat",advanced.buildupRows],
+                ["ground","Duelos terrestres ganados (%)",advanced.ground_duels_won_pct,"FotMob · derivado",advanced.duelRows]
+              ].filter(([key])=>advancedKeys.includes(key)).map(([,label,value,source,count])=><div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
                 <p className="text-[10px] font-bold text-slate-500">{label}</p>
                 <p className="text-xl font-black text-[#003399]">{value==null?"—":show(value,2)+(label.includes("(%)")?" %":"")}</p>
                 <p className="text-[10px] text-slate-500">{source} · {count}/{advanced.totalRows} competiciones</p>
               </div>)}
             </div>
-            {advanced.duelRows>0&&<p className="mt-2 text-[10px] text-slate-600">Duelos terrestres: {advanced.duelsWon} ganados de {advanced.duelsTotal} disputados. Los porcentajes se calculan desde recuentos y los xG por 90 usan exclusivamente minutos Understat.</p>}
-          </div>
-          <p className="mb-4 text-xs text-slate-500">Cada estadística aprovecha todos sus valores conocidos. Los cálculos /90 y Play % utilizan solo competiciones que tienen todas las variables de su fórmula y los minutos correspondientes. Los datos ausentes no se convierten en cero. Las selecciones están excluidas por defecto.</p>
+            {advancedKeys.includes("ground")&&advanced.duelRows>0&&<p className="mt-2 text-[10px] text-slate-600">Duelos terrestres: {advanced.duelsWon} ganados de {advanced.duelsTotal} disputados. Los porcentajes se calculan desde recuentos y los xG por 90 usan exclusivamente minutos Understat.</p>}
+          </div>}
+          {category==="Resumen"&&<p className="mb-4 text-xs text-slate-500">Cada estadística aprovecha todos sus valores conocidos. Los cálculos /90 y Play % utilizan solo competiciones que tienen todas las variables de su fórmula y los minutos correspondientes. Los datos ausentes no se convierten en cero. Las selecciones están excluidas por defecto.</p>}
           <div className="mb-3 flex flex-wrap gap-2">{CAT_TABS.map(x=><button key={x} onClick={()=>setCategory(x)} className={"rounded-lg px-3 py-2 text-xs font-bold "+(category===x?"bg-[#003399] text-white":"border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{x}</button>)}</div>
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[720px] text-left text-xs">
-              <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className={"px-3 py-3"+line("season_competition")}>Temporada / competición</th><th className={"px-3 py-3"+line("club")}>Equipo / selección</th><th className={"px-3 py-3"+line("appearances")}>PJ</th><th className={"px-3 py-3"+line("minutes")}>Min</th><th className={"whitespace-nowrap px-2 py-3"+line("team_matches")} title="Partidos disputados por el equipo en esta competición, a la fecha del registro; pulsa el dato para editarlo">PJ equipo</th><th className={"px-3 py-3"+line("rating")}>Nota</th>{selected.map(id=><th key={id} className={"whitespace-nowrap px-3 py-3"+line(id)}>{getColumn(config,id)?.name||metricLabel(id)}</th>)}</tr></thead>
+              <thead className="bg-[#eaf0f8] text-slate-700"><tr><th className={"px-3 py-3"+line("season_competition")}>Temporada / competición</th><th className={"px-3 py-3"+line("club")}>Equipo / selección</th>{performanceGeneral&&<><th className={"px-3 py-3"+line("appearances")}>PJ</th><th className={"px-3 py-3"+line("minutes")}>Min</th><th className={"whitespace-nowrap px-2 py-3"+line("team_matches")} title="Partidos disputados por el equipo en esta competición, a la fecha del registro; pulsa el dato para editarlo">PJ equipo</th><th className={"px-3 py-3"+line("rating")}>Nota</th></>}{selected.map(id=><th key={id} className={"whitespace-nowrap px-3 py-3"+line(id)}>{getColumn(config,id)?.name||metricLabel(id)}</th>)}</tr></thead>
               <tbody>{shown.length?shown.slice().sort((a,b)=>b.season.localeCompare(a.season)||(num(b.minutes)||num(b.appearances)||0)-(num(a.minutes)||num(a.appearances)||0)||a.competition.localeCompare(b.competition)).map((r,i)=><tr key={r.id||r.external_record_id||i} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className={"px-3 py-3 font-semibold"+line("season_competition")}>{displayedSeason(r)} <button type="button" title="Cambiar temporada de visualización" className="ml-1 text-[10px] text-blue-700 underline" onClick={()=>{setSeasonEdit({row:r,chosen:displayedSeason(r)});setSeasonError("");}}>Editar</button><div className="font-normal text-slate-500">{r.competition}{/^\d{4}$/.test(String(r.season||""))&&<span className="ml-1 text-amber-700">(origen: {r.season})</span>}</div>{r._sourceRows>1&&<span className="text-[10px] text-blue-700">Fuentes consolidadas: {r._sourceRows}</span>}</td>
                 <td className={"px-3 py-3"+line("club")}>{teamCell(r)}</td>
-                <td className={"px-3 py-3"+line("appearances")}>{valueButton(r,"Partidos",r.appearances,0,"appearances")}</td><td className={"px-3 py-3"+line("minutes")}>{minutesForDisplay(r).estimated?<span title="Estimación: partidos jugados por el jugador × 90. No son minutos oficiales." className="font-semibold text-amber-700">{minutesForDisplay(r).value} <span className="text-[10px]">estim.</span></span>:valueButton(r,"Minutos",r.minutes,0,"minutes")}</td><td className={"px-2 py-3"+line("team_matches")}><button type="button" onClick={()=>editTeamMatches(r)} disabled={!r.id} aria-label={"Editar partidos del equipo de "+r.competition+" "+r.season} title="Editar partidos disputados por el equipo en esta competición" className="whitespace-nowrap rounded-md border border-transparent px-2 py-1 font-semibold text-[#003399] hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400">{r.team_matches==null?"Añadir +":show(r.team_matches)}{r._teamMatchesSource==="team"&&<span className="ml-1 text-[9px] text-emerald-600" title="PJ equipo importado a nivel de club">club</span>}</button></td><td className={"px-3 py-3"+line("rating")}>{valueButton(r,"Nota FotMob",r.rating,2,"rating")}</td>
+                {performanceGeneral&&<><td className={"px-3 py-3"+line("appearances")}>{valueButton(r,"Partidos",r.appearances,0,"appearances")}</td><td className={"px-3 py-3"+line("minutes")}>{minutesForDisplay(r).estimated?<span title="Estimación: partidos jugados por el jugador × 90. No son minutos oficiales." className="font-semibold text-amber-700">{minutesForDisplay(r).value} <span className="text-[10px]">estim.</span></span>:valueButton(r,"Minutos",r.minutes,0,"minutes")}</td><td className={"px-2 py-3"+line("team_matches")}><button type="button" onClick={()=>editTeamMatches(r)} disabled={!r.id} aria-label={"Editar partidos del equipo de "+r.competition+" "+r.season} title="Editar partidos disputados por el equipo en esta competición" className="whitespace-nowrap rounded-md border border-transparent px-2 py-1 font-semibold text-[#003399] hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400">{r.team_matches==null?"Añadir +":show(r.team_matches)}{r._teamMatchesSource==="team"&&<span className="ml-1 text-[9px] text-emerald-600" title="PJ equipo importado a nivel de club">club</span>}</button></td><td className={"px-3 py-3"+line("rating")}>{valueButton(r,"Nota FotMob",r.rating,2,"rating")}</td></>}
                 {selected.map(id=><td key={id} className={"px-3 py-3 font-semibold"+line(id)}>{getColumn(config,id)?.kind==="raw"?valueButton(r,columnMetricName(r,id),columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??0):["calc_goals_prevented","calc_goals_prevented_p90"].includes(id)?<span title="Introduce Goals prevented original de FotMob; /90 se calculará usando los minutos de la competición">{valueButton(r,"Goals prevented",columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??2)}</span>:<span title="Calculado automáticamente a partir de las estadísticas originales">{show(columnValue(r,"competition",id,config),getColumn(config,id)?.decimals??0)}{columnValue(r,"competition",id,config)!==null&&getColumn(config,id)?.unit?" "+getColumn(config,id).unit:""}</span>}</td>)}
-              </tr>):<tr><td colSpan={6+selected.length} className="p-8 text-center text-slate-500">No hay registros para esta selección. Cambia el ámbito o la temporada.</td></tr>}</tbody>
+              </tr>):<tr><td colSpan={(performanceGeneral?6:2)+selected.length} className="p-8 text-center text-slate-500">No hay registros para esta selección. Cambia el ámbito o la temporada.</td></tr>}</tbody>
             </table>
           </div>
           {shown.length>0&&<section className="mt-5 rounded-xl border border-slate-200 p-4">
