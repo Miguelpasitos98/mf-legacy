@@ -1,24 +1,9 @@
 import React,{useEffect,useMemo,useRef,useState} from "react";
 import {Search,ChevronDown,X,Check,Shield} from "lucide-react";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
-import {normaliseSearch} from "@/utils/trophyCatalog";
+import {filterTrophyTeams} from "@/utils/trophyTeamSearch";
 
 const MAX_VISIBLE=60;
-export function filterTrophyTeams(teams,search){
- const q=normaliseSearch(search);
- const list=(teams||[]).filter(team=>team?.id&&team?.name);
- const matching=q?list.filter(team=>normaliseSearch([
-  team.name,team.short_name,team.shortName,team.country,team.city
- ].filter(Boolean).join(" ")).includes(q)):list;
- return matching.sort((a,b)=>{
-  if(q){
-   const aStarts=normaliseSearch(a.name).startsWith(q),bStarts=normaliseSearch(b.name).startsWith(q);
-   if(aStarts!==bStarts)return aStarts?-1:1;
-  }
-  return String(a.name).localeCompare(String(b.name),"es",{sensitivity:"base"});
- });
-}
-
 export default function TeamSearchPicker({teams=[],value="",onChange,loading=false,error=false}){
  const root=useRef(null),field=useRef(null),[isOpen,setIsOpen]=useState(false);
  const [search,setSearch]=useState(""),[active,setActive]=useState(0);
