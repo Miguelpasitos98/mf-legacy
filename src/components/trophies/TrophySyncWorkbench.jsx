@@ -19,6 +19,7 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
  const [teamId,setTeamId]=useState(""),[from,setFrom]=useState("2015/2016"),[to,setTo]=useState("2025/2026");
  const [research,setResearch]=useState(""),[entries,setEntries]=useState([]);
  const [checked,setChecked]=useState([]),[saving,setSaving]=useState(false);
+ const [sourcesReviewed,setSourcesReviewed]=useState(false);
  const [selectedHonour,setSelectedHonour]=useState(""),[candidateRows,setCandidateRows]=useState([]);
  const [creditChecked,setCreditChecked]=useState([]),[finding,setFinding]=useState(false);
  const [creditSources,setCreditSources]=useState({});
@@ -45,12 +46,12 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
  };
  const parse=()=>{
   clean();
-  try{const list=parseTrophyResearch(research);setEntries(list);
+  try{const list=parseTrophyResearch(research);setSourcesReviewed(false);setEntries(list);
    setChecked(list.map((_,i)=>i));setMessage(list.length+" registros analizados. Revisa las coincidencias antes de guardar.");
   }catch(e){setError(e.message);}
  };
  const save=async()=>{
-  clean();if(saving||!selectedCount)return;setSaving(true);
+  clean();if(saving||!selectedCount||!sourcesReviewed)return;setSaving(true);
   let done=0;
   const savedDefinitions=new Map(trophies.filter(t=>t.id).map(t=>[txt(t.source_id),t]));
   const seen=new Set();
@@ -128,14 +129,14 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
   clean();if(saving)return;setSaving(true);let done=0;
   try{
    const existing=new Set((creditsQuery.data||[]).map(c=>[c.trophy_honour_id,c.player_id].join("|")));
-   for(const item of candidateRows.filter(r=>r.status==="candidate"&&creditChecked.includes(r.player_id))){
+   for(const item of candidateRows.filter(r=>r.status!=="existing"&&creditChecked.includes(r.player_id))){
     const key=[currentHonour.id,item.player_id].join("|");
     if(existing.has(key))continue;
     await base44.entities.PlayerTrophyCredit.create({
      trophy_honour_id:currentHonour.id,trophy_source_id:currentHonour.trophy_source_id,
      player_id:item.player_id,team_id:item.team_id,season:item.season,
-     status:"candidate",evidence_type:"competition_appearance",
-     evidence_note:item.matches+" apariciones registradas en "+[...new Set(item.competition_names)].join(", ")+"; falta confirmar elegibilidad oficial.",
+     status:"candidate",evidence_type:item.participation?"competition_appearance":"career_stage",
+     evidence_note:(item.participation?item.matches+" apariciones registradas en "+[...new Set(item.competition_names)].join(", "):"Pertenencia al club sin PJ de la competición")+"; falta confirmar elegibilidad oficial.",
      source_url:"",verified:false
     });
     done++;existing.add(key);
@@ -181,7 +182,13 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
       <span className={r.status==="new"?"text-emerald-700":"text-amber-700"}>{r.status==="new"?"Nuevo"+(r.verified?" · evidencia":" · sin confirmar"):r.reason}</span>
      </label>)}
     </div>}
-    {preview.length>0&&<button type="button" disabled={!selectedCount||saving} className={primary} onClick={save}>{saving?"Guardando…":"Guardar "+selectedCount+" títulos"}</button>}
+    {preview.length>0&&<>
+      <label className="flex items-center gap-2 text-[11px] text-slate-600">
+       <input type="checkbox" checked={sourcesReviewed} onChange={e=>setSourcesReviewed(e.target.checked)}/>
+       He comprobado que los equipos campeones, las temporadas y las fuentes corresponden a los títulos seleccionados.
+      </label>
+      <button type="button" disabled={!selectedCount||saving||!sourcesReviewed} className={primary} onClick={save}>{saving?"Guardando…":"Guardar "+selectedCount+" títulos"}</button>
+    </>}
    </>:<>
     <p className="text-[11px] text-slate-500">Cruce por <strong>team_id, season y competición</strong>. STATS acredita participación, no la medalla ni la elegibilidad oficial. Los candidatos quedan pendientes de revisión.</p>
     {creditsQuery.isError&&<p className="text-xs text-amber-700">No se puede leer PlayerTrophyCredit. Sincroniza primero la entidad en Base44.</p>}
@@ -194,12 +201,12 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
     </div>
     {candidateRows.length>0&&<div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
      {candidateRows.map(r=><label key={r.player_id} className="flex items-center gap-2 border-b border-slate-100 py-1.5 text-xs">
-      <input type="checkbox" disabled={r.status!=="candidate"||saving} checked={r.status==="candidate"&&creditChecked.includes(r.player_id)} onChange={e=>setCreditChecked(v=>e.target.checked?[...v,r.player_id]:v.filter(id=>id!==r.player_id))}/>
+      <input type="checkbox" disabled={r.status==="existing"||saving} checked={r.status!=="existing"&&creditChecked.includes(r.player_id)} onChange={e=>setCreditChecked(v=>e.target.checked?[...v,r.player_id]:v.filter(id=>id!==r.player_id))}/>
       <span className="min-w-0 flex-1 truncate">{r.player.name}</span>
       <span className="text-slate-500">{r.status==="candidate"?r.matches+" PJ · Candidato":r.status==="existing"?"Ya registrado":"Por revisar"}</span>
      </label>)}
     </div>}
-    {candidateRows.length>0&&<button type="button" disabled={!creditChecked.some(id=>candidateRows.some(r=>r.player_id===id&&r.status==="candidate"))||saving} className={primary} onClick={saveCandidates}>Registrar candidatos seleccionados (sin confirmar títulos)</button>}
+    {candidateRows.length>0&&<button type="button" disabled={!creditChecked.some(id=>candidateRows.some(r=>r.player_id===id&&r.status!=="existing"))||saving} className={primary} onClick={saveCandidates}>Registrar candidatos seleccionados (sin confirmar títulos)</button>}
     {existingCredits.length>0&&<div className="space-y-2 rounded-lg border border-slate-200 p-3">
       <p className="text-[11px] font-bold text-slate-700">Adjudicaciones registradas · {existingCredits.length}</p>
       {existingCredits.map(c=><div key={c.id} className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 text-xs">
