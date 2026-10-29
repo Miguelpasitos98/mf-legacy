@@ -53,4 +53,5 @@ test("UI selects all sources and only requires recovery click after player selec
  assert.match(ui,/use_stored_fotmob_id:true/);
  assert.match(ui,/useState\(SOURCES.map\(x=>x.id\)\)/);
  assert.match(ui,/setFotmobDraft/);
+ assert.ok(ui.indexOf("const active=jobs.some(")<ui.indexOf("const canStartHistory="));
 });
