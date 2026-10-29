@@ -219,7 +219,7 @@ export default function Trophies(){
    </>}
    {section==="palmares"&&<TrophyArchiveOverview
      honours={honours} catalog={all} imageManifest={imageManifest}
-     onOpenTrophy={t=>{setSection("catalog");open(t);}}
+     onOpenTrophy={open}
      onSync={()=>setSection("sync")}
    />}
    {section==="sync"&&<div className="mx-auto max-w-[1150px] space-y-4">
