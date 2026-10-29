@@ -7,6 +7,7 @@ import {useLeaguesQuery,useCountriesQuery} from "@/hooks/useSharedData";
 import {groupTrophies} from "@/utils/trophyGrouping";
 import TrophySyncWorkbench from "@/components/trophies/TrophySyncWorkbench";
 import TrophyDetailVisual from "@/components/trophies/TrophyDetailVisual";
+import TrophyArchiveOverview from "@/components/trophies/TrophyArchiveOverview";
 import {TROPHY_CSV_URL,TROPHY_TYPES,TROPHY_CATEGORIES,parseTrophyCatalog,mergeTrophyCatalog,trophyImageUrl,normaliseSearch} from "@/utils/trophyCatalog";
 
 const TROPHY_KEY=["mf-legacy","trophies","definitions"];
@@ -57,6 +58,7 @@ export default function Trophies(){
  const [catalogError,setCatalogError]=useState("");
  const [catalogLoading,setCatalogLoading]=useState(true);
  const [query,setQuery]=useState("");
+ const [section,setSection]=useState("catalog");
  const [tab,setTab]=useState("verified");
  const [type,setType]=useState("all");
  const [category,setCategory]=useState("all");
@@ -172,7 +174,19 @@ export default function Trophies(){
   e.target.value="";
  };
  return <div className="flex h-full min-h-0 flex-col bg-[#F5F6F8] text-slate-900">
-  <div className="flex shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white px-4 py-2 md:px-6">
+  <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3 md:px-7">
+   <div className="flex items-center gap-2.5">
+    <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#003399] text-white"><Trophy size={19}/></span>
+    <span><span className="block text-[9px] font-bold uppercase tracking-[.17em] text-slate-400">MF LEGACY / ARCHIVE</span><strong className="block text-lg font-black leading-tight">Trophies</strong></span>
+   </div>
+   <nav aria-label="Vistas de Trophies" className="flex shrink-0 items-center gap-1 rounded-xl bg-slate-100 p-1">
+    {[["catalog","Catálogo"],["palmares","Palmarés"],["sync","Sincronizar"]].map(([key,name])=>
+     <button key={key} type="button" aria-current={section===key?"page":undefined}
+      onClick={()=>setSection(key)}
+      className={"rounded-lg px-4 py-2 text-[11px] font-bold transition "+(section===key?"bg-[#003399] text-white shadow-sm":"text-slate-500 hover:bg-white/70 hover:text-slate-900")}>{name}</button>)}
+   </nav>
+  </header>
+  {section==="catalog"&&<div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-200/80 bg-white px-4 py-2 md:px-6">
    <div className="flex shrink-0 items-center gap-2.5"><div className="grid h-9 w-9 place-items-center rounded-xl bg-[#003399] text-white"><Trophy size={19}/></div><div><p className="text-[9px] font-bold uppercase tracking-[.17em] text-slate-400">MF LEGACY / ARCHIVE</p><h1 className="text-lg font-black leading-tight tracking-tight">Trophies</h1></div></div>
    <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-[#F8F9FC] px-2.5 py-2">
     <div className="flex flex-wrap items-center justify-between gap-1.5">
@@ -187,9 +201,9 @@ export default function Trophies(){
     </div>
    </div>
    <div className="flex shrink-0 items-center gap-1.5"><label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"><Upload size={14}/> Importar CSV<input type="file" accept=".csv,text/csv" className="hidden" onChange={importLocal}/></label><button type="button" onClick={create} className="inline-flex items-center gap-1.5 rounded-lg bg-[#003399] px-2.5 py-2 text-[11px] font-bold text-white hover:bg-[#002977]"><Plus size={14}/> Nuevo trofeo</button></div>
-  </div>
+  </div>}
   <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3 md:px-7">
-   <TrophySyncWorkbench catalog={catalog} trophies={rows(trophyQuery.data)} honours={honours}/>
+   {section==="catalog"&&<>
    {catalogLoading&&catalog.length===0&&<div className="mt-4 rounded-xl bg-white px-5 py-6 text-sm text-slate-500">Cargando catálogo de trofeos…</div>}
    {catalogError&&<div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><AlertCircle size={16}/><span>{catalogError} Puedes importarlo manualmente con «Importar CSV».</span></div>}
    {(trophyQuery.isError||honourQuery.isError)&&<div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[11px] text-slate-500">El catálogo puede consultarse; la base de fichas o ganadores aún no está disponible. Los cambios requieren las entidades Trophy y TrophyHonour sincronizadas en Base44.</div>}
@@ -202,6 +216,20 @@ export default function Trophies(){
      {group.items.length>24&&<button type="button" onClick={()=>setExpandedGroups(current=>({...current,[group.key]:!current[group.key]}))} className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{expandedGroups[group.key]?"Mostrar menos":"Ver todos los "+group.items.length+" trofeos"}</button>}
     </section>)}</div>:!catalogLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">No hay trofeos con estos filtros.</div>}
    <div className="my-6 flex items-center gap-2 text-[10px] text-slate-400"><ImageIcon size={13}/> Imágenes desde GitHub: <code>public/assets/trophies/ID.png</code>. Los archivos aún no incorporados muestran un icono neutro. Los datos originales no se modifican.</div>
+   </>}
+   {section==="palmares"&&<TrophyArchiveOverview
+     honours={honours} catalog={all} imageManifest={imageManifest}
+     onOpenTrophy={t=>{setSection("catalog");open(t);}}
+     onSync={()=>setSection("sync")}
+   />}
+   {section==="sync"&&<div className="mx-auto max-w-[1150px] space-y-4">
+    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 md:px-6">
+     <p className="text-[10px] font-bold uppercase tracking-[.17em] text-[#003399]">MF LEGACY · HISTORICAL RESEARCH</p>
+     <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900">Sincronización histórica</h2>
+     <p className="mt-2 max-w-[800px] text-xs leading-5 text-slate-500">Investiga campeones oficiales, importa las adjudicaciones verificables y enlázalas con los jugadores de STATS. Los registros sin evidencia se mantienen pendientes, nunca se confirman automáticamente.</p>
+    </div>
+    <TrophySyncWorkbench standalone catalog={catalog} trophies={rows(trophyQuery.data)} honours={honours}/>
+   </div>}
   </div>
 
   {draft&&<div className="fixed inset-0 z-[9997] flex items-center justify-center bg-slate-950/40 p-3 backdrop-blur-[2px]" onMouseDown={e=>{if(e.target===e.currentTarget)close();}}>
