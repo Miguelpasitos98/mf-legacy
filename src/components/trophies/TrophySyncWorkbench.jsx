@@ -18,6 +18,7 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
  const [open,setOpen]=useState(false),[phase,setPhase]=useState("champions");
  const [teamId,setTeamId]=useState(""),[from,setFrom]=useState("2015/2016"),[to,setTo]=useState("2025/2026");
  const [research,setResearch]=useState(""),[entries,setEntries]=useState([]);
+ const [generatedPrompt,setGeneratedPrompt]=useState("");
  const [checked,setChecked]=useState([]),[saving,setSaving]=useState(false);
  const [sourcesReviewed,setSourcesReviewed]=useState(false);
  const [selectedHonour,setSelectedHonour]=useState(""),[candidateRows,setCandidateRows]=useState([]);
@@ -40,9 +41,11 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
   try{
    if(!chosenTeam)throw Error("Selecciona primero un equipo.");
    const prompt=trophyResearchPrompt(chosenTeam,{from,to});
+   setGeneratedPrompt(prompt);
+   if(!navigator.clipboard?.writeText)throw Error("Utiliza el texto que se muestra debajo para copiarlo manualmente.");
    await navigator.clipboard.writeText(prompt);
-   setMessage("Prompt de investigación copiado. Pega después su JSON en el cuadro de importación.");
-  }catch(e){setError("No se pudo copiar el prompt: "+e.message);}
+   setMessage("Prompt de investigación copiado. Pega después el JSON resultante en la importación.");
+  }catch(e){setMessage("El prompt está preparado debajo: puedes seleccionarlo y copiarlo manualmente.");}
  };
  const parse=()=>{
   clean();
@@ -167,6 +170,7 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
      <input aria-label="Hasta" value={to} onChange={e=>setTo(e.target.value)} className="min-w-0 rounded-lg border border-slate-200 p-2 text-xs"/>
      <button type="button" className={button} onClick={doCopy} disabled={!chosenTeam}><ClipboardCopy className="mr-1 inline" size={13}/> Copiar prompt</button>
     </div>
+    {generatedPrompt&&<textarea aria-label="Prompt generado" readOnly rows={4} value={generatedPrompt} onFocus={e=>e.target.select()} className="w-full resize-y rounded-lg border border-blue-100 bg-blue-50/40 p-3 text-[11px] text-slate-700"/>}
     <p className="text-[11px] text-slate-500">Investiga los campeones en ChatGPT y pega aquí el JSON obtenido. Las coincidencias se resuelven por ID original del trofeo y del equipo, sin inventar ganadores.</p>
     <textarea aria-label="JSON de palmarés" rows={3} value={research} onChange={e=>setResearch(e.target.value)}
      className="w-full resize-y rounded-lg border border-slate-200 p-3 font-mono text-[11px]" placeholder='{"format":"mf_legacy_trophy_honours_v1","honours":[...]}'/>
