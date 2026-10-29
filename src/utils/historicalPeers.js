@@ -115,15 +115,17 @@ const pairedFinishing=(records)=>{
   }
   return minutes>0?diff*90/minutes:null;
 };
-const weightedPct=(records,names)=>{
-  let sum=0,mins=0;
+const weightedPct=(records,names,{estimateMissingMinutes=false}={})=>{
+  let sum=0,mins=0,estimated=false,covered=0;
   for(const row of records){
     const value=pickMetric(row,names);
-    const m=num(row.minutes),v=num(value?.value);
+    const duration=estimateMissingMinutes?minutesForDisplay(row):{value:num(row.minutes),estimated:false};
+    const m=duration.value,v=num(value?.value);
     if(m===null||m<=0||v===null||v<0||v>100)continue;
-    sum+=v*m;mins+=m;
+    sum+=v*m;mins+=m;covered++;
+    if(duration.estimated)estimated=true;
   }
-  return mins>0 ? sum/mins : null;
+  return {value:mins>0?sum/mins:null,estimated,covered,total:records.length};
 };
 const weightedRating=records=>{
   let sum=0,total=0;
@@ -277,10 +279,14 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       ?alignedPer90(records,PER90.def_actions_poss_adj_p90)
       :pAdjDetail.value;
     // A partially covered value is reported transparently and uses only the
-    // covered minutes, never the entire season denominator.
+    // covered minutes, never the entire season denominator. For goalkeeper
+    // save %, accept PJ*90 as a display-only weighting when official minutes
+    // are missing; never rewrite the source minutes as if they were real.
+    const savePctDetail=weightedPct(records,PERCENTAGE.save_pct,{estimateMissingMinutes:true});
     for(const [metric,names] of Object.entries(PERCENTAGE))
       values[metric]=metric==="ground_duels_won_pct"
-        ? groundDuelPercentage(records) : weightedPct(records,names);
+        ? groundDuelPercentage(records)
+        :metric==="save_pct"?savePctDetail.value:weightedPct(records,names).value;
     // Ball Security is a derived percentage; do not use partial competitor
     // coverage as if it represented a complete player-season.
     const security=ballSecurityFromRecords(records,metricTotal);
@@ -291,6 +297,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     observations.push({
       key,playerId:str(player.id),playerName:player.name||records[0].player_name||"",
       season:str(records[0].season),role,values,
+      savePctDetail:role==="GK"?savePctDetail:null,
       ballSecurityDetail:["W","CAM","FB","WB"].includes(role)?security:null,
       playShareEstimated:playShare.estimated,playShareCoverage:{covered:playShare.covered,total:playShare.total},
       xaRateEstimated:typeof xaRateEstimated!=="undefined"&&xaRateEstimated,
