@@ -129,8 +129,8 @@ export default function ImportCenter(){
   const linked=links.length>0&&candidateIds.length===1&&links.every(l=>String(l.fotmob_player_id||"")===fotmob)&&links.some(l=>["confirmed","verified","manual","manual_confirmada","confirmada","automatic_exact_name_unique","automatic_existing_stats_unique"].includes(String(l.verification||"").toLowerCase()));
   const historyFotmobId=statsStatus.state==="ready"&&statsStatus.ids.length===1&&/^[0-9]{1,15}$/.test(statsStatus.ids[0])?statsStatus.ids[0]:"";
   const availableFotmobId=linked?fotmob:links.length===0?(historyFotmobId||fotmobDraft):"";
-  const canStartHistory=coordinator==="ready"&&Boolean(player)&&linksState==="ready"&&(linked||links.length===0&&/^[0-9]{1,15}$/.test(availableFotmobId))&&!active&&selectedSources.length>0&&!busy;
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
+  const canStartHistory=coordinator==="ready"&&Boolean(player)&&linksState==="ready"&&(linked||links.length===0&&/^[0-9]{1,15}$/.test(availableFotmobId))&&!active&&selectedSources.length>0&&!busy;
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const waitingForWorker=jobs.filter(queuedTooLong);
   const groupedJobs=groupImportJobs(jobs);
