@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {ballSecurityFromTotals,ballSecurityFromRecords,BALL_SECURITY_PRIOR_ACTIONS} from "../src/utils/ballSecurity.js";
+import {buildHistoricalObservations} from "../src/utils/historicalPeers.js";
 
 const metric=(row,names)=>row.metrics.find(m=>names.includes(m.name))?.value??null;
 const row=(dribbles,dispossessed,extra=[])=>({metrics:[
@@ -70,4 +71,28 @@ test("Winger Ball Security is exposed to the historical Composite with non-parti
  const source=readFileSync(new URL("../src/utils/historicalPeers.js",import.meta.url),"utf8");
  assert.match(source,/values\.ball_security=\["W","CAM","FB","WB"\]\.includes\(role\)&&!security\.partial\?security\.value:null/);
  assert.match(source,/ballSecurityFromRecords\(records,metricTotal\)/);
+});
+
+test("Winger's genuine FotMob Dribbles + Dispossessed produce a Composite Ball Security observation",()=>{
+ const players=[{id:"winger-1",name:"Extremo de prueba",position:"ED"}];
+ const stats=[{player_id:"winger-1",season:"2024/2025",competition:"LaLiga",minutes:2000,appearances:28,metrics:[
+  {name:"Dribbles",value:50},{name:"Dispossessed",value:20}
+ ]}];
+ const [observation]=buildHistoricalObservations({players,stats});
+ assert.equal(observation.role,"W");
+ assert.equal(observation.values.ball_security,ballSecurityFromTotals(50,20));
+ assert.equal(observation.ballSecurityDetail.inputs.dribbles,50);
+ assert.equal(observation.ballSecurityDetail.inputs.dispossessed,20);
+ assert.equal(observation.ballSecurityDetail.smoothing.priorActions,10);
+});
+test("Winger with missing Dispossessed in a cup gets no full-season Ball Security",()=>{
+ const players=[{id:"winger-1",name:"Extremo de prueba",position:"ED"}];
+ const stats=[
+  {player_id:"winger-1",season:"2024/2025",competition:"LaLiga",minutes:1800,metrics:[{name:"Dribbles",value:50},{name:"Dispossessed",value:20}]},
+  {player_id:"winger-1",season:"2024/2025",competition:"Champions League",minutes:500,metrics:[{name:"Dribbles",value:8}]}
+ ];
+ const [observation]=buildHistoricalObservations({players,stats});
+ assert.equal(observation.values.ball_security,null);
+ assert.equal(observation.ballSecurityDetail.partial,true);
+ assert.equal(observation.ballSecurityDetail.excluded,1);
 });
