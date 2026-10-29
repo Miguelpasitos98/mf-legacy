@@ -50,6 +50,11 @@ export function archiveOverview(honours=[],credits=[],catalog=[],players=[]){
  };
 }
 export function searchArchiveRows(items,query){
- const q=normaliseSearch(query);
- return q?items.filter(item=>normaliseSearch([item.name,item.latest,...(item.seasons||[]),item.source_id].filter(Boolean).join(" ")).includes(q)):items;
+ const q=normaliseSearch(query).trim();
+ if(!q)return items;
+ const compact=q.replace(/[^a-z0-9]+/g,"");
+ return items.filter(item=>{
+  const text=normaliseSearch([item.name,item.latest,...(item.seasons||[]),item.source_id].filter(Boolean).join(" "));
+  return text.includes(q)||text.replace(/[^a-z0-9]+/g,"").includes(compact);
+ });
 }
