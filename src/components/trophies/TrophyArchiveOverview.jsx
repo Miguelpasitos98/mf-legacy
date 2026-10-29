@@ -50,7 +50,7 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
  if(selectedClubId)return <ClubTrophyHistory
   key={selectedClubId} teamId={selectedClubId} team={teamMap.get(selectedClubId)}
   honours={honours} catalog={catalog} manifest={imageManifest}
-  onBack={()=>setSelectedClubId("")} onOpenTrophy={onOpenTrophy}
+  onBack={()=>setSelectedClubId("")} onOpenTrophy={onOpenTrophy} onSync={onSync}
  />;
  return <section className="space-y-4 pb-6">
   <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0d2b52] via-[#123a67] to-[#456887] p-5 text-white md:p-7">
