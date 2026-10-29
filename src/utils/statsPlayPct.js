@@ -1,4 +1,5 @@
 import {canonicalHistoricalCompetition} from "./historicalJson.js";
+import {minutesForDisplay} from "./statsViews.js";
 const n=v=>v===null||v===undefined||v===""?null:Number.isFinite(Number(v))?Number(v):null;
 const str=v=>String(v??"").trim();
 /** Align player minutes with actual club fixtures by season+competition+team. */
@@ -7,7 +8,9 @@ export function playPctFromTeamMatches(summary,matches=[]){
  if(!records.length)return null;
  let minutes=0,fixtures=0,matched=0;
  for(const row of records){
-  const m=n(row.minutes),own=n(row.team_matches);
+  // Use the same display-only estimate as STATS: appearances × 90 when
+  // official minutes are absent. Never persist an estimated minute value.
+  const m=minutesForDisplay(row).value,own=n(row.team_matches);
   if(m===null||m<0)continue;
   const ids=[str(row.team_id),str(row.fotmob_team_id)].filter(Boolean);
   const aligned=matches.filter(t=>str(t.season)===str(row.season)&&
