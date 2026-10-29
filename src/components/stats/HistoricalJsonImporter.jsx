@@ -151,6 +151,19 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
     });
   };
 
+  const selectableIds = useMemo(() => rows.filter((r) =>
+    (r.status === "new" || r.status === "update") && !r.errors?.length
+  ).map((r) => r.id), [rows]);
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => included.has(id));
+  const selectAllAvailable = () => {
+    if (busy || saving) return;
+    setIncluded(new Set(selectableIds));
+  };
+  const deselectAll = () => {
+    if (busy || saving) return;
+    setIncluded(new Set());
+  };
+
   const save = async () => {
     const selected = rows.filter((r) => included.has(r.id) && ["new", "update"].includes(r.status));
     if (!selected.length || busy || saving) return;
@@ -279,7 +292,20 @@ export default function HistoricalJsonImporter({ player, fotmobPlayerId, stats =
           </div>)}
         </div>
         {skippedMissingMatches > 0 && <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800"><strong>{skippedMissingMatches} PJ Equipo desconocidos omitidos.</strong> Los registros válidos siguen disponibles para importar. Puedes volver a pegar el mismo JSON cuando conozcas esos partidos, sin sobrescribir los existentes.</p>}
-        <p className="text-xs text-slate-600"><strong>Vista previa:</strong> marca los registros que quieras guardar. Los nuevos vienen seleccionados; ningún valor existente se sobrescribe sin que lo marques.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 flex-1 text-xs text-slate-600"><strong>Vista previa:</strong> marca los registros que quieras guardar. Los nuevos vienen seleccionados; las actualizaciones existentes requieren tu confirmación. Seleccionar todos incluye también las actualizaciones disponibles, pero no guarda nada todavía.</p>
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={selectAllAvailable} disabled={busy || saving || !selectableIds.length || allSelected}
+              title="Marcar todos los registros nuevos y las actualizaciones disponibles (no se guarda nada todavía)"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] font-bold text-[#003399] hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40">
+              <CheckCircle2 size={14}/> Seleccionar todos ({selectableIds.length})
+            </button>
+            <button type="button" onClick={deselectAll} disabled={busy || saving || included.size===0}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+              Desmarcar todos
+            </button>
+          </div>
+        </div>
         <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200">
           {rows.map((r) => <div key={r.id} className={"flex items-start gap-3 border-b border-slate-100 p-3 last:border-0 " + (r.status === "error" ? "bg-rose-50" : "hover:bg-slate-50")}>
             <input type="checkbox" checked={included.has(r.id)} onChange={() => toggle(r.id)}
