@@ -1,4 +1,5 @@
 import test from "node:test";
+import {readFileSync} from "node:fs";
 import assert from "node:assert/strict";
 import {parseFormula,evalFormula,initialConfig,sanitizeConfig,columnValue,getColumn} from "../src/utils/statsColumns.js";
 import {buildSeasonSummaries} from "../src/utils/statsSeason.js";
@@ -218,4 +219,57 @@ test("El alias Conceded y la traducción Goles en contra se reconocen sin invent
  }
  const zero={player_id:"gk",season:"2025/2026",competition:"Copa",metrics:[{name:"Goals conceded",value:0}]};
  assert.equal(columnValue(zero,"competition","goalsconcededwhileonpitch",config),0);
+});
+
+test("La categoría Ataque incluye regates completados y veces desposeído en ambas vistas",()=>{
+ const config=initialConfig();
+ assert.equal(config.version,5);
+ for(const mode of ["season","competition"]){
+  assert.ok(config.columns[mode].Ataque.includes("dribbles"));
+  assert.ok(config.columns[mode].Ataque.includes("dispossessed"));
+ }
+ assert.equal(getColumn(config,"dribbles").name,"Regates exitosos");
+ assert.equal(getColumn(config,"dispossessed").name,"Veces desposeído");
+});
+test("Las preferencias v4 incorporan una sola vez las dos columnas sin perder otras personalizaciones",()=>{
+ const old=initialConfig();
+ old.version=4;
+ old.columns.competition.Ataque=["xg","shots"];
+ old.columns.season.Ataque=["xg","calc_groundduelspct"];
+ const migrated=sanitizeConfig(old);
+ assert.equal(migrated.version,5);
+ assert.deepEqual(migrated.columns.competition.Ataque,["xg","shots","dribbles","dispossessed"]);
+ assert.deepEqual(migrated.columns.season.Ataque,["xg","calc_groundduelspct","dribbles","dispossessed"]);
+ // If the user later manually hides them, don't force them back.
+ migrated.columns.competition.Ataque=["xg","shots"];
+ const later=sanitizeConfig(migrated);
+ assert.deepEqual(later.columns.competition.Ataque,["xg","shots"]);
+});
+test("Regates y desposesiones leen datos FotMob, variantes y ceros reales por competición",()=>{
+ const config=initialConfig();
+ const row={player_id:"wing",season:"2023/2024",competition:"Premier League",minutes:2895,metrics:[
+  {name:"Successful dribbles",value:65},{name:"Times dispossessed",value:66}
+ ]};
+ assert.equal(columnValue(row,"competition","dribbles",config),65);
+ assert.equal(columnValue(row,"competition","dispossessed",config),66);
+ assert.equal(columnValue({...row,metrics:[]},"competition","dribbles",config),null);
+ const zero={...row,metrics:[{name:"Dribbles",value:0},{name:"Dispossessed",value:0}]};
+ assert.equal(columnValue(zero,"competition","dribbles",config),0);
+ assert.equal(columnValue(zero,"competition","dispossessed",config),0);
+});
+test("La vista por temporada agrega ambas columnas sin convertir a cero las competiciones sin datos",()=>{
+ const cfg=initialConfig();
+ const rowA={player_id:"wing",season:"2023/2024",competition:"Premier League",minutes:2895,metrics:[
+  {name:"Dribbles",value:65},{name:"Dispossessed",value:66}]};
+ const rowB={...rowA,competition:"Champions League",metrics:[{name:"Dribbles",value:8}]};
+ const summary=buildSeasonSummaries([rowA,rowB],[])[0];
+ assert.equal(columnValue(summary,"season","dribbles",cfg),73);
+ assert.equal(columnValue(summary,"season","dispossessed",cfg),66);
+ assert.equal(summary.totals.dispossessed.partial,true);
+});
+test("El editor de la ficha conserva los nombres reales de FotMob y puede añadir la métrica faltante",()=>{
+ const fs=readFileSync(new URL("../src/pages/Stats.jsx",import.meta.url),"utf8");
+ assert.match(fs,/dribbles:"Dribbles",dispossessed:"Dispossessed"/);
+ assert.match(fs,/id==="dribbles"\?\["Dribbles","Successful dribbles"/);
+ assert.match(fs,/id==="dispossessed"\?\["Dispossessed","Times dispossessed"\]/);
 });
