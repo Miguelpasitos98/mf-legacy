@@ -1,5 +1,5 @@
 import {nationalLinkPlan} from "@/utils/nationalAutoLink";
-import {POSITION_OPTIONS,normalizeHistoricalPosition,positionGroup} from "@/utils/historicalPositions.js";
+import {STATS_POSITION_FILTER_OPTIONS,matchesStatsPosition,migrateStatsPositionFilter} from "@/utils/statsPositionFilter.js";
 import React, { useEffect, useMemo, useState, useRef, useDeferredValue, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { minutesForDisplay, aggregate, defaultSeason, groupStatRows, nationalCompetition, resolveTeam, seasonActive } from "@/utils/statsViews";
@@ -472,7 +472,7 @@ export default function Stats(){
   const [savedView]=useState(()=>importLandingView(readStatsViewState(),statsParams));
   const [season,setSeason]=useState(savedView.season&&seasonActive(savedView.season)?"Todas":savedView.season||"Todas"),[competition,setCompetition]=useState(savedView.competition||"Todas"),[search,setSearch]=useState(statsParams.get("stats_player")||savedView.search||"");
   const deferredSearch=useDeferredValue(search);
-  const [viewMode,setViewMode]=useState(savedView.viewMode||"season"),[minMinutes,setMinMinutes]=useState(savedView.minMinutes||0),[positionFilter,setPositionFilter]=useState(savedView.positionFilter||"Todas");
+  const [viewMode,setViewMode]=useState(savedView.viewMode||"season"),[minMinutes,setMinMinutes]=useState(savedView.minMinutes||0),[positionFilter,setPositionFilter]=useState(()=>migrateStatsPositionFilter(savedView.positionFilter));
   const [seasonDisplay,setSeasonDisplay]=useState(savedView.seasonDisplay==="current"?"all":savedView.seasonDisplay||"all"),[bestMetric,setBestMetric]=useState(savedView.bestMetric||"composite");
   const [tab,setTab]=useState(savedView.tab||"con"),[category,setCategory]=useState(savedView.category||"Resumen"),[sort,setSort]=useState(savedView.sort||"composite"),[sortDirection,setSortDirection]=useState(savedView.sortDirection||"desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[page,setPage]=useState(savedView.page||0);
   const scrollRoot=useRef(null),restoredScroll=useRef(false);
@@ -525,18 +525,8 @@ export default function Stats(){
   const stats=useMemo(()=>groupStatRows(rows.filter(r=>r.player_id)),[rows]);
   const seasonSummaries=useMemo(()=>buildSeasonSummaries(rows.filter(r=>r.player_id),teams),[rows,teams]);
   const competitions=useMemo(()=>[...new Set(allRows.filter(r=>season==="Todas"||r.season===season).map(r=>r.competition))].filter(Boolean).sort(),[allRows,season]);
-  const positionOptions=useMemo(()=>[
-    {value:"grupo:gk",label:"Porteros (GK)"},
-    {value:"grupo:def",label:"Defensas"},
-    {value:"grupo:mid",label:"Centrocampistas"},
-    {value:"grupo:att",label:"Atacantes"},
-    ...[...new Set(POSITION_OPTIONS)].map(value=>({value,label:value}))
-  ],[]);
-  const matchesPosition=value=>{
-    if(positionFilter==="Todas")return true;
-    const pos=normalizeHistoricalPosition(value);
-    return positionFilter.startsWith("grupo:")?positionGroup(pos)===positionFilter.slice(6):pos===positionFilter;
-  };
+  const positionOptions=STATS_POSITION_FILTER_OPTIONS;
+  const matchesPosition=value=>matchesStatsPosition(value,positionFilter);
   const allCompetitionsRanked=useMemo(()=>{
     let rs=stats.map(r=>({record:r,player:byID.get(String(r.player_id))||null}));
     if(tab==="todos"){
