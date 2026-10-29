@@ -54,19 +54,19 @@ function Edition({honour,teamMap,playerMap,onVerify,busy=false}){
   </div>
  </article>;
 }
-export default function TrophyDetailVisual({trophy,manifest,tab,honours=[],onEdit,onAdd,onVerify,honourSaving=false}){
+export default function TrophyDetailVisual({trophy,manifest,tab,honours=[],onAdd,onVerify,honourSaving=false}){
  const summary=useMemo(()=>trophyDetailSummary(honours),[honours]);
  const clubs=useMemo(()=>trophyClubRanking(honours),[honours]);
  const ordered=useMemo(()=>trophyEditionRows(honours),[honours]);
- const needsTeams=["Resumen","Ediciones","Clubes"].includes(tab);
- const needsPlayers=["Ediciones","Jugadores"].includes(tab);
+ const isIndividual=trophy.trophy_type==="Individual Trophy";
+ const needsTeams=!isIndividual&&["Resumen","Ediciones","Clubes"].includes(tab);
+ const needsPlayers=tab==="Jugadores"||(isIndividual&&["Resumen","Ediciones"].includes(tab));
  const teamsQuery=useQuery({...completeRecordQueryOptions(base44.entities.Team,["mf-legacy","teams"]),enabled:needsTeams,retry:false});
  const playersQuery=useQuery({...completeRecordQueryOptions(base44.entities.Player,["mf-legacy","players"]),enabled:needsPlayers,retry:false});
  const creditsQuery=useQuery({...completeRecordQueryOptions(base44.entities.PlayerTrophyCredit,["mf-legacy","trophies","credits"]),enabled:tab==="Jugadores",retry:false});
  const teamMap=useMemo(()=>new Map((teamsQuery.data||[]).map(t=>[String(t.id),t])),[teamsQuery.data]);
  const playerMap=useMemo(()=>new Map((playersQuery.data||[]).map(p=>[String(p.id),p])),[playersQuery.data]);
  const players=useMemo(()=>trophyPlayerRanking(honours,creditsQuery.data||[],playersQuery.data||[]),[honours,creditsQuery.data,playersQuery.data]);
- const isIndividual=trophy.trophy_type==="Individual Trophy";
  const hero=<div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#102949] via-[#132f54] to-[#304e73] p-4 text-white md:p-5">
   <div className="pointer-events-none absolute -right-8 -top-20 h-64 w-64 rounded-full border border-white/10"/>
   <div className="pointer-events-none absolute -right-20 top-2 h-56 w-56 rounded-full border border-white/10"/>
