@@ -61,7 +61,7 @@ test("Edition details open from club timeline and allow returning without resett
  const archive=readFileSync(new URL("../src/components/trophies/TrophyArchiveOverview.jsx",import.meta.url),"utf8");
  assert.match(history,/showEdition=h=>\{setSelectedEditionKey\(editionKey\(h\)\);\}/);
  assert.match(history,/<TrophyEditionDetail/);
- assert.match(history,/onBack=\{\(\)=>setSelectedEditionKey\(" "\)\}/.source ? /setSelectedEditionKey\(" "\)/ : /setSelectedEditionKey\(" "\)/);
+ assert.ok(history.includes('onBack={()=>setSelectedEditionKey("")}'));
  assert.match(history,/Ver edición/);
  assert.match(detail,/Volver a la cronología/);
  assert.match(detail,/Jugadores acreditados/);
