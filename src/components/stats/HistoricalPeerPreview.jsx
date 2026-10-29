@@ -9,7 +9,7 @@ import IndicatorHistoricalRankingModal from "@/components/stats/IndicatorHistori
 import {indicatorDescription} from "@/utils/indicatorDescriptions";
 import { formatEur } from "@/utils/historicalValuation";
 const EDIT_METRIC_NAMES={npxg_p90:"xG excl. penalty",xa_p90:"xA",xgot_p90:"xGOT",shots_on_target_p90:"Shots on target",big_chances_created_p90:"Big chances created",possession_won_final_3rd_p90:"Possession won final 3rd",accurate_long_balls_p90:"Accurate long balls",successful_dribbles_p90:"Dribbles",dispossessed_p90:"Dispossessed",dribbled_past_p90:"Dribbled past",goals_prevented_p90:"Goals prevented",accurate_passes_p90:"Accurate passes",def_actions_poss_adj_p90:"PAdj defensive actions",aerial_duels_won_pct:"Aerials won %",ground_duels_won_pct:"Ground duels won %",save_pct:"Save percentage"};
-const NON_EDITABLE_COMPOSITE=new Set(["fc27_ovr","market_value","play_share","finishing_xgot_minus_npxg"]);
+const NON_EDITABLE_COMPOSITE=new Set(["fc27_ovr","market_value","play_share","finishing_xgot_minus_npxg","ball_security"]);
 import { buildMissingDataPrompt } from "@/utils/missingDataPrompt";
 const show=(v,d=2)=>v===null||v===undefined||!Number.isFinite(Number(v))?"—":
  Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
