@@ -89,7 +89,8 @@ test("UI auto-detects on Review mount, processes bounded batches, and checks ful
  assert.match(panel,/statsSnapshotOptions\(\)/);
  assert.match(panel,/staleTime:0/);
  assert.match(panel,/PlayerTrophyCredit\.create\(payload\)/);
- assert.match(panel,/status:"candidate",verified:false/);
+ const planModule=readFileSync(new URL("../src/utils/trophyIncrementalSync.js",import.meta.url),"utf8");
+ assert.match(planModule,/status:"candidate",verified:false/);
  assert.match(review,/<TrophyIncrementalSync/);
  assert.match(page,/catalogReady=/);
 });
