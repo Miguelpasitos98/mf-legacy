@@ -77,7 +77,7 @@ export default async function(req) {
       if(!player?.id||!season?.id||season.player_id!==playerId)return bad("El registro no corresponde al jugador seleccionado.",409);
       const {pid}=await verifiedLink(db,playerId);
       if(str(season.fotmob_player_id)&&str(season.fotmob_player_id)!==pid)return bad("El ID FotMob del registro no coincide.",409);
-      if(!/^\\d{1,15}$/.test(str(season.fotmob_team_id))||!/^\\d{1,15}$/.test(str(season.fotmob_tournament_id))||!str(season.competition)||!/^20\\d{2}\\/20\\d{2}$/.test(str(season.season)))
+      if(!Number.isSafeInteger(Number(season.fotmob_team_id))||!Number.isSafeInteger(Number(season.fotmob_tournament_id))||!str(season.competition)||!String(season.season||"").includes("/"))
         return bad("Primero concilia el ID de club, competición y temporada de STATS.",409);
       const metric=str(body.metric_name),unit=str(body.metric_unit);
       if(!["xGOT","Goals Prevented","xG","xA"].includes(metric)||!["total","per90"].includes(unit))return bad("Indicador o unidad no admitida.");
@@ -93,9 +93,9 @@ export default async function(req) {
       if(validUrl.protocol!=="https:"||validUrl.username||validUrl.password||
         !["theanalyst.com","statsperform.com","premierleague.com","uefa.com"].some(d=>domain===d||domain.endsWith("."+d)))
         return bad("Solo páginas oficiales HTTPS de Opta Analyst, Stats Perform, Premier League o UEFA.");
-      const compact=excerpt.replace(/\\s+/g," ").toLowerCase();
+      const compact=excerpt.replaceAll("\n"," ").replaceAll("\r"," ").toLowerCase();
       const check=metric==="Goals Prevented"?/(goals? prevented|goles? evitados|psxg)/:
-        metric==="xGOT"?/xgot/:metric==="xA"?/\\bxa\\b/:/\\bxg\\b/;
+        metric==="xGOT"?/xgot/:metric==="xA"?/xa/:/xg/;
       if(!check.test(compact))return bad("El fragmento no menciona el indicador indicado.",409);
       const numberText=String(value);
       if(!compact.includes(numberText.toLowerCase())&&!compact.includes(numberText.replace(".",",")))
