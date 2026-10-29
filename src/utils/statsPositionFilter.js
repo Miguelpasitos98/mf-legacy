@@ -26,7 +26,7 @@ const effectivePositionCode=raw=>{
  const value=String(raw??"").trim();
  // FM's "D (C)" means centre-back, while MF Legacy "DC" means striker.
  // Preserve the parenthesized shorthand before normalizing punctuation.
- if(/^D\\s*\\(\\s*C\\s*\\)$/i.test(value))return "DFC";
+ if(/^D\s*\(\s*C\s*\)$/i.test(value))return "DFC";
  return normalizeHistoricalPosition(value);
 };
 
