@@ -77,7 +77,7 @@ const metricTotal=(row,names)=>{
   }
   return num(m.value);
 };
-const alignedPer90=(records,names,minutesSource=null)=>{
+const alignedPer90=(records,names,minutesSource=null,{allowRateOnly=false}={})=>{
   let amount=0, minutes=0, count=0;
   for(const row of records){
     // Understat totals MUST use Understat minutes, never FotMob minutes.
@@ -88,7 +88,20 @@ const alignedPer90=(records,names,minutesSource=null)=>{
     const mins=understat
       ?(num(candidate.provider_minutes)??num(pickMetric(row,["Understat minutes"])?.value))
       :minutesSource?num(pickMetric(row,[minutesSource])?.value):minutesForDisplay(row).value;
-    const value=metricTotal(row,names);
+    let value=metricTotal(row,names);
+    // Some providers have the genuine /90 rate but no total. Recover the
+    // numerator for this competition only, using the SAME aligned minutes
+    // that will enter the denominator. Never approximate a missing rate.
+    if(allowRateOnly&&value===null&&mins>0){
+      const available=candidate|| (row.metrics||[]).find(m=>names.some(name=>
+        metricName(m.name)===metricName(name)||metricName(m.name)===metricName(name+" /90")));
+      const rate=num(available?.per90);
+      if(rate!==null&&rate>=0)value=rate*mins/90;
+      else if(available&&/(?:\/90|per[\s_-]?90)$/i.test(available.name)){
+        const directRate=num(available.value);
+        if(directRate!==null&&directRate>=0)value=directRate*mins/90;
+      }
+    }
     if(mins===null || mins<=0 || value===null)continue;
     amount+=value;minutes+=mins;count++;
   }
@@ -234,22 +247,15 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       play_share:playShare.value};
     for(const [metric,names] of Object.entries(PER90))
       values[metric]=alignedPer90(records,names,
-        metric==="xg_chain_p90"||metric==="xg_buildup_p90"?"Understat minutes":null);
-    // Source-aligned xA rates can be available even without official minutes.
-    // Weight each competition by actual minutes when provided, otherwise by
-    // appearance-based *estimated* minutes and tag this estimate separately.
-    const xaRates=records.map(r=>{
-      const candidate=pickMetric(r,PER90.xa_p90);
-      const rate=num(candidate?.per90);
-      const actual=num(r.minutes),apps=num(r.appearances);
-      const minutes=actual>0?actual:(apps>0?apps*90:null);
-      return {rate,minutes,estimated:!(actual>0)};
-    }).filter(r=>r.rate!==null&&r.minutes>0);
-    const xaRateEstimated=xaRates.length===records.length&&xaRates.some(r=>r.estimated);
-    if(xaRates.length===records.length&&xaRates.length&&xaRateEstimated){
-      const minutes=xaRates.reduce((n,r)=>n+r.minutes,0);
-      values.xa_p90=xaRates.reduce((n,r)=>n+r.rate*r.minutes,0)/minutes;
-    }
+        metric==="xg_chain_p90"||metric==="xg_buildup_p90"?"Understat minutes":null,
+        {allowRateOnly:metric==="xa_p90"});
+    // Each indicator is calculated independently using its own available
+    // competition rows. For xA, rate-only sources can contribute if there is
+    // an aligned duration for that row; other competitions need not provide xA.
+    const xaRateEstimated=records.some(row=>{
+      const candidate=pickMetric(row,PER90.xa_p90);
+      return candidate&&num(candidate.per90)!==null&&minutesForDisplay(row).estimated;
+    });
     // A genuine season-wide /90 overrides competition-derived Understat totals.
     const directRates=advancedTotals(records);
     if(directRates.xg_chain_p90!==null)values.xg_chain_p90=directRates.xg_chain_p90;
@@ -287,9 +293,9 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       values[metric]=metric==="ground_duels_won_pct"
         ? groundDuelPercentage(records)
         :metric==="save_pct"?savePctDetail.value:weightedPct(records,names).value;
-    // Ball Security: complete season OR explicitly provisional coverage of
-    // >=98% of verified minutes. Never extrapolate missing events or pretend
-    // the unreported competitions contain zero actions.
+    // Ball Security uses only competitions with both event counts. Other
+    // indicators keep their own per-competition source requirements; no
+    // missing inputs are imputed as zero or used in a denominator.
     const security=ballSecurityFromRecords(records,metricTotal);
     values.ball_security=["W","CAM","FB","WB"].includes(role)&&security.eligible?security.value:null;
     // Never fall back to seasonless FC/Transfermarkt or snapshot CraftedFC fields.
