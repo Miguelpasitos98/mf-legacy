@@ -273,7 +273,7 @@ test("xA rate-only can contribute alongside other xA totals without all-competit
  ];
  const [observation]=buildHistoricalObservations({players,stats});
  assert.ok(Math.abs(observation.values.xa_p90-(3+0.45*450/90)*90/1350)<1e-10);
- assert.equal(observation.xaRateEstimated,false); // no source total for the estimated-only row
+ assert.equal(observation.xaRateEstimated,true); // rate-only Champions record uses PJ × 90 as its weight
 });
 test("PAdj mixes valid provider totals with reconstructed competition data, no double counting",()=>{
  const players=[{id:"c",name:"Medio",position:"CM"}];
