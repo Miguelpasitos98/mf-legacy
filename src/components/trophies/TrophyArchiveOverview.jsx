@@ -1,19 +1,15 @@
 import React,{useMemo,useState} from "react";
+import {useNavigate} from "react-router-dom";
 import {useQuery} from "@tanstack/react-query";
 import {Search,Trophy,Shield,Users,Medal,ArrowUpRight,CheckCircle2,CalendarDays,Info} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {trophyImageUrl} from "@/utils/trophyCatalog";
 import {archiveOverview,searchArchiveRows} from "@/utils/trophyArchiveOverview";
+import TrophyRankingCard from "@/components/trophies/TrophyRankingCard";
 
 const MODES=[["competiciones","Competiciones",Trophy],["equipos","Equipos",Shield],["jugadores","Jugadores",Users]];
 const small="text-[10px] font-bold uppercase tracking-[.13em] text-slate-400";
-function Emblem({url,fallback:Icon=Shield,size=40}){
- const [failed,setFailed]=useState(false);
- return <span className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50" style={{width:size,height:size}}>
-  {url&&!failed?<img src={url} loading="lazy" alt="" className="h-[85%] w-[85%] object-contain" onError={()=>setFailed(true)}/>:<Icon size={Math.round(size*.45)} strokeWidth={1.3} className="text-slate-300"/>}
- </span>;
-}
 function TrophyPhoto({trophy,manifest,size="large"}){
  const [broken,setBroken]=useState(false);
  return <span className={"flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white "+(size==="large"?"h-24 w-24":"h-14 w-14")}>
@@ -27,8 +23,8 @@ function Stat({label,value,icon:Icon}){
  </div>;
 }
 export default function TrophyArchiveOverview({honours=[],catalog=[],imageManifest,onOpenTrophy,onSync}){
+ const navigate=useNavigate();
  const [mode,setMode]=useState("competiciones"),[search,setSearch]=useState(""),[visible,setVisible]=useState(24);
- const [verifiedOnly]=useState(true);
  const teamQuery=useQuery({...completeRecordQueryOptions(base44.entities.Team,["mf-legacy","teams"]),enabled:mode==="equipos",retry:false});
  const playerQuery=useQuery({...completeRecordQueryOptions(base44.entities.Player,["mf-legacy","players"]),enabled:mode==="jugadores",retry:false});
  const creditQuery=useQuery({...completeRecordQueryOptions(base44.entities.PlayerTrophyCredit,["mf-legacy","trophies","credits"]),enabled:mode==="jugadores",retry:false});
@@ -79,7 +75,7 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
    </div>
    <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
     <p className="text-[11px] font-semibold text-slate-500">{isLoading?"Cargando registros…":results.length.toLocaleString("es-ES")+" resultados"}</p>
-    <p className="inline-flex items-center gap-1 text-[10px] text-emerald-700"><CheckCircle2 size={12}/>{verifiedOnly?"Solo títulos verificados":""}</p>
+    <p className="inline-flex items-center gap-1 text-[10px] text-emerald-700"><CheckCircle2 size={12}/>Solo títulos verificados</p>
    </div>
   </div>
   {isError&&<div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">No se han podido cargar completamente los equipos o los jugadores. Actualiza la vista para consultar sus títulos.</div>}
@@ -101,47 +97,21 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
     <ArrowUpRight size={16} className="shrink-0 text-slate-300 group-hover:text-[#003399]"/>
    </button>)}
   </div>}
-  {!isError&&!isLoading&&mode==="equipos"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-   {rendered.map((row,i)=>{
-    const team=teamMap.get(row.id),logo=team?.logo||team?.logo_url||team?.logoUrl;
-    return <div key={row.id} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
-     <div className="flex items-center gap-3">
-      <span className="w-5 shrink-0 text-center text-xs font-black text-slate-300">{i+1}</span>
-      <Emblem url={logo} size={48}/>
-      <div className="min-w-0 flex-1"><h3 className="truncate text-xs font-black text-slate-900">{team?.name||row.name}</h3><p className="mt-1 text-[10px] text-slate-400">{row.distinct} trofeos diferentes</p></div>
-      <div className="text-right"><p className="text-2xl font-black text-[#003399]">{row.total}</p><p className="text-[9px] text-slate-400">títulos</p></div>
-     </div>
-     <div className="mt-3 flex gap-1.5 overflow-x-auto border-t border-slate-100 pt-3">
-      {[...row.trophies].map(sourceId=>{
-       const t=trophiesById.get(sourceId)||{source_id:sourceId,name:sourceId};
-       return <button key={sourceId} type="button" title={t.name} onClick={()=>openCompetition(sourceId)}
-        className="shrink-0 rounded-lg border border-slate-100 transition hover:border-blue-200"><TrophyPhoto trophy={t} manifest={imageManifest} size="small"/></button>;
-      })}
-     </div>
-     <p className="mt-2 truncate text-[10px] text-slate-400">{row.seasons.slice(0,6).join(" · ")}</p>
-    </div>;
-   })}
+  {!isError&&!isLoading&&mode==="equipos"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+   {rendered.map((item,index)=><TrophyRankingCard
+     key={item.id} item={item} rank={index+1} entity={teamMap.get(item.id)}
+     kind="team" manifest={imageManifest} trophiesById={trophiesById}
+     onOpenTrophy={openCompetition}
+     onOpenProfile={id=>navigate("/teams?stats_team="+encodeURIComponent(id))}
+   />)}
   </div>}
-  {!isError&&!isLoading&&mode==="jugadores"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-   {rendered.map((row,i)=>{
-    const p=playerMap.get(row.id),picture=p?.photo_url||p?.photoUrl||p?.image_url||p?.image;
-    return <div key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-     <div className="flex items-center gap-3">
-      <span className="w-5 text-center text-xs font-black text-slate-300">{i+1}</span><Emblem url={picture} size={48} fallback={Users}/>
-      <div className="min-w-0 flex-1"><h3 className="truncate text-xs font-black text-slate-900">{p?.name||row.name}</h3>
-       <p className="mt-1 text-[10px] text-slate-400">{row.collective} colectivos · {row.individual} individuales</p>
-      </div>
-      <div className="text-right"><p className="text-2xl font-black text-[#003399]">{row.total}</p><p className="text-[9px] text-slate-400">títulos</p></div>
-     </div>
-     <div className="mt-3 flex gap-1.5 overflow-x-auto border-t border-slate-100 pt-3">{[...row.trophies].map(sourceId=>{
-      const t=trophiesById.get(sourceId)||{source_id:sourceId,name:sourceId};
-      return <button key={sourceId} type="button" title={t.name} onClick={()=>openCompetition(sourceId)} className="rounded-lg border border-slate-100 transition hover:border-blue-200">
-       <TrophyPhoto trophy={t} manifest={imageManifest} size="small"/>
-      </button>;
-     })}</div>
-     <p className="mt-2 truncate text-[10px] text-slate-400">{row.seasons.slice(0,6).join(" · ")}</p>
-    </div>;
-   })}
+  {!isError&&!isLoading&&mode==="jugadores"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+   {rendered.map((item,index)=><TrophyRankingCard
+     key={item.id} item={item} rank={index+1} entity={playerMap.get(item.id)}
+     kind="player" manifest={imageManifest} trophiesById={trophiesById}
+     onOpenTrophy={openCompetition}
+     onOpenProfile={id=>navigate("/players?stats_player="+encodeURIComponent(id))}
+   />)}
   </div>}
   {!isLoading&&results.length>visible&&<div className="flex justify-center">
    <button type="button" className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-[#003399] hover:bg-blue-50" onClick={()=>setVisible(v=>v+24)}>
