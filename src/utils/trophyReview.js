@@ -94,7 +94,7 @@ export function prepareTrophyDecision(row,{status,source="",acknowledged=false}=
   if(!validTrophyEvidenceUrl(source))throw Error("Introduce una URL HTTPS válida que acredite la elegibilidad del jugador.");
   return {
    status:"confirmed",verified:true,source_url:id(source),
-   evidence_type:"official_roster",
+   evidence_type:"manual",
    evidence_note:[id(row.evidence_note),"Elegibilidad para esta edición comprobada individualmente con fuente oficial."].filter(Boolean).join(" ").slice(0,1200)
   };
  }
