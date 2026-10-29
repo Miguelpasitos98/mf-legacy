@@ -22,10 +22,13 @@ export function archiveOverview(honours=[],credits=[],catalog=[],players=[]){
   if(trophyId){
    const row=competitionMap.get(trophyId)||{
     source_id:trophyId,name:trophyMap.get(trophyId)?.name||trophyId,count:0,
-    latest:"",winners:new Set(),trophy:trophyMap.get(trophyId)
+    latest:"",latestWinner:"",latestWinnerId:"",latestWinnerType:"",winners:new Set(),trophy:trophyMap.get(trophyId)
    };
    row.count++;row.winners.add(str(h.recipient_type)+"|"+teamId);
-   if(!row.latest||h.season>row.latest)row.latest=h.season;
+   if(!row.latest||h.season>row.latest){
+    row.latest=h.season;row.latestWinner=h.recipient_name||"Ganador";
+    row.latestWinnerId=teamId;row.latestWinnerType=h.recipient_type;
+   }
    competitionMap.set(trophyId,row);
   }
   if(h.recipient_type==="Team"&&teamId){
