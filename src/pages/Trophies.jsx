@@ -187,7 +187,7 @@ export default function Trophies(){
    </nav>
   </header>
   {section==="catalog"&&<div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-200/80 bg-white px-4 py-2 md:px-6">
-   <div className="flex shrink-0 items-center gap-2.5"><div className="grid h-9 w-9 place-items-center rounded-xl bg-[#003399] text-white"><Trophy size={19}/></div><div><p className="text-[9px] font-bold uppercase tracking-[.17em] text-slate-400">MF LEGACY / ARCHIVE</p><h1 className="text-lg font-black leading-tight tracking-tight">Trophies</h1></div></div>
+   <div className="hidden shrink-0 items-center gap-2 lg:flex"><span className="text-[10px] font-black uppercase tracking-[.15em] text-slate-400">Biblioteca</span></div>
    <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-[#F8F9FC] px-2.5 py-2">
     <div className="flex flex-wrap items-center justify-between gap-1.5">
      <div className="flex gap-1 overflow-x-auto">{[["verified","Identificados"],["all","Todos"],["pending","Pendientes"],["registered","Con ficha"]].map(([k,v])=><button key={k} type="button" className={cls(tab===k)} onClick={()=>setTab(k)}>{v}</button>)}</div>
