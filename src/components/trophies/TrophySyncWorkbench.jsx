@@ -1,6 +1,6 @@
 import React,{useMemo,useState} from "react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
-import {ClipboardCopy,Upload,ShieldCheck,Users,ChevronDown,ChevronUp,AlertCircle,CheckCircle2} from "lucide-react";
+import {ClipboardCopy,Upload,ShieldCheck,Users,ChevronDown,ChevronUp,AlertCircle} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {statsSnapshotOptions} from "@/api/recordQueries";
