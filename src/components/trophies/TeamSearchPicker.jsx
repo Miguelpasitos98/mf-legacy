@@ -4,7 +4,7 @@ import {normalizeImageUrl} from "@/components/teams/teamUtils";
 import {filterTrophyTeams} from "@/utils/trophyTeamSearch";
 
 const MAX_VISIBLE=60;
-export default function TeamSearchPicker({teams=[],value="",onChange,loading=false,error=false}){
+export default function TeamSearchPicker({teams=[],value="",onChange,loading=false,error=false,ariaLabel="Buscar equipo para investigar",placeholder="Escribe para buscar un equipo…" }){
  const root=useRef(null),field=useRef(null),[isOpen,setIsOpen]=useState(false);
  const [search,setSearch]=useState(""),[active,setActive]=useState(0);
  const selected=teams.find(team=>String(team.id)===String(value));
@@ -43,13 +43,13 @@ export default function TeamSearchPicker({teams=[],value="",onChange,loading=fal
   }
  };
  return <div className="relative min-w-0" ref={root} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setIsOpen(false);}}>
-  <label htmlFor="trophy-team-search" className="sr-only">Buscar equipo para investigar</label>
+  <label htmlFor="trophy-team-search" className="sr-only">{ariaLabel}</label>
   <div className={"flex h-10 min-w-0 items-center gap-2 rounded-lg border bg-white px-2.5 transition focus-within:border-[#003399] focus-within:ring-2 focus-within:ring-[#003399]/10 "+(isOpen?"border-[#003399]":"border-slate-200")}>
    <Search size={15} className="shrink-0 text-slate-400"/>
    <input id="trophy-team-search" ref={field} role="combobox" type="text" autoComplete="off"
-    aria-label="Buscar equipo para investigar" aria-controls="trophy-team-results" aria-expanded={isOpen}
+    aria-label={ariaLabel} aria-controls="trophy-team-results" aria-expanded={isOpen}
     aria-autocomplete="list" aria-activedescendant={isOpen&&visible[active]?"trophy-team-option-"+active:undefined}
-    placeholder={loading?"Cargando todos los equipos…":"Escribe para buscar un equipo…"}
+    placeholder={loading?"Cargando todos los equipos…":placeholder}
     disabled={loading||error} value={search} onFocus={event=>{setIsOpen(true);event.target.select();setActive(0);}}
     onChange={event=>updateQuery(event.target.value)} onKeyDown={handleKeys}
     className="h-full min-w-0 flex-1 bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400 disabled:opacity-50"/>
