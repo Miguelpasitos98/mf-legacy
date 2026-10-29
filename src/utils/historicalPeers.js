@@ -276,14 +276,32 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       values.xg_chain_p90=null;
       values.xg_buildup_p90=null;
     }
-    // Prefer a complete, verified source PAdj series if it already exists;
-    // otherwise calculate our own 50%-possession-normalised metric.
-    // Never combine an adjusted numerator with missing minutes/competitions.
-    const hasDirectPAdj=records.every(r=>num(r.minutes)>0&&metricTotal(r,PER90.def_actions_poss_adj_p90)!==null);
-    const pAdjDetail=hasDirectPAdj?null:possessionAdjustedDefActionsDetail(records,metricTotal,getPossession);
-    values.def_actions_poss_adj_p90=hasDirectPAdj
-      ?alignedPer90(records,PER90.def_actions_poss_adj_p90)
-      :pAdjDetail.value;
+    // PAdj is also per-indicator / per-competition. Prefer the verified
+    // provider's adjusted total where present; reconstruct from team possession
+    // only for OTHER competitions with enough source data. Both components
+    // represent possession-adjusted defensive actions and are combined with
+    // their own covered minutes. Never count a competition twice.
+    const directPAdj=[],derivedPAdjRows=[];
+    for(const row of records){
+      const minutes=num(row.minutes),total=metricTotal(row,PER90.def_actions_poss_adj_p90);
+      if(minutes>0&&total!==null&&total>=0)directPAdj.push({row,minutes,total});
+      else derivedPAdjRows.push(row);
+    }
+    const pAdjDerived=possessionAdjustedDefActionsDetail(derivedPAdjRows,metricTotal,getPossession);
+    const directMinutes=directPAdj.reduce((n,r)=>n+r.minutes,0);
+    const directActions=directPAdj.reduce((n,r)=>n+r.total,0);
+    const pAdjMinutes=directMinutes+pAdjDerived.minutesCovered;
+    values.def_actions_poss_adj_p90=pAdjMinutes>0?
+      (directActions+(pAdjDerived.value===null?0:pAdjDerived.value*pAdjDerived.minutesCovered/90))*90/pAdjMinutes:null;
+    const pAdjCoverage={
+      covered:directPAdj.length+pAdjDerived.covered,total:records.length,
+      minutesCovered:pAdjMinutes,
+      excluded:pAdjDerived.excluded,
+      methods:[...(directPAdj.length?["provider"]:[]),...pAdjDerived.methods]
+    };
+    const pAdjMethod=directPAdj.length&&pAdjDerived.covered?"mixed_provider_experimental":
+      directPAdj.length?"provider_imported":
+      pAdjDerived.value!==null?"mf_possession_50_experimental":"missing";
     // A partially covered value is reported transparently and uses only the
     // covered minutes, never the entire season denominator. For goalkeeper
     // save %, accept PJ*90 as a display-only weighting when official minutes
@@ -309,8 +327,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       playShareEstimated:playShare.estimated,playShareCoverage:{covered:playShare.covered,total:playShare.total},
       xaRateEstimated:typeof xaRateEstimated!=="undefined"&&xaRateEstimated,
       position:position.position,positionSource:position.source,positionMixed:Boolean(position.mixed),
-      pAdjMethod:hasDirectPAdj?"provider_imported":values.def_actions_poss_adj_p90!==null?"mf_possession_50_experimental":"missing",
-      pAdjCoverage:hasDirectPAdj?{covered:records.length,total:records.length,minutesCovered:records.reduce((n,r)=>n+(num(r.minutes)||0),0),excluded:[],methods:["provider"]}:pAdjDetail,
+      pAdjMethod,pAdjCoverage,
       minutes:records.reduce((n,r)=>n+Math.max(0,num(r.minutes)||0),0),
       competitions:records.length,
     });
