@@ -7,6 +7,7 @@ import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {trophyImageUrl} from "@/utils/trophyCatalog";
 import {archiveOverview,searchArchiveRows} from "@/utils/trophyArchiveOverview";
 import TrophyRankingCard from "@/components/trophies/TrophyRankingCard";
+import ClubTrophyHistory from "@/components/trophies/ClubTrophyHistory";
 
 const MODES=[["competiciones","Competiciones",Trophy],["equipos","Equipos",Shield],["jugadores","Jugadores",Users]];
 const small="text-[10px] font-bold uppercase tracking-[.13em] text-slate-400";
@@ -26,6 +27,7 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
  const navigate=useNavigate();
  const [mode,setMode]=useState("competiciones"),[search,setSearch]=useState(""),[visible,setVisible]=useState(24);
  const [seasonFilter,setSeasonFilter]=useState("all");
+ const [selectedClubId,setSelectedClubId]=useState("");
  const teamQuery=useQuery({...completeRecordQueryOptions(base44.entities.Team,["mf-legacy","teams"]),enabled:mode==="equipos",retry:false});
  const playerQuery=useQuery({...completeRecordQueryOptions(base44.entities.Player,["mf-legacy","players"]),enabled:mode==="jugadores",retry:false});
  const creditQuery=useQuery({...completeRecordQueryOptions(base44.entities.PlayerTrophyCredit,["mf-legacy","trophies","credits"]),enabled:mode==="jugadores",retry:false});
@@ -44,6 +46,12 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
  const isError=mode==="equipos"?teamQuery.isError:mode==="jugadores"?playerQuery.isError||creditQuery.isError:false;
  const changeMode=v=>{setMode(v);setSearch("");setVisible(24);};
  const openCompetition=sourceId=>{const trophy=trophiesById.get(String(sourceId));if(trophy)onOpenTrophy?.(trophy);};
+ const openClub=id=>{setSelectedClubId(String(id));};
+ if(selectedClubId)return <ClubTrophyHistory
+  key={selectedClubId} teamId={selectedClubId} team={teamMap.get(selectedClubId)}
+  honours={honours} catalog={catalog} manifest={imageManifest}
+  onBack={()=>setSelectedClubId("")} onOpenTrophy={onOpenTrophy}
+ />;
  return <section className="space-y-4 pb-6">
   <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0d2b52] via-[#123a67] to-[#456887] p-5 text-white md:p-7">
    <div className="pointer-events-none absolute -right-12 -top-20 h-72 w-72 rounded-full border border-white/10"/>
@@ -123,6 +131,7 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
      key={item.id} item={item} rank={rankById.get(String(item.id))||index+1} entity={teamMap.get(item.id)}
      kind="team" manifest={imageManifest} trophiesById={trophiesById}
      onOpenTrophy={openCompetition}
+     onOpenArchive={openClub}
      onOpenProfile={id=>navigate("/teams?stats_team="+encodeURIComponent(id))}
    />)}
   </div>}
