@@ -8,7 +8,6 @@ import {RECORD_KEYS} from "@/api/recordQueries";
 import {readCompleteRecords} from "@/utils/entityRecords";
 import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-react";
 import HistoricalReview from "@/components/imports/HistoricalReview";
-import PublicReferenceImport from "@/components/imports/PublicReferenceImport";
 import {historyCanRetry} from "@/utils/importHistoryReview";
 import {importProgressSummary} from "@/utils/importCoverage";
 import {groupImportJobs,visibleImportGroups} from "@/utils/importJobGroups";
@@ -41,7 +40,6 @@ export default function ImportCenter(){
   const [search,setSearch]=useState("");
   const [selectedSources,setSelectedSources]=useState(SOURCES.map(x=>x.id));
   const [fotmobDraft,setFotmobDraft]=useState("");
-  const [identityConfirmed,setIdentityConfirmed]=useState(false);
   const [reviewedGroups,setReviewedGroups]=useState({});
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
@@ -49,7 +47,7 @@ export default function ImportCenter(){
   const [loaded,setLoaded]=useState(false);
   const [candidatesLoading,setCandidatesLoading]=useState(false);
   const [coordinator,setCoordinator]=useState("checking");
-  const [statsStatus,setStatsStatus]=useState({state:"idle",count:0});
+  const [statsStatus,setStatsStatus]=useState({state:"idle",count:0,ids:[]});
   const refreshSequence=useRef(0),currentJob=useRef(selectedJob);
   const autoAppliedJobs=useRef(new Set());
   const [autoApplying,setAutoApplying]=useState(false);
@@ -97,12 +95,12 @@ export default function ImportCenter(){
     return ()=>{live=false;};
   },[selection]);
   useEffect(()=>{
-    if(!selection){setStatsStatus({state:"idle",count:0});return;}
+    if(!selection){setStatsStatus({state:"idle",count:0,ids:[]});return;}
     let active=true;
-    setStatsStatus({state:"loading",count:0});
+    setStatsStatus({state:"loading",count:0,ids:[]});
     base44.entities.PlayerSeasonStats.filter({player_id:selection},undefined,200)
-      .then(result=>{if(active){const list=responseRows(result);setStatsStatus({state:list.length>=200?"partial":"ready",count:list.length});}})
-      .catch(()=>{if(active)setStatsStatus({state:"error",count:0});});
+      .then(result=>{if(active){const list=responseRows(result);setStatsStatus({state:list.length>=200?"partial":"ready",count:list.length,ids:list.length>=200?[]:[...new Set(list.map(row=>String(row.fotmob_player_id||"").trim()).filter(Boolean))]});}})
+      .catch(()=>{if(active)setStatsStatus({state:"error",count:0,ids:[]});});
     return()=>{active=false;};
   },[selection]);
   useEffect(()=>{
@@ -128,7 +126,10 @@ export default function ImportCenter(){
   const player=selectedPlayer?.id===selection?selectedPlayer:players.find(p=>p.id===selection);
   const candidateIds=[...new Set(links.map(l=>String(l.fotmob_player_id||"")).filter(Boolean))];
   const fotmob=candidateIds.length===1?candidateIds[0]:"";
-  const linked=links.some(l=>["confirmed","verified","manual","manual_confirmada","confirmada","automatic_exact_name_unique"].includes(String(l.verification||"").toLowerCase()))&&Boolean(fotmob);
+  const linked=links.length>0&&candidateIds.length===1&&links.every(l=>String(l.fotmob_player_id||"")===fotmob)&&links.some(l=>["confirmed","verified","manual","manual_confirmada","confirmada","automatic_exact_name_unique","automatic_existing_stats_unique"].includes(String(l.verification||"").toLowerCase()));
+  const historyFotmobId=statsStatus.state==="ready"&&statsStatus.ids.length===1&&/^[0-9]{1,15}$/.test(statsStatus.ids[0])?statsStatus.ids[0]:"";
+  const availableFotmobId=linked?fotmob:links.length===0?(historyFotmobId||fotmobDraft):"";
+  const canStartHistory=coordinator==="ready"&&Boolean(player)&&linksState==="ready"&&(linked||links.length===0&&/^[0-9]{1,15}$/.test(availableFotmobId))&&!active&&selectedSources.length>0&&!busy;
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const waitingForWorker=jobs.filter(queuedTooLong);
@@ -164,6 +165,20 @@ export default function ImportCenter(){
   const operate=async(action,payload)=>{
     setBusy(true);setError("");setNotice("");
     try{
+      if(action==="start"&&!linked){
+        // On the same explicit recovery click, register the ID already stored
+        // in this player's season records. A brand-new player's typed ID is
+        // accepted only as the explicit administrator-provided identity.
+        if(!player||linksState!=="ready"||links.length)throw Error("La vinculación FotMob es ambigua. Revísala antes de recuperar historial.");
+        if(!/^[0-9]{1,15}$/.test(availableFotmobId))throw Error("Introduce un ID FotMob válido.");
+        const linkedResult=await base44.functions.invoke("import-control",{
+          action:"link",player_id:player.id,
+          ...(historyFotmobId?{use_stored_fotmob_id:true}:{fotmob_player_id:availableFotmobId,confirmed:true})
+        });
+        if(!linkedResult.data?.ok)throw Error(linkedResult.data?.error||"No se pudo establecer el vínculo FotMob.");
+        const updatedLinks=await base44.entities.PlayerFotmobLink.filter({player_id:player.id},undefined,30);
+        setLinks(responseRows(updatedLinks));
+      }
       const resp=await base44.functions.invoke("import-control",{action,...payload});
       setNotice(action==="start"?"Historial solicitado. El trabajador local reutilizará las cachés y consultará las fuentes disponibles; después podrás revisar todas las temporadas juntas.":action==="retry-fotmob"?"Solo las competiciones FotMob pendientes están en cola; los valores anteriores se conservan.":action==="retry-pending"?"Solo los periodos pendientes están en cola; los datos encontrados y guardados se reutilizan.":["retry","resume"].includes(action)?"Trabajo en cola para reanudar desde sus datos guardados.":action==="release-stale"?"Concesión caducada liberada; ya puedes reintentar.":"Trabajo cancelado.");
       if(resp?.data?.job?.id)setSelectedJob(resp.data.job.id);
@@ -186,17 +201,6 @@ export default function ImportCenter(){
       setReviewedGroups(v=>({...v,[group.key]:false}));
       await invalidateApplied();
       await refresh({forceCandidates:true});
-    }catch(e){setError(reason(e));}finally{setBusy(false);}
-  };
-  const linkManually=async()=>{
-    if(!player||!/^[0-9]{1,15}$/.test(fotmobDraft)||!identityConfirmed)return;
-    setBusy(true);setError("");setNotice("");
-    try{
-      await base44.functions.invoke("import-control",{action:"link",player_id:player.id,
-        fotmob_player_id:fotmobDraft,confirmed:true});
-      const result=await base44.entities.PlayerFotmobLink.filter({player_id:player.id},undefined,30);
-      setLinks(responseRows(result));setNotice("Identificador FotMob registrado. Ya puedes procesar fuentes históricas existentes.");
-      setFotmobDraft("");setIdentityConfirmed(false);
     }catch(e){setError(reason(e));}finally{setBusy(false);}
   };
   const scanCache=async()=>{
@@ -247,21 +251,18 @@ export default function ImportCenter(){
         </div>
         {selection&&player&&<div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm"><strong>Seleccionado: {player.name}</strong><button type="button" onClick={()=>{setSelection("");setSelectedPlayer(null);setSearch("");setLinks([]);}} className="ml-3 text-blue-800 underline">Cambiar</button></div>}
         {selection&&<p className="text-sm font-medium text-[#003399]">{statsStatus.state==="loading"?"Comprobando temporadas en STATS…":statsStatus.state==="ready"?(statsStatus.count===0?"Sin temporadas en STATS · Primera importación":statsStatus.count+" registros en STATS · Puedes añadir temporadas que falten"):statsStatus.state==="partial"?"Más de 199 registros: recuento parcial":"No se pudo consultar STATS; no se han modificado datos."}</p>}
-        {selection&&<p className="text-sm text-slate-600">FotMob: <strong>{linksState==="loading"?"Comprobando vinculación…":linksState==="error"?"No se pudo comprobar el vínculo":fotmob||"Sin vínculo único"}</strong>{linksState==="ready"?(linked?" · Vinculación registrada":" · Requiere revisión"):""}</p>}
-        {player&&linksState==="ready"&&!linked&&links.length===0&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2">
-          <p className="text-sm font-semibold">Vincular identificador FotMob</p>
-          <p className="text-xs text-slate-600">Introduce el ID numérico que hayas comprobado en el perfil o exportación original. No se buscará ni deducirá por nombre.</p>
-          <input type="text" inputMode="numeric" aria-label="ID FotMob verificado" maxLength={15}
+        {selection&&<p className="text-sm text-slate-600">FotMob: <strong>{linksState==="loading"?"Leyendo vinculación…":linked?fotmob:links.length>0?"Vínculo pendiente de revisión":availableFotmobId||"ID no disponible"}</strong>{linksState==="ready"&&linked&&<span className="ml-1 text-emerald-700" aria-label="ID FotMob listo">✓ Listo</span>}{linksState==="ready"&&!linked&&links.length===0&&historyFotmobId&&<span className="ml-1 text-emerald-700" aria-label="ID FotMob guardado">✓ Guardado en STATS</span>}</p>}
+        {player&&linksState==="ready"&&!linked&&links.length===0&&!historyFotmobId&&<div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3 space-y-2">
+          <label className="block text-xs font-medium text-slate-700" htmlFor="fotmob-recovery-id">ID FotMob (no encontrado en la ficha)</label>
+          <input id="fotmob-recovery-id" type="text" inputMode="numeric" maxLength={15} aria-label="ID FotMob"
             value={fotmobDraft} onChange={e=>setFotmobDraft(e.target.value.replace(/[^0-9]/g,""))}
-            placeholder="Ej. 276738" className="w-full border rounded-md px-3 py-2 text-sm"/>
-          <label className="flex gap-2 items-start text-xs"><input type="checkbox" checked={identityConfirmed} onChange={e=>setIdentityConfirmed(e.target.checked)}/>
-            He comprobado que el ID corresponde exactamente al jugador seleccionado.</label>
-          <button type="button" onClick={linkManually} disabled={coordinator!=="ready"||busy||!identityConfirmed||!/^[0-9]{1,15}$/.test(fotmobDraft)}
-            className="px-4 py-2 bg-[#003399] text-white rounded-md text-sm disabled:opacity-40">Guardar vinculación</button>
+            placeholder="Introduce el ID para recuperar el historial" className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"/>
+          <p className="text-[11px] text-slate-500">Se vinculará automáticamente al iniciar la recuperación. Comprueba que pertenece al jugador seleccionado.</p>
         </div>}
+        {player&&linksState==="ready"&&!linked&&links.length>0&&<p className="text-xs text-amber-800">Existen vinculaciones FotMob sin confirmar o contradictorias; no se modifican automáticamente.</p>}
         <h3 className="font-semibold text-sm">2. Fuentes para extraer estadísticas</h3>
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
-        <button disabled={coordinator!=="ready"||!player||!linked||active||!selectedSources.length||busy} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">3. Recuperar historial disponible desde Studio (PC)</button>
+        <button disabled={!canStartHistory} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Recuperar historial disponible</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>
@@ -278,7 +279,7 @@ export default function ImportCenter(){
         <p className="text-xs text-slate-600">El motor web permite crear primeras temporadas. El trabajador local sigue disponible como respaldo para consultas puntuales sujetas a los permisos del proveedor.</p>
       </section>
     </div>
-    <PublicReferenceImport player={player} linked={linked} disabled={busy||coordinator!=="ready"} onSubmitted={async jobId=>{if(jobId)setSelectedJob(jobId);await refresh({forceCandidates:true});}} />
+
     {error&&<p role="alert" className="my-3 rounded-lg bg-red-50 border border-red-200 text-red-800 p-3 text-sm">{error}</p>}
     {notice&&<p role="status" className="my-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 p-3 text-sm">{notice}</p>}
     <section className="mt-5 rounded-xl border border-slate-200 bg-white p-4 md:p-5" data-import-grouped-view="v2">
