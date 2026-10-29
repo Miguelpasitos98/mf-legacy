@@ -283,7 +283,7 @@ test("PAdj mixes valid provider totals with reconstructed competition data, no d
   {player_id:"c",season:"2024/2025",competition:"Copa",team_id:"club",minutes:120,metrics:[]}
  ];
  const possessions=[{team_id:"club",season:"2024/2025",competition:"Champions League",team_possession_pct:60}];
- const [observation]=buildHistoricalObservations({players,stats,teamPossessions:possessions});
+ const [observation]=buildHistoricalObservations({players,stats,teamPossessions:possessions,teams:[{id:"club",name:"Club"}]});
  const expected=(80+15*50/(100-60))*90/1350;
  assert.ok(Math.abs(observation.values.def_actions_poss_adj_p90-expected)<1e-10);
  assert.equal(observation.pAdjCoverage.covered,2);
