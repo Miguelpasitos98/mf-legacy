@@ -21,6 +21,7 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
  const [checked,setChecked]=useState([]),[saving,setSaving]=useState(false);
  const [selectedHonour,setSelectedHonour]=useState(""),[candidateRows,setCandidateRows]=useState([]);
  const [creditChecked,setCreditChecked]=useState([]),[finding,setFinding]=useState(false);
+ const [creditSources,setCreditSources]=useState({});
  const [message,setMessage]=useState(""),[error,setError]=useState("");
  const teamsQuery=useQuery({...completeRecordQueryOptions(base44.entities.Team,["mf-legacy","teams"]),enabled:open});
  const creditsQuery=useQuery({...completeRecordQueryOptions(base44.entities.PlayerTrophyCredit,CREDIT_KEY),enabled:open&&phase==="players",retry:false});
@@ -30,6 +31,7 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
  const confirmed=useMemo(()=>honours.filter(h=>h.recipient_type==="Team"&&h.verified===true)
    .sort((a,b)=>String(b.season).localeCompare(String(a.season))),[honours]);
  const currentHonour=confirmed.find(h=>h.id===selectedHonour);
+ const existingCredits=(creditsQuery.data||[]).filter(c=>c.trophy_honour_id===selectedHonour);
  const selectedCount=preview.filter(r=>r.status==="new"&&checked.includes(r.index)).length;
  const clean=()=>{setError("");setMessage("");};
  const doCopy=async()=>{
@@ -101,6 +103,26 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
    setMessage(matches.length+" jugadores relacionados; participar no certifica el derecho a recibir el título.");
   }catch(e){setError("No se pudo completar la conciliación: "+e.message);}
   finally{setFinding(false);}
+ };
+ const decideCredit=async(credit,status)=>{
+  clean();
+  if(saving||!credit?.id)return;
+  const source=txt(creditSources[credit.id]||credit.source_url);
+  if(status==="confirmed"&&!/^https:\/\/[^\s/]+\.[^\s/]+/i.test(source)){
+   setError("Para confirmar un título necesitas una URL HTTPS que acredite al jugador o su elegibilidad oficial.");
+   return;
+  }
+  setSaving(true);
+  try{
+   await base44.entities.PlayerTrophyCredit.update(credit.id,{
+     status,verified:status==="confirmed",source_url:status==="confirmed"?source:credit.source_url||"",
+     evidence_type:status==="confirmed"?"official_roster":credit.evidence_type,
+     evidence_note:status==="confirmed"?"Adjudicación confirmada manualmente con fuente oficial":credit.evidence_note
+   });
+   await qc.invalidateQueries({queryKey:CREDIT_KEY});
+   setMessage(status==="confirmed"?"Jugador confirmado con fuente; ya aparece en su palmarés.":"Adjudicación excluida del palmarés.");
+  }catch(e){setError("No se pudo actualizar la adjudicación: "+e.message);}
+  finally{setSaving(false);}
  };
  const saveCandidates=async()=>{
   clean();if(saving)return;setSaving(true);let done=0;
@@ -178,6 +200,19 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
      </label>)}
     </div>}
     {candidateRows.length>0&&<button type="button" disabled={!creditChecked.some(id=>candidateRows.some(r=>r.player_id===id&&r.status==="candidate"))||saving} className={primary} onClick={saveCandidates}>Registrar candidatos seleccionados (sin confirmar títulos)</button>}
+    {existingCredits.length>0&&<div className="space-y-2 rounded-lg border border-slate-200 p-3">
+      <p className="text-[11px] font-bold text-slate-700">Adjudicaciones registradas · {existingCredits.length}</p>
+      {existingCredits.map(c=><div key={c.id} className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 text-xs">
+       <span className="min-w-[120px] flex-1 truncate">{candidateRows.find(x=>x.player_id===c.player_id)?.player?.name||c.player_id}</span>
+       <span className={c.status==="confirmed"?"text-emerald-700":c.status==="excluded"?"text-slate-500":"text-amber-700"}>{c.status==="confirmed"?"Confirmado":c.status==="excluded"?"Excluido":"Candidato"}</span>
+       {c.status==="candidate"&&<>
+        <input type="url" aria-label={"Fuente para "+c.player_id} placeholder="URL oficial de plantilla / elegibilidad" value={creditSources[c.id]||""}
+         onChange={e=>setCreditSources(v=>({...v,[c.id]:e.target.value}))} className="min-w-[180px] flex-[2] rounded border border-slate-200 px-2 py-1.5 text-[11px]"/>
+        <button type="button" disabled={saving} onClick={()=>decideCredit(c,"confirmed")} className="rounded border border-emerald-200 px-2 py-1.5 text-[11px] font-bold text-emerald-800">Confirmar</button>
+        <button type="button" disabled={saving} onClick={()=>decideCredit(c,"excluded")} className="rounded border border-slate-200 px-2 py-1.5 text-[11px] text-slate-600">Excluir</button>
+       </>}
+      </div>)}
+    </div>}
    </>}
    <p className="flex items-center gap-1 text-[10px] text-slate-400"><AlertCircle size={12}/> Las fichas existentes y los títulos individuales no se alteran. Los resultados sin identificación inequívoca quedan pendientes.</p>
   </div>}
