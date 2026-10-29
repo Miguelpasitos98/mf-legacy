@@ -88,7 +88,13 @@ export default function StatsControlBar({
           POSICIÓN
           <select className="position" value={position} onChange={(event) => onPosition(event.target.value)} aria-label="Filtrar por posición">
             <option value="Todas">Todas las posiciones</option>
-            {positionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            {[...new Set(positionOptions.map(o=>o.group||"Otras posiciones"))].map(group=>(
+              <optgroup key={group} label={group}>
+                {positionOptions.filter(o=>(o.group||"Otras posiciones")===group).map(option=>(
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </optgroup>
+            ))}
           </select>
         </label>
         <label className="field searchfield mf-statsbar-search-compact">
