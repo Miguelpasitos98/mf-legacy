@@ -18,7 +18,7 @@ function AwardImage({trophy,manifest}){
   {!bad?<img src={trophyImageUrl(trophy,manifest)} alt="" loading="lazy" className="h-full w-full object-contain px-1 py-1.5" onError={()=>setBad(true)}/>:<Trophy size={22} strokeWidth={1.3} className="text-slate-300"/>}
  </div>;
 }
-export default function TrophyRankingCard({item,rank,entity,kind="team",manifest,trophiesById,onOpenTrophy,onOpenProfile}){
+export default function TrophyRankingCard({item,rank,entity,kind="team",manifest,trophiesById,onOpenTrophy,onOpenProfile,onOpenArchive}){
  const isPlayer=kind==="player";
  const picture=isPlayer?
   entity?.photo_url||entity?.photoUrl||entity?.image_url||entity?.image||entity?.card_photo_url:
@@ -38,9 +38,14 @@ export default function TrophyRankingCard({item,rank,entity,kind="team",manifest
     </div>
     <h3 className="mt-2 line-clamp-2 text-sm font-black leading-5 text-slate-900">{entity?.name||item.name}</h3>
     <p className="mt-1 text-[10px] text-slate-500">{item.distinct} {item.distinct===1?"trofeo diferente":"trofeos diferentes"}</p>
-    <button type="button" onClick={()=>onOpenProfile?.(item.id)}
-     className="mt-2 inline-flex self-start items-center gap-1 text-[10px] font-bold text-[#003399] hover:underline"
-     aria-label={"Abrir ficha de "+(entity?.name||item.name)}>Ver perfil <ArrowUpRight size={12}/></button>
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+     {!isPlayer&&onOpenArchive&&<button type="button" onClick={()=>onOpenArchive(item.id)}
+      className="inline-flex items-center gap-1 rounded-md bg-[#edf3fb] px-2 py-1.5 text-[10px] font-bold text-[#003399] hover:bg-[#dfe9f8]"
+      aria-label={"Ver palmarés histórico de "+(entity?.name||item.name)}><Trophy size={12}/> Ver palmarés</button>}
+     <button type="button" onClick={()=>onOpenProfile?.(item.id)}
+      className="inline-flex items-center gap-1 text-[10px] font-bold text-[#003399] hover:underline"
+      aria-label={"Abrir ficha de "+(entity?.name||item.name)}>Ver perfil <ArrowUpRight size={12}/></button>
+    </div>
    </div>
    <div className="shrink-0 text-right">
     <p className="text-[29px] font-black leading-none tabular-nums text-[#003399]">{item.total}</p>
