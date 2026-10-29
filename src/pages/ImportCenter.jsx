@@ -8,6 +8,7 @@ import {RECORD_KEYS} from "@/api/recordQueries";
 import {readCompleteRecords} from "@/utils/entityRecords";
 import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-react";
 import HistoricalReview from "@/components/imports/HistoricalReview";
+import PublicReferenceImport from "@/components/imports/PublicReferenceImport";
 import {historyCanRetry} from "@/utils/importHistoryReview";
 import {importProgressSummary} from "@/utils/importCoverage";
 import {groupImportJobs,visibleImportGroups} from "@/utils/importJobGroups";
@@ -277,6 +278,7 @@ export default function ImportCenter(){
         <p className="text-xs text-slate-600">El motor web permite crear primeras temporadas. El trabajador local sigue disponible como respaldo para consultas puntuales sujetas a los permisos del proveedor.</p>
       </section>
     </div>
+    <PublicReferenceImport player={player} linked={linked} disabled={busy||coordinator!=="ready"} onSubmitted={async jobId=>{if(jobId)setSelectedJob(jobId);await refresh({forceCandidates:true});}} />
     {error&&<p role="alert" className="my-3 rounded-lg bg-red-50 border border-red-200 text-red-800 p-3 text-sm">{error}</p>}
     {notice&&<p role="status" className="my-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 p-3 text-sm">{notice}</p>}
     <section className="mt-5 rounded-xl border border-slate-200 bg-white p-4 md:p-5" data-import-grouped-view="v2">
