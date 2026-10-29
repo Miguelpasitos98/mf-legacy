@@ -20,7 +20,7 @@ export const RAW_METRICS=[
  ["linebreakingpasses","Pases que rompen líneas"],["crossaccuracy","Precisión de centros (%)"],["dribbles","Regates exitosos"],
  ["dribblessuccessrate","Éxito en regates (%)"],["duelswon","Duelos ganados"],["duelswonvariante2","Éxito en duelos (%)"],
  ["aerialswon","Duelos aéreos ganados"],["aerialswonvariante2","Éxito en duelos aéreos (%)"],
- ["touches","Toques"],["touchesinoppositionbox","Toques en área rival"],["dispossessed","Pérdidas de balón"],
+ ["touches","Toques"],["touchesinoppositionbox","Toques en área rival"],["dispossessed","Veces desposeído"],
  ["foulswon","Faltas recibidas"],["foulscommitted","Faltas cometidas"],["defensiveactions","Acciones defensivas"],
  ["blockedscoringattempt","Tiros bloqueados"],["possessionwonfinal3rd","Recuperaciones en campo rival"],["dribbledpast","Regateado"],
  ["xgagainstwhileonpitch","xG encajado en campo"],["yellowcards","Tarjetas amarillas"],["redcards","Tarjetas rojas"],
@@ -51,7 +51,7 @@ export const COMPUTED_IDS=new Set(COMPUTED.map(x=>x.id));
 export const DEFAULT_COLS={
  season:{
  Resumen:["goals","assists","xg","xa","gaper90","xgaper90","playpct"],
- Ataque:["goals","assists","ga","goalsper90","assistsper90","gaper90","xg","xa","xgper90","xaper90","xgaper90","shots","shotsontarget"],
+ Ataque:["goals","assists","ga","goalsper90","assistsper90","gaper90","xg","xa","xgper90","xaper90","xgaper90","shots","shotsontarget","dribbles","dispossessed"],
  Creación:["chancescreated","bigchancescreated","accuratepasses","successfulcrosses","xa","xaper90","calc_xgchainper90","calc_xgbuildupper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","cleansheets","calc_groundduelspct"],
  Portería:["saves","savesper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
@@ -59,14 +59,14 @@ export const DEFAULT_COLS={
  },
  competition:{
  Resumen:["goals","assists","xg","xa","shots","shotsontarget","playpct"],
- Ataque:["goals","assists","xg","xa","xgot","shots","shotsontarget","bigchancescreated"],
+ Ataque:["goals","assists","xg","xa","xgot","shots","shotsontarget","bigchancescreated","dribbles","dispossessed"],
  Creación:["accuratepasses","chancescreated","bigchancescreated","xa","successfulcrosses","calc_xgchainper90","calc_xgbuildupper90"],
  Defensa:["tackles","interceptions","recoveries","clearances","calc_groundduelspct"],
  Portería:["saves","savesper90","cleansheets","goalsconcededwhileonpitch","calc_goals_prevented","calc_goals_prevented_p90"],
  Físico:["totaldistancecovered","numberofsprints"]
  }
 };
-export const initialConfig=()=>({version:4,columns:structuredClone(DEFAULT_COLS),dividers:{season:{},competition:{}},computed:COMPUTED.map(x=>({...x})),labels:{}});
+export const initialConfig=()=>({version:5,columns:structuredClone(DEFAULT_COLS),dividers:{season:{},competition:{}},computed:COMPUTED.map(x=>({...x})),labels:{}});
 export function sanitizeConfig(data){
  const value=data&&typeof data==="object"?data:{};
  const formulas=Array.isArray(value.computed)?value.computed:COMPUTED;
@@ -88,6 +88,12 @@ export function sanitizeConfig(data){
    const fromOldDefault=Number(value.version||1)<2&&category==="Resumen"&&Array.isArray(input)&&JSON.stringify(input)===JSON.stringify(legacyDefault);
    columns[mode][category]=Array.isArray(input)?[...new Set(input.filter(k=>typeof k==="string"&&ids.has(k)))].slice(0,30):[...DEFAULT_COLS[mode][category]];
    if(fromOldDefault&&!columns[mode][category].includes("playpct"))columns[mode][category].push("playpct");
+   // Migration v5: expose the two exact FotMob counts used by Ball Security.
+   // Apply once to previous saved layouts while preserving the user's column order.
+   // Future manual hiding (version 5+) is respected.
+   if(category==="Ataque"&&Number(value.version||1)<5){
+    for(const id of ["dribbles","dispossessed"])if(!columns[mode][category].includes(id))columns[mode][category].push(id);
+   }
    if(category==="Portería")columns[mode][category]=columns[mode][category].filter(columnId=>{
     const d=formulas.find(x=>x?.id===columnId)||COMPUTED.find(x=>x.id===columnId);
     return String(d?.formula||"").replace(/\s+/g,"").toLowerCase()!=="xa*90/minutes";
@@ -114,7 +120,7 @@ export function sanitizeConfig(data){
  if(value.labels&&typeof value.labels==="object")for(const [key,display] of Object.entries(value.labels)){
   if(RAW_IDS.has(key)&&typeof display==="string"&&display.trim().length&&display.length<=60)labels[key]=display.trim();
  }
- return {version:4,columns,dividers,computed,labels};
+ return {version:5,columns,dividers,computed,labels};
 }
 export function parseFormula(expression){
  const input=String(expression||"").trim();
