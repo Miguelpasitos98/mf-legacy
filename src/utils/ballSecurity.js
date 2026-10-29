@@ -15,9 +15,9 @@ export function ballSecurityFromTotals(dribbles,dispossessed,{priorActions=BALL_
  return Math.round(((d+prior/2)/(d+lost+prior))*10000)/100;
 }
 
-// High-confidence partial seasons are valid as OBSERVED coverage only.
-// No missing dribbles/dispossessions are filled in or set to zero.
-export const BALL_SECURITY_MIN_MINUTES_COVERAGE_PCT=98;
+// Use each competition that has BOTH source counts. Missing competitions
+// remain excluded, never interpreted as zero. A partial figure is observed
+// coverage, not an extrapolated full-season total.
 export function ballSecurityFromRecords(records=[],metricTotal){
  if(typeof metricTotal!=="function")throw Error("Falta extractor de totales alineados.");
  // FotMob's Dribbles is successful take-ons, not total dribble attempts.
@@ -52,12 +52,11 @@ export function ballSecurityFromRecords(records=[],metricTotal){
  const actionCount=dribbles+dispossessed;
  const coveragePct=minutesReliable&&allMinutes>0?Math.round(coveredMinutes/allMinutes*10000)/100:null;
  const partial=excluded>0;
- // 98% of actually recorded minutes ensures a tiny cup cameo does not
- // invalidate an otherwise complete season. This is an OBSERVED ratio,
- // not the player's extrapolated true season figure.
- const provisional=partial&&paired>0&&coveragePct!==null&&
-   coveragePct>=BALL_SECURITY_MIN_MINUTES_COVERAGE_PCT;
- const eligible=paired>0&&actionCount>0&&(!partial||provisional);
+ // Availability is determined by this indicator's own source data,
+ // independently of other metrics and without an arbitrary coverage cutoff.
+ // Excluded competitions are documented but do not block valid paired rows.
+ const provisional=partial&&paired>0&&actionCount>0;
+ const eligible=paired>0&&actionCount>0;
  return {
   value:paired&&actionCount>0?ballSecurityFromTotals(dribbles,dispossessed):null,
   rawValue:paired&&actionCount>0?Math.round(dribbles/actionCount*10000)/100:null,
