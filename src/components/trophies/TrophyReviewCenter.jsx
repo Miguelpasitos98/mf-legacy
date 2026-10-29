@@ -8,6 +8,7 @@ import {trophyImageUrl} from "@/utils/trophyCatalog";
 import {filterTrophyReviews,prepareTrophyDecision,safeBulkTrophyPlan,trophyReviewRows,validTrophyEvidenceUrl} from "@/utils/trophyReview";
 import {normalizeImageUrl} from "@/components/teams/teamUtils";
 import TeamSearchPicker from "@/components/trophies/TeamSearchPicker";
+import TrophyIncrementalSync from "@/components/trophies/TrophyIncrementalSync";
 
 const CREDIT_KEY=["mf-legacy","trophies","credits"];
 const TEAM_KEY=["mf-legacy","teams"];
@@ -37,7 +38,7 @@ function PhotoOfTrophy({trophy,manifest}){
   {!bad&&trophy?<img src={trophyImageUrl(trophy,manifest)} loading="lazy" alt="" onError={()=>setBad(true)} className="h-full w-full object-contain p-1"/>:<Trophy size={22} className="text-slate-300"/>}
  </span>;
 }
-export default function TrophyReviewCenter({honours=[],honoursLoading=false,honoursError=false,catalog=[],imageManifest,onSync}){
+export default function TrophyReviewCenter({honours=[],honoursLoading=false,honoursError=false,catalog=[],catalogReady=false,imageManifest,onSync}){
  const qc=useQueryClient(),navigate=useNavigate();
  const [status,setStatus]=useState("candidate"),[teamId,setTeamId]=useState(""),[trophyId,setTrophyId]=useState("all");
  const [season,setSeason]=useState("all"),[query,setQuery]=useState(""),[showBlocked,setShowBlocked]=useState("all");
@@ -170,6 +171,7 @@ export default function TrophyReviewCenter({honours=[],honoursLoading=false,hono
      className="rounded-lg border border-white/25 bg-white/10 px-4 py-2 text-[11px] font-bold hover:bg-white/20">Generar candidatos desde STATS <ArrowUpRight size={13} className="ml-1 inline"/></button>
    </div>
   </header>
+  <TrophyIncrementalSync honours={honours} catalog={catalog} honoursReady={!honoursLoading&&!honoursError&&catalogReady} onReview={()=>{setStatus("candidate");setTeamId("");setTrophyId("all");setSeason("all");setQuery("");setShowBlocked("all");resetSelection();}}/>
   <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
    <Counter value={candidateCount} label="Pendientes" icon={Clock3} tone="text-amber-700"/>
    <Counter value={pendingReady} label="Listos para revisar" icon={ShieldCheck}/>
