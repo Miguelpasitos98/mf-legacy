@@ -2,10 +2,12 @@ import React,{useMemo,useState} from "react";
 import {createPortal} from "react-dom";
 import {Search,X} from "lucide-react";
 import {indicatorHistoricalRanking} from "@/utils/indicatorHistoricalRanking";
+import {indicatorExplanation} from "@/utils/indicatorDescriptions";
 const display=(v,d=2)=>v===null||v===undefined?"—":Number(v).toLocaleString("es-ES",{maximumFractionDigits:d,minimumFractionDigits:d});
 export default function IndicatorHistoricalRankingModal({indicator,role,observations=[],selectedPlayerIds=[],onClose}){
  const [search,setSearch]=useState("");
  const [unique,setUnique]=useState(false);
+ const explanation=indicatorExplanation(indicator.key);
  const ranked=useMemo(()=>indicatorHistoricalRanking(observations,role,indicator.key,indicator.penalty),[observations,role,indicator]);
  const shown=useMemo(()=>{
   const seen=new Set();
@@ -21,6 +23,10 @@ export default function IndicatorHistoricalRankingModal({indicator,role,observat
     <div><p className="text-[10px] font-bold uppercase tracking-widest text-blue-200">MF LEGACY · RANKING HISTÓRICO</p><h2 className="mt-1 text-lg font-black">{indicator.name}</h2><p className="mt-1 text-xs text-blue-100">Arquetipo {role} · {ranked.length} temporadas válidas · {players} jugadores distintos · {indicator.penalty?"Menor valor es mejor":"Mayor valor es mejor"}</p></div>
     <button type="button" onClick={onClose} aria-label="Cerrar ranking" className="rounded-lg p-2 hover:bg-white/10"><X size={20}/></button>
    </div>
+   {explanation&&<div className="shrink-0 space-y-0.5 border-b border-slate-100 bg-slate-50/50 px-5 py-2.5 text-[11px] leading-relaxed text-slate-500">
+    <p><span className="font-semibold text-slate-600">Qué mide:</span> {explanation.description}</p>
+    <p><span className="font-semibold text-slate-600">Cálculo:</span> {explanation.formula}</p>
+   </div>}
    <div className="flex flex-wrap gap-3 border-b border-slate-200 p-3">
     <label className="flex min-w-[210px] flex-1 items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm"><Search size={16} className="text-slate-400"/><input autoFocus className="w-full outline-none" placeholder="Buscar jugador o temporada…" value={search} onChange={e=>setSearch(e.target.value)}/></label>
     <label className="flex items-center gap-2 text-xs font-semibold text-slate-600"><input type="checkbox" checked={unique} onChange={e=>setUnique(e.target.checked)}/>Mejor temporada por jugador</label>
