@@ -14,9 +14,9 @@ const CREDIT_KEY=["mf-legacy","trophies","credits"];
 const txt=v=>String(v??"").trim();
 const button="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 hover:border-blue-200 hover:text-[#003399] disabled:opacity-40";
 const primary="rounded-lg bg-[#003399] px-4 py-2 text-[11px] font-bold text-white hover:bg-[#002b82] disabled:opacity-40";
-export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]}){
+export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[],standalone=false}){
  const qc=useQueryClient();
- const [open,setOpen]=useState(false),[phase,setPhase]=useState("champions");
+ const [open,setOpen]=useState(standalone),[phase,setPhase]=useState("champions");
  const [teamId,setTeamId]=useState(""),[from,setFrom]=useState("2015/2016"),[to,setTo]=useState("2025/2026");
  const [research,setResearch]=useState(""),[entries,setEntries]=useState([]);
  const [generatedPrompt,setGeneratedPrompt]=useState("");
@@ -152,9 +152,9 @@ export default function TrophySyncWorkbench({catalog=[],trophies=[],honours=[]})
   finally{setSaving(false);}
  };
  return <section className="mb-4 rounded-2xl border border-blue-100 bg-white shadow-sm">
-  <button type="button" onClick={()=>setOpen(v=>!v)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+  <button type="button" disabled={standalone} onClick={()=>setOpen(v=>!v)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left disabled:cursor-default">
    <span className="flex items-center gap-2 text-xs font-black text-[#003399]"><ShieldCheck size={16}/> SINCRONIZACIÓN HISTÓRICA · TEAMS + PLAYERS</span>
-   {open?<ChevronUp size={16}/>:<ChevronDown size={16}/>}
+   {!standalone&&(open?<ChevronUp size={16}/>:<ChevronDown size={16}/>)}
   </button>
   {open&&<div className="space-y-4 border-t border-slate-100 p-4">
    <div className="flex flex-wrap gap-2">
