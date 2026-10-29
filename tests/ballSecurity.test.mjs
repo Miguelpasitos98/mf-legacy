@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {ballSecurityFromTotals,ballSecurityFromRecords,BALL_SECURITY_PRIOR_ACTIONS} from "../src/utils/ballSecurity.js";
+import {ballSecurityFromTotals,ballSecurityFromRecords,BALL_SECURITY_PRIOR_ACTIONS,BALL_SECURITY_MIN_MINUTES_COVERAGE_PCT} from "../src/utils/ballSecurity.js";
 import {buildHistoricalObservations} from "../src/utils/historicalPeers.js";
 
 const metric=(row,names)=>row.metrics.find(m=>names.includes(m.name))?.value??null;
@@ -69,7 +69,7 @@ test("Identical count across few actions is pulled closer to average than a larg
 
 test("Winger Ball Security is exposed to the historical Composite with non-partial data",()=>{
  const source=readFileSync(new URL("../src/utils/historicalPeers.js",import.meta.url),"utf8");
- assert.match(source,/values\.ball_security=\["W","CAM","FB","WB"\]\.includes\(role\)&&!security\.partial\?security\.value:null/);
+ assert.match(source,/values\.ball_security=\["W","CAM","FB","WB"\]\.includes\(role\)&&security\.eligible\?security\.value:null/);
  assert.match(source,/ballSecurityFromRecords\(records,metricTotal\)/);
 });
 
@@ -95,4 +95,75 @@ test("Winger with missing Dispossessed in a cup gets no full-season Ball Securit
  assert.equal(observation.values.ball_security,null);
  assert.equal(observation.ballSecurityDetail.partial,true);
  assert.equal(observation.ballSecurityDetail.excluded,1);
+});
+
+test("Phil Foden 2023/24: EFL Cup cameo without advanced stats cannot erase 99.59% real-minute coverage",()=>{
+ const player={id:"foden",name:"Phil Foden",position:"EI"};
+ const data=[
+  {competition:"Premier League",minutes:2895,dribbles:47,lost:49},
+  {competition:"Champions League",minutes:684,dribbles:11,lost:10},
+  {competition:"FA Cup",minutes:436,dribbles:2,lost:6},
+  {competition:"FIFA Club World Cup",minutes:146,dribbles:5,lost:1},
+  {competition:"EFL Cup",minutes:17,dribbles:null,lost:null}
+ ].map(x=>({player_id:player.id,season:"2023/2024",competition:x.competition,minutes:x.minutes,
+   metrics:[...(x.dribbles===null?[]:[{name:"Dribbles",value:x.dribbles}]),
+            ...(x.lost===null?[]:[{name:"Dispossessed",value:x.lost}])]}));
+ const [observation]=buildHistoricalObservations({players:[player],stats:data});
+ const audit=observation.ballSecurityDetail;
+ assert.equal(BALL_SECURITY_MIN_MINUTES_COVERAGE_PCT,98);
+ assert.equal(observation.role,"W");
+ assert.deepEqual(audit.inputs,{dribbles:65,dispossessed:66,actions:131});
+ assert.equal(audit.paired,4);
+ assert.equal(audit.excluded,1);
+ assert.equal(audit.coveredMinutes,4161);
+ assert.equal(audit.allMinutes,4178);
+ assert.equal(audit.coveragePct,99.59);
+ assert.equal(audit.partial,true);
+ assert.equal(audit.provisional,true);
+ assert.equal(audit.eligible,true);
+ assert.deepEqual(audit.missing,[{competition:"EFL Cup",season:"2023/2024",missing:["Dribbles","Dispossessed"],minutes:17}]);
+ assert.equal(observation.values.ball_security,ballSecurityFromTotals(65,66));
+ assert.equal(observation.values.ball_security,49.65);
+});
+test("Large missing competition must stay unavailable even if there are valid dribbles in another",()=>{
+ const players=[{id:"foden",name:"Foden",position:"EI"}];
+ const stats=[
+  {player_id:"foden",season:"2023/2024",competition:"Premier League",minutes:1800,metrics:[{name:"Dribbles",value:45},{name:"Dispossessed",value:20}]},
+  {player_id:"foden",season:"2023/2024",competition:"Champions League",minutes:300,metrics:[]}
+ ];
+ const [observation]=buildHistoricalObservations({players,stats});
+ assert.equal(observation.ballSecurityDetail.coveragePct,85.71);
+ assert.equal(observation.ballSecurityDetail.eligible,false);
+ assert.equal(observation.values.ball_security,null);
+});
+test("Missing official minutes cannot certify partial Ball Security even with PJ estimates",()=>{
+ const stats=[
+  {competition:"Premier League",minutes:1800,appearances:20,metrics:[{name:"Dribbles",value:45},{name:"Dispossessed",value:20}]},
+  {competition:"Cup",minutes:null,appearances:1,metrics:[]}
+ ];
+ const result=ballSecurityFromRecords(stats,metric);
+ assert.equal(result.coverageReliable,false);
+ assert.equal(result.coveragePct,null);
+ assert.equal(result.provisional,false);
+ assert.equal(result.eligible,false);
+});
+test("A complete source with missing minutes still calculates an observed Ball Security",()=>{
+ const result=ballSecurityFromRecords([
+  {competition:"LaLiga",minutes:null,metrics:[{name:"Dribbles",value:40},{name:"Dispossessed",value:15}]}
+ ],metric);
+ assert.equal(result.partial,false);
+ assert.equal(result.provisional,false);
+ assert.equal(result.eligible,true);
+ assert.equal(result.coveragePct,null);
+ assert.equal(result.value,ballSecurityFromTotals(40,15));
+});
+test("A real zero in the source counts as a paired competition; empty advanced stats do not",()=>{
+ const result=ballSecurityFromRecords([
+  {competition:"Copa",minutes:90,metrics:[{name:"Dribbles",value:0},{name:"Dispossessed",value:0}]},
+  {competition:"Liga",minutes:900,metrics:[{name:"Dribbles",value:20},{name:"Dispossessed",value:10}]}
+ ],metric);
+ assert.equal(result.paired,2);
+ assert.equal(result.excluded,0);
+ assert.equal(result.eligible,true);
+ assert.equal(result.value,ballSecurityFromTotals(20,10));
 });
