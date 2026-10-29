@@ -62,22 +62,32 @@ export default function PalmaresButton({ownerType,ownerId,compact=false,dark=fal
        <p className="text-sm font-semibold text-slate-600">Sin trofeos confirmados todavía</p>
        <p className="mt-1 text-[11px] text-slate-400">Los títulos se incorporan desde Trophies con evidencia y verificación de elegibilidad.</p>
       </div>}
-      {unique.length>0&&<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-       {unique.map(({h,type})=>{
-        const trophy=definitions.get(String(h.trophy_source_id))||{source_id:h.trophy_source_id,name:h.trophy_source_id};
-        return <div key={[h.id,type].join(":")} className="rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-3">
-         <div className="flex h-24 items-center justify-center">
-          <img loading="lazy" src={trophyImageUrl(trophy,imageQuery.data)}
-           alt="" className="max-h-20 max-w-full object-contain"
-           onError={e=>{e.currentTarget.style.display="none";e.currentTarget.nextElementSibling?.classList.remove("hidden");}}/>
-          <Trophy className="hidden text-slate-300" size={30}/>
-         </div>
-         <p className="line-clamp-2 min-h-[32px] text-center text-[11px] font-bold text-slate-800">{trophy.name}</p>
-         <p className="mt-1 text-center text-xs font-bold tabular-nums text-[#003399]">{h.season}</p>
-         <p className="mt-1 text-center text-[10px] text-slate-400">{type==="individual"?"Premio individual":type==="colectivo"?"Título colectivo":"Título del club"}</p>
-        </div>;
-       })}
-      </div>}
+      {unique.length>0&&(ownerType==="Team"?[["Títulos oficiales",unique]]:[
+        ["Títulos colectivos",unique.filter(x=>x.type==="colectivo")],
+        ["Premios individuales",unique.filter(x=>x.type==="individual")]
+      ]).filter(([,items])=>items.length>0).map(([section,items])=>
+       <section key={section}>
+        <div className="mb-2 flex items-center justify-between gap-3">
+         <h3 className="text-[11px] font-black uppercase tracking-[.12em] text-slate-700">{section}</h3>
+         <span className="text-[10px] text-slate-400">{items.length} títulos</span>
+        </div>
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3">
+         {items.map(({h,type})=>{
+          const trophy=definitions.get(String(h.trophy_source_id))||{source_id:h.trophy_source_id,name:h.trophy_source_id};
+          return <div key={[h.id,type].join(":")} className="w-[165px] shrink-0 snap-start rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-3">
+           <div className="flex h-24 items-center justify-center">
+            <img loading="lazy" src={trophyImageUrl(trophy,imageQuery.data)} alt="" className="max-h-20 max-w-full object-contain"
+             onError={e=>{e.currentTarget.style.display="none";e.currentTarget.nextElementSibling?.classList.remove("hidden");}}/>
+            <Trophy className="hidden text-slate-300" size={30}/>
+           </div>
+           <p className="line-clamp-2 min-h-[32px] text-center text-[11px] font-bold text-slate-800">{trophy.name}</p>
+           <p className="mt-1 text-center text-xs font-bold tabular-nums text-[#003399]">{h.season}</p>
+           <p className="mt-1 text-center text-[10px] text-slate-400">{type==="individual"?"Premio individual":type==="colectivo"?"Título colectivo":"Título del club"}</p>
+          </div>;
+         })}
+        </div>
+       </section>
+      )}
       {pending>0&&<p className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-800"><ShieldCheck size={14}/>{pending} adjudicaciones candidatas pendientes de revisión en Trophies (no cuentan como títulos).</p>}
       <p className="text-[10px] text-slate-400">Solo se muestran ediciones verificadas. Los títulos colectivos de jugadores requieren confirmar su elegibilidad.</p>
      </div>
