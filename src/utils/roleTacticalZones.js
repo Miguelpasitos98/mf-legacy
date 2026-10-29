@@ -95,7 +95,10 @@ export const tacticalRoleFamily=position=>{
  if(/^(GK|POR|G)$/.test(p))return "GK";
  if(/^(CB|DFC|DC|DCL|DCR|DCB|CENTREBACK)$/.test(p))return "CB";
  if(/^(ST|CF|DEL|STRIKER|DLC)$/.test(p))return "ST";
- if(/^(LB|RB|LI|LD|LWB|RWB|CAD|CAI|FB)$/.test(p))return "FB";
+ if(/^(LB|RB|LI|LD|DL|DR|WBL|WBR|LWB|RWB|CAD|CAI|FB)$/.test(p))return "FB";
+ // FM shorthand: D (R), D (L), WB (R), and compound D (R), WB (R).
+ if(/^(D|WB)\s*\(\s*[LR]{1,2}\s*\)/i.test(String(position||"")))return "FB";
+ if(/^(AM|M|W)\s*\(\s*[LR]{1,2}\s*\)/i.test(String(position||"")))return "W";
  if(/^(LW|RW|EI|ED|LM|RM|W)$/.test(p))return "W";
  if(/^(CAM|MPC|MP|AMC|MCO)$/.test(p))return "CAM";
  return "CM";
@@ -107,6 +110,22 @@ export const dominantFoot=foot=>{
 };
 const cleanRole=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/^[^\p{L}\p{N}]+/u,"").trim();
 const matches=(a,b)=>a.toLowerCase()===b.toLowerCase();
+// FM can store compound positions (e.g. "D (R), WB (R)") rather than RB.
+// Determine the side from *all* explicit position qualifiers; never invent
+// a flank for genuinely ambidirectional "D (RL)" or missing-side records.
+export const tacticalPositionSide=position=>{
+ const raw=String(position||"").trim().toUpperCase();
+ const flat=raw.replace(/[\s()]/g,"");
+ const qualifiers=[...raw.matchAll(/\(\s*([RL]{1,2})\s*\)/g)].map(m=>m[1]);
+ if(qualifiers.length){
+  const hasLeft=qualifiers.some(v=>v.includes("L")),hasRight=qualifiers.some(v=>v.includes("R"));
+  return hasLeft===hasRight?null:hasLeft?"left":"right";
+ }
+ const tokens=flat.split(/[,;/]+/);
+ const hasLeft=tokens.some(t=>LEFT.has(t)||["DL","WBL","AML","ML"].includes(t));
+ const hasRight=tokens.some(t=>RIGHT.has(t)||["DR","WBR","AMR","MR"].includes(t));
+ return hasLeft===hasRight?null:hasLeft?"left":"right";
+};
 export function tacticalZoneForRole(roleName,position,foot){
  const role=cleanRole(roleName);
  if(!role)return null;
@@ -119,8 +138,8 @@ export function tacticalZoneForRole(roleName,position,foot){
  const effectiveFamily=special?family:key.split(":")[0];
  const base=BASE[family]||BASE.CM;
  let zone=special?{cx:base.cx+signature.cx,cy:base.cy+signature.cy,rx:base.rx*signature.rx,ry:base.ry*signature.ry,rotation:signature.rotation}:{...signature};
- const pos=String(position||"").toUpperCase().trim().replace(/\s+/g,"");
- const explicitlyLeft=LEFT.has(pos),explicitlyRight=RIGHT.has(pos);
+ const side=tacticalPositionSide(position);
+ const explicitlyLeft=side==="left",explicitlyRight=side==="right";
  const flank=effectiveFamily==="FB"||effectiveFamily==="W";
  if(flank&&explicitlyRight)zone={...zone,cx:100-zone.cx,rotation:-zone.rotation};
  else if(flank&&!explicitlyLeft&&!explicitlyRight){
