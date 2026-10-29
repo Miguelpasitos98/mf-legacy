@@ -7,7 +7,7 @@ const dedupe=(rows,keyFor)=>{
  return (rows||[]).filter(item=>{const key=keyFor(item);if(seen.has(key))return false;seen.add(key);return true;});
 };
 export const trophyEditionRows=honours=>
- dedupe(honours,h=>[h.recipient_type,h.recipient_id,h.season].map(id).join("|"))
+ dedupe(honours,h=>[h.trophy_source_id||h.trophy_id,h.recipient_type,h.recipient_id,h.season].map(id).join("|"))
   .sort(seasonOrder);
 
 export function trophyDetailSummary(honours=[]){
