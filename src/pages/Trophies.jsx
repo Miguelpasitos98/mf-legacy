@@ -8,6 +8,7 @@ import {groupTrophies} from "@/utils/trophyGrouping";
 import TrophySyncWorkbench from "@/components/trophies/TrophySyncWorkbench";
 import TrophyDetailVisual from "@/components/trophies/TrophyDetailVisual";
 import TrophyArchiveOverview from "@/components/trophies/TrophyArchiveOverview";
+import TrophyReviewCenter from "@/components/trophies/TrophyReviewCenter";
 import {TROPHY_CSV_URL,TROPHY_TYPES,TROPHY_CATEGORIES,parseTrophyCatalog,mergeTrophyCatalog,trophyImageUrl,normaliseSearch} from "@/utils/trophyCatalog";
 
 const TROPHY_KEY=["mf-legacy","trophies","definitions"];
@@ -59,6 +60,7 @@ export default function Trophies(){
  const [catalogLoading,setCatalogLoading]=useState(true);
  const [query,setQuery]=useState("");
  const [section,setSection]=useState("catalog");
+ const [syncPhase,setSyncPhase]=useState("champions");
  const [tab,setTab]=useState("verified");
  const [type,setType]=useState("all");
  const [category,setCategory]=useState("all");
@@ -180,7 +182,7 @@ export default function Trophies(){
     <span><span className="block text-[9px] font-bold uppercase tracking-[.17em] text-slate-400">MF LEGACY / ARCHIVE</span><strong className="block text-lg font-black leading-tight">Trophies</strong></span>
    </div>
    <nav aria-label="Vistas de Trophies" className="flex shrink-0 items-center gap-1 rounded-xl bg-slate-100 p-1">
-    {[["catalog","Catálogo"],["palmares","Palmarés"],["sync","Sincronizar"]].map(([key,name])=>
+    {[["catalog","Catálogo"],["palmares","Palmarés"],["sync","Sincronizar"],["review","Revisar"]].map(([key,name])=>
      <button key={key} type="button" aria-current={section===key?"page":undefined}
       onClick={()=>setSection(key)}
       className={"rounded-lg px-4 py-2 text-[11px] font-bold transition "+(section===key?"bg-[#003399] text-white shadow-sm":"text-slate-500 hover:bg-white/70 hover:text-slate-900")}>{name}</button>)}
@@ -220,7 +222,7 @@ export default function Trophies(){
    {section==="palmares"&&<TrophyArchiveOverview
      honours={honours} catalog={all} imageManifest={imageManifest}
      onOpenTrophy={open}
-     onSync={()=>setSection("sync")}
+     onSync={phase=>{setSyncPhase(phase||"champions");setSection("sync");}}
    />}
    {section==="sync"&&<div className="mx-auto max-w-[1150px] space-y-4">
     <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 md:px-6">
@@ -228,8 +230,11 @@ export default function Trophies(){
      <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900">Sincronización histórica</h2>
      <p className="mt-2 max-w-[800px] text-xs leading-5 text-slate-500">Investiga campeones oficiales, importa las adjudicaciones verificables y enlázalas con los jugadores de STATS. Los registros sin evidencia se mantienen pendientes, nunca se confirman automáticamente.</p>
     </div>
-    <TrophySyncWorkbench standalone catalog={catalog} trophies={rows(trophyQuery.data)} honours={honours}/>
+    <TrophySyncWorkbench key={syncPhase} standalone initialPhase={syncPhase} catalog={catalog} trophies={rows(trophyQuery.data)} honours={honours}/>
    </div>}
+   {section==="review"&&<TrophyReviewCenter honours={honours} honoursLoading={honourQuery.isLoading} honoursError={honourQuery.isError}
+    catalog={all} imageManifest={imageManifest} onOpenTrophy={open}
+    onSync={()=>{setSyncPhase("players");setSection("sync");}}/>}
   </div>
 
   {draft&&<div className="fixed inset-0 z-[9997] flex items-center justify-center bg-slate-950/40 p-3 backdrop-blur-[2px]" onMouseDown={e=>{if(e.target===e.currentTarget)close();}}>
