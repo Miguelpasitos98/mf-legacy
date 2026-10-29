@@ -133,6 +133,10 @@ export default function ImportCenter(){
   const canStartHistory=coordinator==="ready"&&Boolean(player)&&linksState==="ready"&&(linked||links.length===0&&/^[0-9]{1,15}$/.test(availableFotmobId))&&!active&&selectedSources.length>0&&!busy;
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const waitingForWorker=jobs.filter(queuedTooLong);
+  // Queued jobs can be older than two minutes while another job is actively
+  // sending batches. This is a normal backlog, not evidence of an offline PC.
+  const currentWorkerJob=jobs.find(j=>j.status==="running"&&
+    (!j.lease_expires_at||Date.parse(j.lease_expires_at)>Date.now()));
   const groupedJobs=groupImportJobs(jobs);
   const visibleGroups=visibleImportGroups(groupedJobs,showJobHistory);
   const chainProgress=importProgressSummary(jobs,selectedJobData);
@@ -288,7 +292,11 @@ export default function ImportCenter(){
           <p className="mt-1 text-xs text-slate-500">{groupedJobs.length} jugadores · {jobs.length} trabajos recientes, agrupados por jugador</p></div>
         {groupedJobs.length>8&&<button type="button" onClick={()=>setShowJobHistory(v=>!v)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#003399]">{showJobHistory?"Ocultar historial antiguo":"Ver historial completo"}</button>}
       </div>
-      {waitingForWorker.length>0&&<p role="status" className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{waitingForWorker.length} trabajos esperan al trabajador local. Mantén abierto INICIAR_TRABAJADOR_V3.bat; no es necesario repetir la importación.</p>}
+      {waitingForWorker.length>0&&<p role="status" className={"mb-3 rounded-lg px-3 py-2 text-xs "+(currentWorkerJob?"bg-blue-50 text-blue-900":"bg-amber-50 text-amber-900")}>
+        {currentWorkerJob
+          ?<><strong>{jobs.filter(j=>j.status==="queued").length} trabajos en cola.</strong> El trabajador está procesando {currentWorkerJob.player_name||"otro jugador"}. Continuará con los demás por orden; no repitas las solicitudes.</>
+          :<><strong>{jobs.filter(j=>j.status==="queued").length} trabajos en cola.</strong> No hay ninguna extracción activa registrada. Comprueba que INICIAR_TRABAJADOR_V3.bat siga abierto y que tenga conexión; no es necesario repetir la importación.</>}
+      </p>}
       {!loaded?<p className="text-sm text-slate-500">Cargando…</p>:!jobs.length?<p className="text-sm text-slate-500">No hay trabajos registrados.</p>:
       <div className="space-y-2">
         {visibleGroups.map(g=>{
@@ -298,7 +306,7 @@ export default function ImportCenter(){
           const scope=importProgressSummary(jobs,job);
           const technical=Boolean(technicalHistory[g.id]);
           const waiting=g.items.some(j=>queuedTooLong(j));
-          const currentStatus=g.active?(waiting&&job.status==="queued"?"Esperando al PC":STATUS[job.status]||job.status)
+          const currentStatus=g.active?(waiting&&job.status==="queued"?(currentWorkerJob?"En cola · trabajador ocupado":"En cola · comprobar trabajador"):STATUS[job.status]||job.status)
             :g.errors&&!g.reviews?"Revisar error":g.reviews?"Hay valores por revisar":"Finalizado";
           return <div key={g.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <div className="flex flex-wrap items-center gap-3 px-3 py-3">
@@ -392,7 +400,9 @@ export default function ImportCenter(){
         <p className="mt-2 text-xs text-blue-800">El 100 % de «Progreso» indica que terminó un bloque de importación, no que FotMob ofrezca todos los indicadores de toda la carrera. STATS conserva los datos validados.</p>
       </div>}
       {missingFotmobCaches(selectedJobData)>0&&<div className="my-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950"><strong>Extracción FotMob incompleta:</strong> quedan {missingFotmobCaches(selectedJobData)} entradas históricas sin recuperar. Las peticiones anteriores ya alcanzaron el límite por trabajo. <button type="button" disabled={busy||coordinator!=="ready"||ACTIVE.includes(selectedJobData.status)} onClick={()=>operate("retry-fotmob",{job_id:selectedJobData.id,player_id:selectedJobData.player_id})} className="ml-2 font-semibold text-[#003399] underline disabled:opacity-40">Recuperar historial de FotMob</button><p className="mt-1 text-xs">El trabajador del PC recuperará entradas por bloques limitados, con intervalos y un máximo preventivo por solicitud; se detiene si FotMob restringe las consultas. Conserva las temporadas existentes. Las entradas que la fuente no proporcione seguirán sin estadísticas.</p></div>}
-      {queuedTooLong(selectedJobData)&&<p role="status" className="my-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">Este trabajo aún no ha comenzado: ningún trabajador de Studio lo ha recogido. Inicia o comprueba el trabajador Python en tu PC; esta solicitud seguirá en cola y no es necesario repetirla.</p>}
+      {queuedTooLong(selectedJobData)&&<p role="status" className="my-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+        {currentWorkerJob?<>Este trabajo sigue en cola porque Studio está procesando {currentWorkerJob.player_name||"otro jugador"}. Se recogerá cuando termine el trabajo actual.</>:<>Este trabajo continúa en cola y no aparece ninguna extracción activa. Comprueba el trabajador Python del PC y su conexión.</>} No lo solicites de nuevo.
+      </p>}
       <p className="text-xs text-slate-500 my-2">Para crear una primera temporada, comprueba la fuente y aprueba el lote de esa competición. Para valores individuales FIFA/mercado conserva la revisión específica. Los datos anteriores nunca se sobrescriben.</p>
       {selectedJobData.status==="completed"&&candidateRows.length>0&&<p className="text-sm font-semibold text-emerald-700">Revisión completada · {candidateRows.filter(c=>c.review_status==="applied").length} candidatos aplicados.</p>}
       <p className="text-xs text-slate-500">Diagnóstico de extracción anterior a la revisión:</p>
