@@ -244,3 +244,49 @@ test("GK Save percentage prefers real minute weights, rejects missing and preser
  const [missing]=buildHistoricalObservations({players:[keeper],stats:[{...stats[0],metrics:[]}]});
  assert.equal(missing.values.save_pct,null);
 });
+
+test("Each indicator uses only its competitions with valid inputs, independent of missing data for other metrics",()=>{
+ const players=[{id:"w",name:"Extremo",position:"RW"}];
+ const stats=[
+  {player_id:"w",season:"2024/2025",competition:"Liga",minutes:900,appearances:10,metrics:[
+   {name:"Dribbles",value:30},{name:"Dispossessed",value:10},{name:"Shots on target",value:15}
+  ]},
+  {player_id:"w",season:"2024/2025",competition:"Champions League",minutes:450,appearances:5,metrics:[
+   {name:"xA",value:3},{name:"Dribbles",value:10},{name:"Dispossessed",value:5}
+  ]},
+  {player_id:"w",season:"2024/2025",competition:"Cup",minutes:90,appearances:1,metrics:[{name:"Assists",value:1}]}
+ ];
+ const [observation]=buildHistoricalObservations({players,stats});
+ assert.equal(observation.values.successful_dribbles_p90,40*90/1350);
+ assert.equal(observation.values.shots_on_target_p90,15*90/900);
+ assert.equal(observation.values.xa_p90,3*90/450);
+ assert.equal(observation.values.ball_security,Math.round((40+5)/(40+15+10)*10000)/100);
+ assert.equal(observation.ballSecurityDetail.excluded,1);
+ assert.equal(observation.ballSecurityDetail.eligible,true);
+});
+test("xA rate-only can contribute alongside other xA totals without all-competition completeness",()=>{
+ const players=[{id:"w",name:"Extremo",position:"ED"}];
+ const stats=[
+  {player_id:"w",season:"2024/2025",competition:"Liga",minutes:900,appearances:10,metrics:[{name:"xA",value:3}]},
+  {player_id:"w",season:"2024/2025",competition:"Champions League",minutes:null,appearances:5,metrics:[{name:"xA",per90:0.45,value:null}]},
+  {player_id:"w",season:"2024/2025",competition:"Copa",minutes:100,metrics:[]}
+ ];
+ const [observation]=buildHistoricalObservations({players,stats});
+ assert.ok(Math.abs(observation.values.xa_p90-(3+0.45*450/90)*90/1350)<1e-10);
+ assert.equal(observation.xaRateEstimated,false); // no source total for the estimated-only row
+});
+test("PAdj mixes valid provider totals with reconstructed competition data, no double counting",()=>{
+ const players=[{id:"c",name:"Medio",position:"CM"}];
+ const stats=[
+  {player_id:"c",season:"2024/2025",competition:"Liga",team_id:"club",minutes:900,metrics:[{name:"PAdj defensive actions",value:80}]},
+  {player_id:"c",season:"2024/2025",competition:"Champions League",team_id:"club",minutes:450,metrics:[{name:"Defensive actions",value:15}]},
+  {player_id:"c",season:"2024/2025",competition:"Copa",team_id:"club",minutes:120,metrics:[]}
+ ];
+ const possessions=[{team_id:"club",season:"2024/2025",competition:"Champions League",team_possession_pct:60}];
+ const [observation]=buildHistoricalObservations({players,stats,teamPossessions:possessions});
+ const expected=(80+15*50/(100-60))*90/1350;
+ assert.ok(Math.abs(observation.values.def_actions_poss_adj_p90-expected)<1e-10);
+ assert.equal(observation.pAdjCoverage.covered,2);
+ assert.equal(observation.pAdjCoverage.total,3);
+ assert.equal(observation.pAdjMethod,"mixed_provider_experimental");
+});
