@@ -31,6 +31,14 @@ test("Reconoce siglas de clubes oficiales sin eliminar palabras distintivas",()=
  assert.equal(suggestPossessionTeam(group("Manchester United"),catalog).id,"united");
  assert.equal(suggestPossessionTeam(group("FC Barcelona"),catalog).id,"barca");
 });
+test("El auditor no considera a AS Monaco FC ausente cuando ya existen registros Monaco",()=>{
+ const snapshot=buildPossessionAudit([
+  {id:"one",team_id:"",team_name:"Monaco",season:"2023/2024",competition:"Ligue 1",team_possession_pct:54}
+ ],catalog);
+ assert.equal(snapshot.pending,1);
+ assert.equal(snapshot.teamsWithoutRecords.some(t=>t.id==="monaco"),false);
+ assert.equal(snapshot.teamsWithoutRecords.some(t=>t.id==="monaco-b"),true);
+});
 test("Filiales y clubes diferentes no se vinculan por substrings",()=>{
  assert.equal(recommendPossessionTeam(group("AS Monaco FC B"),catalog).team.id,"monaco-b");
  assert.equal(recommendPossessionTeam(group("Monaco B"),catalog).confidence,"high");
