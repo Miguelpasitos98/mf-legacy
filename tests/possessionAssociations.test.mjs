@@ -39,6 +39,7 @@ test("Una asociación manual cambia solo identidad y alias en todas las temporad
  assert.equal(matchingPossessionRecord(linked,repeated)?.id,"b");
  const get=createPossessionLookup(linked,teams);
  assert.equal(get({team_id:"marseille",season:"2024/2025",competition:"Ligue 1"}),63.6);
+ assert.equal(get({team_name:"Marseille",season:"2024/2025",competition:"Ligue 1"}),63.6);
 });
 test("No reemplaza asociaciones preexistentes incompatibles ni crea duplicados",()=>{
  const conflicted=[...possessions,{...possessions[0],id:"d",team_id:"nice",team_name:"Marseille",season:"2022/2023"}];
