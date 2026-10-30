@@ -36,6 +36,7 @@ export function validatePossessionRow(row,teamList=[],{allowUnlinked=false}={}){
  const idFotmob=str(row.fotmob_team_id||team?.fotmob_id);
  if(row.fotmob_team_id&&team?.fotmob_id&&str(team.fotmob_id)!==str(row.fotmob_team_id))throw Error("ID FotMob incompatible con el equipo.");
  return {team_id:team?str(team.id):"",team_name:team?str(team.name):rawName,
+  ...(str(row.source_team_name)?{source_team_name:str(row.source_team_name)}:{}),
   ...(idFotmob?{fotmob_team_id:idFotmob}:{}),season,competition,
   team_possession_pct:pct,source:str(row.source)||"Manual",source_url:url,
   ...(mc!==null?{matches_covered:mc}:{}),
@@ -66,7 +67,7 @@ export function matchingPossessionRecord(existingRows=[],row){
   canonicalHistoricalCompetition(item.competition)===canonicalHistoricalCompetition(row.competition) &&
   normalizeSeason(item.season)===normalizeSeason(row.season) &&
   ((row.team_id&&item.team_id&&str(row.team_id)===str(item.team_id)) ||
-   (name&&canonicalHistoricalClub(item.team_name)===name)));
+   (name&&[item.team_name,item.source_team_name].some(label=>canonicalHistoricalClub(label)===name))));
  if(matching.length>1)throw Error("Ya existen varios registros de esa combinación. Revisa duplicados antes de guardar.");
  return matching[0]||null;
 }
