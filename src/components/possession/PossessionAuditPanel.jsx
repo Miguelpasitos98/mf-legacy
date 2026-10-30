@@ -54,7 +54,6 @@ export default function PossessionAuditPanel({rows=[],teams=[],loading=false,foc
  const selectedPlans=allSuggestions.filter(p=>p.match.confidence==="high"?
   reviewSelection[p.sourceKey]!==false:reviewSelection[p.sourceKey]===true);
  const selectedRecords=selectedPlans.reduce((count,plan)=>count+plan.updates.length,0);
- const safeRecords=safePlans.reduce((count,plan)=>count+plan.updates.length,0);
  const visible=useMemo(()=>audit.groups.filter(group=>{
   const statusMatch=filter==="all"||group.status===filter;
   const text=[group.name,...group.names,...group.seasons,...group.competitions].join(" ");
