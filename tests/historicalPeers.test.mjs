@@ -21,7 +21,48 @@ test("traduce las posiciones reales de MF LEGACY sin equiparar delantero, extrem
   assert.equal(historicalRole("DFC"),"CB");
   assert.equal(historicalRole("CDM"),"DM");
   assert.equal(historicalRole("GK"),"GK");
+  for(const code of ["LB","RB","LI","LD","LWB","RWB","WB","WB (R)","WB (L)","CRI","CRD","CAI","CAD"])
+   assert.equal(historicalRole(code),"FB",code);
   assert.equal(historicalRole("xyz"),null);
+});
+test("laterales y carrileros comparten percentiles y ponderación FB sin cambiar su posición histórica",()=>{
+ const candidates=[
+  {id:"left",name:"Lateral",position:"LI"},
+  {id:"right",name:"Carrilero",position:"CRD"},
+  {id:"fifa",name:"Carrilero FIFA",position:"LWB"},
+  {id:"other",name:"Mediocentro",position:"CM"}
+ ];
+ const data=[
+  {player_id:"left",season:"2024/2025",competition:"Premier League",minutes:900,metrics:[{name:"xA",value:2}]},
+  {player_id:"right",season:"2024/2025",competition:"Bundesliga",minutes:900,metrics:[{name:"xA",value:3}]},
+  {player_id:"fifa",season:"2024/2025",competition:"LaLiga",minutes:900,metrics:[{name:"xA",value:4}]},
+  {player_id:"other",season:"2024/2025",competition:"Serie A",minutes:900,metrics:[{name:"xA",value:100}]}
+ ];
+ const observations=buildHistoricalObservations({players:candidates,stats:data});
+ assert.equal(observations.length,4);
+ for(const id of ["left","right","fifa"]){
+  const item=observations.find(o=>o.playerId===id);
+  assert.equal(item.role,"FB");
+  assert.equal(item.position,candidates.find(p=>p.id===id).position);
+  const comparison=compareHistoricalObservation(item,observations);
+  assert.equal(comparison.role,"FB");
+  assert.equal(comparison.population,3);
+  assert.equal(comparison.players,3);
+  assert.equal(comparison.rows.find(r=>r.key==="xa_p90").nPlayers,3);
+  assert.equal(comparison.rows.find(r=>r.key==="xa_p90").weight,14);
+ }
+ const highest=compareHistoricalObservation(observations.find(o=>o.playerId==="fifa"),observations);
+ assert.equal(highest.rows.find(r=>r.key==="xa_p90").percentile,100);
+ assert.equal(compareHistoricalObservation(observations.find(o=>o.playerId==="other"),observations).role,"CM");
+});
+test("cachés con grupos WB antiguos también participan en las comparaciones de FB",()=>{
+ const old={playerId:"old",playerName:"Histórico",season:"2022/2023",role:"WB",position:"RWB",values:{xa_p90:0.2}};
+ const newOne={playerId:"new",playerName:"Actual",season:"2023/2024",role:"FB",position:"RB",values:{xa_p90:0.4}};
+ const comparison=compareHistoricalObservation(old,[old,newOne]);
+ assert.equal(comparison.role,"FB");
+ assert.equal(comparison.population,2);
+ assert.equal(comparison.rows.find(r=>r.key==="xa_p90").percentile,0);
+ assert.equal(comparison.rows.find(r=>r.key==="xa_p90").nPlayers,2);
 });
 test("dos competiciones de la misma temporada forman una observación con minutos alineados",()=>{
   const stats=[
