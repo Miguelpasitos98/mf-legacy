@@ -648,7 +648,7 @@ const getBestPosition = (ratings) => {
   return `${valid[0].label} · ${valid[0].value}/20`;
 };
 
-const PlayerStatCard = ({ background, grow = 1, children, compact = false, className = "" }) => {
+const PlayerStatCard = ({ background, grow = 1, children = null, compact = false, className = "" }) => {
   return (
     <div
       aria-hidden={children ? undefined : "true"}
