@@ -1,9 +1,10 @@
 import {advancedTotals} from "./statsAdvanced.js";
 // MF LEGACY — historical peer comparison, independent of FotMob percentile columns.
 // This module never writes data, and never uses external provider percentiles.
-// Population: one season per player, all club competitions, same current-position archetype.
+// Population: one season per player, all club competitions, same season-specific
+// comparison archetype. LWB/RWB/CRI/CRD share FB peers without losing original positions.
 import { groupStatRows, nationalCompetition, minutesForDisplay, statNum } from "./statsViews.js";
-import { metricName, WEIGHTS_BY_ROLE, calculateCompositeMF } from "./compositeEngine.js";
+import { metricName, WEIGHTS_BY_ROLE, calculateCompositeMF, comparisonGroupRole } from "./compositeEngine.js";
 import {ballSecurityFromRecords} from "./ballSecurity.js";
 import {createPossessionLookup,possessionAdjustedDefActionsDetail} from "./teamPossession.js";
 import {calculateExperimentalFallback} from "./experimentalFallback.js";
@@ -19,15 +20,14 @@ const ROLE_POSITIONS = {
   ST: new Set(["ST","STC","CF","DC","DEL","STRIKER"]),
   W: new Set(["W","RW","LW","RM","LM","ED","EI","AMR","AML","MIR","MIL"]),
   CAM: new Set(["CAM","AM","AMC","MPC","MP","MCO"]),
-  CM: new Set(["CM","MC","MCI","MCD","MCR","CRI","CRD"]),
+  CM: new Set(["CM","MC","MCI","MCD","MCR"]),
   DM: new Set(["DM","DMC","CDM","MCDDEF","MDF"]),
-  WB: new Set(["WB","RWB","LWB","CAD","CAI"]),
-  FB: new Set(["FB","RB","LB","DR","DL","LD","LI"]),
+  FB: new Set(["FB","RB","LB","DR","DL","LD","LI","WB","RWB","LWB","WBR","WBL","CAD","CAI","CRD","CRI"]),
   CB: new Set(["CB","DFC","DCB","DCL","DCR"]),
   GK: new Set(["GK","POR","G"]),
 };
 export function historicalRole(position) {
-  const code=str(position).toUpperCase().replace(/\s+/g,"");
+  const code=str(position).toUpperCase().replace(/[^A-Z0-9]/g,"");
   for (const [role,codes] of Object.entries(ROLE_POSITIONS)) if (codes.has(code)) return role;
   return null;
 }
@@ -318,7 +318,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     // indicators keep their own per-competition source requirements; no
     // missing inputs are imputed as zero or used in a denominator.
     const security=ballSecurityFromRecords(records,metricTotal);
-    values.ball_security=["W","CAM","FB","WB"].includes(role)&&security.eligible?security.value:null;
+    values.ball_security=["W","CAM","FB"].includes(role)&&security.eligible?security.value:null;
     // Never fall back to seasonless FC/Transfermarkt or snapshot CraftedFC fields.
     values.fc27_ovr=valuation?num(valuation.fifa_fc_overall):null;
     values.market_value=valuation?num(valuation.transfermarkt_value_eur):null;
@@ -326,7 +326,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
       key,playerId:str(player.id),playerName:player.name||records[0].player_name||"",
       season:str(records[0].season),role,values,
       savePctDetail:role==="GK"?savePctDetail:null,
-      ballSecurityDetail:["W","CAM","FB","WB"].includes(role)?security:null,
+      ballSecurityDetail:["W","CAM","FB"].includes(role)?security:null,
       playShareEstimated:playShare.estimated,playShareCoverage:{covered:playShare.covered,total:playShare.total},
       xaRateEstimated:typeof xaRateEstimated!=="undefined"&&xaRateEstimated,
       position:position.position,positionSource:position.source,positionMixed:Boolean(position.mixed),
@@ -351,8 +351,8 @@ export function historicalPercentile(value, peers) {
 }
 export function compareHistoricalObservation(observation,observations,minimum=10){
   if(!observation)return null;
-  const role=observation.role;
-  const peers=observations.filter(r=>r.role===role);
+  const role=comparisonGroupRole(observation.role);
+  const peers=observations.filter(r=>comparisonGroupRole(r.role)===role);
   const keys=WEIGHTS_BY_ROLE[role] ?
     [...Object.keys(WEIGHTS_BY_ROLE[role]),...(role==="CB"?["accurate_passes_p90"]:[]),"rating"] :
     [...new Set(peers.flatMap(p=>Object.keys(p.values)))];

@@ -12,3 +12,16 @@ test('indicador penalizado ordena menor valor primero y excluye ausentes',()=>{
  assert.deepEqual(result.map(r=>r.playerId),['b','a']);
  assert.deepEqual(result.map(r=>r.rank),[1,2]);
 });
+
+test('los rankings de indicadores FB incluyen temporadas antiguas WB y los laterales',()=>{
+ const observations=[
+  o('lateral','2024/2025','FB',1),
+  o('carrilero','2023/2024','WB',2),
+  o('otro','2022/2023','CM',50)
+ ];
+ const result=indicatorHistoricalRanking(observations,'FB','x');
+ assert.deepEqual(result.map(row=>row.playerId),['carrilero','lateral']);
+ assert.deepEqual(result.map(row=>row.rank),[1,2]);
+ assert.equal(result[0].percentile,100);
+ assert.equal(indicatorHistoricalRanking(observations,'WB','x').length,2);
+});

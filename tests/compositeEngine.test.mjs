@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {WEIGHTS_BY_ROLE, COMPOSITE_ROLES,calculateCompositeMF,metricPercentiles,normalizeRole,analyzeCompositeSensitivity} from '../src/utils/compositeEngine.js';
+import {WEIGHTS_BY_ROLE, COMPOSITE_ROLES,calculateCompositeMF,metricPercentiles,normalizeRole,comparisonGroupRole,analyzeCompositeSensitivity} from '../src/utils/compositeEngine.js';
 
-test('los ocho arquetipos conservan sus pesos visibles y un resto positivo para rating',()=>{
- assert.equal(COMPOSITE_ROLES.length,8);
+test('los pesos históricos se conservan, pero WB ya no es grupo de comparación separado',()=>{
+ assert.equal(COMPOSITE_ROLES.length,7);
+ assert.ok(COMPOSITE_ROLES.includes("FB"));
+ assert.ok(!COMPOSITE_ROLES.includes("WB"));
  const hidden={ST:19,W:19,CM:18,CAM:21,GK:20,CB:28,FB:23,WB:23};
  for(const [role,weights] of Object.entries(WEIGHTS_BY_ROLE)){
    assert.equal(100-Object.values(weights).reduce((x,y)=>x+y,0),hidden[role]);
@@ -40,9 +42,24 @@ test('no se asigna al DM el baremo de CM sin confirmación',()=>{
  assert.equal(calculateCompositeMF({metrics:[]},'DM').score,null);
  assert.equal(normalizeRole('RW'),'W');
  assert.equal(normalizeRole('RB'),'FB');
- assert.equal(normalizeRole('LWB'),'WB');
+ assert.equal(normalizeRole('LWB'),'FB');
+ for(const p of ["RWB","WB","WBL","WBR","CRD","CRI","CAD","CAI","WB (R)","WB (L)"])
+  assert.equal(normalizeRole(p),"FB",p);
+ assert.equal(comparisonGroupRole("WB"),"FB");
 });
 
+test('un carrilero se valora con exactamente los mismos pesos del lateral',()=>{
+ const percentiles={xa_p90:82,xg_chain_p90:75,xg_buildup_p90:60,ground_duels_won_pct:67,
+  fc27_ovr:77,def_actions_poss_adj_p90:54,market_value:65,npxg_p90:30,
+  play_share:80,aerial_duels_won_pct:50,ball_security:90,successful_dribbles_p90:55,dribbled_past_p90:20,rating:70};
+ const fullback=calculateCompositeMF({metrics:[]},'LB',percentiles);
+ for(const position of ['LWB','RWB','CRI','CRD','WB']){
+  const wingback=calculateCompositeMF({metrics:[]},position,percentiles);
+  assert.equal(wingback.role,'FB',position);
+  assert.equal(wingback.score,fullback.score,position);
+  assert.deepEqual(wingback.rows.map(row=>row.weight),fullback.rows.map(row=>row.weight),position);
+ }
+});
 test('GK redistribuye xG Buildup ausente 60/40 entre los dos pases disponibles',()=>{
  const input={goals_prevented_p90:8,fc27_ovr:95,accurate_long_balls_p90:2,accurate_passes_p90:59,market_value:81,play_share:35,save_pct:69,rating:50};
  const result=calculateCompositeMF({metrics:[]},'GK',input);

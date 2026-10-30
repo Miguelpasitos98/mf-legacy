@@ -11,14 +11,29 @@ export const WEIGHTS_BY_ROLE = {
   GK:{goals_prevented_p90:45,fc27_ovr:8,xg_buildup_p90:8,accurate_long_balls_p90:6,market_value:6,play_share:4,save_pct:2,accurate_passes_p90:1},
   CB:{xg_buildup_p90:18,aerial_duels_won_pct:10,def_actions_poss_adj_p90:8,fc27_ovr:8,ground_duels_won_pct:6,market_value:6,npxg_p90:5,play_share:5,xg_chain_p90:5,xa_p90:3,accurate_long_balls_p90:2,dispossessed_p90:-2,dribbled_past_p90:-2},
   FB:{xa_p90:14,xg_buildup_p90:10,xg_chain_p90:9,ground_duels_won_pct:8,fc27_ovr:8,def_actions_poss_adj_p90:6,market_value:6,npxg_p90:5,play_share:5,aerial_duels_won_pct:3,ball_security:3,successful_dribbles_p90:2,dribbled_past_p90:-2},
+  // Legacy WB reference retained for historical traceability; all new
+  // fullback/wingback comparisons now use the shared FB weights.
   WB:{xa_p90:14,xg_chain_p90:11,ground_duels_won_pct:8,fc27_ovr:8,xg_buildup_p90:7,npxg_p90:6,def_actions_poss_adj_p90:6,market_value:6,play_share:5,aerial_duels_won_pct:3,ball_security:3,successful_dribbles_p90:2,dribbled_past_p90:-2}
 };
-const POSITION_TO_ROLE={ST:"ST",CF:"ST",RW:"W",LW:"W",W:"W",RM:"W",LM:"W",MC:"CM",CM:"CM",CAM:"CAM",AM:"CAM",AMC:"CAM",GK:"GK",CB:"CB",DC:"CB",RB:"FB",LB:"FB",DR:"FB",DL:"FB",FB:"FB",RWB:"WB",LWB:"WB",WB:"WB"};
-export const COMPOSITE_ROLES=Object.keys(WEIGHTS_BY_ROLE);
+const POSITION_TO_ROLE={
+  ST:"ST",CF:"ST",RW:"W",LW:"W",W:"W",RM:"W",LM:"W",
+  MC:"CM",CM:"CM",CAM:"CAM",AM:"CAM",AMC:"CAM",
+  GK:"GK",CB:"CB",DC:"CB",
+  RB:"FB",LB:"FB",DR:"FB",DL:"FB",LD:"FB",LI:"FB",FB:"FB",
+  // Keep a wingback's historical position (e.g. RWB/LWB/CRD/CRI)
+  // but compare and score it in the same archetype as RB/LB.
+  RWB:"FB",LWB:"FB",WBR:"FB",WBL:"FB",WB:"FB",
+  CRD:"FB",CRI:"FB",CAD:"FB",CAI:"FB"
+};
+// WB remains a legacy weight reference, not a separate active peer group.
+export const COMPOSITE_ROLES=Object.keys(WEIGHTS_BY_ROLE).filter(role=>role!=="WB");
 export const normalizeRole=position=>{
-  const v=String(position??"").trim().toUpperCase();
+  const v=String(position??"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
   return POSITION_TO_ROLE[v]||null; // Do not silently map DM or unknown positions to CM.
 };
+// In-memory snapshots generated before this change may still contain WB.
+// Fold those peers into FB without rewriting stored player positions.
+export const comparisonGroupRole=role=>normalizeRole(role)||String(role??"").trim().toUpperCase()||null;
 export const metricName=normalizedMetricKey;
 const METRIC_LABELS={
  npxg_p90:["xG excl. penalty","Non-penalty xG","np xG","npxG"],
