@@ -44,6 +44,9 @@ function rateNames(sourceName,targetName){
   const meaningful=common.some(t=>t.length>=4&&!["club","real","city","united","sporting","athletic"].includes(t));
   if(meaningful)return {score:84,confidence:"review",reason:"Nombre abreviado dentro del oficial"};
  }
+ const isSubstring=Math.min(from.normal.length,to.normal.length)>=4&&(from.normal.includes(to.normal)||to.normal.includes(from.normal));
+ // Avoid an expensive edit-distance calculation for unrelated catalog clubs.
+ if(!common.length&&!isSubstring)return null;
  const similarity=1-levenshtein(from.normal,to.normal)/Math.max(from.normal.length,to.normal.length);
  if(similarity>=0.84&&common.length)
   return {score:Math.round(72+Math.min(10,(similarity-0.84)*65)),confidence:"review",reason:"Nombre muy parecido"};
