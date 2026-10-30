@@ -13,7 +13,7 @@ export function buildPossessionAudit(rows=[],teams=[]){
  let linked=0,pending=0,invalid=0;
  for(const row of rows){
   const source=possessionSourceName(row);
-  const key=possessionSourceKey(row)||"id:"+sourceId(row)||"sin-nombre";
+  const key=possessionSourceKey(row)||(sourceId(row)?"id:"+sourceId(row):"sin-nombre");
   if(!groups.has(key))groups.set(key,{key,name:source||"Sin nombre",records:[],seasons:new Set(),competitions:new Set(),names:new Set(),fotmobIds:new Set(),linkedIds:new Set()});
   const group=groups.get(key);
   group.records.push(row);group.seasons.add(normalizeSeason(row.season));
@@ -34,8 +34,11 @@ export function buildPossessionAudit(rows=[],teams=[]){
    competitionCount:g.competitions.size,pending:missing,invalid:invalidCount,
    duplicates,conflict,status:conflict?"conflict":missing?"pending":"linked"};
  }).sort((a,b)=>(a.status==="conflict"?0:a.status==="pending"?1:2)-(b.status==="conflict"?0:b.status==="pending"?1:2)||b.pending-a.pending||a.name.localeCompare(b.name,"es"));
+ const knownIds=new Set(rows.map(row=>str(row.team_id)).filter(id=>byId.has(id)));
+ const knownNames=new Set(auditGroups.map(group=>group.key));
+ const teamsWithoutRecords=teams.filter(t=>t?.id&&!knownIds.has(str(t.id))&&!knownNames.has(canonicalHistoricalClub(t.name)));
  return {groups:auditGroups,records:rows.length,linked,pending,invalid,conflicts:auditGroups.filter(g=>g.conflict).length,
-  seasons:new Set(rows.map(r=>normalizeSeason(r.season))).size};
+  teamsWithoutRecords,seasons:new Set(rows.map(r=>normalizeSeason(r.season))).size};
 }
 
 export function suggestPossessionTeam(group,teams=[]){
