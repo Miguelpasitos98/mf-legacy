@@ -4,7 +4,7 @@ import {normalizedMetricKey} from "./metricKey.js";
 // (2026-10-14). Only one example per archetype: never claim universal official weights.
 // "Rating" is the unshown remaining weight inferred from 100 - sum(shown weights).
 export const WEIGHTS_BY_ROLE = {
-  ST:{npxg_p90:13,xg_chain_p90:10,fc27_ovr:8,xa_p90:8,xgot_p90:8,market_value:6,finishing_xgot_minus_npxg:5,play_share:5,xg_buildup_p90:5,shots_on_target_p90:4,big_chances_created_p90:3,possession_won_final_3rd_p90:3,aerial_duels_won_pct:2,accurate_long_balls_p90:1,ground_duels_won_pct:1,successful_dribbles_p90:1,dispossessed_p90:-1,dribbled_past_p90:-1},
+  ST:{xg_p90:0,npxg_p90:13,xg_chain_p90:10,fc27_ovr:8,xa_p90:8,xgot_p90:8,market_value:6,finishing_xgot_minus_npxg:5,play_share:5,xg_buildup_p90:5,shots_on_target_p90:4,big_chances_created_p90:3,possession_won_final_3rd_p90:3,aerial_duels_won_pct:2,accurate_long_balls_p90:1,ground_duels_won_pct:1,successful_dribbles_p90:1,dispossessed_p90:-1,dribbled_past_p90:-1},
   W:{xa_p90:15,npxg_p90:10,xg_chain_p90:10,fc27_ovr:8,market_value:6,play_share:5,xg_buildup_p90:5,possession_won_final_3rd_p90:4,xgot_p90:4,ball_security:3,big_chances_created_p90:3,finishing_xgot_minus_npxg:3,ground_duels_won_pct:2,successful_dribbles_p90:2,accurate_long_balls_p90:1,aerial_duels_won_pct:1,dribbled_past_p90:-1},
   CM:{xg_buildup_p90:15,def_actions_poss_adj_p90:10,xa_p90:10,fc27_ovr:8,ground_duels_won_pct:7,xg_chain_p90:7,market_value:6,npxg_p90:5,play_share:5,possession_won_final_3rd_p90:5,aerial_duels_won_pct:4,accurate_long_balls_p90:2,successful_dribbles_p90:2,dispossessed_p90:-2,dribbled_past_p90:-2},
   CAM:{xa_p90:15,xg_chain_p90:12,xg_buildup_p90:9,fc27_ovr:8,npxg_p90:5,play_share:5,market_value:5,possession_won_final_3rd_p90:4,xgot_p90:4,ball_security:3,finishing_xgot_minus_npxg:3,def_actions_poss_adj_p90:2,successful_dribbles_p90:2,accurate_long_balls_p90:1,aerial_duels_won_pct:1,ground_duels_won_pct:1,dribbled_past_p90:-1},
@@ -21,6 +21,7 @@ export const normalizeRole=position=>{
 };
 export const metricName=normalizedMetricKey;
 const METRIC_LABELS={
+ xg_p90:["xG","Expected goals"],
  npxg_p90:["xG excl. penalty","Non-penalty xG","np xG","npxG"],
  xa_p90:["xA","Expected assists"],xgot_p90:["xGOT"],shots_on_target_p90:["Shots on target"],
  big_chances_created_p90:["Big chances created"],possession_won_final_3rd_p90:["Possession won final 3rd"],
@@ -33,7 +34,7 @@ const METRIC_LABELS={
  goals_prevented_p90:["Goals prevented"], // only when FotMob really gives a comparable percentile
 };
 export const METRIC_NAMES={
- rating:"Nota FotMob (percentil)",npxg_p90:"xG sin penaltis /90",xg_chain_p90:"xG Chain /90", fc27_ovr:"FC Overall",xa_p90:"xA /90",xgot_p90:"xGOT /90",market_value:"Valor de mercado",finishing_xgot_minus_npxg:"Finalización (xGOT - npxG)",play_share:"Participación de minutos",xg_buildup_p90:"xG Buildup /90",shots_on_target_p90:"Tiros a puerta /90",big_chances_created_p90:"Ocasiones claras creadas /90",possession_won_final_3rd_p90:"Recuperaciones en último tercio /90",aerial_duels_won_pct:"Duelos aéreos ganados (%)",accurate_long_balls_p90:"Pases largos precisos /90",ground_duels_won_pct:"Duelos terrestres ganados (%)",successful_dribbles_p90:"Regates completados /90",dispossessed_p90:"Pérdidas de balón /90",dribbled_past_p90:"Regateado /90",ball_security:"Seguridad de balón",def_actions_poss_adj_p90:"Acciones defensivas ajustadas /90",goals_prevented_p90:"Goles evitados /90",save_pct:"Paradas (%)",accurate_passes_p90:"Pases precisos /90"};
+ rating:"Nota FotMob (percentil)",xg_p90:"xG /90",npxg_p90:"xG sin penaltis /90",xg_chain_p90:"xG Chain /90", fc27_ovr:"FC Overall",xa_p90:"xA /90",xgot_p90:"xGOT /90",market_value:"Valor de mercado",finishing_xgot_minus_npxg:"Finalización (xGOT - npxG)",play_share:"Participación de minutos",xg_buildup_p90:"xG Buildup /90",shots_on_target_p90:"Tiros a puerta /90",big_chances_created_p90:"Ocasiones claras creadas /90",possession_won_final_3rd_p90:"Recuperaciones en último tercio /90",aerial_duels_won_pct:"Duelos aéreos ganados (%)",accurate_long_balls_p90:"Pases largos precisos /90",ground_duels_won_pct:"Duelos terrestres ganados (%)",successful_dribbles_p90:"Regates completados /90",dispossessed_p90:"Pérdidas de balón /90",dribbled_past_p90:"Regateado /90",ball_security:"Seguridad de balón",def_actions_poss_adj_p90:"Acciones defensivas ajustadas /90",goals_prevented_p90:"Goles evitados /90",save_pct:"Paradas (%)",accurate_passes_p90:"Pases precisos /90"};
 const pct=v=>v===null||v===undefined||v===""?null:Number.isFinite(Number(v))&&Number(v)>=0&&Number(v)<=100?Number(v):null;
 const round=v=>Math.round(v*100)/100;
 export function metricPercentiles(row) {
@@ -69,6 +70,7 @@ export function derivedCompositeValues(row){
   const playShare=Number.isFinite(Number(minutes))&&minutes!==null&&minutes!==""&&Number(teamMatches)>0
     ?Number(minutes)/(Number(teamMatches)*90)*100:null;
   return {
+    xg_p90:per90(["xG","Expected goals"]),
     npxg_p90:npxg,
     xa_p90:per90(["xA","Expected assists"]),
     xgot_p90:xgot,
@@ -130,6 +132,29 @@ export function calculateCompositeMF(row,positionOrRole,percentilesOverride=null
         const amount=missingWeight*fraction;
         weights[key]+=amount;
         transferred[key]=(transferred[key]||0)+amount;
+      }
+    }
+  }
+  // ST-only source-guided redistribution when an Understat metric is absent.
+  // Missing xG Chain (10pp): 50% xA/90, 50% xG/90.
+  // Missing xG Buildup (5pp): 60% xA, 15% accurate long balls,
+  // 15% accurate passes, 10% successful dribbles.
+  // Do not fabricate xG or transfer to a target without a valid peer percentile.
+  // The xG /90 key has base weight zero; it receives weight only via fallback.
+  if(role==="ST"){
+    const substitutions={
+      xg_chain_p90:[["xa_p90",0.5],["xg_p90",0.5]],
+      xg_buildup_p90:[["xa_p90",0.6],["accurate_long_balls_p90",0.15],["accurate_passes_p90",0.15],["successful_dribbles_p90",0.10]]
+    };
+    for(const [missing,parts] of Object.entries(substitutions)){
+      if(pct(input[missing])!==null)continue;
+      const sourceWeight=weights[missing];
+      weights[missing]=0;
+      for(const [target,fraction] of parts){
+        if(pct(input[target])===null)continue;
+        const amount=sourceWeight*fraction;
+        weights[target]=(weights[target]||0)+amount;
+        transferred[target]=(transferred[target]||0)+amount;
       }
     }
   }

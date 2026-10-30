@@ -106,3 +106,41 @@ test('Analizar nota recalcula escenarios sin mutar el Composite original',()=>{
  assert.equal(JSON.stringify(original),before);
  assert.deepEqual(analyzeCompositeSensitivity({role:'GK',score:null,rows:[]}),[]);
 });
+
+test('ST redistribuye xG Chain 10% y xG Buildup 5% en objetivos verificados',()=>{
+ const p={xa_p90:80,xg_p90:75,accurate_long_balls_p90:60,accurate_passes_p90:70,successful_dribbles_p90:50,rating:72};
+ const r=calculateCompositeMF({metrics:[]},'ST',p);
+ const find=k=>r.rows.find(row=>row.key===k);
+ assert.equal(find('xg_chain_p90').weight,0);
+ assert.equal(find('xg_buildup_p90').weight,0);
+ assert.equal(find('xg_chain_p90').baseWeight,10);
+ assert.equal(find('xg_buildup_p90').baseWeight,5);
+ assert.equal(find('xa_p90').weight,16);
+ assert.equal(find('xa_p90').transferred,8);
+ assert.equal(find('xg_p90').weight,5);
+ assert.equal(find('accurate_long_balls_p90').weight,1.75);
+ assert.equal(find('accurate_passes_p90').weight,.75);
+ assert.equal(find('successful_dribbles_p90').weight,1.5);
+ assert.ok(r.score!==null);
+});
+test('ST solo redistribuye la métrica ausente y nunca inventa un xG/90',()=>{
+ const p={xa_p90:70,xg_p90:null,xg_chain_p90:50,xg_buildup_p90:null,accurate_long_balls_p90:null,rating:60};
+ const r=calculateCompositeMF({metrics:[]},'ST',p);
+ const find=k=>r.rows.find(row=>row.key===k);
+ assert.equal(find('xg_chain_p90').weight,10);
+ assert.equal(find('xg_buildup_p90').weight,0);
+ assert.equal(find('xa_p90').weight,11);
+ assert.equal(find('xg_p90').percentile,null);
+ assert.equal(find('accurate_long_balls_p90').weight,1);
+ const withoutBoth=calculateCompositeMF({metrics:[]},'ST',{xa_p90:50,rating:70});
+ assert.equal(withoutBoth.rows.find(row=>row.key==='xg_p90').weight,0);
+ assert.equal(withoutBoth.rows.find(row=>row.key==='xg_p90').percentile,null);
+});
+test('ST conserva pesos originales cuando Understat Chain y Buildup están disponibles',()=>{
+ const r=calculateCompositeMF({metrics:[]},'ST',{xg_chain_p90:80,xg_buildup_p90:70,xa_p90:50,xg_p90:95});
+ const find=k=>r.rows.find(row=>row.key===k);
+ assert.equal(find('xg_chain_p90').weight,10);
+ assert.equal(find('xg_buildup_p90').weight,5);
+ assert.equal(find('xa_p90').weight,8);
+ assert.equal(find('xg_p90').weight,0);
+});

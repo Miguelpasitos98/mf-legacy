@@ -33,6 +33,7 @@ export function historicalRole(position) {
 }
 
 const PER90 = {
+  xg_p90:["xG","Expected goals"],
   npxg_p90:["xG excl. penalty","Non-penalty xG","np xG","npxG"],
   xg_chain_p90:["xG Chain","xGChain"],
   xa_p90:["xA","Expected assists"],

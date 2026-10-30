@@ -290,3 +290,23 @@ test("PAdj mixes valid provider totals with reconstructed competition data, no d
  assert.equal(observation.pAdjCoverage.total,3);
  assert.equal(observation.pAdjMethod,"mixed_provider_experimental");
 });
+
+test("ST recibe xG/90 auténtico para el fallback sin confundirlo con npxG/90",()=>{
+ const players=[
+  {id:"st-a",name:"Delantero A",position:"DC"},
+  {id:"st-b",name:"Delantero B",position:"ST"}
+ ];
+ const stats=[
+  {player_id:"st-a",season:"2024/2025",competition:"Premier League",minutes:900,
+   metrics:[{name:"xG",value:10},{name:"xG excl. penalty",value:7},{name:"xA",value:4}]},
+  {player_id:"st-b",season:"2024/2025",competition:"LaLiga",minutes:900,
+   metrics:[{name:"xG",value:5},{name:"xG excl. penalty",value:5},{name:"xA",value:2}]}
+ ];
+ const obs=buildHistoricalObservations({players,stats});
+ assert.equal(obs.find(r=>r.playerId==="st-a").values.xg_p90,1);
+ assert.equal(obs.find(r=>r.playerId==="st-a").values.npxg_p90,0.7);
+ const result=compareHistoricalObservation(obs.find(r=>r.playerId==="st-a"),obs);
+ assert.equal(result.rows.find(r=>r.key==="xg_p90").percentile,100);
+ assert.equal(result.rows.find(r=>r.key==="xg_p90").weight,5);
+ assert.equal(result.rows.find(r=>r.key==="xg_chain_p90").weight,0);
+});

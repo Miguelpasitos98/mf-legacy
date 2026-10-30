@@ -7,6 +7,10 @@ export const INDICATOR_EXPLANATIONS={
     description:"Media de la valoración FotMob del jugador.",
     formula:"Σ(nota de competición × PJ) ÷ Σ(PJ con nota)."
   },
+  xg_p90:{
+    description:"Goles esperados totales por 90 minutos, incluidos penaltis.",
+    formula:"Σ(xG) × 90 ÷ minutos de competiciones con el dato."
+  },
   npxg_p90:{
     description:"Calidad esperada de los tiros sin contar penaltis.",
     formula:"Σ(xG sin penaltis) × 90 ÷ minutos con el dato."
