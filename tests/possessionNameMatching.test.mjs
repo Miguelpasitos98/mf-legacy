@@ -33,6 +33,7 @@ test("Reconoce siglas de clubes oficiales sin eliminar palabras distintivas",()=
 });
 test("Filiales y clubes diferentes no se vinculan por substrings",()=>{
  assert.equal(recommendPossessionTeam(group("AS Monaco FC B"),catalog).team.id,"monaco-b");
+ assert.equal(recommendPossessionTeam(group("Monaco B"),catalog).confidence,"high");
  assert.equal(recommendPossessionTeam(group("Barcelona SC"),catalog).team.id,"barcasc");
  assert.equal(rankPossessionTeamCandidates(group("Barcelona SC"),[catalog[3]]).length,0);
  assert.equal(rankPossessionTeamCandidates(group("Monaco B"),[catalog[0]]).length,0);
