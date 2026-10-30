@@ -17,6 +17,7 @@ export default function PossessionAuditPanel({rows=[],teams=[],loading=false,foc
  const [query,setQuery]=useState(""),[filter,setFilter]=useState("pending");
  const [showCount,setShowCount]=useState(60),[activeKey,setActiveKey]=useState("");
  const [teamId,setTeamId]=useState(""),[bulkPreview,setBulkPreview]=useState(false);
+ const [showMissing,setShowMissing]=useState(false),[missingQuery,setMissingQuery]=useState("");
  const [saving,setSaving]=useState(false),[progress,setProgress]=useState("");
  const [notice,setNotice]=useState(""),[error,setError]=useState("");
  const active=audit.groups.find(group=>group.key===activeKey)||null;
@@ -114,6 +115,19 @@ export default function PossessionAuditPanel({rows=[],teams=[],loading=false,foc
    {[[audit.records,"Registros"],[audit.linked,"Vinculados"],[audit.pending,"Sin asociar"],[audit.conflicts+audit.invalid,"Incidencias"],[audit.seasons,"Temporadas"]].map(([number,label])=>
     <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3"><div className="text-xl font-black tabular-nums text-[#162d56]">{number}</div><div className="text-xs text-slate-500">{label}</div></div>)}
   </div>
+  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+   <p>{audit.groups.length} nombres de origen identificados en la base.</p>
+   <button type="button" onClick={()=>setShowMissing(value=>!value)} className="font-bold text-[#003399]">{audit.teamsWithoutRecords.length} equipos del catálogo sin registros detectados {showMissing?"· Ocultar":"· Ver lista"}</button>
+  </div>
+  {showMissing&&<div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+   <p className="text-xs font-bold text-slate-800">Equipos sin ninguna posesión identificada</p>
+   <p className="mt-1 text-[11px] text-slate-600">Se compara con el catálogo TEAMS; no prueba que faltan todas sus temporadas, solo que no se encontró ninguna por ID o nombre normalizado.</p>
+   <input value={missingQuery} onChange={e=>setMissingQuery(e.target.value)} placeholder="Buscar entre equipos sin registros…" className="mt-2 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs outline-none focus:border-blue-500"/>
+   <div className="mt-2 max-h-44 overflow-auto text-xs text-slate-800">
+    {audit.teamsWithoutRecords.filter(t=>simplify(t.name).includes(simplify(missingQuery))).slice(0,150).map(t=><p key={t.id} className="border-t border-amber-100 py-1.5">{t.name}</p>)}
+   </div>
+   {audit.teamsWithoutRecords.length>150&&<p className="mt-2 text-[11px] text-slate-500">Mostrando un máximo de 150 coincidencias; utiliza el buscador para afinar.</p>}
+  </div>}
   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
    <div><p className="text-sm font-bold text-slate-800">Coincidencias seguras detectadas: {safePlans.length} nombres · {safeRecords} registros</p>
     <p className="text-xs text-slate-600">Solo coincidencias unívocas por nombre o ID FotMob, sin contradicciones. Revisa el resto manualmente.</p></div>
