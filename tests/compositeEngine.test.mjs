@@ -137,7 +137,7 @@ test('ST solo redistribuye la métrica ausente y nunca inventa un xG/90',()=>{
  assert.equal(withoutBoth.rows.find(row=>row.key==='xg_p90').percentile,null);
 });
 test('ST conserva pesos originales cuando Understat Chain y Buildup están disponibles',()=>{
- const r=calculateCompositeMF({metrics:[]},'DC',{xg_chain_p90:80,xg_buildup_p90:70,xa_p90:50,xg_p90:95});
+ const r=calculateCompositeMF({metrics:[]},'ST',{xg_chain_p90:80,xg_buildup_p90:70,xa_p90:50,xg_p90:95});
  const find=k=>r.rows.find(row=>row.key===k);
  assert.equal(find('xg_chain_p90').weight,10);
  assert.equal(find('xg_buildup_p90').weight,5);
