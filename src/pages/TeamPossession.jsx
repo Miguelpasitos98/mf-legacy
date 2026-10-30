@@ -109,7 +109,7 @@ export default function TeamPossession(){
  const loadJSON=text=>{setJson(text);setPreview(null);setProgress("");};
  const analyze=()=>{
   setError("");setNotice("");setProgress("");
-  try{const p=parsePossessionBatch(json,teams);setPreview(p);if(p.errors.length)setError(p.errors.slice(0,8).join(" | ")+(p.errors.length>8?" · y más errores":""));}
+  try{const p=parsePossessionBatch(json,teams);setPreview({...p,rows:p.rows.map(row=>resolveImportedPossession(row,rows,teams))});if(p.errors.length)setError(p.errors.slice(0,8).join(" | ")+(p.errors.length>8?" · y más errores":""));}
   catch(e){setPreview(null);setError(statusText(e));}
  };
  async function importBatch(){
