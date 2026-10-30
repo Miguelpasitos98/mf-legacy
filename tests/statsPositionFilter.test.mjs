@@ -25,7 +25,17 @@ test("Defensores antiguos y nuevos se agrupan sin mezclar centrales con laterale
  for(const p of ["DFC","CB","D (C)"])assert.ok(matchesStatsPosition(p,"grupo:cb"),p);
  for(const p of ["LD","LI","RB","LB","D (R)","D (L)","FB"])assert.ok(matchesStatsPosition(p,"grupo:fb"),p);
  for(const p of ["CRD","CRI","RWB","LWB","WB (R)","WB (L)","WB"])assert.ok(matchesStatsPosition(p,"grupo:wb"),p);
+ for(const p of ["CRD","CRI","RWB","LWB","WB (R)","WB (L)","WB"])
+  assert.ok(matchesStatsPosition(p,"grupo:fb"),"Incluido en laterales: "+p);
  for(const p of ["DFC","CB","LD","LI","RB","LB","CRD","CRI","RWB","LWB"])assert.ok(matchesStatsPosition(p,"grupo:def"),p);
+ for(const p of ["CRI","LWB","WB (L)","LI","LB"]) {
+  assert.ok(matchesStatsPosition(p,"grupo:fb:left"),p);
+  assert.ok(!matchesStatsPosition(p,"grupo:fb:right"),p);
+ }
+ for(const p of ["CRD","RWB","WB (R)","LD","RB"]) {
+  assert.ok(matchesStatsPosition(p,"grupo:fb:right"),p);
+  assert.ok(!matchesStatsPosition(p,"grupo:fb:left"),p);
+ }
  assert.equal(matchesStatsPosition("CB","grupo:fb"),false);
 });
 test("Medios, mediapuntas y delanteros mantienen grupos propios",()=>{
@@ -52,6 +62,9 @@ test("Los filtros antiguos persistidos migran a grupos equivalentes, no desapare
  const values=STATS_POSITION_FILTER_OPTIONS.map(o=>o.value);
  assert.equal(new Set(values).size,values.length);
  assert.ok(values.includes("grupo:wing"));
+ assert.equal(STATS_POSITION_FILTER_OPTIONS.find(o=>o.value==="grupo:fb")?.label,"Laterales y carrileros");
+ assert.ok(matchesStatsPosition("CRI","grupo:wb:left"));
+ assert.ok(matchesStatsPosition("CRI","grupo:fb:left"));
  assert.equal(STATS_POSITION_FILTER_OPTIONS.find(o=>o.value==="grupo:wing")?.group,"Grupos principales");
  for(const value of Object.values(mapping))assert.ok(values.includes(value),value);
 });
