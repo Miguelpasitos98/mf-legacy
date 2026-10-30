@@ -155,10 +155,10 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           if(String(current.player_id)!==String(item.player_id)||current.season!==item.season||
             current.competition!==item.competition||current.national_team_id||current.national_country_id)continue;
           await base44.entities.PlayerSeasonStats.update(item.id,item.patch);
-          if(!cancelled)setNationalLinks(old=>({...old,[String(item.id)]:item.patch}));
+          if(!cancelled){setNationalLinks(old=>({...old,[String(item.id)]:item.patch}));patchStatsCaches(queryClient,item.id,item.patch);}
         }
-        if(!cancelled){queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});queryClient.invalidateQueries({queryKey:STATS_ROWS_KEY});}
-      }catch(error){console.warn("Vinculación automática de selecciones pendiente",error);}
+        if(!cancelled){queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});queryClient.invalidateQueries({queryKey:STATS_ROWS_KEY});queryClient.invalidateQueries({queryKey:STATS_DETAIL_KEY});}
+      }catch(error){setNationalError("No se pudo completar la vinculación automática: "+(error?.message||error));console.warn("Vinculación automática de selecciones pendiente",error);}
       finally{nationalAutoBusy.current=false;}
     })();
     return ()=>{cancelled=true;};
@@ -441,6 +441,9 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
                 const patch={national_team_id:String(chosen.id),national_country_id:nationalChoice,team_id:"",team_name:chosen.name};
                 await base44.entities.PlayerSeasonStats.update(current.id,patch);
                 setNationalLinks(old=>({...old,[String(current.id)]:{...patch,country_id:nationalChoice}}));
+                patchStatsCaches(queryClient,current.id,patch);
+                queryClient.invalidateQueries({queryKey:STATS_ROWS_KEY});
+                queryClient.invalidateQueries({queryKey:STATS_DETAIL_KEY});
                 setNationalTarget(null);
                 queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
                 queryClient.invalidateQueries({queryKey:["mf-legacy","national-teams"]});
