@@ -41,7 +41,12 @@ export function buildPossessionAudit(rows=[],teams=[]){
  }).sort((a,b)=>(a.status==="conflict"?0:a.status==="pending"?1:2)-(b.status==="conflict"?0:b.status==="pending"?1:2)||b.pending-a.pending||a.name.localeCompare(b.name,"es"));
  const knownIds=new Set(rows.map(row=>str(row.team_id)).filter(id=>byId.has(id)));
  const knownNames=new Set(auditGroups.map(group=>group.key));
- const teamsWithoutRecords=teams.filter(t=>t?.id&&!knownIds.has(str(t.id))&&!knownNames.has(canonicalHistoricalClub(t.name)));
+ // A pending record may be named "Monaco" while the catalog says
+ // "AS Monaco FC": it has observations, even before the ID is persisted.
+ const probableIds=new Set(auditGroups.filter(g=>!g.conflict).map(g=>recommendPossessionTeam(g,teams))
+  .filter(match=>match?.confidence==="high").map(match=>str(match.team.id)));
+ const teamsWithoutRecords=teams.filter(t=>t?.id&&!knownIds.has(str(t.id))&&
+  !knownNames.has(canonicalHistoricalClub(t.name))&&!probableIds.has(str(t.id)));
  return {groups:auditGroups,records:rows.length,linked,pending,invalid,conflicts:auditGroups.filter(g=>g.conflict).length,
   teamsWithoutRecords,seasons:new Set(rows.map(r=>normalizeSeason(r.season))).size};
 }
