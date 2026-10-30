@@ -175,6 +175,7 @@ export default function PossessionAuditPanel({rows=[],teams=[],loading=false,foc
        </div>
       </div>
       {group.duplicates>0&&<p className="mt-2 text-xs font-semibold text-red-700">Se detectaron {group.duplicates} registros repetidos para la misma temporada y competición. Resuélvelos antes de asociar.</p>}
+      {group.inconsistent>0&&<p className="mt-2 text-xs font-semibold text-amber-800">{group.inconsistent} registros tienen un nombre guardado distinto del equipo vinculado. Revisa la identidad antes de confirmar.</p>}
      </td></tr>}
     </React.Fragment>)}</tbody>
    </table>
