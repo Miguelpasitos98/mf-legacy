@@ -29,10 +29,14 @@ export function buildPossessionAudit(rows=[],teams=[]){
   const invalidCount=g.records.filter(row=>str(row.team_id)&&!byId.has(str(row.team_id))).length;
   const distinctPeriods=new Set(g.records.map(periodKey));
   const duplicates=g.records.length-distinctPeriods.size;
-  const conflict=invalidCount>0||g.linkedIds.size>1||g.fotmobIds.size>1||duplicates>0;
+  const inconsistent=g.records.filter(row=>{
+   const linkedTeam=byId.get(str(row.team_id));
+   return linkedTeam&&canonicalHistoricalClub(row.team_name)!==canonicalHistoricalClub(linkedTeam.name);
+  }).length;
+  const conflict=invalidCount>0||g.linkedIds.size>1||g.fotmobIds.size>1||duplicates>0||inconsistent>0;
   return {...g,recordCount:g.records.length,seasonCount:g.seasons.size,
    competitionCount:g.competitions.size,pending:missing,invalid:invalidCount,
-   duplicates,conflict,status:conflict?"conflict":missing?"pending":"linked"};
+   duplicates,inconsistent,conflict,status:conflict?"conflict":missing?"pending":"linked"};
  }).sort((a,b)=>(a.status==="conflict"?0:a.status==="pending"?1:2)-(b.status==="conflict"?0:b.status==="pending"?1:2)||b.pending-a.pending||a.name.localeCompare(b.name,"es"));
  const knownIds=new Set(rows.map(row=>str(row.team_id)).filter(id=>byId.has(id)));
  const knownNames=new Set(auditGroups.map(group=>group.key));
