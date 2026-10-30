@@ -1,5 +1,6 @@
 import {canonicalHistoricalClub,canonicalHistoricalCompetition} from "./historicalJson.js";
 import {normalizeSeason} from "./historicalValuation.js";
+import {recommendPossessionTeam} from "./possessionNameMatching.js";
 
 const str=value=>String(value??"").trim();
 export const possessionSourceName=row=>str(row?.source_team_name)||str(row?.team_name);
@@ -40,22 +41,19 @@ export function buildPossessionAudit(rows=[],teams=[]){
  }).sort((a,b)=>(a.status==="conflict"?0:a.status==="pending"?1:2)-(b.status==="conflict"?0:b.status==="pending"?1:2)||b.pending-a.pending||a.name.localeCompare(b.name,"es"));
  const knownIds=new Set(rows.map(row=>str(row.team_id)).filter(id=>byId.has(id)));
  const knownNames=new Set(auditGroups.map(group=>group.key));
- const teamsWithoutRecords=teams.filter(t=>t?.id&&!knownIds.has(str(t.id))&&!knownNames.has(canonicalHistoricalClub(t.name)));
+ // A pending record may be named "Monaco" while the catalog says
+ // "AS Monaco FC": it has observations, even before the ID is persisted.
+ const probableIds=new Set(auditGroups.filter(g=>!g.conflict).map(g=>recommendPossessionTeam(g,teams))
+  .filter(match=>match?.confidence==="high").map(match=>str(match.team.id)));
+ const teamsWithoutRecords=teams.filter(t=>t?.id&&!knownIds.has(str(t.id))&&
+  !knownNames.has(canonicalHistoricalClub(t.name))&&!probableIds.has(str(t.id)));
  return {groups:auditGroups,records:rows.length,linked,pending,invalid,conflicts:auditGroups.filter(g=>g.conflict).length,
   teamsWithoutRecords,seasons:new Set(rows.map(r=>normalizeSeason(r.season))).size};
 }
 
 export function suggestPossessionTeam(group,teams=[]){
- if(!group||group.conflict)return null;
- const byName=teams.filter(t=>t?.id&&canonicalHistoricalClub(t.name)===group.key);
- const byFotmob=group.fotmobIds.size===1?teams.filter(t=>t?.id&&str(t.fotmob_id)===[...group.fotmobIds][0]):[];
- const matches=byFotmob.length===1?byFotmob:byName;
- if(matches.length!==1)return null;
- const team=matches[0];
- if(byFotmob.length===1&&byName.length===1&&byFotmob[0].id!==byName[0].id)return null;
- if(group.fotmobIds.size&&str(team.fotmob_id)&&!group.fotmobIds.has(str(team.fotmob_id)))return null;
- if(group.linkedIds.size&&(!group.linkedIds.has(str(team.id))||group.linkedIds.size!==1))return null;
- return team;
+ const match=recommendPossessionTeam(group,teams);
+ return match?.confidence==="high"?match.team:null;
 }
 
 export function planPossessionAssociation(rows=[],teams=[],sourceKey,targetId){
