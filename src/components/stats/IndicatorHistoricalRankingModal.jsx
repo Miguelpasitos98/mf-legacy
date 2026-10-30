@@ -17,8 +17,8 @@ export default function IndicatorHistoricalRankingModal({indicator,role,observat
   });
  },[ranked,search,unique]);
  const players=new Set(ranked.map(x=>x.playerId)).size;
- return createPortal(<div className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={"Ranking histórico de "+indicator.name} onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
-  <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+ return createPortal(<div className="mf-modal-overlay fixed inset-0 z-[10001] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={"Ranking histórico de "+indicator.name} onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
+  <div className="mf-modal-panel flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
    <div className="flex shrink-0 items-start justify-between gap-3 bg-[#0e2844] px-5 py-4 text-white">
     <div><p className="text-[10px] font-bold uppercase tracking-widest text-blue-200">MF LEGACY · RANKING HISTÓRICO</p><h2 className="mt-1 text-lg font-black">{indicator.name}</h2><p className="mt-1 text-xs text-blue-100">Arquetipo {role} · {ranked.length} temporadas válidas · {players} jugadores distintos · {indicator.penalty?"Menor valor es mejor":"Mayor valor es mejor"}</p></div>
     <button type="button" onClick={onClose} aria-label="Cerrar ranking" className="rounded-lg p-2 hover:bg-white/10"><X size={20}/></button>

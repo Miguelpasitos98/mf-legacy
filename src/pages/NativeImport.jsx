@@ -72,7 +72,7 @@ export default function NativeImport(){
    setMessage(action==="approve"?"Temporada añadida a STATS sin sustituir información anterior.":"Temporada descartada.");
   }catch(e){setError(err(e));}finally{setBusy(false);}
  };
- return <div className="h-full overflow-y-auto p-5 md:p-8 text-slate-800">
+ return <div className="mf-page-scroll p-5 md:p-8 text-slate-800">
   <Link to="/import-center" className="flex gap-2 items-center text-blue-800 text-sm mb-3"><ArrowLeft size={16}/> Volver a IMPORT</Link>
   <h1 className="text-2xl font-bold">Motor de importación web V3</h1>
   <p className="text-sm text-slate-600 mb-4">Normalización, validación y creación de primeras temporadas sin ejecutar Python.</p>

@@ -191,7 +191,7 @@ export default function Kits(){
     });
     await qc.invalidateQueries({queryKey:RECORD_KEYS.Team,exact:true});
   };
-  return <main className="min-h-full bg-[#F6F7F9] p-4 md:p-8">
+  return <main className="mf-catalog-section min-h-full bg-[#F6F7F9] p-4 md:p-8">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div><div className="mb-2 flex items-center gap-2 text-[#003399]"><Shirt size={19}/><span className="text-xs font-black uppercase tracking-widest">MF Legacy · Club design</span></div><h1 className="text-2xl font-extrabold text-slate-900">Galería de equipaciones</h1><p className="mt-1 text-sm text-slate-500">Las camisetas de tus clubes personalizados. Gestiona sus diseños sin salir de esta página.</p></div>
       <div className="flex flex-wrap gap-2"><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3"><Search size={16} className="text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar club..." className="h-10 w-44 bg-transparent text-sm outline-none"/></label><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3"><ChevronDown size={14}/><select value={sort} onChange={e=>setSort(e.target.value)} className="h-10 bg-transparent text-xs outline-none"><option value="name">Alfabético</option><option value="recent">Más recientes</option></select></label></div>

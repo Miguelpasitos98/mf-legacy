@@ -146,7 +146,7 @@ export default function MfLegacyOverview({playerId,position,season,competition,s
    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
      <section className="rounded-xl border border-slate-200 bg-white p-4">
        <Heading icon={CalendarDays}>Evolución histórica MF LEGACY</Heading>
-       {data&&trend.length>0?<div className="grid grid-cols-7 gap-1">
+       {data&&trend.length>0?<div className="mf-history-trend">
          {trend.map(t=><button key={t.season} type="button" onClick={()=>onSeasonChange(t.season)}
            className={"group rounded-lg p-1.5 text-center hover:bg-blue-50 "+(t.selected?"bg-blue-50 ring-1 ring-blue-300":"")}
            aria-label={"Ver temporada "+t.season+" · índice "+show(t.score,1)} title={"Cobertura "+show(t.coverage,1)+" % · "+t.players+" jugadores"}>

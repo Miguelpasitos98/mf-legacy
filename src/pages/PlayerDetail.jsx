@@ -1,3 +1,4 @@
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {formatBirthDate,birthAge} from "@/utils/playerDate";
 import { createPortal } from "react-dom";
@@ -330,21 +331,6 @@ function SearchableEntitySelect({
   const [query, setQuery] = useState("");
   const wrapperRef = useRef(null);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const handleOutsideClick = (event) => {
-      if (!wrapperRef.current?.contains(event.target)) {
-        setOpen(false);
-        setQuery("");
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
-  }, [open]);
 
   const getLabel = (item) => item?.name || "Unnamed";
   const getMeta = (item) =>
@@ -415,7 +401,9 @@ function SearchableEntitySelect({
   };
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) setQuery(""); }}>
+      <PopoverAnchor asChild>
+      <div ref={wrapperRef} className="relative min-w-0">
       <button
         type="button"
         onClick={() => {
@@ -461,8 +449,10 @@ function SearchableEntitySelect({
         />
       </button>
 
+      </div>
+      </PopoverAnchor>
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[80] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
+        <PopoverContent align="start" collisionPadding={12} sideOffset={6} className="w-[var(--radix-popover-trigger-width)] rounded-xl border border-slate-200 bg-white p-0 shadow-xl">
           <div className="border-b border-slate-100 p-2">
             <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3">
               <Search size={15} className="shrink-0 text-slate-400" />
@@ -547,9 +537,9 @@ function SearchableEntitySelect({
               </button>
             )}
           </div>
-        </div>
+        </PopoverContent>
       )}
-    </div>
+    </Popover>
   );
 }
 
@@ -658,17 +648,25 @@ const getBestPosition = (ratings) => {
   return `${valid[0].label} · ${valid[0].value}/20`;
 };
 
-const PlayerStatCard = ({ background, grow = 1, children, compact = false }) => {
+const PlayerStatCard = ({ background, grow = 1, children, compact = false, className = "" }) => {
   return (
     <div
       aria-hidden={children ? undefined : "true"}
-      className={`flex h-[clamp(190px,18vw,228px)] min-w-0 flex-1 rounded-[20px] border border-black/10 shadow-[0_24px_52px_rgba(15,23,42,0.22)] ${compact ? "px-3 py-3" : "px-6 py-6"}`}
+      className={`flex h-[clamp(190px,18vw,228px)] min-w-0 flex-1 rounded-[20px] border border-black/10 shadow-[0_24px_52px_rgba(15,23,42,0.22)] ${compact ? "px-3 py-3" : "px-6 py-6"} ${className}`}
       style={{ backgroundColor: background, flex: grow }}
     >{children}</div>
   );
 };
 
 export default function PlayerDetail({ player, team, country, teams = [], countries = [], onBack, onPlayerUpdated, onTeamClick }) {
+  // Content layout follows both viewport space and touch input (including iPad desktop mode).
+  const [adaptiveLayout, setAdaptiveLayout] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 1359px), (pointer: coarse) and (max-width: 1440px)").matches);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1359px), (pointer: coarse) and (max-width: 1440px)");
+    const update = () => setAdaptiveLayout(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   const navigate = useNavigate();
   const [showDbHistory, setShowDbHistory] = useState(false);
   const initialPositionRatings = useMemo(
@@ -1044,13 +1042,25 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
     }
   };
 
+  const rolesModule = <AdjustableRoles adaptive={adaptiveLayout} ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} playerId={editablePlayer?.id} position={jerseyPosition||editablePlayer?.position||editablePlayer?.position_raw||editablePlayer?.fm_position} foot={{left:editablePlayer?.left_foot,right:editablePlayer?.right_foot}} storedRoles={editablePlayer?.tactical_roles} onSaved={(patch)=>{setEditablePlayer(current=>({...current,...patch}));setForm(current=>({...current,tacticalRoles:patch.tactical_roles}));onPlayerUpdated?.({...editablePlayer,...patch},patch);}} />;
+  const rightModules = <AdjustableRightModules adaptive={adaptiveLayout} playerId={editablePlayer?.id} color={statCardColors.primaryColor} />;
+  const playerCards = <>
+    {!adaptiveLayout && rolesModule}
+    {!adaptiveLayout && rightModules}
+    <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
+    <PlayerStatCard background={statCardColors.middleColor} grow={2.1} className="mf-market-card">
+      <TransferChartMini player={editablePlayer} clubs={teams} />
+    </PlayerStatCard>
+    <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
+  </>;
+
   return (
-    <main className="relative h-full min-h-0 overflow-visible bg-[#e2e6eb] text-slate-900">
+    <main data-responsive-version="live-20261030-v2" className={`${adaptiveLayout ? "mf-player-adaptive mf-page-scroll" : "mf-player-desktop"} relative h-full min-h-0 overflow-visible bg-[#e2e6eb] text-slate-900`}>
       <div className="absolute inset-0 bg-[#e2e6eb]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(255,255,255,0.95),transparent_34%)]" />
 
       <div
-        className="pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(6rem,18vw,15rem)] font-bold leading-none tracking-[-0.065em] text-white"
+        className={adaptiveLayout ? "mf-player-backdrop pointer-events-none flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(6rem,18vw,15rem)] font-bold leading-none tracking-[-0.065em] text-white" : "pointer-events-none fixed inset-x-0 top-[23%] z-[50] flex justify-center select-none text-center uppercase whitespace-nowrap text-[clamp(6rem,18vw,15rem)] font-bold leading-none tracking-[-0.065em] text-white"}
         style={{
           fontFamily: '"Teko", sans-serif',
           fontWeight: 400,
@@ -1064,7 +1074,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         {teamName.toUpperCase()}
       </div>
 
-      <header className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-6 py-5 md:px-10 lg:px-14">
+      <header className={adaptiveLayout ? "mf-player-toolbar" : "absolute inset-x-0 top-0 z-30 flex items-center justify-between px-6 py-5 md:px-10 lg:px-14"}>
         <button
           type="button"
           onClick={onBack}
@@ -1104,9 +1114,9 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         </div>
       </header>
 
-      <section className="relative z-10 grid h-full min-h-0 grid-cols-1 items-center gap-4 overflow-visible px-6 pb-2 pt-20 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20">
-        <div className="relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0 lg:-translate-y-[305px]">
-          <h1 className="max-w-lg text-5xl font-bold leading-[0.9] tracking-[-0.045em] text-slate-950 md:text-6xl xl:text-7xl">
+      <section className={adaptiveLayout ? "mf-player-hero" : "relative z-10 grid h-full min-h-0 grid-cols-1 items-center gap-4 overflow-visible px-6 pb-2 pt-20 md:px-10 lg:grid-cols-[0.85fr_1.35fr_0.7fr] lg:px-14 xl:px-20"}>
+        <div className={adaptiveLayout ? "mf-player-identity" : "relative z-20 flex min-h-0 flex-col justify-center py-8 lg:h-full lg:min-h-0 lg:-translate-y-[305px]"}>
+          <h1 className={adaptiveLayout ? "mf-player-name font-bold leading-[0.95] tracking-[-0.045em] text-slate-950" : "max-w-lg text-5xl font-bold leading-[0.9] tracking-[-0.045em] text-slate-950 md:text-6xl xl:text-7xl"}>
             {playerName.split(/\s+/).filter(Boolean).map((word, index) => (
               <span key={`${word}-${index}`} className="block">
                 {word}
@@ -1132,8 +1142,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           </div>
         </div>
 
-        <div className="relative z-20 flex h-full min-h-0 items-end justify-center overflow-visible">
-          {photoUrl ? (
+        <div className={adaptiveLayout ? "mf-player-photo" : "relative z-20 flex h-full min-h-0 items-end justify-center overflow-visible"}>
+          {adaptiveLayout && photoUrl ? <img src={photoUrl} alt={playerName} className="mf-player-portrait" /> : photoUrl ? (
             typeof document !== "undefined"
               ? createPortal(
                   <img
@@ -1152,28 +1162,33 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                       object-bottom
                       drop-shadow-[0_30px_28px_rgba(15,23,42,0.22)]
 
-                      h-[72vh]
+                      h-[72dvh]
 
-                      sm:h-[76vh]
+                      sm:h-[76dvh]
 
-                      md:h-[80vh]
+                      md:h-[80dvh]
 
-                      lg:h-[88vh]
+                      lg:h-[88dvh]
                     "
                   />,
                   document.body
                 )
               : null
           ) : (
-            <div className="relative z-10 flex h-[420px] w-[320px] items-center justify-center rounded-[2rem] border border-slate-300 bg-white/60 text-slate-300">
+            <div className="mf-player-placeholder relative z-10 flex h-[420px] w-[320px] items-center justify-center rounded-[2rem] border border-slate-300 bg-white/60 text-slate-300">
               <UsersPlaceholder />
             </div>
           )}
+          {adaptiveLayout && (jerseyDisplay || jerseyPosition) && <div className="mf-player-jersey" style={{color:jerseyColors.fill,WebkitTextStroke:`1px ${jerseyColors.outline}`}}>
+            {jerseyDisplay && <span className="mf-player-jersey-number">#{jerseyDisplay}</span>}
+            {jerseyPosition && <span className="mf-player-jersey-position">{jerseyPosition}</span>}
+          </div>}
         </div>
-
+        {adaptiveLayout && rolesModule}
+        {adaptiveLayout && rightModules}
       </section>
 
-      {typeof document !== "undefined" && (jerseyDisplay || jerseyPosition) && createPortal(
+      {!adaptiveLayout && typeof document !== "undefined" && (jerseyDisplay || jerseyPosition) && createPortal(
         <>
           {jerseyDisplay && <div className="pointer-events-none fixed z-[90] hidden select-none lg:block" style={{left:670,top:525,width:277}}>
             <div className="relative w-full">
@@ -1187,25 +1202,16 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
         </>,document.body
       )}
 
-      {typeof document !== "undefined" && createPortal(
-        <div className="pointer-events-none fixed bottom-8 left-1/2 z-[80] flex w-[min(1440px,calc(100vw-28px))] -translate-x-1/2 gap-5 sm:bottom-10 sm:gap-7">
-          <AdjustableRoles ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} playerId={editablePlayer?.id} position={jerseyPosition||editablePlayer?.position||editablePlayer?.position_raw||editablePlayer?.fm_position} foot={{left:editablePlayer?.left_foot,right:editablePlayer?.right_foot}} storedRoles={editablePlayer?.tactical_roles} onSaved={(patch)=>{setEditablePlayer(current=>({...current,...patch}));setForm(current=>({...current,tacticalRoles:patch.tactical_roles}));onPlayerUpdated?.({...editablePlayer,...patch},patch);}} />
-          <AdjustableRightModules playerId={editablePlayer?.id} color={statCardColors.primaryColor} />
-          <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
-          <PlayerStatCard background={statCardColors.middleColor} grow={2.1}>
-            <TransferChartMini player={editablePlayer} clubs={teams} />
-          </PlayerStatCard>
-          <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
-        </div>,
-        document.body
+      {adaptiveLayout ? <div className="mf-player-cards">{playerCards}</div> : typeof document !== "undefined" && createPortal(
+        <div className="pointer-events-none fixed bottom-8 left-1/2 z-[80] flex w-[min(1440px,calc(100vw-28px))] -translate-x-1/2 gap-5 sm:bottom-10 sm:gap-7">{playerCards}</div>, document.body
       )}
 
       {showCareerHistory && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+          className="mf-modal-overlay fixed inset-0 z-[9998] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
           onMouseDown={(event) => { if (event.target === event.currentTarget) setShowCareerHistory(false); }}
         >
-          <div className="max-h-[85vh] w-full max-w-[680px] overflow-y-auto rounded-[24px] border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="mf-modal-panel max-h-[85dvh] w-full max-w-[680px] overflow-y-auto rounded-[24px] border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between gap-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.17em] text-[#003399]">MF LEGACY · Trayectoria</p>
@@ -1251,14 +1257,14 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       {editOpen && typeof document !== "undefined"
         ? createPortal(
             <div
-              className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
+              className="mf-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px]"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               closeEditor();
             }
           }}
         >
-          <div className="max-h-[calc(100vh_-_32px)] w-full max-w-[1080px] overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+          <div className="mf-modal-panel max-h-[calc(100dvh_-_32px)] w-full max-w-[1080px] overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl">
             <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white/95 px-6 py-4 backdrop-blur">
               <div>
                 <h2 className="text-base font-extrabold text-slate-900">
@@ -1640,10 +1646,10 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                     </span>
                   </div>
 
-                  <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-[#d9efdf] px-3 py-4 sm:px-5 sm:py-5">
+                  <div className="mf-position-pitch rounded-2xl border border-emerald-200 bg-[#d9efdf]">
                     <div className="pointer-events-none absolute inset-0">
                       <div className="absolute inset-3 rounded-xl border border-white/80" />
-                      <div className="absolute left-1/2 top-3 bottom-3 w-px -translate-x-1/2 bg-white/80" />
+                      <div className="absolute inset-x-3 top-1/2 h-px -translate-y-1/2 bg-white/80" />
                       <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/80" />
                       <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
                       <div className="absolute left-1/2 top-3 h-10 w-32 -translate-x-1/2 rounded-b-xl border-x border-b border-white/80" />
@@ -1651,24 +1657,24 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                     </div>
 
                     {[
-                      ["delantero", "DL (C)", "Delantero", "left-1/2 top-[4%] -translate-x-1/2"],
-                      ["mediapunta_por_la_izquierda", "EI", "Mediapunta por la izquierda", "left-[8%] top-[13%] -translate-y-1/2"],
-                      ["mediapunta_central", "MP (C)", "Mediapunta central", "left-1/2 top-[13%] -translate-x-1/2 -translate-y-1/2"],
-                      ["mediapunta_por_la_derecha", "ED", "Mediapunta por la derecha", "right-[8%] top-[13%] -translate-y-1/2"],
-                      ["centrocampista_izquierdo", "MC (I)", "Centrocampista izquierdo", "left-[19%] top-[31%] -translate-y-1/2"],
-                      ["centrocampista", "MC", "Centrocampista", "left-1/2 top-[29%] -translate-x-1/2 -translate-y-1/2"],
-                      ["centrocampista_derecho", "MC (D)", "Centrocampista derecho", "right-[19%] top-[31%] -translate-y-1/2"],
-                      ["carrilero_izquierdo", "CR (I)", "Carrilero izquierdo", "left-[5%] top-[48%] -translate-y-1/2"],
-                      ["mediocentro", "MCD", "Mediocentro", "left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2"],
-                      ["carrilero_derecho", "CR (D)", "Carrilero derecho", "right-[5%] top-[48%] -translate-y-1/2"],
-                      ["defensa_izquierdo", "DF (I)", "Defensa izquierdo", "left-[20%] top-[68%] -translate-y-1/2"],
-                      ["defensa_central", "DF (C)", "Defensa central", "left-1/2 top-[68%] -translate-x-1/2 -translate-y-1/2"],
-                      ["defensa_derecho", "DF (D)", "Defensa derecho", "right-[20%] top-[68%] -translate-y-1/2"],
-                      ["portero", "POR", "Portero", "left-1/2 bottom-[3%] -translate-x-1/2"],
+                      ["delantero", "DL (C)", "Delantero", "1 / 2"],
+                      ["mediapunta_por_la_izquierda", "EI", "Mediapunta por la izquierda", "2 / 1"],
+                      ["mediapunta_central", "MP (C)", "Mediapunta central", "2 / 2"],
+                      ["mediapunta_por_la_derecha", "ED", "Mediapunta por la derecha", "2 / 3"],
+                      ["centrocampista_izquierdo", "MC (I)", "Centrocampista izquierdo", "3 / 1"],
+                      ["centrocampista", "MC", "Centrocampista", "3 / 2"],
+                      ["centrocampista_derecho", "MC (D)", "Centrocampista derecho", "3 / 3"],
+                      ["carrilero_izquierdo", "CR (I)", "Carrilero izquierdo", "4 / 1"],
+                      ["mediocentro", "MCD", "Mediocentro", "4 / 2"],
+                      ["carrilero_derecho", "CR (D)", "Carrilero derecho", "4 / 3"],
+                      ["defensa_izquierdo", "DF (I)", "Defensa izquierdo", "5 / 1"],
+                      ["defensa_central", "DF (C)", "Defensa central", "5 / 2"],
+                      ["defensa_derecho", "DF (D)", "Defensa derecho", "5 / 3"],
+                      ["portero", "POR", "Portero", "6 / 2"],
                     ].map(([key, shortLabel, fullLabel, positionClass]) => (
-                      <div key={key} className={`absolute z-10 w-[88px] sm:w-[104px] ${positionClass}`} title={fullLabel}>
+                      <div key={key} className="mf-position-slot" style={{ gridArea: positionClass }} title={fullLabel}>
                         <div className="rounded-xl border border-white/90 bg-white/95 p-1.5 shadow-sm backdrop-blur-sm">
-                          <div className="mb-1 truncate px-1 text-center text-[9px] font-extrabold uppercase tracking-tight text-slate-700 sm:text-[10px]">
+                          <div className="mf-position-label text-center font-extrabold uppercase tracking-tight text-slate-700">
                             {shortLabel}
                           </div>
                           <input
@@ -1693,13 +1699,13 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                       </div>
                     ))}
 
-                    <div className="relative z-10 mt-[350px] grid grid-cols-2 gap-2 border-t border-white/60 pt-3 sm:mt-[385px] sm:grid-cols-4">
+                  </div>
+                    <div className="mf-pitch-legend relative z-10 mt-3 grid grid-cols-2 gap-2 border-t border-white/60 pt-3 sm:grid-cols-4">
                       <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">EI / ED</strong> · bandas</div>
                       <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">MC</strong> · medio</div>
                       <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">MCD</strong> · pivote</div>
                       <div className="rounded-lg bg-white/70 px-2 py-1.5 text-[9px] text-slate-500"><strong className="text-slate-700">DF / CR</strong> · defensa</div>
                     </div>
-                  </div>
                 </div>
               )}
 

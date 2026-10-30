@@ -305,7 +305,7 @@ export default function HistoricalValuationsTable({
       {editing &&
         createPortal(
           <div
-            className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm"
+            className="mf-modal-overlay fixed inset-0 z-[9998] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
           >
@@ -321,7 +321,7 @@ export default function HistoricalValuationsTable({
                   <X size={18} />
                 </button>
               </div>
-              <div className="max-h-[60vh] space-y-3 overflow-y-auto p-5">
+              <div className="max-h-[60dvh] space-y-3 overflow-y-auto p-5">
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block text-xs font-bold text-slate-600">
                     Overall (1-99)

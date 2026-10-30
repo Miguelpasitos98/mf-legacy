@@ -251,17 +251,17 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
     return r.id?<button type="button" onClick={()=>setTeamLinkTarget(r)} title={title} aria-label={"Cambiar club de "+r.competition+" "+r.season+": "+name} className="rounded-md py-1 text-slate-800 hover:text-[#003399] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#003399]">{label}</button>:label;
   };
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Ficha estadística">
-      <div className="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="mf-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Ficha estadística">
+      <div className="mf-modal-panel flex max-h-[95dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <header className="shrink-0 border-b border-white/10 bg-[#0e2844] px-4 py-4 text-white sm:px-6 sm:py-5">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          <div className="mf-stats-report-heading flex min-w-0 items-center gap-3 sm:gap-4">
             <Avatar size="lg" name={player?.name||stats[0]?.player_name} photo={playerPhoto(player)}/>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold uppercase tracking-[.15em] text-blue-200">MY LEGACY · INFORME DE RENDIMIENTO</p>
               <h2 className="mt-0.5 truncate text-xl font-black leading-tight sm:text-2xl" title={player?.name||stats[0]?.player_name||"Jugador FotMob"}>{player?.name||stats[0]?.player_name||"Jugador FotMob"}</h2>
               <p className="mt-1 hidden truncate text-[11px] text-blue-200/85 sm:block">Estadísticas por temporada · fuentes externas · independientes de FM26</p>
             </div>
-            <nav aria-label="Acciones del informe" className="hidden shrink-0 items-center gap-2 lg:flex">
+            <nav aria-label="Acciones del informe" className="mf-stats-report-actions hidden shrink-0 items-center gap-2 lg:flex">
               <button type="button" onClick={onRefreshAll} disabled={refreshingAll} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-400/50 px-3 text-xs font-bold hover:bg-white/10 disabled:opacity-50"><RefreshCw size={14} className={refreshingAll?"animate-spin":""}/>Actualizar todo</button>
               <button type="button" onClick={()=>onOpenSettings(category,shown[0]||stats[0]||null)} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-400/50 px-3 text-xs font-bold hover:bg-white/10"><Settings2 size={15}/> Ajustes</button>
               {player&&<button type="button" onClick={()=>onPlayer(player.id)} className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-400/50 px-3 text-xs font-bold hover:bg-white/10">Ver en PLAYERS <ArrowRight size={14}/></button>}
@@ -378,7 +378,7 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
         </div>
       </div>
       <ManualMetricEditor target={metricTarget} onClose={()=>setMetricTarget(null)} onSave={onSetMetric}/>
-      {teamMatchesTarget&&<div className="absolute inset-0 z-[2] flex items-center justify-center bg-slate-950/65 p-4" role="dialog" aria-modal="true" aria-label="Editar partidos disputados por el equipo">
+      {teamMatchesTarget&&<div className="mf-modal-overlay fixed inset-0 z-[10060] flex items-center justify-center bg-slate-950/65 p-4" role="dialog" aria-modal="true" aria-label="Editar partidos disputados por el equipo">
         <form onSubmit={saveTeamMatches} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-5 shadow-2xl">
           <div className="flex items-start justify-between gap-3">
             <div><h3 className="text-base font-black text-[#0c2e51]">Partidos del equipo</h3><p className="mt-1 text-xs text-slate-500">{teamMatchesTarget.season} · {teamMatchesTarget.competition}</p></div>
@@ -393,8 +393,8 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
           <div className="flex justify-end gap-2"><button type="button" onClick={()=>setTeamMatchesTarget(null)} disabled={teamMatchesBusy} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Cancelar</button><button type="submit" disabled={teamMatchesBusy} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{teamMatchesBusy?"Guardando…":"Guardar PJ equipo"}</button></div>
         </form>
       </div>}
-      {seasonEdit&&<div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Cambiar temporada de visualización"><div className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-xl"><h3 className="font-bold text-[#0e2844]">Temporada de visualización</h3><p className="text-xs text-slate-600">{seasonEdit.row.competition} · origen {seasonEdit.row.season}. No se cambian las estadísticas ni el identificador original.</p><select className="w-full rounded border p-2" value={seasonEdit.chosen} onChange={e=>setSeasonEdit(v=>({...v,chosen:e.target.value}))}>{[...new Set([seasonEdit.chosen,...seasons,...Array.from({length:20},(_,i)=>String(2013+i)+"/"+String(2014+i))])].sort().reverse().map(y=><option key={y} value={y}>{y}</option>)}</select>{seasonError&&<p role="alert" className="text-xs text-red-700">{seasonError}</p>}<div className="flex justify-end gap-2"><button type="button" disabled={seasonSaving} onClick={()=>setSeasonEdit(null)} className="rounded border px-3 py-2">Cancelar</button><button type="button" disabled={seasonSaving||!seasonEdit.row.id} className="rounded bg-[#003399] px-3 py-2 text-white disabled:opacity-40" onClick={async()=>{setSeasonSaving(true);setSeasonError("");try{const original=seasonEdit.row;const fresh=await base44.entities.PlayerSeasonStats.get(original.id);if(String(fresh.player_id)!==String(original.player_id)||fresh.competition!==original.competition||fresh.season!==original.season)throw Error("El registro ha cambiado; recarga los datos.");await base44.entities.PlayerSeasonStats.update(fresh.id,{display_season:seasonEdit.chosen});setSeasonOverrides(v=>({...v,[String(fresh.id)]:seasonEdit.chosen}));setSeason(seasonEdit.chosen);setCompetition("Todas");setSeasonEdit(null);queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});}catch(e){setSeasonError(e.message||"No se pudo guardar.");}finally{setSeasonSaving(false);}}}>Guardar temporada</button></div></div></div>}
-      {nationalTarget&&<div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Vincular selección nacional">
+      {seasonEdit&&<div className="mf-modal-overlay fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Cambiar temporada de visualización"><div className="w-full max-w-md space-y-3 rounded-xl bg-white p-5 shadow-xl"><h3 className="font-bold text-[#0e2844]">Temporada de visualización</h3><p className="text-xs text-slate-600">{seasonEdit.row.competition} · origen {seasonEdit.row.season}. No se cambian las estadísticas ni el identificador original.</p><select className="w-full rounded border p-2" value={seasonEdit.chosen} onChange={e=>setSeasonEdit(v=>({...v,chosen:e.target.value}))}>{[...new Set([seasonEdit.chosen,...seasons,...Array.from({length:20},(_,i)=>String(2013+i)+"/"+String(2014+i))])].sort().reverse().map(y=><option key={y} value={y}>{y}</option>)}</select>{seasonError&&<p role="alert" className="text-xs text-red-700">{seasonError}</p>}<div className="flex justify-end gap-2"><button type="button" disabled={seasonSaving} onClick={()=>setSeasonEdit(null)} className="rounded border px-3 py-2">Cancelar</button><button type="button" disabled={seasonSaving||!seasonEdit.row.id} className="rounded bg-[#003399] px-3 py-2 text-white disabled:opacity-40" onClick={async()=>{setSeasonSaving(true);setSeasonError("");try{const original=seasonEdit.row;const fresh=await base44.entities.PlayerSeasonStats.get(original.id);if(String(fresh.player_id)!==String(original.player_id)||fresh.competition!==original.competition||fresh.season!==original.season)throw Error("El registro ha cambiado; recarga los datos.");await base44.entities.PlayerSeasonStats.update(fresh.id,{display_season:seasonEdit.chosen});setSeasonOverrides(v=>({...v,[String(fresh.id)]:seasonEdit.chosen}));setSeason(seasonEdit.chosen);setCompetition("Todas");setSeasonEdit(null);queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});}catch(e){setSeasonError(e.message||"No se pudo guardar.");}finally{setSeasonSaving(false);}}}>Guardar temporada</button></div></div></div>}
+      {nationalTarget&&<div className="mf-modal-overlay fixed inset-0 z-[12000] flex items-center justify-center bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-label="Vincular selección nacional">
         <div className="w-full max-w-lg space-y-3 rounded-xl bg-white p-5 shadow-xl">
           <h3 className="text-base font-black text-[#0e2844]">Vincular selección nacional</h3>
           <p className="text-xs text-slate-600">{nationalTarget.season} · {nationalTarget.competition}. Solo cambia la selección asociada, no las estadísticas.</p>
@@ -773,7 +773,7 @@ export default function Stats(){
     queryClient.invalidateQueries({queryKey:["mf-legacy","teams"]});
     queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
   };
-  return <div ref={scrollRoot} data-stats-scroll className="h-full w-full overflow-y-auto bg-[#f3f5f8]" onScrollCapture={()=>{
+  return <div ref={scrollRoot} data-stats-scroll className="mf-page-scroll w-full bg-[#f3f5f8]" onScrollCapture={()=>{
     const previous=readStatsViewState(),horizontal=scrollRoot.current?.querySelector('[data-stats-horizontal]');
     writeStatsViewState({...previous,scrollTop:scrollRoot.current?.scrollTop||0,scrollLeft:horizontal?.scrollLeft||0});
   }}>
@@ -871,8 +871,8 @@ export default function Stats(){
     {settingsOpen&&<StatsColumnSettings config={columnConfig} mode={settingsContext?.mode||viewMode} category={settingsContext?.category||category} sample={settingsContext?.sample||(viewMode==="season"?seasonSummaries[0]:stats[0])} onClose={()=>setSettingsOpen(false)} onSave={saveColumns}/>}
     {importOpen&&<StatsImport players={players} teams={teams} onClose={()=>setImportOpen(false)} onImported={importComplete} onOpenUnified={()=>{setImportOpen(false);setUnifiedOpen(true);}}/>}
     {unifiedOpen&&createPortal(
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Importar FotMob y CraftedFC">
-        <div className="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="mf-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Importar FotMob y CraftedFC">
+        <div className="mf-modal-panel flex max-h-[95dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
           <div className="flex shrink-0 items-center justify-between bg-[#0e2844] px-5 py-3 text-white">
             <p className="text-sm font-black">STATS · Importación FotMob + CraftedFC</p>
             <button onClick={()=>setUnifiedOpen(false)} className="rounded-lg p-2 hover:bg-white/10" aria-label="Cerrar importador unificado"><X size={20}/></button>

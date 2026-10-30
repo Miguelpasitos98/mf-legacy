@@ -14,7 +14,7 @@ function SearchableSort({value,options,onChange}){
     </button>
     {open&&<>
       <button type="button" tabIndex={-1} aria-label="Cerrar búsqueda de indicadores" onClick={()=>setOpen(false)} className="fixed inset-0 z-[30] cursor-default bg-transparent"/>
-      <div className="absolute right-0 top-full z-[31] mt-1 w-[min(370px,90vw)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+      <div className="mf-stats-sort-options absolute right-0 top-full z-[31] mt-1 w-[min(370px,90vw)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
         <label className="block border-b border-slate-100 p-2">
           <span className="sr-only">Buscar estadística para ordenar</span>
           <input autoFocus type="search" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Escape")setOpen(false);if(e.key==="Enter"&&filtered.length===1)choose(filtered[0]);}} placeholder="Buscar: paradas, xG, duelos, goles..." className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm" />

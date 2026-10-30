@@ -133,8 +133,8 @@ export default function HistoricalValuationTool({onClose,onImported}){
   setBusy(false);setAuthorized(false);
   if(!errors.length){setItems([]);await loadAll();onImported?.();}
  };
- return createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3" role="dialog" aria-modal="true" aria-label="Valoraciones históricas">
- <div className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+ return createPortal(<div className="mf-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3" role="dialog" aria-modal="true" aria-label="Valoraciones históricas">
+ <div className="mf-modal-panel flex max-h-[95dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
  <div className="flex items-center justify-between bg-[#0d243b] px-5 py-4 text-white"><div><h2 className="text-lg font-black">Valoraciones históricas · FIFA/FC + Transfermarkt</h2><p className="text-xs text-blue-200">Una fila por jugador y temporada. Los valores se aplican a todas las competiciones del mismo año.</p></div><button onClick={onClose} disabled={busy} aria-label="Cerrar"><X/></button></div>
  <div className="space-y-5 overflow-y-auto p-5">
  <div className="flex flex-wrap items-center gap-3"><button onClick={loadAll} disabled={fetching||busy} className="rounded-lg bg-[#003399] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{fetching?"Cargando…":loaded?"Recargar temporadas":"1. Cargar todas las temporadas"}</button>{loaded&&<span className="text-xs text-slate-600">{unique.length} pares jugador-temporada · {records.length} registros de competición</span>}{loadError&&<p className="text-xs text-amber-800">{loadError}</p>}</div>

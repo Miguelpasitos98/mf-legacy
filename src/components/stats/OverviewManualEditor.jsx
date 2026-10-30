@@ -59,7 +59,7 @@ export default function OverviewManualEditor({mode,records=[],onClose,onSave,def
    <input required inputMode={integer?"numeric":"decimal"} value={form[key]} onChange={e=>set(key,e.target.value)}
     placeholder={placeholder} className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm focus:border-blue-500 focus:outline-none"/>
  </label>;
- return createPortal(<div className="fixed inset-0 z-[10050] flex items-center justify-center bg-slate-950/75 p-4" role="dialog" aria-modal="true" aria-label={"Añadir o corregir "+label}>
+ return createPortal(<div className="mf-modal-overlay fixed inset-0 z-[10050] flex items-center justify-center bg-slate-950/75 p-4" role="dialog" aria-modal="true" aria-label={"Añadir o corregir "+label}>
   <form onSubmit={submit} className="w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-2xl">
    <div className="flex items-start justify-between gap-2">
     <div><h3 className="text-base font-black text-[#123456]">Añadir o editar · {label}</h3>

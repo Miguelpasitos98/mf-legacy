@@ -104,7 +104,7 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
   const displayName = teamName.toUpperCase();
 
   return (
-    <div ref={detailScrollRef} className="relative h-[calc(100vh-4rem)] overflow-y-auto overscroll-none p-3 sm:p-4 md:p-6 [&::-webkit-scrollbar]:hidden" style={{ backgroundColor: primaryColor, scrollbarWidth: "none", msOverflowStyle: "none" }}>
+    <div ref={detailScrollRef} className="mf-page-scroll mf-team-detail relative p-3 sm:p-4 md:p-6 [&::-webkit-scrollbar]:hidden" style={{ backgroundColor: primaryColor, scrollbarWidth: "none", msOverflowStyle: "none" }}>
       <div className="pointer-events-none absolute inset-0" style={{ backgroundColor: secondaryColor, clipPath: "polygon(60% 0, 100% 0, 100% 100%, 42% 100%)" }} />
       <div className="pointer-events-none absolute inset-0 opacity-25" style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, transparent 45%, ${secondaryColor} 100%)` }} />
 
@@ -123,8 +123,8 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
             <button type="button" onClick={() => { setEditPanelOpen(true); onEdit(team); }} className="cursor-pointer rounded-sm text-[10px] font-bold uppercase tracking-[0.3em] text-white/75 transition hover:text-white focus:outline-none focus:ring-1 focus:ring-white/60">Team profile</button>
           </div>
 
-          <div className="relative z-10 grid min-h-[720px] grid-cols-1 md:grid-cols-[55%_45%]">
-            <div className="relative flex flex-col justify-between p-6 pt-14 sm:p-8 sm:pt-16 md:p-12 md:pt-20">
+          <div className="mf-team-hero relative z-10 grid min-h-[720px] grid-cols-1 md:grid-cols-[55%_45%]">
+            <div className="mf-team-identity relative flex flex-col justify-between p-6 pt-14 sm:p-8 sm:pt-16 md:p-12 md:pt-20">
               <div>
                 <div className="mb-8 flex items-center gap-3">
                   <div className="flex gap-2">
@@ -134,14 +134,14 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
                   <span className="team-section-label text-[10px] text-white/80 sm:text-xs">Más que un club</span>
                 </div>
                 <p className="team-section-label mb-4 text-xs text-white/65">{city || shortName || "Football Club"}</p>
-                <h1 className="team-display-title max-w-none text-5xl text-white sm:text-7xl md:text-[8rem]">
+                <h1 className="mf-team-title team-display-title max-w-none text-5xl text-white sm:text-7xl md:text-[8rem]">
                   {displayName.split(" ").map((word, index) => (<span key={index} className="block">{word}</span>))}
                 </h1>
                 <p className="team-section-label mt-7 text-[9px] text-white/65 sm:text-xs">MF LEGACY · TEAM PROFILE</p>
               </div>
 
               <div className="relative z-20 mt-14 md:mt-8">
-                <div className="grid grid-cols-2 gap-x-5 gap-y-7 md:grid-cols-3">
+                <div className="mf-team-facts grid grid-cols-2 gap-x-5 gap-y-7 md:grid-cols-3">
                   <div><p className="team-section-label text-[9px] text-white/55">Año de fundación</p><p className="team-data-value mt-2 text-xl text-white">{foundedYear || "—"}</p></div>
                   <div><p className="team-section-label text-[9px] text-white/55">País</p><p className="team-data-value mt-2 text-xl text-white">{country || "—"}</p></div>
                   <div><p className="team-section-label text-[9px] text-white/55">Market value</p><p className="team-data-value mt-2 text-xl text-white">{marketDisplay || "—"}</p></div>
@@ -161,7 +161,7 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
               </div>
             </div>
 
-            <div className="relative flex min-h-[450px] flex-col items-center justify-center p-6 pt-20 sm:p-10 md:absolute md:inset-0 md:z-20 md:min-h-0 md:p-0">
+            <div className="mf-team-art relative flex min-h-[450px] flex-col items-center justify-center p-6 pt-20 sm:p-10 md:absolute md:inset-0 md:z-20 md:min-h-0 md:p-0">
               <div className="absolute right-6 top-12 text-right sm:right-10 md:right-12">
                 <p className="team-section-label text-[10px] text-white/80 sm:text-xs">Identity</p>
                 <div className="ml-auto mt-3 flex gap-2">
@@ -171,7 +171,7 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
               </div>
 
               {kitHomeUrl && (
-                <div className="relative z-10 flex w-full items-center justify-center px-4 py-6 md:absolute md:left-1/2 md:top-1/2 md:w-[68%] md:-translate-x-1/2 md:-translate-y-1/2 md:px-0">
+                <div className="mf-team-kit relative z-10 flex w-full items-center justify-center px-4 py-6 md:absolute md:left-1/2 md:top-1/2 md:w-[68%] md:-translate-x-1/2 md:-translate-y-1/2 md:px-0">
                   <KitImage
                     src={kitHomeUrl}
                     alt={`${teamName} primera equipación`}
@@ -207,8 +207,8 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
           )}
         </div>
 
-        <section data-scroll-section className="relative mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12">
-          <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 md:grid-cols-[1fr_1fr]">
+        <section data-scroll-section className="mf-team-section mf-team-history relative mt-6 min-h-[100dvh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12">
+          <div className="mx-auto grid min-h-[80dvh] max-w-6xl items-center gap-10 md:grid-cols-[1fr_1fr]">
             <div>
               <p className="team-section-label text-xs uppercase tracking-[0.3em] text-white/70">MF LEGACY · CLUB HISTORY</p>
               <h2 className="mt-4 text-5xl font-black uppercase text-white md:text-8xl">History</h2>
@@ -247,8 +247,8 @@ export default function TeamDetail({ team, onClose, onEdit, form, setForm, count
           </button>
         </section>
 
-        <section data-scroll-section className="mt-6 min-h-[100vh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12">
-          <div className="mx-auto grid min-h-[80vh] max-w-6xl items-center gap-10 md:grid-cols-2">
+        <section data-scroll-section className="mf-team-section mt-6 min-h-[100dvh] rounded-2xl border border-white/20 bg-black/10 p-6 shadow-2xl md:p-12">
+          <div className="mx-auto grid min-h-[80dvh] max-w-6xl items-center gap-10 md:grid-cols-2">
             <div>
               <p className="team-section-label text-xs uppercase tracking-[0.3em] text-white/70">MF LEGACY · CLUB DATA</p>
               <h2 className="mt-4 text-5xl font-black uppercase text-white md:text-7xl">Stadium</h2>

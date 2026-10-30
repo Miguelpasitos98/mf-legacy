@@ -277,10 +277,10 @@ export default function HistoricalSingleEntryImporter({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[11000] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm"
+    <div className="mf-modal-overlay fixed inset-0 z-[11000] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm"
       role="dialog" aria-modal="true" aria-label="Introducir datos históricos"
       onMouseDown={(event) => { if (event.target === event.currentTarget && !saving && !jsonSaving) onClose(); }}>
-      <div className={"flex max-h-[94vh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl " + (entryMode !== "manual" ? "max-w-3xl" : "max-w-xl")}>
+      <div className={"mf-modal-panel flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl " + (entryMode !== "manual" ? "max-w-3xl" : "max-w-xl")}>
         <header className="flex shrink-0 items-start justify-between gap-3 bg-[#0e2844] px-5 py-4 text-white">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-blue-200">MF LEGACY · Importación histórica</p>

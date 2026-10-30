@@ -129,8 +129,8 @@ export default function Fm26ImportModal({
   if (!fm26ImportOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-2 backdrop-blur-[2px] sm:p-5" onMouseDown={e => { if (e.target === e.currentTarget && !fm26Busy && !fm26NationSaveBusy && !fm26CreateNationBusy) setFm26ImportOpen(false); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="fm26-import-title" className="flex h-[calc(100dvh-1rem)] max-h-[850px] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:h-[calc(100dvh-2.5rem)]">
+    <div className="mf-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-2 backdrop-blur-[2px] sm:p-5" onMouseDown={e => { if (e.target === e.currentTarget && !fm26Busy && !fm26NationSaveBusy && !fm26CreateNationBusy) setFm26ImportOpen(false); }}>
+      <section role="dialog" aria-modal="true" aria-labelledby="fm26-import-title" className="mf-modal-panel flex h-[calc(100dvh-1rem)] max-h-[850px] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:h-[calc(100dvh-2.5rem)]">
         <header className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white px-4 py-4 sm:px-6">
           <div><h2 id="fm26-import-title" className="text-lg font-extrabold text-slate-900">Importar FM26 JSON</h2><p className="text-xs text-slate-500">Importación de jugadores desde fmsave · Football Manager 2026</p></div>
           <button type="button" aria-label="Cerrar importador" disabled={fm26Busy || fm26NationSaveBusy || fm26CreateNationBusy} onClick={() => setFm26ImportOpen(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"><X size={20}/></button>

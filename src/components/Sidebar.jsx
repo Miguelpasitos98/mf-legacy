@@ -21,7 +21,7 @@ const AGE_ICON =
 const DESCRIPTION_ICON =
   "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3e%3cpath d='M15 3a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-2v2h4a1 1 0 0 1 1 1v3h2a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h2v-2H8v2h2a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h2v-3a1 1 0 0 1 1-1h4V9H9a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM9 17H5v2h4zm10 0h-4v2h4zM14 5h-4v2h4z'/%3e%3c/svg%3e";
 
-const VIEW_OPTIONS = [
+export const VIEW_OPTIONS = [
   {
     id: "all",
     label: "All players",
@@ -103,7 +103,7 @@ export default function Sidebar({
           duration: 0.2,
         },
       }}
-      className="relative flex h-full shrink-0 flex-col overflow-hidden"
+      className="mf-sidebar relative flex h-full shrink-0 flex-col overflow-hidden"
       style={{
         backgroundColor,
         borderRight: `1px solid ${secondaryColor}`,
@@ -181,11 +181,15 @@ export default function Sidebar({
         </nav>
       )}
 
+      {open && !isPlayersPage && (
+        <button type="button" onClick={onToggle} className="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center" style={{ color: accentColor }} aria-label="Cerrar menú"><X size={20} /></button>
+      )}
+
       {!open && (
         <button
           type="button"
           onClick={onToggle}
-          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+          className="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
           style={{ color: accentColor }}
           aria-label="Abrir menú"
         >

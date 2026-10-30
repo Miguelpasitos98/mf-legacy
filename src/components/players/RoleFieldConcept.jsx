@@ -38,7 +38,7 @@ const ALL_ROLES=PLAYER_DESCRIPTIONS.flatMap(group=>group.options);
 const comparableRole=value=>String(value||"").replace(/^[^\p{L}\p{N}]+/u,"").trim().toLocaleLowerCase("es");
 const canonicalRole=value=>ALL_ROLES.find(option=>option===value||comparableRole(option)===comparableRole(value))||String(value||"");
 const EMPTY=[{name:"",description:""},{name:"",description:""}];
-export default function RoleFieldConcept({ratings={},playerId,position,foot,storedRoles,onSaved}){
+export default function RoleFieldConcept({ratings={},playerId,position,foot,storedRoles,onSaved,adaptive=false}){
  const key="mf-legacy-tactical-role-settings-v1:"+String(playerId||"preview");
  const [roles,setRoles]=useState(EMPTY);
  const [editing,setEditing]=useState(null);
@@ -78,7 +78,16 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
   }finally{setSaving(false);}
  };
  const zone=activeRole!==null?tacticalZoneForRole(roles[activeRole]?.name,position,foot):null;
- return <div className="relative w-full" style={{aspectRatio:"3 / 2"}} aria-label="Roles y posiciones">
+ return <div className={adaptive ? "mf-role-concept" : "relative w-full"} style={adaptive ? undefined : {aspectRatio:"3 / 2"}} aria-label="Roles y posiciones">
+  {adaptive && <div className="mf-role-controls">
+    <h2 className="text-base font-extrabold text-slate-900">Roles</h2>
+    {roles.map((role,i)=><div key={i} className="mf-role-row">
+      <button type="button" onClick={()=>toggleRole(i)} aria-pressed={activeRole===i} aria-label={role.name?`Mostrar zona de ${role.name}`:`Añadir rol ${i+1}`} className={activeRole===i?"text-emerald-700":"text-slate-900"}>{role.name || `Añadir rol ${i+1}`}</button>
+      <button type="button" onClick={()=>openEditor(i)} aria-label={`Editar rol ${i+1}`} className="text-xl font-black text-emerald-500">+</button>
+    </div>)}
+    {activeRole!==null&&roles[activeRole]?.description&&<p className="text-xs leading-relaxed text-slate-600">{roles[activeRole].description}</p>}
+  </div>}
+  <div className={adaptive ? "mf-role-field-pitch" : undefined}><div className={adaptive ? "mf-role-field-art" : undefined}>
   <img className="pointer-events-none absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
   {zone&&<svg className="pointer-events-none absolute inset-0 z-[2] h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label={`Zona táctica orientativa: ${zone.roleName}`} role="img">
     <defs>
@@ -92,7 +101,7 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
     <ellipse cx={zone.cx} cy={zone.cy} rx={zone.rx*.55} ry={zone.ry*.62} transform={`rotate(${zone.rotation||0} ${zone.cx} ${zone.cy})`} fill="#047857" fillOpacity=".13"/>
   </svg>}
   {/* Click the name to preview the zone. The existing green + independently edits the role. */}
-  {roles.map((role,i)=><div key={i}
+  {!adaptive&&roles.map((role,i)=><div key={i}
     className="pointer-events-none absolute z-30"
     style={{left:"16.4%",top:i===0?"13.4%":"calc(23.9% + 2px)",width:"56.7%",height:"8.8%"}}
   >
@@ -112,13 +121,14 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
   {NUMBERS.map(([key,label,x,y],i)=>{
     const n=compactPositionValue(ratings,key);
     const tone=roleColor(n);
-    return <div key={i} className="pointer-events-none absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{left:`${x}%`,top:`${y}%`}}>
+    return <div key={i} className="mf-role-field-marker pointer-events-none absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{left:`${x}%`,top:`${y}%`}}>
       <span className="flex items-center justify-center rounded-[5px] px-2 font-black leading-tight text-white shadow-sm" style={{background:tone,fontSize:"clamp(9px,1.1vw,14px)",minWidth:"clamp(21px,2.3vw,30px)",height:"clamp(15px,1.6vw,20px)"}}>{n||"–"}</span>
       <span className="rounded-b-md bg-white px-1.5 text-center font-black leading-tight text-slate-900 shadow-sm" style={{fontSize:"clamp(7px,.73vw,10px)"}}>{label}</span>
     </div>;
   })}
+  </div></div>
   {editing!==null&&typeof document!=="undefined"&&createPortal(
-   <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={e=>{if(e.target===e.currentTarget)setEditing(null);}}>
+   <div className="mf-modal-overlay fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/45 p-4" onMouseDown={e=>{if(e.target===e.currentTarget)setEditing(null);}}>
     <div role="dialog" aria-modal="true" aria-label={`Editar rol ${editing+1}`} className="pointer-events-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
      <div className="mb-4 flex items-center justify-between">
       <h3 className="text-base font-extrabold text-slate-900">Rol {editing+1}</h3>

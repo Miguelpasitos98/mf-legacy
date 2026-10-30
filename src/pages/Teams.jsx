@@ -720,7 +720,7 @@ export default function Teams() {
   }
 
   return (
-    <div className="min-h-full bg-[#F6F7F9] p-6 md:p-8">
+    <div className="mf-page-scroll bg-[#F6F7F9] p-4 sm:p-6 md:p-8">
       <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {navigationFilters.map((filter) => {
@@ -735,9 +735,9 @@ export default function Teams() {
           })}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="mf-team-actions flex items-center gap-2">
           {searchOpen && (
-            <div className="relative w-[220px]">
+            <div className="mf-team-search relative w-[220px]">
               <Search size={16} strokeWidth={2} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input type="text" placeholder="Search teams..." value={search} onChange={(event) => setSearch(event.target.value)} autoFocus className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-9 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10" />
               <button type="button" onClick={handleCloseSearch} className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Close search"><X size={14} /></button>
@@ -789,7 +789,7 @@ export default function Teams() {
           {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="mb-4 h-5 w-40 animate-pulse rounded bg-slate-100"></div>
-              <div className="grid grid-cols-2 gap-2 xl:grid-cols-6">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                 {Array.from({ length: 6 }).map((_, j) => (
                   <div key={j} className="h-[100px] animate-pulse rounded-xl bg-slate-100"></div>
                 ))}
@@ -878,7 +878,7 @@ export default function Teams() {
       )}
 
       {editingLeague && leagueDraft && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={event=>{if(event.target===event.currentTarget)closeLeagueEditor();}}>
+        <div className="mf-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={event=>{if(event.target===event.currentTarget)closeLeagueEditor();}}>
           <section role="dialog" aria-modal="true" aria-labelledby="edit-league-title" className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div><h2 id="edit-league-title" className="text-lg font-extrabold text-slate-900">Editar competición</h2><p className="text-xs text-slate-500">Se conservan el ID y los equipos vinculados.</p></div>
@@ -908,7 +908,7 @@ export default function Teams() {
         <AddTeamModal form={form} setForm={setForm} countries={countries} leagues={leagues} isEditing={Boolean(editingTeam)} formError={teamFormError} onClose={() => { setTeamFormError(""); setAddModalOpen(false); setEditingTeam(null); }} onSubmit={handleAddTeam} />
       )}
       {bulkTeamsConfirmOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="presentation">
+        <div className="mf-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="presentation">
           <div role="alertdialog" aria-modal="true" aria-labelledby="bulk-delete-team-title" aria-describedby="bulk-delete-team-description" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600"><Trash2 size={21} /></div>

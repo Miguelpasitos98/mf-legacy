@@ -53,7 +53,7 @@ export default function StadiumDetail(){
   useEffect(()=>{
     setEditing(false);setDraft(null);setError("");
     // El contenedor de MF LEGACY tiene scroll propio: abrir siempre la ficha desde arriba.
-    const scrollArea=document.querySelector("main.overflow-y-auto");
+    const scrollArea=document.querySelector(".mf-main, main.overflow-y-auto");
     if(scrollArea)scrollArea.scrollTop=0;
   },[stadiumKey]);
   const goBack=()=>navigate("/schedule",{state:location.state});
@@ -103,14 +103,14 @@ export default function StadiumDetail(){
     }finally{setSaving(false);}
   };
 
-  if(teamsQuery.isLoading&&!teamsQuery.data)return <main className="min-h-full bg-[#F6F7F9] p-8 text-sm text-slate-500">Cargando ficha del estadio…</main>;
-  if(teamsQuery.error&&!teamsQuery.data)return <main className="min-h-full bg-[#F6F7F9] p-8 text-sm text-rose-600">No se pudieron cargar los equipos.</main>;
-  if(!stadium)return <main className="min-h-full bg-[#F6F7F9] p-8">
+  if(teamsQuery.isLoading&&!teamsQuery.data)return <main className="mf-catalog-section min-h-full bg-[#F6F7F9] p-8 text-sm text-slate-500">Cargando ficha del estadio…</main>;
+  if(teamsQuery.error&&!teamsQuery.data)return <main className="mf-catalog-section min-h-full bg-[#F6F7F9] p-8 text-sm text-rose-600">No se pudieron cargar los equipos.</main>;
+  if(!stadium)return <main className="mf-catalog-section min-h-full bg-[#F6F7F9] p-8">
     <button type="button" onClick={goBack} className="inline-flex items-center gap-2 text-sm font-bold text-[#003399]"><ArrowLeft size={16}/>Volver a estadios</button>
     <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600">El estadio no está disponible en los registros actuales.</div>
   </main>;
   const name=editing?draft?.name||stadium.name:stadium.name;
-  return <main className="min-h-full bg-[#F6F7F9] px-4 pb-14 pt-5 sm:px-7">
+  return <main className="mf-catalog-section min-h-full bg-[#F6F7F9] px-4 pb-14 pt-5 sm:px-7">
     <div className="mx-auto w-full max-w-6xl">
       <div className="mb-5 flex items-center justify-between gap-3">
         <button type="button" onClick={goBack} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><ArrowLeft size={15}/>Todos los estadios</button>

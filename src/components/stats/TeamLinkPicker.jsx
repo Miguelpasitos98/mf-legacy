@@ -54,8 +54,8 @@ export default function TeamLinkPicker({season,records=[],teams=[],initialRecord
    }else onClose();
   }catch(e){setError(e.message||"No se pudieron guardar los vínculos.");}finally{setWorking(false);}
  };
- return createPortal(<div className="fixed inset-0 z-[10040] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Gestionar clubes por temporada">
-  <div className="flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+ return createPortal(<div className="mf-modal-overlay fixed inset-0 z-[10040] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Gestionar clubes por temporada">
+  <div className="mf-modal-panel flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
    <header className="flex items-center justify-between bg-[#003399] px-5 py-4 text-white">
     <div><p className="text-[10px] font-bold tracking-widest text-blue-100">MY LEGACY · EQUIPOS HISTÓRICOS</p><h2 className="text-lg font-black">Asignar clubes por temporada</h2><p className="text-xs text-blue-100">Marca un año entero o solo algunas competiciones</p></div>
     <button disabled={working} onClick={onClose} aria-label="Cerrar"><X size={20}/></button>

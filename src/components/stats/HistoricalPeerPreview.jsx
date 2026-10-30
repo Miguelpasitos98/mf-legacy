@@ -203,7 +203,7 @@ export default function HistoricalPeerPreview({playerId,position="",seasons=[],i
           </div>}
         </div>}
         {missingUnderstat&&onSetMetric&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-900">Los xG Chain /90 y xG Buildup /90 que aparecen como «—» no están disponibles para esta temporada en las competiciones guardadas. <strong>No se rellenan con el snapshot global de CraftedFC.</strong> Puedes pulsar «Añadir +» e introducir cifras verificadas de Understat para la competición correspondiente.</p>}
-        <div className="max-h-[min(72vh,920px)] min-h-[320px] overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="max-h-[min(72dvh,920px)] min-h-[320px] overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[980px] text-left text-xs">
             <thead className="sticky top-0 z-10 bg-[#e2eaf6] shadow-[0_1px_0_0_rgba(15,49,86,0.15)]">
               <tr>

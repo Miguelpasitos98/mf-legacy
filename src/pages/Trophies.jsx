@@ -175,7 +175,7 @@ export default function Trophies(){
   catch(err){setCatalogError("CSV no válido: "+err.message);}
   e.target.value="";
  };
- return <div className="flex h-full min-h-0 flex-col bg-[#F5F6F8] text-slate-900">
+ return <div className="mf-trophies flex h-full min-h-0 flex-col bg-[#F5F6F8] text-slate-900">
   <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3 md:px-7">
    <div className="flex items-center gap-2.5">
     <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#003399] text-white"><Trophy size={19}/></span>
@@ -190,7 +190,7 @@ export default function Trophies(){
   </header>
   {section==="catalog"&&<div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-200/80 bg-white px-4 py-2 md:px-6">
    <div className="hidden shrink-0 items-center gap-2 lg:flex"><span className="text-[10px] font-black uppercase tracking-[.15em] text-slate-400">Biblioteca</span></div>
-   <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-[#F8F9FC] px-2.5 py-2">
+   <div className="mf-trophy-filters min-w-0 flex-1 rounded-xl border border-slate-200 bg-[#F8F9FC] px-2.5 py-2">
     <div className="flex flex-wrap items-center justify-between gap-1.5">
      <div className="flex gap-1 overflow-x-auto">{[["verified","Identificados"],["all","Todos"],["pending","Pendientes"],["registered","Con ficha"]].map(([k,v])=><button key={k} type="button" className={cls(tab===k)} onClick={()=>setTab(k)}>{v}</button>)}</div>
      <span className="text-[11px] font-semibold tabular-nums text-slate-400">{filtered.length.toLocaleString("es-ES")} resultados</span>
@@ -237,8 +237,8 @@ export default function Trophies(){
     onSync={()=>{setSyncPhase("players");setSection("sync");}}/>}
   </div>
 
-  {draft&&<div className="fixed inset-0 z-[9997] flex items-center justify-center bg-slate-950/40 p-3 backdrop-blur-[2px]" onMouseDown={e=>{if(e.target===e.currentTarget)close();}}>
-   <div role="dialog" aria-modal="true" aria-label="Ficha de trofeo" className="flex max-h-[min(94vh,920px)] w-full max-w-[1050px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_25px_90px_rgba(0,0,0,.2)]">
+  {draft&&<div className="mf-modal-overlay fixed inset-0 z-[9997] flex items-center justify-center bg-slate-950/40 p-3 backdrop-blur-[2px]" onMouseDown={e=>{if(e.target===e.currentTarget)close();}}>
+   <div role="dialog" aria-modal="true" aria-label="Ficha de trofeo" className="mf-modal-panel flex max-h-[min(94dvh,920px)] w-full max-w-[1050px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_25px_90px_rgba(0,0,0,.2)]">
     <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 md:px-7">
      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-slate-400">{newRecord?"NUEVA FICHA":"TROPHY ARCHIVE · "+draft.source_id}</p><h2 className="max-w-[720px] truncate text-lg font-black text-slate-900">{draft.name||"Nuevo trofeo"}</h2></div>
      <button type="button" onClick={close} aria-label="Cerrar ficha del trofeo" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={19}/></button>

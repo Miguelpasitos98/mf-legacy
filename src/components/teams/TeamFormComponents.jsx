@@ -1,3 +1,4 @@
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -80,17 +81,6 @@ function SearchableTeamSelect({
   const [query, setQuery] = useState("");
   const wrapperRef = useRef(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const handleOutsideClick = (event) => {
-      if (!wrapperRef.current?.contains(event.target)) {
-        setOpen(false);
-        setQuery("");
-      }
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [open]);
 
   const getLabel = (item) => item?.name || "Unnamed";
   const getMeta = (item) =>
@@ -141,7 +131,9 @@ function SearchableTeamSelect({
   };
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) setQuery(""); }}>
+      <PopoverAnchor asChild>
+      <div ref={wrapperRef} className="relative min-w-0">
       <button
         type="button"
         onClick={() => { setOpen((current) => !current); setQuery(""); }}
@@ -164,8 +156,10 @@ function SearchableTeamSelect({
         <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
+      </div>
+      </PopoverAnchor>
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[80] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
+        <PopoverContent align="start" collisionPadding={12} sideOffset={6} onCloseAutoFocus={(event) => { event.preventDefault(); wrapperRef.current?.querySelector("button")?.focus(); }} className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
           <div className="border-b border-slate-100 p-2">
             <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3">
               <Search size={15} className="shrink-0 text-slate-400" />
@@ -218,9 +212,9 @@ function SearchableTeamSelect({
               </button>
             )}
           </div>
-        </div>
+        </PopoverContent>
       )}
-    </div>
+    </Popover>
   );
 }
 
@@ -380,9 +374,9 @@ export function AddTeamModal({ form, setForm, countries, leagues, onClose, onSub
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="add-team-title">
-      <div className="relative z-10 max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="max-h-[92vh] overflow-y-auto p-5 md:p-6">
+    <div className="mf-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="add-team-title">
+      <div className="mf-modal-panel relative z-10 max-h-[92dvh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="max-h-[92dvh] overflow-y-auto p-5 md:p-6">
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
               <h2 id="add-team-title" className="text-lg font-extrabold text-slate-900">{isEditing ? "Edit team" : "Add team"}</h2>
@@ -561,9 +555,9 @@ export function AddTeamModal({ form, setForm, countries, leagues, onClose, onSub
             </CollapsibleSection>
 
             {isLogoZoomOpen && logoPreviewUrl && (
-              <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-5" role="dialog" aria-modal="true" aria-label="Expanded logo preview">
+              <div className="mf-modal-overlay fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-5" role="dialog" aria-modal="true" aria-label="Expanded logo preview">
                 <button type="button" onClick={() => setIsLogoZoomOpen(false)} className="absolute right-5 top-5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800">Cerrar</button>
-                <img src={logoPreviewUrl} alt="Expanded logo preview" className="max-h-[85vh] max-w-[90vw] object-contain" />
+                <img src={logoPreviewUrl} alt="Expanded logo preview" className="max-h-[85dvh] max-w-[90vw] object-contain" />
               </div>
             )}
 
@@ -598,7 +592,7 @@ export function ImportTeamJsonModal({ onClose, onImport }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="import-team-json-title">
+    <div className="mf-modal-overlay fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="import-team-json-title">
       <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl md:p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>

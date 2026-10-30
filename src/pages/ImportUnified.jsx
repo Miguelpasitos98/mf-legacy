@@ -513,9 +513,9 @@ export default function ImportUnified({onImported}) {
   };
   const failures=(report?.items||[]).filter(x=>x.status==="error");
   const issueCount=fileErrors.length+importWarnings.length+failures.length+(error?1:0);
-  return <div className="h-full w-full overflow-y-auto bg-[#f3f5f9] p-4 sm:p-6 text-[#152544]">
+  return <div className="mf-page-scroll w-full bg-[#f3f5f9] p-4 sm:p-6 text-[#152544]">
     <div className="mx-auto max-w-3xl space-y-4 pb-10">
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-xl font-black text-[#0e2844]">Importar FotMob + CraftedFC</h1>
           <p className="mt-1 text-xs text-slate-500">Selecciona el JSON. MF LEGACY identifica, comprueba y guarda automáticamente.</p></div>
         <span className={"shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold "+(isAdmin===true?"bg-emerald-50 text-emerald-800":"bg-amber-50 text-amber-800")}>{isAdmin===null?"Conectando…":isAdmin?"Importación segura":"Solo lectura"}</span>
@@ -532,7 +532,7 @@ export default function ImportUnified({onImported}) {
       </section>}
       {report&&!busy&&<section role="status" className={"rounded-xl border p-4 "+(report.errors?"border-amber-200 bg-amber-50":"border-emerald-200 bg-emerald-50")}>
         <div className="flex items-center gap-2 font-bold text-[#0e2844]"><CheckCircle2 size={18}/> {report.errors?"Importación parcial":"Importación completada"}</div>
-        <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
           {[[report.created,"Nuevos"],[report.enriched||0,"Mejorados"],[report.skipped,"Existían"],[report.errors,"Errores"]].map(([n,label])=>
             <div key={label} className="rounded-lg bg-white/80 p-2"><div className="text-xl font-black tabular-nums">{number(n)}</div><div className="text-[10px] text-slate-600">{label}</div></div>)}
         </div>
@@ -546,7 +546,7 @@ export default function ImportUnified({onImported}) {
         <p className="text-sm font-bold">Identificar a {identity.name}</p>
         <p className="mt-1 text-xs text-slate-500">No hay vínculo FotMob confirmado. Elige la ficha existente, o crea una mínima si el jugador no existe.</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <select className="min-w-[220px] flex-1 rounded-lg border border-slate-200 bg-white p-2 text-sm" value={suggestedPlayerId} onChange={e=>setSuggestedPlayerId(e.target.value)}>
+          <select className="min-w-0 w-full sm:w-auto flex-1 rounded-lg border border-slate-200 bg-white p-2 text-sm" value={suggestedPlayerId} onChange={e=>setSuggestedPlayerId(e.target.value)}>
             <option value="">{identity.existing.length?"Selecciona ficha existente":"Crear ficha mínima"}</option>
             {identity.existing.map(p=><option key={p.id} value={p.id}>{p.name} · {p.fm26_uid||"Sin UID"}</option>)}
           </select>
@@ -566,7 +566,7 @@ export default function ImportUnified({onImported}) {
       {(batch||report)&&<details className="rounded-xl border border-slate-200 bg-white p-4">
         <summary className="cursor-pointer text-xs font-semibold text-slate-600">Detalles técnicos y auditoría</summary>
         <p className="mt-2 text-xs text-slate-500">Se conserva lo ya guardado, se añaden solo métricas nuevas y se omiten las coincidencias con conflictos de identidad. Los snapshots externos son independientes de FM26.</p>
-        <div className="mt-3 grid grid-cols-4 gap-2">
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
           {Object.keys(kindLabel).map(k=><div key={k} className="rounded-lg bg-slate-50 p-2 text-center"><p className="font-bold">{stats[k]}</p><p className="text-[10px] text-slate-500">{kindLabel[k]}</p></div>)}
         </div>
         {report&&<button type="button" onClick={()=>download(report,`MF_Legacy_informe_${localDate()}.json`)} className="mt-3 flex items-center gap-1 text-xs font-bold text-blue-700"><Download size={15}/> Descargar informe</button>}

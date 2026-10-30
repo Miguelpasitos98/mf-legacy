@@ -58,7 +58,7 @@ const visibleRadarColor=(value)=>{
 };
 // Replace with coordinates copied from the temporary layout editor.
 const FIXED_RADAR={left:12,top:-377,width:296,height:365,zIndex:30};
-export default function BestSeasonRadar({playerId, color="#D62828"}){
+export default function BestSeasonRadar({playerId, color="#D62828",adaptive=false}){
  const {data,isLoading,isError}=useHistoricalPeerDataset(Boolean(playerId));
  const result=useMemo(()=>{
    const obs=data?.observations||[];
@@ -72,7 +72,7 @@ export default function BestSeasonRadar({playerId, color="#D62828"}){
       axes:axes.map(([name,keys])=>({name,value:scoreAxis(keys,best.o,obs.filter(o=>o.role===best.o.role))}))};
  },[data,playerId]);
  const valid=result?.axes.filter(a=>a.value!==null).length||0;
- return <div className="pointer-events-none absolute" style={FIXED_RADAR}><div className="flex h-full w-full flex-col overflow-hidden rounded-xl bg-white" style={{color:"#334155"}}>
+ return <div className={adaptive ? "mf-player-radar" : "pointer-events-none absolute"} style={adaptive ? undefined : FIXED_RADAR}><div className="flex h-full w-full flex-col overflow-hidden rounded-xl bg-white" style={{color:"#334155"}}>
    <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3">
      <span className="truncate text-[11px] font-black tracking-wide">PLAYER PROFILE</span>
      <span className="shrink-0 text-[10px] font-semibold text-slate-500">{result?.season||""}</span>

@@ -46,8 +46,8 @@ export default function StatsColumnSettings({config,mode:initialMode="season",ca
  };
  const save=async()=>{setBusy(true);setNotice("");try{await onSave(draft);onClose();}catch(e){setNotice("No se han guardado los cambios: "+(e.message||e));}finally{setBusy(false);}};
  const preview=editId&&!rawId&&sample&&!formulaError?(()=>{try{return evalFormula(parseFormula(draftFormula),rowValues(sample,mode));}catch{return null;}})():null;
- return createPortal(<div className="fixed inset-0 z-[10020] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Configurar columnas y fórmulas">
-  <div className="flex max-h-[94dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+ return createPortal(<div className="mf-modal-overlay fixed inset-0 z-[10020] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Configurar columnas y fórmulas">
+  <div className="mf-modal-panel flex max-h-[94dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
    <header className="flex items-center gap-3 border-b border-white/10 bg-[#0d2843] px-5 py-4 text-white">
     <Settings2 size={22}/><div className="min-w-0 flex-1"><h2 className="text-lg font-black">Configurar STATS</h2><p className="text-xs text-blue-200">Columnas, categorías, nombres y fórmulas de cálculo</p></div>
     <button onClick={onClose} disabled={busy} className="rounded-lg p-2 hover:bg-white/10" aria-label="Cerrar"><X size={20}/></button>
@@ -61,7 +61,7 @@ export default function StatsColumnSettings({config,mode:initialMode="season",ca
     <div className="grid gap-4 lg:grid-cols-2">
      <section className="rounded-xl border border-slate-200 p-4">
       <div className="mb-3 flex justify-between"><h3 className="font-black text-[#0b3156]">Columnas visibles</h3><span className="text-xs text-slate-500">{selected.length} columnas</span></div>
-      <div className="space-y-2">{selected.map((id,index)=>{const def=getColumn(draft,id);if(!def)return null;return <div key={id} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs">
+      <div className="space-y-2">{selected.map((id,index)=>{const def=getColumn(draft,id);if(!def)return null;return <div key={id} className="mf-column-row flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs">
        <span className="min-w-0 flex-1 truncate font-bold text-slate-700">{def.name}<span className="ml-2 text-[10px] font-normal text-slate-400">{def.kind==="computed"?"Fórmula":"Fuente"}</span></span>
        <button onClick={()=>toggleDivider(id)} title="Añadir o quitar línea vertical a la derecha" aria-pressed={dividers.includes(id)} className={"rounded border px-2 py-1 font-bold "+(dividers.includes(id)?"border-blue-500 bg-blue-100 text-[#003399]":"border-slate-200 text-slate-500")}>│</button>
        <button aria-label={"Subir "+def.name} disabled={index===0} onClick={()=>move(index,-1)} className="rounded p-1 hover:bg-slate-200 disabled:opacity-30"><ArrowUp size={14}/></button>
@@ -101,7 +101,7 @@ export default function StatsColumnSettings({config,mode:initialMode="season",ca
     </section>}
     {notice&&<p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs font-semibold text-amber-900" role="status">{notice}</p>}
    </div>
-   <footer className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4">
+   <footer className="mf-settings-footer flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4">
     <p className="text-xs text-slate-500">Solo cambia la presentación y sus cálculos derivados. Nunca modifica las estadísticas originales.</p>
     <div className="flex gap-2"><button disabled={busy} onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Cancelar</button><button disabled={busy} onClick={save} className="rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white">{busy?"Guardando…":"Guardar cambios"}</button></div>
    </footer>

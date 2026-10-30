@@ -3180,13 +3180,13 @@ export default function Players() {
   }
 
   return (
-    <div data-mf-players-scroll ref={listScrollRef} onScroll={rememberListScroll} className="relative h-full min-h-0 overflow-y-auto scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
+    <div data-mf-players-scroll ref={listScrollRef} onScroll={rememberListScroll} className="mf-page-scroll relative scroll-smooth bg-[#f5f7fa] p-3 sm:p-4 md:p-6">
       <div className="w-full">
 
         {/* HEADER */}
         <div className="mb-4 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           {/* PERSISTENT FILTERS — LEFT */}
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="mf-catalog-filters flex min-w-0 flex-wrap items-center gap-2">
             <div className="w-[220px] sm:w-[250px]">
               <SearchableEntitySelect
                 value={teamFilterId}
@@ -3231,11 +3231,11 @@ export default function Players() {
           </div>
 
           {/* ACTIONS */}
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          <div className="mf-catalog-actions flex min-w-0 flex-wrap items-center justify-end gap-2">
 
             {/* SEARCH */}
             {searchOpen && (
-              <div className="w-[220px] sm:w-[280px]">
+              <div className="mf-catalog-search w-[220px] sm:w-[280px]">
                 <input
                   type="text"
                   value={search}
@@ -3329,7 +3329,7 @@ export default function Players() {
 
         {/* CONFIRMACIÓN DE ELIMINACIÓN MASIVA */}
         {bulkDeleteIds.length > 0 && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget && !bulkBusy) setBulkDeleteIds([]); }}>
+          <div className="mf-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget && !bulkBusy) setBulkDeleteIds([]); }}>
             <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" role="alertdialog" aria-modal="true" aria-labelledby="bulk-delete-title" aria-describedby="bulk-delete-description">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-700"><AlertCircle size={24} /></div>
               <h3 id="bulk-delete-title" className="text-lg font-extrabold text-slate-900">¿Eliminar {bulkDeleteIds.length} {bulkDeleteIds.length === 1 ? "jugador" : "jugadores"}?</h3>
@@ -3357,7 +3357,7 @@ export default function Players() {
 
         {/* LOADING */}
         {isLoading ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+          <div className="mf-player-grid gap-x-4 gap-y-4">
             {Array.from({ length: 8 }).map(
               (_, index) => (
                 <div
@@ -3374,7 +3374,7 @@ export default function Players() {
 
             {/* ALL PLAYERS */}
             {viewMode === "all" && (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+              <div className="mf-player-grid gap-x-4 gap-y-4">
                 {filteredPlayers.map((player, index) => (
                     <PlayerCard
                       selectionMode={bulkMode}
@@ -3408,7 +3408,7 @@ export default function Players() {
                         count={group.players.length}
                       />
 
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                      <div className="mf-player-grid gap-x-4 gap-y-4">
                         {group.players.map(
                           (player) => (
                             <PlayerCard
@@ -3457,7 +3457,7 @@ export default function Players() {
                         count={group.players.length}
                       />
 
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                      <div className="mf-player-grid gap-x-4 gap-y-4">
                         {group.players.map(
                           (player) => (
                             <PlayerCard
@@ -3500,7 +3500,7 @@ export default function Players() {
                       count={group.players.length}
                     />
 
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                    <div className="mf-player-grid gap-x-4 gap-y-4">
                       {group.players.map((player) => (
                         <PlayerCard
                           selectionMode={bulkMode}
@@ -3534,7 +3534,7 @@ export default function Players() {
                       count={group.players.length}
                     />
 
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                    <div className="mf-player-grid gap-x-4 gap-y-4">
                       {group.players.map((player) => (
                         <PlayerCard
                           selectionMode={bulkMode}
@@ -3628,7 +3628,7 @@ export default function Players() {
 
                                   <div className="border-t border-slate-100 bg-slate-50/30 p-3">
                                       {subgroup.players.length > 0 ? (
-                                        <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-4 gap-y-4">
+                                        <div className="mf-player-grid gap-x-4 gap-y-4">
                                           {subgroup.players.map((player) => (
                                             <PlayerCard
                           selectionMode={bulkMode}
@@ -3763,7 +3763,7 @@ export default function Players() {
         {/* ADD PLAYER MODAL */}
         {false && importModalOpen && (
           <div
-            className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
+            className="mf-modal-overlay fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]"
             onMouseDown={(event) => {
               if (
                 event.target === event.currentTarget &&
@@ -3773,7 +3773,7 @@ export default function Players() {
               }
             }}
           >
-            <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="mf-modal-panel max-h-[92dvh] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#003399]/[0.08] text-[#003399]">
@@ -3802,7 +3802,7 @@ export default function Players() {
                 </button>
               </div>
 
-              <div className="max-h-[calc(92vh-72px)] overflow-y-auto p-5">
+              <div className="max-h-[calc(92dvh-72px)] overflow-y-auto p-5">
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-6">
                   <div className="flex flex-col items-center justify-center text-center">
                     <FileText

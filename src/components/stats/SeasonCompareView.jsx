@@ -15,8 +15,8 @@ export default function SeasonCompareView({entries=[],compositeBySeason=new Map(
  // Un único cálculo del análisis alimenta el veredicto y la tabla.
  const model=useMemo(()=>buildCompareAnalysis(entries,observations),[entries,observations]);
  return createPortal(
-  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Comparativa detallada de jugadores seleccionados">
-   <div className="flex max-h-[95vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+  <div className="mf-modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Comparativa detallada de jugadores seleccionados">
+   <div className="mf-modal-panel flex max-h-[95dvh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
     <header className="shrink-0 bg-[#0e2844] px-4 py-4 text-white sm:px-6">
      <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">

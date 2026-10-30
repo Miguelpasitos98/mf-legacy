@@ -717,7 +717,7 @@ export default function Countries() {
 
   if (selectedCountry) {
     return (
-      <div className="h-full min-h-0 overflow-y-auto bg-[#E8E9EC] px-6 py-8 md:px-10">
+      <div className="mf-page-scroll bg-[#E8E9EC] px-4 py-6 sm:px-6 sm:py-8 md:px-10">
         <div className="mx-auto max-w-[1800px]">
           <button
             type="button"
@@ -936,7 +936,7 @@ export default function Countries() {
           </section>
 
           {editCountryOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]">
+            <div className="mf-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-[2px]">
               <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
                 <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
                   <div>
@@ -993,7 +993,7 @@ export default function Countries() {
                           }))
                         }
                         placeholder="https://.../flag.png"
-                        className={`${inputClassName} flex-1`}
+                        className={`${inputClassName} min-w-0 flex-1`}
                       />
                     </div>
 
@@ -1058,9 +1058,9 @@ export default function Countries() {
   }
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-[#E8E9EC] px-6 py-8 md:px-10">
+    <div className="mf-page-scroll bg-[#E8E9EC] px-4 py-6 sm:px-6 sm:py-8 md:px-10">
       <div className="mx-auto max-w-[1600px]">
-        <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#64748B]">
               MF LEGACY
@@ -1101,7 +1101,7 @@ export default function Countries() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar país..."
-            className="w-full bg-transparent text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8]"
+            className="min-w-0 w-full bg-transparent text-sm text-[#0F172A] outline-none placeholder:text-[#94A3B8]"
           />
         </div>
 

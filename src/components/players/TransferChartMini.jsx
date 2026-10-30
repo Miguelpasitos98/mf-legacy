@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceDot, CartesianGrid } from "recharts";
 import { Plus, Trash2, X } from "lucide-react";
@@ -75,6 +75,13 @@ function MiniTooltip({ active, payload, minimum, maximum }) {
   </div>;
 }
 export default function TransferChartMini({ player, clubs = [] }) {
+  const chartRef = useRef(null);
+  const [chartWidth,setChartWidth] = useState(500);
+  useEffect(()=>{
+    const element=chartRef.current;if(!element)return;
+    const observer=new ResizeObserver(([entry])=>setChartWidth(entry.contentRect.width));
+    observer.observe(element);return ()=>observer.disconnect();
+  },[]);
   const id = player?.id;
   const {data:historicalRows=[],isLoading:historyLoading}=useQuery({
     queryKey:["mf-legacy","player-market-chart",id],
@@ -127,6 +134,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
     }
     return ticks;
   },[data]);
+  const visibleYearTicks=useMemo(()=>{const step=Math.max(1,Math.ceil(yearTicks.length/Math.max(2,Math.floor(chartWidth/72))));return yearTicks.filter((_,i)=>i%step===0);},[yearTicks,chartWidth]);
   const latest=data.at(-1);
   const maxValue=data.length?Math.max(...data.map(row=>row.value)):null;
   const minValue=data.length?Math.min(...data.map(row=>row.value)):null;
@@ -176,7 +184,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
     setLocalRows(next); setOpen(false); setError("");
   };
   return <>
-    <div className="pointer-events-auto relative flex h-full min-w-0 flex-1 flex-col text-slate-900">
+    <div ref={chartRef} className="mf-market-chart pointer-events-auto relative flex h-full min-w-0 flex-1 flex-col text-slate-900">
       {data.length>0 ? <div className="min-h-0 flex-1" style={{minHeight:115}}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{top:24,right:9,bottom:0,left:1}}>
@@ -184,7 +192,7 @@ export default function TransferChartMini({ player, clubs = [] }) {
               <stop offset="0%" stopColor={seg.color} stopOpacity={0.35}/>
               <stop offset="100%" stopColor={seg.color} stopOpacity={0.02}/>
             </linearGradient>)}</defs>
-            <XAxis dataKey="timestamp" type="number" domain={["dataMin","dataMax"]} ticks={yearTicks} interval={0} tickFormatter={v=>new Date(v).getFullYear()} tick={{fill:"#64748b",fontSize:9}} height={16} axisLine={false} tickLine={false} minTickGap={19}/>
+            <XAxis dataKey="timestamp" type="number" domain={["dataMin","dataMax"]} ticks={visibleYearTicks} interval={0} tickFormatter={v=>new Date(v).getFullYear()} tick={{fill:"#64748b",fontSize:9}} height={16} axisLine={false} tickLine={false} minTickGap={19}/>
             <YAxis yAxisId="market" hide domain={[0, axisTop]} ticks={axisTicks} allowDataOverflow={false}/>
             <CartesianGrid vertical={false} stroke="#64748b" strokeOpacity={0.13} strokeDasharray="3 4"/>
             <Tooltip content={<MiniTooltip minimum={minValue} maximum={maxValue}/>} cursor={{stroke:"#94a3b8",strokeDasharray:"3 3"}}/>
@@ -205,14 +213,14 @@ export default function TransferChartMini({ player, clubs = [] }) {
           </AreaChart>
         </ResponsiveContainer>
       </div> : <div className="mt-3 flex flex-1 items-center text-xs text-slate-500">{historyLoading?"Cargando valores de mercado históricos…":"No hay valores históricos de mercado con fecha disponibles."}</div>}
-      <div className="mt-1 flex items-center justify-between gap-3 text-[10px]">
+      <div className="mf-market-extremes mt-1 flex flex-wrap items-center justify-between gap-3 text-[10px]">
         <span className="text-slate-500">MÁXIMO <strong className="ml-1 font-black text-emerald-700">{maxValue === null ? "—" : prettyMoney(maxValue)}</strong></span>
         <span className="text-slate-500">MÍNIMO <strong className="ml-1 font-black text-rose-700">{minValue === null ? "—" : prettyMoney(minValue)}</strong></span>
       </div>
     </div>
     {open && typeof document !== "undefined" && createPortal(
-      <div className="pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-        <div role="dialog" aria-modal="true" aria-label="Editar historial de mercado" className="max-h-[85vh] w-full max-w-[640px] overflow-y-auto rounded-2xl bg-white p-5 text-slate-900 shadow-2xl">
+      <div className="mf-modal-overlay pointer-events-auto fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+        <div role="dialog" aria-modal="true" aria-label="Editar historial de mercado" className="mf-modal-panel max-h-[85dvh] w-full max-w-[640px] overflow-y-auto rounded-2xl bg-white p-5 text-slate-900 shadow-2xl">
           <div className="flex items-start justify-between gap-3">
             <div><h2 className="text-lg font-black">Historial de valor de mercado</h2><p className="mt-1 text-xs text-slate-500">Primera prueba: fechas, millones de euros y club opcional. Los cambios se guardan solo en este navegador, no en Base44.</p></div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar"><X size={20}/></button>

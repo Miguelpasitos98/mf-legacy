@@ -46,9 +46,9 @@ export default function PalmaresButton({ownerType,ownerId,compact=false,dark=fal
    <Trophy size={compact?14:16}/> PALMARÉS
   </button>
   {open&&typeof document!=="undefined"&&createPortal(
-   <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm"
+   <div className="mf-modal-overlay fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm"
     onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}>
-    <div role="dialog" aria-modal="true" aria-label="Palmarés histórico" className="flex max-h-[88vh] w-full max-w-[780px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div role="dialog" aria-modal="true" aria-label="Palmarés histórico" className="mf-modal-panel flex max-h-[88dvh] w-full max-w-[780px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
      <header className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
       <div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-slate-400">MF LEGACY · TROPHIES</p>
        <h2 className="mt-0.5 flex items-center gap-2 text-lg font-black text-slate-900"><Trophy size={18} className="text-[#003399]"/> Palmarés histórico</h2></div>

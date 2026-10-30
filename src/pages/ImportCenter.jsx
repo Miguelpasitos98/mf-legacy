@@ -233,7 +233,7 @@ export default function ImportCenter(){
     finally{setBusy(false);}
   };
 
-  return <div className="h-full overflow-y-auto p-4 md:p-7 text-slate-800">
+  return <div className="mf-page-scroll p-4 md:p-7 text-slate-800">
     <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
       <div><h1 className="text-2xl font-bold tracking-tight">Centro de importaciones <span className="text-[#003399]">V3</span></h1><p className="text-sm text-slate-600">FotMob · Understat · FIFA / EA FC · Mercado histórico</p></div>
       <button onClick={()=>refresh({forceCandidates:true})} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 bg-white hover:bg-slate-100"><RefreshCw size={16}/>Actualizar</button>
@@ -473,7 +473,7 @@ export default function ImportCenter(){
           {c.provenance?.archive_url&&<a className="mr-3 text-xs text-blue-800 underline" href={c.provenance.archive_url} target="_blank" rel="noopener noreferrer">Archivo público original</a>}
           {c.evidence_url&&<a className="text-xs text-blue-800 underline" href={c.evidence_url} target="_blank" rel="noopener noreferrer">Consultar fuente</a>}
         </div>
-        {c.review_status==="pending"&&<div className="flex items-center gap-3 text-sm">
+        {c.review_status==="pending"&&<div className="flex flex-wrap items-center gap-3 text-sm">
           {c.verification_status!=="verified"&&c.verification_status!=="conflict"&&c.evidence_url&&<button disabled={busy||coordinator!=="ready"} onClick={()=>review("verify",c.id)} className="text-amber-800 underline">He verificado la fuente</button>}
           <button disabled={busy||coordinator!=="ready"||c.verification_status!=="verified"} onClick={()=>review("approve",c.id)} className="text-[#003399] underline disabled:opacity-30">Aplicar</button>
           <button disabled={busy||coordinator!=="ready"} onClick={()=>review("reject",c.id)} className="text-red-700 underline">Descartar</button>

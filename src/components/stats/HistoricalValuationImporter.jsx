@@ -271,7 +271,7 @@ export default function HistoricalValuationImporter({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm"
+      className="mf-modal-overlay fixed inset-0 z-[9998] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Importar valores historicos"
@@ -279,7 +279,7 @@ export default function HistoricalValuationImporter({
         if (e.target === e.currentTarget && !busy) onClose();
       }}
     >
-      <div className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="mf-modal-panel flex max-h-[95dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between bg-[#0d243b] px-5 py-4 text-white">
           <div className="min-w-0">
             <h2 className="text-lg font-black">IMPORTAR VALORES HISTORICOS</h2>

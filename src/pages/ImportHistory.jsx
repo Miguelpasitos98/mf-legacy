@@ -782,9 +782,9 @@ export default function ImportHistory() {
   }
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-[#E8E9EC] px-6 py-8 md:px-10">
+    <div className="mf-page-scroll bg-[#E8E9EC] px-4 py-6 sm:px-6 sm:py-8 md:px-10">
       <div className="mx-auto max-w-[1400px]">
-        <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
               Administración · MF LEGACY
@@ -987,7 +987,7 @@ export default function ImportHistory() {
                 {selectedRows.length} etapa(s) seleccionada(s) para importar.
                 Las etapas ya guardadas se omiten sin duplicarse.
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {report ? (
                   <button
                     type="button"

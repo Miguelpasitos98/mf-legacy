@@ -64,12 +64,12 @@ export default function PlayerCareerHistoryModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9997] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+      className="mf-modal-overlay fixed inset-0 z-[9997] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[88vh] w-full max-w-[680px] flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-2xl">
+      <div className="mf-modal-panel flex max-h-[88dvh] w-full max-w-[680px] flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-4">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.17em] text-[#003399]">

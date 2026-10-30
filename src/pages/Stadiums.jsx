@@ -56,7 +56,7 @@ export default function Stadiums(){
     (acc[key] ||= []).push(stadium);return acc;
   },{})).sort(([a],[b])=>a.localeCompare(b,"es")),[filtered,mode]);
   const open=(stadium)=>navigate("/schedule/stadium/"+encodeURIComponent(stadium.id),{state:{stadiumsReturn:{search,city,country,capacity,mode,view,year,color}}});
-  return <main className="min-h-full bg-[#F6F7F9] p-4 md:p-6">
+  return <main className="mf-catalog-section min-h-full bg-[#F6F7F9] p-4 md:p-6">
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
       <h1 className="text-lg font-black uppercase text-slate-900">ESTADIOS</h1>
       <div className="flex flex-wrap items-center gap-2">

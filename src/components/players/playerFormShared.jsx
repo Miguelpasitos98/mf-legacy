@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
+import React, { useRef, useState } from "react";
 import {
   Building2,
   Globe2,
@@ -280,25 +281,6 @@ export function SearchableEntitySelect({
   const [query, setQuery] = useState("");
   const wrapperRef = useRef(null);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const handleOutsideClick = (event) => {
-      if (!wrapperRef.current?.contains(event.target)) {
-        setOpen(false);
-        setQuery("");
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleOutsideClick
-      );
-    };
-  }, [open]);
 
   const getLabel = (item) => item?.name || "Unnamed";
 
@@ -371,7 +353,9 @@ export function SearchableEntitySelect({
   };
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) setQuery(""); }}>
+      <PopoverAnchor asChild>
+      <div ref={wrapperRef} className="relative min-w-0">
       <button
         type="button"
         onClick={() => {
@@ -431,8 +415,10 @@ export function SearchableEntitySelect({
         />
       </button>
 
+      </div>
+      </PopoverAnchor>
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[80] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
+        <PopoverContent align="start" collisionPadding={12} sideOffset={6} onCloseAutoFocus={(event) => { event.preventDefault(); wrapperRef.current?.querySelector("button")?.focus(); }} className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
           <div className="border-b border-slate-100 p-2">
             <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3">
               <Search
@@ -534,8 +520,8 @@ export function SearchableEntitySelect({
               </button>
             )}
           </div>
-        </div>
+        </PopoverContent>
       )}
-    </div>
+    </Popover>
   );
 }
