@@ -24,15 +24,15 @@ test("El filtro derecho e izquierdo agrupa los sinónimos sin mezclar las bandas
 test("Defensores antiguos y nuevos se agrupan sin mezclar centrales con laterales",()=>{
  for(const p of ["DFC","CB","D (C)"])assert.ok(matchesStatsPosition(p,"grupo:cb"),p);
  for(const p of ["LD","LI","RB","LB","D (R)","D (L)","FB"])assert.ok(matchesStatsPosition(p,"grupo:fb"),p);
- for(const p of ["CRD","CRI","RWB","LWB","WB (R)","WB (L)","WB"])assert.ok(matchesStatsPosition(p,"grupo:wb"),p);
+ for(const p of ["CRD","CRI","CAD","CAI","RWB","LWB","WB (R)","WB (L)","WB"])assert.ok(matchesStatsPosition(p,"grupo:wb"),p);
  for(const p of ["CRD","CRI","RWB","LWB","WB (R)","WB (L)","WB"])
   assert.ok(matchesStatsPosition(p,"grupo:fb"),"Incluido en laterales: "+p);
  for(const p of ["DFC","CB","LD","LI","RB","LB","CRD","CRI","RWB","LWB"])assert.ok(matchesStatsPosition(p,"grupo:def"),p);
- for(const p of ["CRI","LWB","WB (L)","LI","LB"]) {
+ for(const p of ["CRI","CAI","LWB","WB (L)","LI","LB"]) {
   assert.ok(matchesStatsPosition(p,"grupo:fb:left"),p);
   assert.ok(!matchesStatsPosition(p,"grupo:fb:right"),p);
  }
- for(const p of ["CRD","RWB","WB (R)","LD","RB"]) {
+ for(const p of ["CRD","CAD","RWB","WB (R)","LD","RB"]) {
   assert.ok(matchesStatsPosition(p,"grupo:fb:right"),p);
   assert.ok(!matchesStatsPosition(p,"grupo:fb:left"),p);
  }
