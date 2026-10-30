@@ -36,6 +36,7 @@ export function validatePossessionRow(row,teamList=[],{allowUnlinked=false}={}){
  const idFotmob=str(row.fotmob_team_id||team?.fotmob_id);
  if(row.fotmob_team_id&&team?.fotmob_id&&str(team.fotmob_id)!==str(row.fotmob_team_id))throw Error("ID FotMob incompatible con el equipo.");
  return {team_id:team?str(team.id):"",team_name:team?str(team.name):rawName,
+  ...(str(row.source_team_name)?{source_team_name:str(row.source_team_name)}:{}),
   ...(idFotmob?{fotmob_team_id:idFotmob}:{}),season,competition,
   team_possession_pct:pct,source:str(row.source)||"Manual",source_url:url,
   ...(mc!==null?{matches_covered:mc}:{}),
@@ -66,7 +67,7 @@ export function matchingPossessionRecord(existingRows=[],row){
   canonicalHistoricalCompetition(item.competition)===canonicalHistoricalCompetition(row.competition) &&
   normalizeSeason(item.season)===normalizeSeason(row.season) &&
   ((row.team_id&&item.team_id&&str(row.team_id)===str(item.team_id)) ||
-   (name&&canonicalHistoricalClub(item.team_name)===name)));
+   (name&&[item.team_name,item.source_team_name].some(label=>canonicalHistoricalClub(label)===name))));
  if(matching.length>1)throw Error("Ya existen varios registros de esa combinación. Revisa duplicados antes de guardar.");
  return matching[0]||null;
 }
@@ -93,6 +94,18 @@ export function createPossessionLookup(possessions=[],teams=[]){
   const prior=map.get(key);
   map.set(key,prior===undefined?value:(prior===null||prior!==value?null:value));
  }
+ // A reviewed association may retain the provider's original club label.
+ // Expose it to player stats only when it points to exactly one valid Team.
+ const aliasIds=new Map();
+ for(const record of possessions){
+  if(!record.team_id||!record.source_team_name)continue;
+  const linked=teams.find(t=>str(t.id)===str(record.team_id));
+  if(!linked||canonicalHistoricalClub(record.team_name)!==canonicalHistoricalClub(linked.name))continue;
+  const alias=canonicalHistoricalClub(record.source_team_name);
+  if(!alias)continue;
+  if(!aliasIds.has(alias))aliasIds.set(alias,new Set());
+  aliasIds.get(alias).add(str(linked.id));
+ }
  for(const row of possessions){
   const pct=possessionPct(row.team_possession_pct);
   if(pct===null)continue;
@@ -113,6 +126,12 @@ export function createPossessionLookup(possessions=[],teams=[]){
   if(fm)push(byFotmob,fm+"|"+code,pct);
   const name=canonicalHistoricalClub(team.name);
   if(canonicalIds.get(name)?.size===1)push(byName,name+"|"+code,pct);
+  const alias=canonicalHistoricalClub(row.source_team_name);
+  const owner=aliasIds.get(alias);
+  const catalogOwner=canonicalIds.get(alias);
+  if(alias&&owner?.size===1&&owner.has(str(team.id))&&
+     (!catalogOwner||(catalogOwner.size===1&&catalogOwner.has(str(team.id)))))
+   push(byName,alias+"|"+code,pct);
  }
  return row=>{
   const code=normalizeSeason(row.season)+"|"+canonicalHistoricalCompetition(row.competition);

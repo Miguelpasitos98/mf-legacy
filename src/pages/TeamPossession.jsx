@@ -5,12 +5,14 @@ import {base44} from "@/api/base44Client";
 import {recordQueryOptions} from "@/api/recordQueries";
 import {useTeamsQuery} from "@/hooks/useSharedData";
 import {HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
+import PossessionAuditPanel from "@/components/possession/PossessionAuditPanel";
+import {resolveImportedPossession} from "@/utils/possessionAssociations";
 import {canonicalHistoricalCompetition,canonicalHistoricalClub} from "@/utils/historicalJson";
 import {validatePossessionRow,parsePossessionBatch,matchingPossessionRecord,possessionImportDecision} from "@/utils/teamPossession";
 import {Database,Upload,Save,Search,ChevronLeft,ChevronDown,ChevronRight,RefreshCw,FileJson,Layers3} from "lucide-react";
 
 const unpack=r=>Array.isArray(r)?r:r?.items||r?.data||r?.results||[];
-const blank={team_id:"",team_name:"",season:"2024/2025",competition:"Premier League",team_possession_pct:"",source:"Manual",source_url:"",matches_covered:"",notes:""};
+const blank={team_id:"",team_name:"",source_team_name:"",season:"2024/2025",competition:"Premier League",team_possession_pct:"",source:"Manual",source_url:"",matches_covered:"",notes:""};
 const inputClass="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-500";
 const labelClass="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-600";
 const buttonClass="inline-flex items-center justify-center gap-2 rounded-lg bg-[#003399] px-4 py-2 text-sm font-semibold text-white disabled:opacity-45";
@@ -29,6 +31,7 @@ export default function TeamPossession(){
  const [notice,setNotice]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  const [json,setJson]=useState(""),[preview,setPreview]=useState(null),[importing,setImporting]=useState(false),[progress,setProgress]=useState("");
  const [fileName,setFileName]=useState("");
+ const [associationFocus,setAssociationFocus]=useState(null);
  const [expandedSeason,setExpandedSeason]=useState("");
  const [expandedLeagues,setExpandedLeagues]=useState({});
  const update=(key,value)=>{setForm(prev=>({...prev,[key]:value}));setNotice("");setError("");};
@@ -64,12 +67,13 @@ export default function TeamPossession(){
  const activeSeason=seasonGroups.some(g=>g.season===expandedSeason)?expandedSeason:seasonGroups[0]?.season||"";
  const filteredTeams=useMemo(()=>teams.filter(t=>normalize(t.name).includes(normalize(search))).slice(0,100),[teams,search]);
  const setForEdit=row=>{
-  setForm({team_id:row.team_id||"",team_name:row.team_name||"",season:row.season||"",competition:row.competition||"",
+  setForm({team_id:row.team_id||"",team_name:row.team_name||"",source_team_name:row.source_team_name||"",season:row.season||"",competition:row.competition||"",
    team_possession_pct:String(row.team_possession_pct??"").replace(".",","),source:row.source||"Manual",source_url:row.source_url||"",
    matches_covered:row.matches_covered==null?"":String(row.matches_covered),notes:row.notes||""});
   setEditId(row.id);setSearch("");setError("");setNotice("Editando registro existente: al guardar se actualizará, sin duplicarlo.");
  };
  const reset=()=>{setForm(blank);setEditId("");setNotice("");setError("");};
+ const openAssociation=row=>setAssociationFocus({name:row.source_team_name||row.team_name,token:Date.now()});
  async function findExisting(row){
   // Never query team_id:"": that value is shared by EVERY unlinked club.
   // Search the season, then compare the exact Base44 identity or an
@@ -105,7 +109,7 @@ export default function TeamPossession(){
  const loadJSON=text=>{setJson(text);setPreview(null);setProgress("");};
  const analyze=()=>{
   setError("");setNotice("");setProgress("");
-  try{const p=parsePossessionBatch(json,teams);setPreview(p);if(p.errors.length)setError(p.errors.slice(0,8).join(" | ")+(p.errors.length>8?" · y más errores":""));}
+  try{const p=parsePossessionBatch(json,teams);setPreview({...p,rows:p.rows.map(row=>resolveImportedPossession(row,rows,teams))});if(p.errors.length)setError(p.errors.slice(0,8).join(" | ")+(p.errors.length>8?" · y más errores":""));}
   catch(e){setPreview(null);setError(statusText(e));}
  };
  async function importBatch(){
@@ -113,7 +117,7 @@ export default function TeamPossession(){
   setImporting(true);setError("");setNotice("");
   const result={new:0,updated:0,unchanged:0,pending:0,failed:[]};
   for(let i=0;i<preview.rows.length;i++){
-   const row=preview.rows[i];if(!row.team_id)result.pending++;setProgress((i+1)+" de "+preview.rows.length+" · "+row.team_name+" · "+row.season);
+   const row=resolveImportedPossession(preview.rows[i],rows,teams);if(!row.team_id)result.pending++;setProgress((i+1)+" de "+preview.rows.length+" · "+row.team_name+" · "+row.season);
    try{
     const existing=await findExisting(row);
     const action=possessionImportDecision(existing,row);
@@ -145,6 +149,9 @@ export default function TeamPossession(){
      <p className="mt-1">El porcentaje <strong>medio de posesión del equipo durante toda la competición en esa temporada</strong>. Ejemplo: «Manchester City · 2018/2019 · Premier League · 67,9 %». No es la posesión de un futbolista ni de un partido aislado. Liga, Champions y copas se guardan por separado.</p>
      <p className="mt-2 text-xs text-slate-600">Si no está verificado, déjalo sin introducir. PAdj usa la normalización experimental al 50 % de posesión y exige acciones defensivas, minutos y posesión para cada competición del jugador.</p>
     </section>
+    <PossessionAuditPanel rows={rows} teams={teams} loading={loading||possessions.isFetching}
+     focusSource={associationFocus} onRefresh={refresh}
+     onUpdated={async()=>{refreshComposite();await refresh();}}/>
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-4 flex items-center justify-between"><h2 className="text-base font-extrabold text-slate-900">Introducir posesión media</h2>{editId&&<button type="button" className="text-xs font-bold text-[#003399]" onClick={reset}>Cancelar edición</button>}</div>
@@ -153,7 +160,7 @@ export default function TeamPossession(){
         <select className={inputClass} value={form.team_id} onChange={e=>update("team_id",e.target.value)} required={!editId} disabled={Boolean(editId)}>
          <option value="">Selecciona el club</option>
          {teams.filter(t=>t.id===form.team_id||filteredTeams.includes(t)).map(t=><option value={t.id} key={t.id}>{t.name}</option>)}
-        </select>{editId&&!form.team_id&&<p className="mt-1 text-xs font-semibold text-amber-700">Club pendiente de vincular: {form.team_name}. Puedes editar su posesión; para vincularlo, crea el club en TEAMS y vuelve a importar el JSON.</p>}
+        </select>{editId&&<div className="mt-2 flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-slate-600">{form.team_id?"La asociación histórica se administra desde el comprobador global.":"Este registro aún no tiene un equipo asociado."}</p><button type="button" onClick={()=>openAssociation(form)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-[#003399]">Buscar y asociar todas las temporadas</button></div>}
        </div>
        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div><label className={labelClass}>Temporada</label><input className={inputClass} value={form.season} onChange={e=>update("season",e.target.value)} placeholder="2018/2019" required disabled={Boolean(editId)}/></div>
@@ -223,7 +230,7 @@ export default function TeamPossession(){
              <td className="p-2 text-right font-black tabular-nums">{Number(row.team_possession_pct).toLocaleString("es-ES",{maximumFractionDigits:2})} %</td>
              <td className="p-2">{row.source_url?<a href={row.source_url} target="_blank" rel="noopener noreferrer" className="text-[#003399] underline">{row.source||"Fuente"}</a>:row.source||"Manual"}</td>
              <td className="p-2">{row.team_id?<span className="text-emerald-700">Vinculado</span>:<span className="text-amber-700">Pendiente</span>}</td>
-             <td className="p-2 text-right"><button type="button" className="font-bold text-[#003399]" onClick={()=>setForEdit(row)}>Editar</button></td>
+             <td className="p-2 text-right"><div className="flex items-center justify-end gap-3"><button type="button" className="font-bold text-[#003399]" onClick={()=>setForEdit(row)}>Editar</button><button type="button" className="font-bold text-blue-700" onClick={()=>openAssociation(row)}>Asociar</button></div></td>
             </tr>)}</tbody>
            </table>
           </div>}

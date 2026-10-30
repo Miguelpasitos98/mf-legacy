@@ -14,6 +14,10 @@
       "type": "string",
       "description": "Nombre observado del equipo; obligatorio incluso si todav\u00eda no existe en Team."
     },
+    "source_team_name": {
+      "type": "string",
+      "description": "Nombre original recibido de la fuente para conservar asociaciones históricas entre temporadas incluso si difiere del nombre canónico del club"
+    },
     "season": {
       "type": "string",
       "description": "Temporada hist\u00f3rica YYYY/YYYY o YYYY"
