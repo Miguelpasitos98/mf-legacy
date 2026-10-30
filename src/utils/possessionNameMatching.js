@@ -32,8 +32,7 @@ const levenshtein=(a,b)=>{
  }
  return previous[b.length];
 };
-function rateNames(sourceName,targetName){
- const from=clubIdentityTokens(sourceName),to=clubIdentityTokens(targetName);
+function rateIdentities(from,to){
  if(!from.normal||!to.normal)return null;
  if(from.variants!==to.variants||from.protectedSuffix!==to.protectedSuffix)return null;
  if(from.canonical===to.canonical)return {score:99,confidence:"high",reason:"Nombre equivalente"};
@@ -60,22 +59,30 @@ function rateNames(sourceName,targetName){
  return null;
 }
 
+const catalogIdentityCache=new WeakMap();
+function preparedCatalog(teams){
+ let prepared=catalogIdentityCache.get(teams);
+ if(!prepared){
+  prepared=teams.filter(team=>team?.id).map(team=>({team,identity:clubIdentityTokens(team.name)}));
+  catalogIdentityCache.set(teams,prepared);
+ }
+ return prepared;
+}
 export function rankPossessionTeamCandidates(group,teams=[]){
  if(!group||group.conflict)return [];
  const ids=[...group.fotmobIds||[]].map(str).filter(Boolean);
  if(ids.length>1)return [];
  const names=[...new Set([group.name,...(group.names||[])].map(str).filter(Boolean))];
- const results=[];
- for(const team of teams){
-  if(!team?.id)continue;
+ const results=[],sourceNames=names.map(clubIdentityTokens);
+ for(const {team,identity} of preparedCatalog(teams)){
   const teamId=str(team.id),fm=str(team.fotmob_id);
   if(group.linkedIds?.size&&(!group.linkedIds.has(teamId)||group.linkedIds.size!==1))continue;
   if(ids.length&&fm&&ids[0]!==fm)continue;
   let result=null;
   if(ids.length&&fm===ids[0])result={score:100,confidence:"high",reason:"ID FotMob confirmado"};
   else{
-   for(const name of names){
-    const candidate=rateNames(name,team.name);
+   for(const sourceName of sourceNames){
+    const candidate=rateIdentities(sourceName,identity);
     if(candidate&&(!result||candidate.score>result.score))result=candidate;
    }
   }
