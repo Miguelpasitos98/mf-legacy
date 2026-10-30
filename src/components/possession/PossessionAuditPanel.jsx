@@ -1,0 +1,174 @@
+import React,{useEffect,useMemo,useState} from "react";
+import {RefreshCw,Search,Link2,ShieldCheck,AlertTriangle,CheckCircle2,Layers3,ChevronDown,ChevronUp} from "lucide-react";
+import {base44} from "@/api/base44Client";
+import {readCompleteRecords} from "@/utils/entityRecords";
+import {canonicalHistoricalClub,canonicalHistoricalCompetition} from "@/utils/historicalJson";
+import {normalizeSeason} from "@/utils/historicalValuation";
+import {buildPossessionAudit,planPossessionAssociation,suggestPossessionTeam} from "@/utils/possessionAssociations";
+import TeamSearchPicker from "@/components/trophies/TeamSearchPicker";
+
+const simplify=value=>String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+const errorText=error=>String(error?.message||error||"Error desconocido");
+const tagClass="rounded-full px-2 py-1 text-[11px] font-semibold";
+const groupStatus=group=>group.conflict?"Revisar conflicto":group.pending?"Pendiente":"Vinculado";
+
+export default function PossessionAuditPanel({rows=[],teams=[],loading=false,focusSource=null,onUpdated,onRefresh}){
+ const audit=useMemo(()=>buildPossessionAudit(rows,teams),[rows,teams]);
+ const [query,setQuery]=useState(""),[filter,setFilter]=useState("pending");
+ const [showCount,setShowCount]=useState(60),[activeKey,setActiveKey]=useState("");
+ const [teamId,setTeamId]=useState(""),[bulkPreview,setBulkPreview]=useState(false);
+ const [saving,setSaving]=useState(false),[progress,setProgress]=useState("");
+ const [notice,setNotice]=useState(""),[error,setError]=useState("");
+ const active=audit.groups.find(group=>group.key===activeKey)||null;
+ const proposed=useMemo(()=>{
+  if(!active||!teamId)return null;
+  try{return planPossessionAssociation(rows,teams,active.key,teamId);}
+  catch(e){return {updates:[],conflicts:[errorText(e)],total:0,seasons:[],competitions:[]};}
+ },[active,teamId,rows,teams]);
+ const safePlans=useMemo(()=>{
+  const plans=audit.groups.filter(g=>g.pending&&!g.conflict).map(group=>{
+   const candidate=suggestPossessionTeam(group,teams);
+   if(!candidate)return null;
+   try{
+    const plan=planPossessionAssociation(rows,teams,group.key,candidate.id);
+    return plan.conflicts.length||!plan.updates.length?null:plan;
+   }catch{return null;}
+  }).filter(Boolean);
+  // An unlinked source must never cause two records for the same target,
+  // season and competition through a bulk auto-association.
+  const counts=new Map();
+  for(const plan of plans)for(const record of plan.updates){
+   const id=[plan.team.id,normalizeSeason(record.season),canonicalHistoricalCompetition(record.competition)].join("|");
+   counts.set(id,(counts.get(id)||0)+1);
+  }
+  return plans.filter(plan=>plan.updates.every(record=>{
+   const id=[plan.team.id,normalizeSeason(record.season),canonicalHistoricalCompetition(record.competition)].join("|");
+   return counts.get(id)===1;
+  }));
+ },[audit.groups,rows,teams]);
+ const safeRecords=safePlans.reduce((count,plan)=>count+plan.updates.length,0);
+ const visible=useMemo(()=>audit.groups.filter(group=>{
+  const statusMatch=filter==="all"||group.status===filter;
+  const text=[group.name,...group.names,...group.seasons,...group.competitions].join(" ");
+  return statusMatch&&simplify(text).includes(simplify(query));
+ }),[audit.groups,query,filter]);
+ const chooseGroup=group=>{
+  if(saving)return;
+  setActiveKey(current=>current===group.key?"":group.key);
+  const proposal=suggestPossessionTeam(group,teams);
+  setTeamId(proposal?.id||[...group.linkedIds][0]||"");
+  setBulkPreview(false);setError("");setNotice("");
+ };
+ useEffect(()=>{
+  if(!focusSource?.name)return;
+  const key=canonicalHistoricalClub(focusSource.name);
+  const group=audit.groups.find(g=>g.key===key);
+  if(!group)return;
+  setFilter("all");setQuery("");setActiveKey(group.key);
+  setTeamId(suggestPossessionTeam(group,teams)?.id||[...group.linkedIds][0]||"");
+  setBulkPreview(false);
+  document.getElementById("possession-audit")?.scrollIntoView({behavior:"smooth",block:"start"});
+ },[focusSource?.token,focusSource?.name,teams,audit.groups]);
+ async function applyAssociations(targets){
+  if(saving||!targets.length)return;
+  setSaving(true);setError("");setNotice("");setProgress("Comprobando la base completa antes de escribir…");
+  let done=0;
+  try{
+   const existing=await readCompleteRecords(base44.entities.TeamSeasonPossession);
+   const plans=targets.map(({sourceKey,targetId})=>planPossessionAssociation(existing,teams,sourceKey,targetId));
+   const conflict=plans.flatMap(plan=>plan.conflicts);
+   if(conflict.length)throw Error("No se han realizado cambios: "+conflict.slice(0,4).join(" | "));
+   const changes=plans.flatMap(plan=>plan.updates.map(change=>({...change,targetId:plan.team.id})));
+   if(!changes.length){setNotice("Todos los registros ya estaban asociados.");return;}
+   const uniqueIds=new Set(),keys=new Set();
+   for(const change of changes){
+    if(uniqueIds.has(change.id))throw Error("Una fila se ha incluido en varias asociaciones.");
+    uniqueIds.add(change.id);
+    const key=[change.targetId,normalizeSeason(change.season),canonicalHistoricalCompetition(change.competition)].join("|");
+    if(keys.has(key))throw Error("Dos orígenes pretenden ocupar la misma temporada y competición del mismo club.");
+    keys.add(key);
+   }
+   for(const change of changes){
+    setProgress((done+1)+" / "+changes.length+" · "+change.season+" · "+change.competition);
+    await base44.entities.TeamSeasonPossession.update(change.id,change.changes);
+    done++;
+   }
+   setNotice(done+" registros asociados correctamente a través de todas sus temporadas. Los porcentajes y fuentes no se han modificado.");
+   setActiveKey("");setTeamId("");setBulkPreview(false);
+  }catch(e){
+   setError((done?"Se actualizaron "+done+" registros antes del error; puedes repetir la operación sin duplicar datos. ":"")+errorText(e));
+  }finally{
+   setProgress("");setSaving(false);
+   if(done)await onUpdated?.();
+  }
+ }
+ const linkSelected=()=>active&&teamId&&applyAssociations([{sourceKey:active.key,targetId:teamId}]);
+ const linkBulk=()=>applyAssociations(safePlans.map(plan=>({sourceKey:plan.sourceKey,targetId:plan.team.id})));
+ return <section id="possession-audit" className="scroll-mt-5 rounded-2xl border border-blue-200 bg-white p-4 shadow-sm sm:p-5">
+  <div className="flex flex-wrap items-start justify-between gap-3">
+   <div><div className="flex items-center gap-2 text-[#123e8a]"><ShieldCheck size={20}/><h2 className="text-lg font-black">Comprobador global de equipos</h2></div>
+    <p className="mt-1 text-xs text-slate-600">Audita todos los registros guardados, detecta clubes sin asociar y enlaza el mismo nombre de origen en todas las temporadas. No modifica los porcentajes de posesión.</p></div>
+   <button type="button" onClick={onRefresh} disabled={saving||loading} className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-50"><RefreshCw size={14}/> {loading?"Comprobando…":"Volver a comprobar"}</button>
+  </div>
+  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+   {[[audit.records,"Registros"],[audit.linked,"Vinculados"],[audit.pending,"Sin asociar"],[audit.conflicts+audit.invalid,"Incidencias"],[audit.seasons,"Temporadas"]].map(([number,label])=>
+    <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3"><div className="text-xl font-black tabular-nums text-[#162d56]">{number}</div><div className="text-xs text-slate-500">{label}</div></div>)}
+  </div>
+  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
+   <div><p className="text-sm font-bold text-slate-800">Coincidencias seguras detectadas: {safePlans.length} nombres · {safeRecords} registros</p>
+    <p className="text-xs text-slate-600">Solo coincidencias unívocas por nombre o ID FotMob, sin contradicciones. Revisa el resto manualmente.</p></div>
+   <button type="button" disabled={!safePlans.length||saving} onClick={()=>setBulkPreview(!bulkPreview)}
+    className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-45"><Link2 size={14}/>{bulkPreview?"Ocultar revisión":"Revisar autovinculación"}</button>
+  </div>
+  {bulkPreview&&<div className="mt-3 rounded-xl border border-blue-200 p-3">
+   <p className="text-sm font-bold text-slate-900">Vista previa antes de guardar</p>
+   <div className="mt-2 max-h-40 overflow-auto text-xs text-slate-700">{safePlans.map(plan=><p key={plan.sourceKey} className="border-b border-slate-100 py-1"><strong>{plan.sourceKey}</strong> → {plan.team.name} · {plan.updates.length} registros</p>)}</div>
+   <button type="button" disabled={saving} onClick={linkBulk} className="mt-3 rounded-lg bg-[#003399] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">Confirmar asociación de {safeRecords} registros</button>
+  </div>}
+  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+   <div className="relative flex-1"><Search size={15} className="absolute left-3 top-3 text-slate-400"/><input value={query} onChange={e=>{setQuery(e.target.value);setShowCount(60);}}
+     placeholder="Buscar nombre de equipo, temporada o competición…" className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-xs outline-none focus:border-blue-500"/></div>
+   <select aria-label="Filtrar asociaciones" value={filter} onChange={e=>{setFilter(e.target.value);setShowCount(60);}} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800">
+    <option value="pending">Pendientes ({audit.groups.filter(g=>g.status==="pending").length})</option>
+    <option value="conflict">Con incidencias ({audit.groups.filter(g=>g.status==="conflict").length})</option>
+    <option value="linked">Vinculados ({audit.groups.filter(g=>g.status==="linked").length})</option>
+    <option value="all">Todos los equipos ({audit.groups.length})</option>
+   </select>
+  </div>
+  <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+   <table className="w-full min-w-[540px] text-left text-xs">
+    <thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">Equipo de origen</th><th className="p-3">Cobertura</th><th className="p-3">Estado</th><th className="p-3 text-right">Asociación</th></tr></thead>
+    <tbody>{visible.slice(0,showCount).map(group=><React.Fragment key={group.key}>
+     <tr className="border-t border-slate-100 hover:bg-slate-50">
+      <td className="p-3"><span className="font-bold text-slate-900">{group.name}</span>{group.names.size>1&&<div className="text-[10px] text-slate-500">{group.names.size} variantes de nombre</div>}</td>
+      <td className="p-3"><span className="font-semibold">{group.recordCount}</span> registros · {group.seasonCount} temporadas · {group.competitionCount} competiciones</td>
+      <td className="p-3"><span className={tagClass+" "+(group.conflict?"bg-red-50 text-red-700":group.pending?"bg-amber-50 text-amber-800":"bg-green-50 text-emerald-700")}>{groupStatus(group)}</span>{group.pending>0&&<div className="mt-1 text-[10px] text-slate-500">{group.pending} sin asociar</div>}</td>
+      <td className="p-3 text-right"><button type="button" disabled={saving} onClick={()=>chooseGroup(group)} className="inline-flex items-center gap-1 font-bold text-[#003399]">{activeKey===group.key?"Cerrar":group.status==="linked"?"Ver asociación":"Asociar equipo"}{activeKey===group.key?<ChevronUp size={13}/>:<ChevronDown size={13}/>}</button></td>
+     </tr>
+     {activeKey===group.key&&<tr className="border-t border-blue-100 bg-blue-50/50"><td colSpan={4} className="p-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+       <div><p className="mb-2 text-xs font-bold text-slate-800">Buscar equipo oficial de MF Legacy</p><TeamSearchPicker teams={teams} value={teamId} onChange={setTeamId} placeholder="Escribe para elegir el equipo…" ariaLabel={"Asociar "+group.name+" a un equipo de MF Legacy"}/>
+        <p className="mt-2 text-[11px] text-slate-600">Origen: <strong>{group.name}</strong>. Se conservará como alias para los próximos JSON.</p></div>
+       <div className="rounded-lg bg-white p-3 text-xs text-slate-700">
+        {!teamId?<p>Selecciona un equipo para comprobar todas sus temporadas antes de guardar.</p>:
+         proposed?.conflicts?.length?<div className="flex items-start gap-2 text-red-700"><AlertTriangle size={15} className="shrink-0"/><p>{proposed.conflicts.slice(0,4).join(" | ")}</p></div>:
+         <><p className="flex items-center gap-2 font-bold text-emerald-700"><CheckCircle2 size={15}/> Asociación válida</p>
+          <p className="mt-1">{proposed.total} registros · {proposed.seasons.length} temporadas · {proposed.competitions.length} competiciones</p>
+          <p className="mt-1 break-words text-[11px] text-slate-500">{proposed.seasons.join(" · ")}</p>
+          <p className="mt-1 text-slate-600">{proposed.updates.length} registros necesitan actualización; los porcentajes no cambian.</p>
+          <button type="button" onClick={linkSelected} disabled={saving||!proposed.updates.length} className="mt-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-50">{proposed.updates.length?"Confirmar asociación de todas las temporadas":"Ya sincronizado"}</button>
+         </>}
+       </div>
+      </div>
+      {group.duplicates>0&&<p className="mt-2 text-xs font-semibold text-red-700">Se detectaron {group.duplicates} registros repetidos para la misma temporada y competición. Resuélvelos antes de asociar.</p>}
+     </td></tr>}
+    </React.Fragment>)}</tbody>
+   </table>
+   {!visible.length&&<div className="p-6 text-center text-xs text-slate-500">No hay equipos para este filtro.</div>}
+  </div>
+  {visible.length>showCount&&<button type="button" onClick={()=>setShowCount(n=>n+60)} className="mt-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#003399]">Mostrar más equipos ({visible.length-showCount} restantes)</button>}
+  {progress&&<p className="mt-3 flex items-center gap-2 text-xs font-bold text-[#003399]"><Layers3 size={14}/>{progress}</p>}
+  {notice&&<p role="status" className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-xs text-green-800">{notice}</p>}
+  {error&&<p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</p>}
+ </section>;
+}
