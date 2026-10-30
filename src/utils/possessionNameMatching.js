@@ -11,11 +11,14 @@ const clean=v=>str(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCas
 export function clubIdentityTokens(name){
  const canonical=clean(canonicalHistoricalClub(name));
  const raw=canonical.split(" ").filter(Boolean);
- const parts=[...raw];
+ const parts=[...raw],variantEnding=[];
+ // Preserve reserve/youth markers even when FC appears immediately before them.
+ while(parts.length>1&&VARIANTS.has(parts[parts.length-1]))variantEnding.unshift(parts.pop());
  // One source may say "AS Monaco FC" while the app says "Monaco".
  // Remove designators at edges only, not distinctive central tokens.
  while(parts.length>1&&PREFIXES.has(parts[0]))parts.shift();
  while(parts.length>1&&SUFFIXES.has(parts[parts.length-1]))parts.pop();
+ parts.push(...variantEnding);
  return {canonical,tokens:parts,normal:parts.join(" "),variants:raw.filter(t=>VARIANTS.has(t)||/^u\d{2}$/.test(t)||/^sub\d{2}$/.test(t)).sort().join("|"),
   protectedSuffix:raw.length>1&&["sc","sporting","juniors"].includes(raw.at(-1))?raw.at(-1):""};
 }
