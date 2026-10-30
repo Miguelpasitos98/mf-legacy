@@ -1,6 +1,6 @@
 // STATS visual filters: legacy MF Legacy positions and FIFA card positions
 // map to the same functional groups WITHOUT modifying historical season data.
-// The precise historical position still determines the Composite archetype.
+// The historical position is preserved, while wingbacks share the FB comparison archetype.
 import {normalizeHistoricalPosition} from "./historicalPositions.js";
 
 const codes={
@@ -37,7 +37,7 @@ export const STATS_POSITION_FILTER_OPTIONS=[
  {group:"Grupos principales",value:"grupo:att",label:"Atacantes"},
  {group:"Grupos principales",value:"grupo:wing",label:"Extremos (ambas bandas)"},
  {group:"Posiciones unificadas",value:"grupo:cb",label:"Centrales"},
- {group:"Posiciones unificadas",value:"grupo:fb",label:"Laterales"},
+ {group:"Posiciones unificadas",value:"grupo:fb",label:"Laterales y carrileros"},
  {group:"Posiciones unificadas",value:"grupo:wb",label:"Carrileros"},
  {group:"Posiciones unificadas",value:"grupo:dm",label:"Pivotes defensivos"},
  {group:"Posiciones unificadas",value:"grupo:cm",label:"Mediocentros"},
@@ -45,8 +45,8 @@ export const STATS_POSITION_FILTER_OPTIONS=[
  {group:"Posiciones unificadas",value:"grupo:st",label:"Delanteros"},
  {group:"Por banda",value:"grupo:wing:left",label:"Extremos izquierdos"},
  {group:"Por banda",value:"grupo:wing:right",label:"Extremos derechos"},
- {group:"Por banda",value:"grupo:fb:left",label:"Laterales izquierdos"},
- {group:"Por banda",value:"grupo:fb:right",label:"Laterales derechos"},
+ {group:"Por banda",value:"grupo:fb:left",label:"Laterales y carrileros izquierdos"},
+ {group:"Por banda",value:"grupo:fb:right",label:"Laterales y carrileros derechos"},
  {group:"Por banda",value:"grupo:wb:left",label:"Carrileros izquierdos"},
  {group:"Por banda",value:"grupo:wb:right",label:"Carrileros derechos"}
 ];
@@ -65,7 +65,7 @@ export function matchesStatsPosition(rawPosition,filter="Todas"){
  case "grupo:att":return matches(value,"attackingMidfield","wingersLeft","wingersRight","wingersGeneric","forwards")&&
    !["LM","RM","ML","MR"].includes(value);
  case "grupo:cb":return matches(value,"centralDefenders");
- case "grupo:fb":return matches(value,"fullbacksLeft","fullbacksRight","fullbacksGeneric");
+ case "grupo:fb":return matches(value,"fullbacksLeft","fullbacksRight","fullbacksGeneric","wingbacksLeft","wingbacksRight","wingbacksGeneric");
  case "grupo:wb":return matches(value,"wingbacksLeft","wingbacksRight","wingbacksGeneric");
  case "grupo:dm":return matches(value,"pivots");
  case "grupo:cm":return matches(value,"centralMidfield");
@@ -74,8 +74,8 @@ export function matchesStatsPosition(rawPosition,filter="Todas"){
  case "grupo:wing:left":return matches(value,"wingersLeft");
  case "grupo:wing:right":return matches(value,"wingersRight");
  case "grupo:st":return matches(value,"forwards");
- case "grupo:fb:left":return matches(value,"fullbacksLeft");
- case "grupo:fb:right":return matches(value,"fullbacksRight");
+ case "grupo:fb:left":return matches(value,"fullbacksLeft","wingbacksLeft");
+ case "grupo:fb:right":return matches(value,"fullbacksRight","wingbacksRight");
  case "grupo:wb:left":return matches(value,"wingbacksLeft");
  case "grupo:wb:right":return matches(value,"wingbacksRight");
  default:return false;
