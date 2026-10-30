@@ -1,7 +1,9 @@
+import {comparisonGroupRole} from "./compositeEngine.js";
 // Same player-season population, role grouping and competition ranking as
 // compareHistoricalObservation. Read-only and no global percentiles.
 export function indicatorHistoricalRanking(observations=[],role,key,penalty=false){
- const population=(observations||[]).filter(o=>o.role===role&&
+ const group=comparisonGroupRole(role);
+ const population=(observations||[]).filter(o=>comparisonGroupRole(o.role)===group&&
    o.values?.[key]!==null&&o.values?.[key]!==undefined&&
    o.values?.[key]!==""&&Number.isFinite(Number(o.values[key])));
  const sorted=population.map(o=>({...o,value:Number(o.values[key])}))
