@@ -94,6 +94,29 @@
     "period_end": {
       "type": "string",
       "description": "Última temporada YYYY/YYYY del periodo, inclusive"
+    },
+    "career_model_key": {
+      "type": "string",
+      "description": "Identificador estable del modelo táctico dentro del JSON de trayectoria"
+    },
+    "success_tier": {
+      "type": "string",
+      "enum": [
+        "very_successful",
+        "successful",
+        "mixed",
+        "limited",
+        "unknown"
+      ],
+      "description": "Evaluación cualitativa contextual de resultados, no estadística oficial"
+    },
+    "evidence_summary": {
+      "type": "string",
+      "description": "Razones de la evaluación del periodo, con evidencias verificadas en las notas"
+    },
+    "generation_method": {
+      "type": "string",
+      "description": "Origen metodológico del borrador, p. ej. ai_draft_reviewed"
     }
   },
   "required": [

@@ -17,7 +17,7 @@ export const MANAGER_BLANK = {
  manager_kind:"real",biography:"",notes:"",source_url:"",source_status:"manual",is_active:true
 };
 export const PROFILE_BLANK = {
- name:"Modelo principal",profile_scope:"general",reference_club:"",period_start:"",period_end:"",season:"",formation:"4-3-3",possession:50,pressing:50,tempo:50,
+ name:"Modelo principal",profile_scope:"general",reference_club:"",period_start:"",period_end:"",season:"",career_model_key:"",success_tier:"unknown",evidence_summary:"",generation_method:"",formation:"4-3-3",possession:50,pressing:50,tempo:50,
  defensive_line:50,attacking_width:50,risk_taking:50,build_up:"mixed",
  transition:"balanced",defensive_block:"medium",profile_notes:"",source_url:"",
  is_default:false,version:1
@@ -89,6 +89,10 @@ export const cleanProfile = (raw,managerId,roleText={}) => {
   defensive_block:["low","medium","high"].includes(raw.defensive_block)?raw.defensive_block:"medium",
   player_role_priorities:JSON.stringify(roles),
   profile_notes:String(raw.profile_notes||"").trim(),source_url:source,
+  career_model_key:String(raw.career_model_key||"").trim(),
+  success_tier:["very_successful","successful","mixed","limited","unknown"].includes(raw.success_tier)?raw.success_tier:"unknown",
+  evidence_summary:String(raw.evidence_summary||"").trim(),
+  generation_method:String(raw.generation_method||"").trim(),
   is_default:Boolean(raw.is_default),version:Number.isInteger(raw.version)&&raw.version>0?raw.version:1
  };
 };
