@@ -1,3 +1,4 @@
+import {evaluateTacticalFunctions} from "./managerAdvancedRoles.mjs";
 import {roleCompatibility} from "./managerFit.mjs";
 import {managerFitAttributes} from "./managerFitAttributes.mjs";
 const ROLE_BY_LINE={
@@ -38,7 +39,7 @@ export function suggestFormationXI(plan,formation){
   }).filter(x=>x.positionFit!==null).sort((a,b)=>(b.estimatedFit??-1)-(a.estimatedFit??-1)||(b.positionFit??-1)-(a.positionFit??-1));
   const primary=ranked[0]||null;
   if(primary)assigned.add(String(primary.player.id));
-  return {...slot,primary};
+  return {...slot,primary,advanced:primary&&plan.profile?evaluateTacticalFunctions(primary.player,plan.profile,slot.role):null};
  });
  const backups=output.map(slot=>{
   const others=members.filter(x=>!assigned.has(String(x.player.id)))
