@@ -213,6 +213,7 @@ function PlayerCardInner({
   useNationalCardPhoto = false,
   priority = false,
   hasStats = false,
+  candidateView = false,
 }) {
   const preferredCardPhoto = useNationalCardPhoto
     ? player.nationalCardPhotoUrl || player.cardPhotoUrl || player.photoUrl
@@ -280,9 +281,9 @@ function PlayerCardInner({
       tabIndex={0}
       onClick={handleCardAction}
       onKeyDown={handleCardKeyDown}
-      aria-label={`Abrir ficha de ${player.name || "jugador"}${player.manager_fit_candidate===true ? ", en bolsa de candidatos Manager Fit" : ""}`}
-      title={player.manager_fit_candidate===true ? "En bolsa de candidatos · Manager Fit" : undefined}
-      className={`group w-full cursor-pointer overflow-hidden rounded-2xl border ${candidateOutlineClass(player,selected)} bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400`}
+      aria-label={`Abrir ficha de ${player.name || "jugador"}${candidateView&&player.manager_fit_candidate===true ? ", en bolsa de candidatos Manager Fit" : ""}`}
+      title={candidateView&&player.manager_fit_candidate===true ? "En bolsa de candidatos · Manager Fit" : undefined}
+      className={`group w-full cursor-pointer overflow-hidden rounded-2xl border ${candidateOutlineClass(player,selected,candidateView)} bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400`}
     >
       {selectionMode && (
         <div className="flex items-center gap-2 border-b border-slate-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-900">

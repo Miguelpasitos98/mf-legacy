@@ -1,7 +1,7 @@
 // Local browser-only navigation memory for PLAYERS. No player or account
 // data is cached here; only list display choices and scroll offset.
 export const PLAYERS_VIEW_KEY = "mf-legacy:players-list-view:v1";
-export const PLAYERS_VIEW_MODES = ["all","teams","countries","positions","age","description"];
+export const PLAYERS_VIEW_MODES = ["all","teams","leagues","candidates","countries","positions","age","description"];
 export const PLAYERS_SORT_OPTIONS = ["","ca","cp","position","name_asc","name_desc","age_youngest","age_oldest"];
 export const DEFAULT_PLAYERS_VIEW = Object.freeze({
  view:"all",teamFilterId:"",positionFilter:"",sortBy:"",search:"",searchOpen:false,scrollTop:0

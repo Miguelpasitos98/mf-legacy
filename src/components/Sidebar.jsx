@@ -9,6 +9,11 @@ const ALL_PLAYERS_ICON =
 const TEAMS_ICON =
   "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3ccircle cx='12' cy='3.41' r='1.91' fill='none' stroke='white' stroke-miterlimit='10' stroke-width='1.5'/%3e%3cpath fill='none' stroke='white' stroke-miterlimit='10' stroke-width='1.5' d='M9.14 8.18A2.86 2.86 0 0 1 12 5.32a2.86 2.86 0 0 1 2.86 2.86'/%3e%3ccircle cx='19.64' cy='14.86' r='1.91' fill='none' stroke='white' stroke-miterlimit='10' stroke-width='1.5'/%3e%3cpath fill='none' stroke='white' stroke-miterlimit='10' stroke-width='1.5' d='M16.77 19.64a2.86 2.86 0 0 1 2.87-2.87 2.86 2.86 0 0 1 2.86 2.87'/%3e%3ccircle cx='4.36' cy='14.86' r='1.91' fill='none' stroke='white' stroke-miterlimit='10' stroke-width='1.5'/%3e%3cpath fill='none' stroke='white' stroke-miterlimit='10' stroke-width='1.5' d='M1.5 19.64a2.86 2.86 0 0 1 2.86-2.87 2.86 2.86 0 0 1 2.87 2.87m-4.76-8.27a9.53 9.53 0 0 1 4.91-7.72m9.24 0a9.53 9.53 0 0 1 4.91 7.72M8.39 21.79a9.53 9.53 0 0 0 7.22 0'/%3e%3c/svg%3e";
 
+const LEAGUES_ICON =
+  "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M8 3h8v4a4 4 0 0 1-8 0V3ZM8 5H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4M12 11v6m-4 4h8m-7-4h6'/%3e%3c/svg%3e";
+const CANDIDATES_ICON =
+  "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 3h12v18l-6-4-6 4V3Zm3.2 7.4 2 2L15 8.7'/%3e%3c/svg%3e";
+
 const COUNTRIES_ICON =
   "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M13.5 6.5h6.206c.428 0 .643 0 .772.09a.5.5 0 0 1 .208.337c.023.156-.073.347-.265.73l-1.252 2.505a1 1 0 0 0-.106.252.5.5 0 0 0-.004.175c.01.066.038.13.094.256l1.347 3.03c.167.375.25.562.223.714a.5.5 0 0 1-.211.325c-.128.086-.333.086-.743.086H12.1c-.56 0-.84 0-1.054-.109a1 1 0 0 1-.437-.437c-.109-.214-.109-.494-.109-1.054V11M3 21V3.5M3 11h8.9c.56 0 .84 0 1.054-.109a1 1 0 0 0 .437-.437c.109-.214.109-.494.109-1.054V4.1c0-.56 0-.84-.109-1.054a1 1 0 0 0-.437-.437C3 3.26 3 3.54 3 4.1z'/%3e%3c/svg%3e";
 
@@ -31,6 +36,16 @@ export const VIEW_OPTIONS = [
     id: "teams",
     label: "By teams",
     icon: TEAMS_ICON,
+  },
+  {
+    id: "leagues",
+    label: "By leagues",
+    icon: LEAGUES_ICON,
+  },
+  {
+    id: "candidates",
+    label: "Candidates",
+    icon: CANDIDATES_ICON,
   },
   {
     id: "countries",
@@ -112,11 +127,11 @@ export default function Sidebar({
     >
       {open && isPlayersPage && (
         <nav
-          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-4"
+          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3"
           aria-label="Player views"
         >
-          <div className="flex flex-col items-center gap-4">
-            {VIEW_OPTIONS.slice(0, 3).map((option) => {
+          <div className="flex flex-col items-center gap-2">
+            {VIEW_OPTIONS.slice(0, 4).map((option) => {
               const isActive = activeView === option.id;
 
               return (
@@ -152,8 +167,8 @@ export default function Sidebar({
             <X size={20} />
           </button>
 
-          <div className="flex flex-col items-center gap-4">
-            {VIEW_OPTIONS.slice(3, 6).map((option) => {
+          <div className="flex flex-col items-center gap-2">
+            {VIEW_OPTIONS.slice(4).map((option) => {
               const isActive = activeView === option.id;
 
               return (
