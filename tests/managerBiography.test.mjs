@@ -32,6 +32,8 @@ test("Managers form offers name-driven AI drafting and countries selection",()=>
  assert.match(page,/base44\.entities\.Country/);
  assert.match(page,/base44\.functions\.invoke\("manager-ai"/);
  assert.match(page,/Copiar prompt para ChatGPT/);
- assert.match(page,/País de nacionalidad/);
+ assert.match(page,/ManagerNationalityPicker/);
+ const picker=fs.readFileSync("src/components/managers/ManagerNationalityPicker.jsx","utf8");
+ assert.match(picker,/País de nacionalidad/);
  assert.match(page,/Selecciona la nacionalidad desde Countries/);
 });
