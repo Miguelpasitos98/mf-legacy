@@ -128,6 +128,7 @@ export default function ManagerFit(){
   <header className="rounded-2xl bg-[#091e1b] text-white p-5">
    <p className="text-xs font-bold tracking-widest text-lime-300">MF LEGACY · MANAGER FIT</p>
    <h1 className="text-2xl md:text-3xl font-black mt-1">Scouting según el entrenador</h1>
+   <Link to="/squad-planner" className="inline-block mt-2 text-xs font-bold underline text-lime-300">Planificar plantilla por entrenador</Link>
    <p className="text-sm text-slate-300 mt-1">Dos lecturas separadas: adecuación posicional y encaje estimado con atributos FM26 y el ADN del entrenador.</p>
   </header>
   {error&&<p role="alert" className="p-3 border border-red-200 bg-red-50 rounded-lg text-sm text-red-800">{error}</p>}
