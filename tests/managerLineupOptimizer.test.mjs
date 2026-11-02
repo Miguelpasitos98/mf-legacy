@@ -70,13 +70,34 @@ test("optimizer caps changes and validates role, formation and objective",()=>{
  const out=optimizeTacticalXI({...input,goal:"pressure",maxChanges:100});
  assert.ok(out.changes.length<=3);
 });
-test("guardrail rejects loss of an already measured other axis",()=>{
+test("guardrail rejects a large drop on a different measurable dimension",()=>{
  const input=fixture();
- // Add one winger and one central to make buildup axis evaluable, then
- // give the replacement high pressure but poor buildup.
- const builder={player:{id:"builder",name:"Builder",position:"DFC",stats:{technical:{pases:18,control:18},mental:{decisiones:18}}},membership:{status:"active"}};
- input.draft.assignments[2]=occupied("other-0","CB",builder);
+ const runner={player:{id:"runner",name:"Mediapunta",position:"CAM",stats:{
+  technical:{remate:17,pases:15,tecnica:15},
+  mental:{movimiento:17,vision:15,decisiones:15},
+  physical:{aceleracion:17}
+ }},membership:{status:"active",squad_role:"starter"}};
+ input.draft.assignments[2]=occupied("other-0","AM",runner);
  input.draft.filled=3;input.draft.vacancies=8;
- input.roster.push(builder);
- assert.equal(optimizeTacticalXI({...input,goal:"pressure"}).status,"suggested");
+ input.roster.push(runner);
+ // Stronger pressure but much weaker finishing. Current finishing is
+ // measurable thanks to the striker + runner, so the candidate must be vetoed.
+ const bench=input.roster.find(p=>p.player.id==="bench").player;
+ bench.stats.technical.remate=5;
+ bench.stats.mental.movimiento=5;
+ bench.stats.mental.anticipacion=5;
+ const before=analyzeTeamBalance(input.draft);
+ assert.ok(before.axes.find(x=>x.key==="finishing").score!==null);
+ const out=optimizeTacticalXI({...input,goal:"pressure"});
+ assert.equal(out.status,"no_improvement");
+ assert.equal(out.changes.length,0);
+});
+test("optimizer never selects an out-of-position candidate or data-less player",()=>{
+ const input=fixture();
+ input.roster[1].player.position="GK";
+ const invalid=optimizeTacticalXI({...input,goal:"pressure"});
+ assert.equal(invalid.status,"no_improvement");
+ input.roster[1].player.position="DC";
+ input.roster[1].player.stats={};
+ assert.equal(optimizeTacticalXI({...input,goal:"pressure"}).status,"no_improvement");
 });
