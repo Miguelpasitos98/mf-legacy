@@ -32,8 +32,9 @@ function candidateOptions(slot,roster,profile,goal,used){
   const capability=objectiveCapability(member,slot.role,profile,goal);
   if(capability===null)continue;
   const totalFit=managerFitAttributes(member.player,slot.role,profile).score;
+  if(totalFit===null)continue;
   if(slot.primary?.estimatedFit!==null&&slot.primary?.estimatedFit!==undefined&&
-     (totalFit===null||totalFit<slot.primary.estimatedFit-MAX_INDIVIDUAL_FIT_DROP))continue;
+     totalFit<slot.primary.estimatedFit-MAX_INDIVIDUAL_FIT_DROP)continue;
   choices.push({member,positionFit:position.fit,totalFit,capability});
  }
  return choices.sort((a,b)=>b.capability-a.capability||
@@ -64,11 +65,13 @@ export function optimizeTacticalXI({draft,roster=[],profile,goal="pressure",maxC
  let currentBalance=starting;
  let overrides=completeOverrides(draft);
  const changes=[];
+ const changedSlots=new Set();
  let evaluations=0;
  for(let step=0;step<limit;step++){
   let best=null;
   const used=new Set(current.assignments.filter(s=>s.primary).map(s=>String(s.primary.player.id)));
   for(const slot of current.assignments){
+   if(changedSlots.has(slot.id))continue;
    // Only actual substitutions into occupied positions, not invented signings.
    if(!slot.primary)continue;
    for(const candidate of candidateOptions(slot,roster,profile,goal,used)){
@@ -83,7 +86,9 @@ export function optimizeTacticalXI({draft,roster=[],profile,goal="pressure",maxC
     if(currentBalance.axes.some(axis=>{
       if(axis.key===goal||axis.score===null)return false;
       const after=axisValue(balance,axis.key);
-      return after===null||after<axis.score-MAX_OTHER_AXIS_DROP;
+      const originalOther=axisValue(starting,axis.key);
+      return after===null||after<axis.score-MAX_OTHER_AXIS_DROP||
+        (originalOther!==null&&after<originalOther-MAX_OTHER_AXIS_DROP);
     }))continue;
     const gained=next-prev;
     if(!best||gained>best.gain||(gained===best.gain&&
@@ -98,6 +103,7 @@ export function optimizeTacticalXI({draft,roster=[],profile,goal="pressure",maxC
   }
   if(!best)break;
   overrides=best.overrides;
+  changedSlots.add(best.slotId);
   current=best.nextDraft;
   currentBalance=best.nextBalance;
   changes.push({slotId:best.slotId,role:best.role,outgoing:best.oldName,incoming:best.incomingName,

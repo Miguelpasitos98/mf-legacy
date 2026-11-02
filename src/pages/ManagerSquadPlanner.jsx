@@ -146,6 +146,16 @@ export default function ManagerSquadPlanner(){
  <p className="text-xs text-slate-700 mt-1">{change.rationale}</p>
  <p className="text-xs text-slate-500 mt-1">Encaje individual: {change.individualBefore??"—"} → {change.individualAfter??"—"}/100 · Objetivo {change.goalBefore} → {change.goalAfter}/100</p>
  </div>)}</div>
+ <div className="overflow-x-auto"><table className="w-full min-w-[380px] text-xs border-collapse">
+ <thead className="bg-white"><tr><th className="p-2 text-left">Dimensión</th><th className="p-2 text-right">Antes</th><th className="p-2 text-right">Después</th><th className="p-2 text-right">Diferencia</th></tr></thead>
+ <tbody>{optimizerPreview.before.axes.map(axis=>{
+ const after=optimizerPreview.after.axes.find(x=>x.key===axis.key)?.score??null;
+ const delta=axis.score!==null&&after!==null?after-axis.score:null;
+ return <tr key={axis.key} className="border-t"><th className="p-2 text-left">{OPTIMIZER_GOALS[axis.key]}</th>
+ <td className="p-2 text-right tabular-nums">{axis.score===null?"—":axis.score}</td>
+ <td className="p-2 text-right tabular-nums">{after===null?"—":after}</td>
+ <td className="p-2 text-right tabular-nums">{delta===null?"—":(delta>0?"+":"")+delta}</td></tr>;
+ })}</tbody></table></div>
  <button type="button" onClick={applyOptimizer} className="rounded-lg bg-emerald-800 text-white font-bold text-xs px-4 py-3">Aplicar propuesta al escenario {optimizerDestination} (sustituye su contenido)</button>
  </>:<p className="text-sm text-amber-900">{optimizerPreview.reason}</p>}
  <p className="text-[11px] text-slate-600">Búsqueda heurística y local; no garantiza el mejor once global. Todos los resultados derivan de atributos FM26 disponibles. «—» no se interpreta como cero.</p>
