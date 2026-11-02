@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw, X, Save, Trash2, Download, Palette } from "lucide-react";
+import { RotateCcw, Save, Trash2, Download, Palette } from "lucide-react";
 import html2canvas from "html2canvas";
 import { base44 } from "@/api/base44Client";
 import PlayerPortrait from "./PlayerPortrait";
@@ -224,14 +224,15 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
   };
   const pickPlayer=async player=>{
     if(!selected||!player?.id)return;
-    if(!roster.some(r=>String(r.player_id)===String(player.id)))await onEnsurePlayer(player);
-    place(selected,String(player.id));
+    const alreadyInRoster=roster.some(r=>String(r.player_id)===String(player.id));
+    if(!alreadyInRoster)await onEnsurePlayer(player);
+    place(selected,String(player.id),!alreadyInRoster);
   };
   const restoreShape=()=>{setSlotPositions({});markDirty();setNotice("Posiciones originales restauradas. Los jugadores se mantienen.");};
   const used = new Set([...Object.values(slots).filter(Boolean),...bench]);
   const available = roster.filter(r => !used.has(String(r.player_id)) && r.player?.name?.toLowerCase().includes(search.toLowerCase()));
-  const place = (target,playerId) => {
-    if (busy || !target || !playerId || !availableIds.has(String(playerId))) return;
+  const place = (target,playerId,allowPending=false) => {
+    if (busy || !target || !playerId || (!allowPending && !availableIds.has(String(playerId)))) return;
     const displaced = slots[target];
     setSlots(s => assignSlot(s,target,String(playerId)));
     setBench(b=>b.filter(id=>id!==String(playerId) && id!==String(displaced)));
