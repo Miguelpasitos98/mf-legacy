@@ -49,6 +49,10 @@
     "is_active": {
       "type": "boolean",
       "default": true
+    },
+    "country_id": {
+      "type": "string",
+      "description": "ID interno de Country, base canónica de nacionalidades; nationality conserva el nombre legible para compatibilidad histórica."
     }
   },
   "required": [

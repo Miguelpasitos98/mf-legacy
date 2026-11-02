@@ -13,7 +13,7 @@ export const ROLES = [
   {key:"ST",label:"Delantero"}
 ];
 export const MANAGER_BLANK = {
- name:"",display_name:"",nationality:"",date_of_birth:"",photo_url:"",
+ name:"",display_name:"",country_id:"",nationality:"",date_of_birth:"",photo_url:"",
  manager_kind:"real",biography:"",notes:"",source_url:"",source_status:"manual",is_active:true
 };
 export const PROFILE_BLANK = {
@@ -37,7 +37,7 @@ export const cleanManager = raw => {
  const photo=String(raw.photo_url||"").trim();
  if(photo&&!/^https?:\/\//i.test(photo))throw Error("La fotografía debe tener una URL http(s).");
  return {
-   name,display_name:String(raw.display_name||"").trim(),nationality:String(raw.nationality||"").trim(),
+   name,display_name:String(raw.display_name||"").trim(),country_id:String(raw.country_id||"").trim(),nationality:String(raw.nationality||"").trim(),
    date_of_birth:String(raw.date_of_birth||"").trim(),photo_url:photo,
    manager_kind:raw.manager_kind==="fictional"?"fictional":"real",
    biography:String(raw.biography||"").trim(),notes:String(raw.notes||"").trim(),
