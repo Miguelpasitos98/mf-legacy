@@ -81,6 +81,7 @@ export default function Managers(){
  },[selected?.id]);
  useEffect(()=>{
   const profilesOfSelected=profiles.filter(p=>String(p.manager_id)===String(selected?.id||""));
+  if(profileId==="__new__")return;
   const found=profilesOfSelected.find(p=>String(p.id)===profileId);
   if(found){setProfileDraft({...PROFILE_BLANK,...found});setRoleText(decodeRoleText(found.player_role_priorities));return;}
   const first=profilesOfSelected.find(p=>p.is_default)||profilesOfSelected[0];
@@ -136,7 +137,7 @@ export default function Managers(){
  };
  const chooseProfile=id=>{
   const found=managerProfiles.find(p=>String(p.id)===String(id));
-  setProfileId(found?.id||"");setProfileDraft(found?{...PROFILE_BLANK,...found}:{...PROFILE_BLANK});
+  setProfileId(found?.id||"__new__");setProfileDraft(found?{...PROFILE_BLANK,...found}:{...PROFILE_BLANK});
   setRoleText(found?decodeRoleText(found.player_role_priorities):{});
   setError("");setNotice("");
  };
@@ -146,7 +147,7 @@ export default function Managers(){
   try{
    const payload=cleanProfile(profileDraft,selected.id,roleText);
    let savedId=profileId;
-   if(profileId){
+   if(profileId && profileId!=="__new__"){
     const existing=managerProfiles.find(p=>String(p.id)===String(profileId));
     if(!existing)throw Error("El perfil no pertenece a este entrenador.");
     await base44.entities.ManagerTacticalProfile.update(profileId,payload);
@@ -243,7 +244,7 @@ export default function Managers(){
      <button className={primary} disabled={!canWrite||busy} type="submit"><Save size={16}/>{busy?"Guardando...":selected?"Guardar ficha":"Crear entrenador"}</button>
     </form>}
     {tab==="dna"&&(!selected?<div className="rounded-xl border border-dashed p-8 text-center text-slate-600">Primero guarda una ficha de entrenador para crear su ADN táctico.</div>:<form onSubmit={saveProfile} className="space-y-4">
-     <div className="flex flex-wrap items-end gap-2 justify-between"><div><h3 className="font-extrabold">Modelos de juego</h3><p className="text-xs text-slate-500">Un entrenador puede tener varios perfiles según temporada o proyecto.</p></div><div className="flex items-center gap-2"><select className={input+" max-w-[200px]"} aria-label="Seleccionar perfil táctico" value={profileId} onChange={e=>chooseProfile(e.target.value)}><option value="">Nuevo perfil</option>{managerProfiles.map(p=><option key={p.id} value={p.id}>{p.name} {p.season?"· "+p.season:""} {p.is_default?"★":""}</option>)}</select><button type="button" className="border rounded-lg px-2 py-2" onClick={()=>chooseProfile("")} disabled={!canWrite} title="Crear otro perfil"><Plus size={18}/></button></div></div>
+     <div className="flex flex-wrap items-end gap-2 justify-between"><div><h3 className="font-extrabold">Modelos de juego</h3><p className="text-xs text-slate-500">Un entrenador puede tener varios perfiles según temporada o proyecto.</p></div><div className="flex items-center gap-2"><select className={input+" max-w-[200px]"} aria-label="Seleccionar perfil táctico" value={profileId} onChange={e=>chooseProfile(e.target.value)}><option value="__new__">Nuevo perfil</option>{managerProfiles.map(p=><option key={p.id} value={p.id}>{p.name} {p.season?"· "+p.season:""} {p.is_default?"★":""}</option>)}</select><button type="button" className="border rounded-lg px-2 py-2" onClick={()=>chooseProfile("")} disabled={!canWrite} title="Crear otro perfil"><Plus size={18}/></button></div></div>
      {managerProfiles.length===0&&<p className="text-xs rounded-lg p-3 bg-amber-50 text-amber-900"><BookOpen size={14} className="inline mr-1"/>Los seis parámetros empiezan en 50 como plantilla neutra. No representan hechos tácticos contrastados hasta que los edites.</p>}
      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div><label className={label}>Nombre del perfil *</label><input required value={profileDraft.name} onChange={e=>updateProfile("name",e.target.value)} className={input} disabled={!canWrite}/></div>
