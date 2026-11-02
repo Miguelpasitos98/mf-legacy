@@ -3,6 +3,7 @@ import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {isCustomTeam} from "@/components/managers/managerModel.mjs";
 import {planSquad} from "@/components/managers/managerSquadPlanner.mjs";
+import {formationSlots,suggestFormationXI} from "@/components/managers/managerFormationPlanner.mjs";
 import {ROLE_LABELS} from "@/components/managers/managerFit.mjs";
 const loadAll=async(entity,query={})=>{
  const out=[];for(let skip=0;skip<=100000;skip+=200){
@@ -33,8 +34,9 @@ export default function ManagerSquadPlanner(){
   return()=>{live=false};
  },[team?.id,season]);
  const plan=useMemo(()=>planSquad({team,season,players,memberships:members,assignments,managers,profiles}),[team,season,players,members,assignments,managers,profiles]);
+ const formationPlan=useMemo(()=>suggestFormationXI(plan,plan.profile?.formation||""),[plan]);
  return <main className="mx-auto max-w-[1550px] p-4 md:p-6 text-slate-900 space-y-4">
- <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V8</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
+ <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V9</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
  {error&&<p role="alert" className="p-3 border bg-red-50 rounded-lg text-red-800">{error}</p>}
  <div className="rounded-xl border p-4 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3">
  <label className="text-xs font-bold">Club personalizado<select className="block w-full border rounded-lg p-2 mt-1" aria-label="Club personalizado" value={teamId} onChange={e=>setParams({team:e.target.value,season})}><option value="">Selecciona equipo</option>{customTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
@@ -45,6 +47,23 @@ export default function ManagerSquadPlanner(){
  <p className="text-sm">Entrenador: <strong>{plan.manager?.name||"Sin entrenador principal asignado"}</strong> · ADN: <strong>{plan.profile?.name||"Sin ADN asignado"}</strong></p>
  <p className="text-xs text-slate-500">{plan.rosterCount} registros en la plantilla · {plan.linkedCount} jugadores clasificados por rol. Los roles se deducen de la posición principal registrada, no de la alineación titular.</p>
  {!plan.profile&&<p className="text-sm bg-amber-50 p-3 rounded-lg">Asigna un entrenador con ADN táctico en <Link to="/managers" className="underline font-semibold">MANAGERS</Link> para evaluar compatibilidad.</p>}</div>
+ <section className="rounded-xl border bg-white p-4 space-y-3">
+ <h3 className="font-black">Once orientativo por formación · {plan.profile?.formation||"Sin formación"}</h3>
+ <p className="text-xs text-slate-600">Propuesta automática sin modificar la alineación guardada. Un jugador solo puede ocupar una plaza; las alternativas no están asignadas. La selección utiliza posición y, cuando existen, atributos FM26.</p>
+ {formationPlan.valid?<><p className="text-sm font-semibold">{formationPlan.filled}/11 plazas con candidatos · {formationPlan.vacancies} sin candidato posicional</p>
+ <div className="space-y-2 rounded-xl bg-[#e8f3ed] border border-emerald-200 p-3">{Array.from(new Set(formationPlan.assignments.map(s=>s.line))).sort((a,b)=>b-a).map(line=>
+ <div key={line} className="flex justify-around gap-1 flex-wrap">{formationPlan.assignments.filter(s=>s.line===line).map(slot=>
+ <div key={slot.id} className="rounded-lg bg-white/95 border border-emerald-100 p-2 text-center w-[min(160px,46%)] min-w-[95px]">
+ <p className="text-[10px] font-bold text-emerald-800">{ROLE_LABELS[slot.role]}</p>
+ <p className="text-xs font-bold truncate" title={slot.primary?.player.name||"Vacante"}>{slot.primary?.player.name||"Vacante"}</p>
+ <p className="text-[10px] text-slate-500">Encaje {slot.primary?.estimatedFit??"—"}/100</p>
+ </div>)}</div>)}</div>
+ <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">{formationPlan.assignments.map(slot=><div key={slot.id} className="border rounded-lg p-3 text-xs">
+ <strong>{ROLE_LABELS[slot.role]} · {slot.primary?.player.name||"Vacante"}</strong>
+ <p className="text-slate-600 mt-1">Alternativas disponibles: {slot.alternatives.map(a=>a.player.name).join(", ")||"Ninguna identificada"}</p>
+ <Link className="text-blue-700 font-bold underline inline-block mt-2" to={`/manager-fit?${new URLSearchParams({...(plan.manager?{manager:String(plan.manager.id)}:{}),...(plan.profile?{profile:String(plan.profile.id)}:{}),role:slot.role,season})}`}>Buscar refuerzos</Link>
+ </div>)}</div></>:<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">{formationPlan.reason||"Guarda un ADN con una formación válida para generar una propuesta."}</p>}
+ </section>
  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{plan.roleSummary.map(item=>{
  const reason=item.needsReview==="empty"?"Sin jugadores registrados":item.needsReview==="missing_data"?"Faltan atributos evaluables":item.needsReview==="low_fit"?"Mejor encaje estimado inferior a 60": "Cobertura básica";
  return <article key={item.role} className="bg-white border rounded-xl p-4 space-y-2">
