@@ -138,8 +138,9 @@ export default function TacticalBuilder({ team, season, roster }) {
   const available = roster.filter(r => !used.has(String(r.player_id)) && r.player?.name?.toLowerCase().includes(search.toLowerCase()));
   const place = (target,playerId) => {
     if (!target || !playerId) return;
+    const displaced = slots[target];
     setSlots(s => assignSlot(s,target,String(playerId)));
-    setBench(b=>b.filter(id=>id!==String(playerId)));
+    setBench(b=>b.filter(id=>id!==String(playerId) && id!==String(displaced)));
     markDirty();
     setSelected(null);
     setNotice("");
