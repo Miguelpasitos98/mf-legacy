@@ -11,6 +11,115 @@ const sections=[
  {kind:"confederation",key:"confed:UEFA",items:[{source_id:"1301394"}]},
  {kind:"unclassified",key:"unclassified",items:[{source_id:"3"}]}
 ];
+test("Regression: country filter never treats foreign league cups as Spanish",()=>{
+ const cases=[
+ [
+  "Copa de la Liga Argentina",
+  "Argentina"
+ ],
+ [
+  "Copa de la Liga de Escocia",
+  "Escocia"
+ ],
+ [
+  "Copa de la Liga de Francia",
+  "Francia"
+ ],
+ [
+  "Copa de la Liga de Japón",
+  "Japón"
+ ],
+ [
+  "Copa de la Liga de Segunda Categoría de Gales",
+  "Gales"
+ ],
+ [
+  "Copa de la Liga Femenina de Inglaterra",
+  "Inglaterra"
+ ],
+ [
+  "Copa del Rey",
+  "España"
+ ],
+ [
+  "LaLiga",
+  "España"
+ ],
+ [
+  "LaLiga 2",
+  "España"
+ ],
+ [
+  "Supercopa de España",
+  "España"
+ ],
+ [
+  "La Liga Mayor",
+  "Sin federación o país confirmado"
+ ],
+ [
+  "Serie A de Ecuador",
+  "Ecuador"
+ ],
+ [
+  "Serie B de Ecuador",
+  "Ecuador"
+ ],
+ [
+  "Serie A",
+  "Italia"
+ ],
+ [
+  "Campeonato de Portugal Série A",
+  "Portugal"
+ ],
+ [
+  "Brasileirão Série C",
+  "Brasil"
+ ],
+ [
+  "3. Liga",
+  "Alemania"
+ ],
+ [
+  "3. Liga - grupa I",
+  "Sin federación o país confirmado"
+ ],
+ [
+  "Ligue 1 McDonald's",
+  "Francia"
+ ],
+ [
+  "Ligue 1 Orange Mali",
+  "Malí"
+ ],
+ [
+  "Ligue 1 StarTimes",
+  "Sin federación o país confirmado"
+ ],
+ [
+  "Algerian Ligue 2",
+  "Argelia"
+ ],
+ [
+  "Beninese Ligue 1",
+  "Benín"
+ ],
+ [
+  "Fijian FA Cup Tournament",
+  "Fiyi"
+ ],
+ [
+  "Singaporean Community Shield",
+  "Singapur"
+ ],
+ [
+  "Thai FA Cup",
+  "Tailandia"
+ ]
+];
+ for(const [name,country] of cases)assert.equal(classifyTrophy({name}).title,country,name);
+});
 test("Country classification handles explicit new names, while continental and unknown trophies remain separate",()=>{
  assert.equal(classifyTrophy({name:"Copa de Turquía"}).title,"Turquía");
  assert.equal(classifyTrophy({name:"Brazilian U20 Bahia State Championship"}).title,"Brasil");
