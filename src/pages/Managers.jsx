@@ -335,6 +335,9 @@ export default function Managers(){
   finally{setBusy(false)}
  };
  const chooseProfile=id=>{
+  if(busy||generatingDNA)return;
+  if(String(id)===String(profileId))return;
+  if(dnaDraftReady && !window.confirm("Hay un borrador de IA sin guardar. ¿Abrir otro perfil y descartar ese borrador?"))return;
   const found=managerProfiles.find(p=>String(p.id)===String(id));
   setProfileId(found?.id||"__new__");setProfileDraft(found?{...PROFILE_BLANK,...found}:{...PROFILE_BLANK});
   setRoleText(found?decodeRoleText(found.player_role_priorities):{});
@@ -464,7 +467,30 @@ export default function Managers(){
      <button className={primary} disabled={!canWrite||busy} type="submit"><Save size={16}/>{busy?"Guardando...":selected?"Guardar ficha":"Crear entrenador"}</button>
     </form>}
     {tab==="dna"&&(!selected?<div className="rounded-xl border border-dashed p-8 text-center text-slate-600">Primero guarda una ficha de entrenador para crear su ADN táctico.</div>:<form onSubmit={saveProfile} className="space-y-4">
-     <div className="flex flex-wrap items-end gap-2 justify-between"><div><h3 className="font-extrabold">Modelos de juego</h3><p className="text-xs text-slate-500">Un entrenador puede tener varios perfiles según temporada o proyecto.</p></div><div className="flex items-center gap-2"><select className={input+" max-w-[200px]"} aria-label="Seleccionar perfil táctico" value={profileId||"__new__"} onChange={e=>chooseProfile(e.target.value)}><option value="__new__">Nuevo perfil</option>{managerProfiles.map(p=><option key={p.id} value={p.id}>{p.name} · {profileScopeLabel(p)} {p.is_default?"★":""}</option>)}</select><button type="button" className="border rounded-lg px-2 py-2" onClick={()=>chooseProfile("")} disabled={!canWrite} title="Crear otro perfil"><Plus size={18}/></button></div></div>
+     <div className="flex flex-wrap items-end gap-2 justify-between"><div><h3 className="font-extrabold">Modelos de juego <span className="font-medium text-slate-500 text-xs">({managerProfiles.length} guardados)</span></h3><p className="text-xs text-slate-500">Elige un perfil guardado para verlo y editarlo. Cada etapa conserva sus propios valores.</p></div><button type="button" className="inline-flex items-center gap-2 border rounded-lg px-3 py-2 text-xs font-bold" onClick={()=>chooseProfile("__new__")} disabled={!canWrite} title="Crear otro perfil"><Plus size={16}/> Nuevo perfil</button></div>
+     <div className="rounded-xl border p-3 bg-slate-50 space-y-2" aria-label="Modelos históricos guardados">
+       <p className="text-xs font-bold text-slate-700">Seleccionar modelo táctico</p>
+       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+         {managerProfiles.map(p=>{
+           const active=String(profileId)===String(p.id);
+           const scope=profileScope(p);
+           return <button type="button" key={p.id} onClick={()=>chooseProfile(p.id)} aria-pressed={active}
+             className={`min-w-0 rounded-xl border p-3 text-left transition-colors ${active?"border-blue-700 bg-blue-50 ring-1 ring-blue-700":"border-slate-200 bg-white hover:border-blue-300"}`}>
+             <div className="flex justify-between gap-2 items-start">
+               <strong className="text-sm leading-tight break-words">{p.name}</strong>
+               {p.is_default&&<span className="shrink-0 rounded-full bg-lime-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">Principal</span>}
+             </div>
+             <p className="text-xs text-slate-600 mt-2">{scope==="general"?"Filosofía general":p.reference_club||"Club sin especificar"}</p>
+             <p className="text-[11px] text-slate-500 mt-1">{profileScopeLabel(p)} · {p.formation||"Sin formación"}</p>
+             <span className="inline-block mt-2 text-[11px] font-bold text-blue-700">{active?"Perfil abierto":"Ver y editar perfil"}</span>
+           </button>;
+         })}
+         <button type="button" onClick={()=>chooseProfile("__new__")} disabled={!canWrite} aria-pressed={profileId==="__new__"}
+           className={`rounded-xl border border-dashed p-3 text-left flex gap-2 items-center ${profileId==="__new__"?"border-blue-700 bg-blue-50":"border-slate-300 bg-white"} disabled:opacity-50`}>
+           <Plus size={18}/><span className="text-sm font-semibold">Crear otro ADN táctico</span>
+         </button>
+       </div>
+     </div>
      <div className="border rounded-xl bg-blue-50/60 border-blue-100 p-3 space-y-3" aria-label="Asistente de ADN táctico">
        <div className="flex flex-wrap gap-2 justify-between items-center">
          <div><h4 className="font-extrabold text-sm flex items-center gap-2"><Sparkles size={17} className="text-[#003399]"/> ADN táctico con IA</h4><p className="text-xs text-slate-600">Genera un borrador específico para {selected.name}, separado de su biografía.</p></div>
