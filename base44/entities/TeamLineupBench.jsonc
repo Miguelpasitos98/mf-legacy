@@ -1,0 +1,37 @@
+{
+  "name": "TeamLineupBench",
+  "type": "object",
+  "properties": {
+    "lineup_id": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "bench_order": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "lineup_id",
+    "player_id"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

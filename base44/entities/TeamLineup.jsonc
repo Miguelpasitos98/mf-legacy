@@ -1,0 +1,67 @@
+{
+  "name": "TeamLineup",
+  "type": "object",
+  "properties": {
+    "team_type": {
+      "type": "string",
+      "enum": [
+        "club",
+        "national"
+      ]
+    },
+    "team_id": {
+      "type": "string"
+    },
+    "season": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "formation": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "custom",
+        "ideal",
+        "latest",
+        "historical",
+        "predicted",
+        "official"
+      ]
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "team_type",
+    "team_id",
+    "name",
+    "formation"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
