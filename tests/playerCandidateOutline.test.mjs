@@ -2,32 +2,35 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import {candidateOutlineClass} from "../src/components/players/playerCandidateOutline.mjs";
-test("candidate receives green outline but normal players stay neutral",()=>{
- assert.match(candidateOutlineClass({manager_fit_candidate:true}),/border-emerald-600/);
- assert.match(candidateOutlineClass({manager_fit_candidate:true}),/ring-emerald-300/);
- assert.equal(candidateOutlineClass({manager_fit_candidate:false}),"border-slate-200 hover:border-slate-300");
- assert.equal(candidateOutlineClass({}),"border-slate-200 hover:border-slate-300");
+
+test("the normal catalogue NEVER outlines candidates in green",()=>{
+ const candidate={manager_fit_candidate:true};
+ assert.equal(candidateOutlineClass(candidate), "border-slate-200 hover:border-slate-300");
+ assert.equal(candidateOutlineClass(candidate,false,false),"border-slate-200 hover:border-slate-300");
+ assert.equal(candidateOutlineClass({manager_fit_candidate:false},false,true),"border-slate-200 hover:border-slate-300");
 });
-test("bulk selection stays blue, but candidate identity remains visible simultaneously",()=>{
- const selected=candidateOutlineClass({manager_fit_candidate:false},true);
- assert.match(selected,/border-blue-700/);
- assert.match(selected,/ring-blue-300/);
- const both=candidateOutlineClass({manager_fit_candidate:true},true);
- assert.match(both,/border-emerald-600/);
- assert.match(both,/ring-blue-400/);
- assert.doesNotMatch(both,/ring-emerald-300/);
+test("dedicated candidate view uses a soft emerald border and subtle ring",()=>{
+ const style=candidateOutlineClass({manager_fit_candidate:true},false,true);
+ assert.match(style,/border-emerald-500\/70/);
+ assert.match(style,/ring-1 ring-emerald-200/);
+ assert.doesNotMatch(style,/ring-2 ring-emerald-300/);
 });
-test("nonboolean values cannot label a player as opted-in",()=>{
- assert.equal(candidateOutlineClass({manager_fit_candidate:"true"}),candidateOutlineClass({}));
- assert.equal(candidateOutlineClass({manager_fit_candidate:null}),candidateOutlineClass({}));
+test("the blue bulk selection remains clearly different within either view",()=>{
+ assert.match(candidateOutlineClass({},true),/border-blue-700 ring-2 ring-blue-300/);
+ const both=candidateOutlineClass({manager_fit_candidate:true},true,true);
+ assert.match(both,/border-emerald-500\/70/);
+ assert.match(both,/ring-2 ring-blue-300/);
 });
-test("all PLAYERS views use the same card and saved candidate flag",()=>{
+test("only saved boolean true is eligible, even in candidate view",()=>{
+ assert.equal(candidateOutlineClass({manager_fit_candidate:"true"},false,true),"border-slate-200 hover:border-slate-300");
+ assert.equal(candidateOutlineClass({manager_fit_candidate:null},false,true),"border-slate-200 hover:border-slate-300");
+});
+test("candidate view passes the scope prop, not the ordinary catalogue",()=>{
  const card=fs.readFileSync("src/components/players/PlayerCard.jsx","utf8");
  const players=fs.readFileSync("src/pages/Players.jsx","utf8");
- assert.match(card,/candidateOutlineClass\(player,selected\)/);
- assert.match(card,/en bolsa de candidatos Manager Fit/);
+ assert.match(card,/candidateOutlineClass\(player,selected,candidateView\)/);
+ assert.match(players,/candidateView hasStats=/);
+ assert.match(players,/viewMode === "candidates"/);
+ assert.match(players,/viewMode === "all"/);
  assert.match(players,/const normalizePlayer = \(player\) => \(\{\s*\.\.\.player,/);
- for(const mode of ['viewMode === "all"','viewMode === "teams"','viewMode === "countries"','viewMode === "positions"','viewMode === "age"']){
-   assert.ok(players.includes(mode));
- }
 });
