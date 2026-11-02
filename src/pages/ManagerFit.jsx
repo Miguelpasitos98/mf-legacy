@@ -7,6 +7,7 @@ import {collectPlayerSeasonMetrics,seasonPercentiles,historicalRoleCandidates} f
 import {evaluateRoleRequirements,deriveRoleRequirements} from "@/components/managers/managerRoleFit.mjs";
 import {buildScoutingReport,compareManagerProfiles,SCOUT_METRIC_NAMES} from "@/components/managers/managerScoutingReport.mjs";
 import {ageOnSeason,valuationForSeason,filterScoutingCandidates,formatTransferValue} from "@/components/managers/managerTransferScout.mjs";
+import {MAX_COMPARE,toggleCandidate,compareCandidates,candidateOverview} from "@/components/managers/managerCandidateCompare.mjs";
 import {managerFitAttributes} from "@/components/managers/managerFitAttributes.mjs";
 import {profileScopeLabel} from "@/components/managers/managerModel.mjs";
 const all=async(entity,query={})=>{
@@ -43,6 +44,8 @@ export default function ManagerFit(){
  const [maxValueM,setMaxValueM]=useState("");
  const [knownValueOnly,setKnownValueOnly]=useState(false);
  const [minimumCoverage,setMinimumCoverage]=useState(0);
+ const [comparedIds,setComparedIds]=useState([]);
+ const [totalBudget,setTotalBudget]=useState("");
  const managerId=params.get("manager")||"";
  const profileId=params.get("profile")||"";
  const manager=managers.find(m=>String(m.id)===managerId);
@@ -98,6 +101,17 @@ export default function ManagerFit(){
   .slice(0,100);
  },[players,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics,
     valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage]);
+ const comparedRows=useMemo(()=>{
+  if(!profile||!comparedIds.length)return [];
+  return compareCandidates(comparedIds.map(playerId=>{
+   const player=players.find(p=>String(p.id)===String(playerId));
+   return player?{player,valuation:valuationForSeason(valuationRows,player.id,season),
+    roleFit:evaluateRoleRequirements(historicalIndex.get(String(player.id))||{},historicalPeerMetrics,role,profile),
+    historical:seasonPercentiles(historicalIndex.get(String(player.id))||{},historicalPeerMetrics,role,profile),
+    advanced:managerFitAttributes(player,role,profile)}:null;
+  }).filter(Boolean),comparedIds);
+ },[profile,comparedIds,players,valuationRows,season,historicalIndex,historicalPeerMetrics,role]);
+ const comparisonBudget=candidateOverview(comparedRows,totalBudget);
  const scoutingPlayer=players.find(p=>String(p.id)===scoutingPlayerId)||null;
  const scoutingRow=scoutingPlayer&&profile?{
   player:scoutingPlayer,advanced:managerFitAttributes(scoutingPlayer,role,profile),
@@ -106,7 +120,7 @@ export default function ManagerFit(){
  }:null;
  const scoutingReport=scoutingRow?buildScoutingReport(scoutingPlayer,role,profile,season,scoutingRow.roleFit,scoutingRow.historical,scoutingRow.advanced):null;
  const scoutingComparison=scoutingRow?compareManagerProfiles(scoutingPlayer,role,season,profileOptions,historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,evaluateRoleRequirements):[];
- const chooseManager=id=>{setScoutingPlayerId("");
+ const chooseManager=id=>{setScoutingPlayerId("");setComparedIds([]);
   const first=profiles.find(p=>String(p.manager_id)===String(id)&&p.is_default)||profiles.find(p=>String(p.manager_id)===String(id));
   setParams({manager:id,...(first?{profile:String(first.id)}:{})});
  };
@@ -155,10 +169,33 @@ export default function ManagerFit(){
       {scoreMode==="historical"&&item.historical.breakdown.length>0&&<p className="text-[11px] text-slate-600">{item.historical.breakdown.slice(0,3).map(m=>m.key+" P"+m.percentile).join(" · ")}</p>}
       {scoreMode==="attributes"&&<p className="text-[11px] text-slate-500">Cobertura de atributos: {item.advanced.coverage}% · Confianza {item.advanced.confidence==="medium"?"media":item.advanced.confidence==="low"?"baja":"insuficiente"}</p>}
       <p className="text-[11px] text-slate-500">Confianza posicional {item.reliability==="medium"?"media":item.reliability==="low"?"baja":"insuficiente"}</p>
+      <button type="button" aria-pressed={comparedIds.includes(String(item.player.id))} disabled={!comparedIds.includes(String(item.player.id))&&comparedIds.length>=MAX_COMPARE} className={`mt-2 mr-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${comparedIds.includes(String(item.player.id))?"bg-emerald-50 border-emerald-300 text-emerald-900":"bg-white text-slate-700"}`} onClick={()=>setComparedIds(prev=>toggleCandidate(prev,item.player.id))}>{comparedIds.includes(String(item.player.id))?"Quitar de comparación":"Comparar +"}</button>
       <button type="button" className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100" onClick={()=>setScoutingPlayerId(String(item.player.id))}>Informe de scouting</button>
      </div>
     </div>)}
    </div>
+   <section className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-3 md:p-4 space-y-3" aria-label="Comparador de fichajes">
+     <div className="flex flex-wrap justify-between items-start gap-2"><div><h3 className="font-black">Comparador de candidatos · V7</h3><p className="text-xs text-slate-600">{comparedIds.length}/{MAX_COMPARE} seleccionados · Misma temporada, rol y ADN del entrenador.</p></div><button type="button" className="text-xs font-bold rounded-lg border px-3 py-2 bg-white" onClick={()=>setComparedIds([])} disabled={!comparedIds.length}>Limpiar selección</button></div>
+     <div className="flex flex-wrap items-center gap-3 text-xs">
+      <label className="font-bold">Presupuesto total (M€) <input aria-label="Presupuesto total" type="number" min="0" step="0.5" className="border rounded-lg p-2 ml-2 w-28 bg-white" value={totalBudget} onChange={e=>setTotalBudget(e.target.value)}/></label>
+      <span>{comparisonBudget.priced}/{comparisonBudget.selected} candidatos con valor histórico · Total conocido {formatTransferValue(comparisonBudget.totalKnownEur)}</span>
+      {comparisonBudget.budgetEur!==null&&<strong>{comparisonBudget.withinBudget===null?"Presupuesto no comprobable: faltan valores":comparisonBudget.withinBudget?"Importes conocidos dentro del límite":"Los valores históricos superan el presupuesto"}</strong>}
+     </div>
+     {comparedRows.length?<div className="overflow-x-auto"><table className="min-w-[650px] w-full text-xs bg-white rounded-lg border border-collapse"><thead><tr className="bg-slate-100"><th className="p-3 text-left">Indicador</th>{comparedRows.map(r=><th className="p-3 text-left" key={r.player.id}>{r.player.name}</th>)}</tr></thead><tbody>
+      {[
+       ["Encaje rol V4",r=>r.roleFit.score===null?"—":r.roleFit.score+"/100"],
+       ["Cobertura del rol",r=>r.roleFit.coverage+"%"],
+       ["Confianza",r=>r.roleFit.confidence],
+       ["Histórico general V3",r=>r.historical.score===null?"—":r.historical.score+"/100"],
+       ["Atributos FM26 V2",r=>r.advanced.score===null?"—":r.advanced.score+"/100"],
+       ["CA de FM26",r=>r.advanced.quality??"—"],
+       ["Edad histórica",r=>ageOnSeason(r.player,season)??"—"],
+       ["Valor Transfermarkt",r=>formatTransferValue(r.valuation?.eur)],
+       ["Estado valor",r=>r.valuation?.status||"Sin datos"]
+      ].map(([name,fn])=><tr key={name} className="border-t"><th className="p-2 text-left font-semibold whitespace-nowrap">{name}</th>{comparedRows.map(r=><td key={r.player.id} className="p-2 tabular-nums">{fn(r)}</td>)}</tr>)}
+     </tbody></table></div>:<p className="text-xs text-slate-500 bg-white rounded-lg border p-4">Selecciona entre dos y cuatro jugadores con «Comparar +» para enfrentarlos en una tabla. También puedes evaluar uno solo.</p>}
+     <p className="text-[11px] text-slate-600">Las notas se mantienen separadas. La suma de valores históricos no equivale a un precio de compra ni incluye salarios. Si falta alguna valoración, no se confirma que el presupuesto sea suficiente.</p>
+   </section>}
    {scoutingReport&&<section className="mt-5 rounded-2xl border-2 border-blue-200 bg-slate-50 p-4 space-y-4" aria-label="Informe individual de scouting">
      <div className="flex flex-wrap justify-between gap-2 items-start">
       <div><p className="text-[11px] uppercase font-bold text-blue-700">Informe individual · {season}</p>
