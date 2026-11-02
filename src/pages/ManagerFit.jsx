@@ -140,7 +140,19 @@ export default function ManagerFit(){
     <label className="text-xs font-bold">CA mínimo (FM26)<input aria-label="CA mínimo" type="number" min="0" max="200" value={minCA} onChange={e=>setMinCA(Math.max(0,Math.min(200,Number(e.target.value)||0)))} className="block w-full border rounded-lg p-2 mt-1 text-sm"/></label>
    </div>
    <div className="flex gap-2 flex-wrap text-sm"><label className="text-xs font-bold">Temporada histórica <input aria-label="Temporada histórica" className="block rounded-lg border p-2 mt-1" value={season} onChange={e=>setSeason(e.target.value)} placeholder="2025/2026"/></label></div>
-   <div className="flex gap-2 flex-wrap text-sm"><button type="button" aria-pressed={scoreMode==="role"} className={`rounded-lg px-3 py-2 border ${scoreMode==="role"?"bg-blue-900 text-white":"bg-white"}`} onClick={()=>setScoreMode("role")}>Perfil deseado por entrenador (V4)</button><button type="button" aria-pressed={scoreMode==="historical"} className={`rounded-lg px-3 py-2 border ${scoreMode==="historical"?"bg-blue-900 text-white":"bg-white"}`} onClick={()=>setScoreMode("historical")}>Histórico FotMob + Understat (V3)</button><button type="button" aria-pressed={scoreMode==="attributes"} className={`rounded-lg px-3 py-2 border ${scoreMode==="attributes"?"bg-blue-900 text-white":"bg-white"}`} onClick={()=>setScoreMode("attributes")}>Encaje FM26 + ADN (experimental)</button><button type="button" aria-pressed={scoreMode==="position"} className={`rounded-lg px-3 py-2 border ${scoreMode==="position"?"bg-blue-900 text-white":"bg-white"}`} onClick={()=>setScoreMode("position")}>Solo posición (V1)</button></div>
+   <div className="grid grid-cols-2 gap-2 lg:grid-cols-4" role="group" aria-label="Modelo de evaluación">
+    {[
+     {key:"role",title:"V4 · ADN del entrenador",note:"Requisitos medidos · experimental"},
+     {key:"historical",title:"V3 · Histórico",note:"FotMob + Understat · por temporada"},
+     {key:"attributes",title:"V2 · Atributos FM26",note:"Estimación del videojuego"},
+     {key:"position",title:"V1 · Posición",note:"Adecuación básica"}
+    ].map(model=><button key={model.key} type="button" aria-pressed={scoreMode===model.key}
+     onClick={()=>setScoreMode(model.key)}
+     className={"rounded-xl border px-3 py-3 text-left transition "+(scoreMode===model.key?"border-[#003399] bg-[#003399] text-white shadow-sm":"border-slate-200 bg-slate-50 text-slate-900 hover:border-blue-200 hover:bg-white")}>
+      <span className="block text-[12px] font-extrabold">{model.title}</span>
+      <span className={"mt-1 block text-[10px] leading-4 "+(scoreMode===model.key?"text-blue-100":"text-slate-500")}>{model.note}</span>
+    </button>)}
+   </div>
    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 rounded-xl border bg-slate-50 p-3">
     <label className="text-xs font-bold">Edad mínima<input aria-label="Edad mínima" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" max="60" value={minAge} onChange={e=>setMinAge(e.target.value)}/></label>
     <label className="text-xs font-bold">Edad máxima<input aria-label="Edad máxima" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" max="60" value={maxAge} onChange={e=>setMaxAge(e.target.value)}/></label>
