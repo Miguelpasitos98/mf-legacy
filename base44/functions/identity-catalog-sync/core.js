@@ -40,7 +40,7 @@ export async function applyApprovedLinks(db,input){
  for(const row of input){if(!validId(row.fm_uid)||!validId(row.fotmob_id)||typeof row.reason!=='string'||!row.reason.trim()||seenUid.has(row.fm_uid)||seenFid.has(row.fotmob_id))throw Error('Aprobaciones duplicadas o sin evidencia.');seenUid.add(row.fm_uid);seenFid.add(row.fotmob_id);}
  const players=rows(await db.Player.filter({fm26_uid:{$in:input.map(r=>r.fm_uid)}},undefined,200));
  const ids=players.map(p=>p.id),fids=input.map(r=>r.fotmob_id);
- const links=rows(await db.PlayerFotmobLink.filter({$or:[{player_id:{$in:ids}},{fotmob_player_id:{$in:fids}}]},undefined,300));
+ const links=[...rows(await db.PlayerFotmobLink.filter({$or:[{player_id:{$in:ids}},{fotmob_player_id:{$in:fids}}]},undefined,300))];
  if(players.length>=200||links.length>=300)throw Error('No se puede verificar la unicidad de los vínculos.');
  const candidates=rows(await db.Fm26IdentityCandidate.filter({fm26_uid:{$in:input.map(r=>r.fm_uid)}},undefined,200));
  const catalog=rows(await db.FotmobCatalogPlayer.filter({fotmob_id:{$in:fids}},undefined,200));
@@ -60,5 +60,17 @@ export async function applyApprovedLinks(db,input){
   links.push(link);created++;
  }
  return {received:input.length,created,unchanged,blocked};
+}
+export async function identitySnapshot(db){
+ async function all(entity,fields){let cursor=null;const result=[],seen=new Set();
+  for(let i=0;i<200;i++){
+   const page=await entity.list(cursor?{cursor,limit:500}:{sort:'id',limit:500,fields});
+   const records=rows(page);for(const row of records){if(!row.id||seen.has(row.id))throw Error('Instantánea incompleta o duplicada.');seen.add(row.id);result.push(row);}
+   if(!page.next_cursor){if(page.has_more===true)throw Error('Falta cursor de continuación.');return result;}
+   if(page.next_cursor===cursor)throw Error('Cursor repetido.');cursor=page.next_cursor;
+  }throw Error('Catálogo demasiado grande para esta instantánea.');
+ }
+ return {app_id:'6a88359fd43f2af862874b12',retrieved_at:new Date().toISOString(),read_only:true,
+  players:await all(db.Player,['id','name','fm26_uid','fm26_unique_id','date_of_birth']),links:await all(db.PlayerFotmobLink)};
 }
 
