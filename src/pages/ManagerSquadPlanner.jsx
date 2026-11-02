@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {isCustomTeam} from "@/components/managers/managerModel.mjs";
+import CustomClubSearch from "@/components/managers/CustomClubSearch";
 import {planSquad} from "@/components/managers/managerSquadPlanner.mjs";
 import {canChooseLineupPlayer} from "@/components/managers/managerLineupSandbox.mjs";
 import {SCENARIO_IDS,FORMATION_CHOICES,emptyScenarios,updateScenario,resetScenario,duplicateScenario,evaluateScenario,compareScenarios} from "@/components/managers/managerScenarios.mjs";
@@ -78,7 +79,7 @@ export default function ManagerSquadPlanner(){
  <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V15</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
  {error&&<p role="alert" className="p-3 border bg-red-50 rounded-lg text-red-800">{error}</p>}
  <div className="rounded-xl border p-4 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3">
- <label className="text-xs font-bold">Club personalizado<select disabled={demoMode} className="block w-full border rounded-lg p-2 mt-1 disabled:opacity-50" aria-label="Club personalizado" value={teamId} onChange={e=>setParams({team:e.target.value,season})}><option value="">Selecciona equipo</option>{customTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+ <CustomClubSearch teams={customTeams} selectedId={teamId} disabled={demoMode} onSelect={id=>setParams({team:id,season})}/>
  <label className="text-xs font-bold">Temporada<input aria-label="Temporada" className="block w-full border rounded-lg p-2 mt-1" value={season} onChange={e=>setParams({team:teamId,season:e.target.value})}/></label>
  </div>
  <section className="rounded-xl border bg-white p-3 md:p-4 space-y-2">
