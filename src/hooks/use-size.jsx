@@ -13,15 +13,32 @@ export function useSize(ref) {
     if (!element) return
 
     const rect = element.getBoundingClientRect()
-    setSize({ width: rect.width, height: rect.height })
+    setSize(previous =>
+      previous?.width === rect.width && previous?.height === rect.height
+        ? previous : { width: rect.width, height: rect.height }
+    )
 
+    // A ResizeObserver callback must not synchronously re-render a component
+    // that could resize its own observed element. Schedule the update outside
+    // the observer's delivery phase to avoid resize feedback loops.
+    let frame = null
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect
-      setSize({ width, height })
+      if (frame !== null) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        frame = null
+        setSize(previous =>
+          previous?.width === width && previous?.height === height
+            ? previous : { width, height }
+        )
+      })
     })
 
     observer.observe(element)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (frame !== null) cancelAnimationFrame(frame)
+    }
   }, [ref])
 
   return size

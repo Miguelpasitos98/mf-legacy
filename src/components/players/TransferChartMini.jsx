@@ -79,8 +79,17 @@ export default function TransferChartMini({ player, clubs = [] }) {
   const [chartWidth,setChartWidth] = useState(500);
   useEffect(()=>{
     const element=chartRef.current;if(!element)return;
-    const observer=new ResizeObserver(([entry])=>setChartWidth(entry.contentRect.width));
-    observer.observe(element);return ()=>observer.disconnect();
+    let frame=null;
+    const observer=new ResizeObserver(([entry])=>{
+      const width=Math.round(entry.contentRect.width);
+      if(frame!==null)cancelAnimationFrame(frame);
+      frame=requestAnimationFrame(()=>{
+        frame=null;
+        if(width>0)setChartWidth(previous=>previous===width?previous:width);
+      });
+    });
+    observer.observe(element);
+    return ()=>{observer.disconnect();if(frame!==null)cancelAnimationFrame(frame)};
   },[]);
   const id = player?.id;
   const {data:historicalRows=[],isLoading:historyLoading}=useQuery({
