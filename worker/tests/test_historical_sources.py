@@ -34,7 +34,7 @@ class HistoricalSourceTests(unittest.TestCase):
   with patch.dict('sys.modules',{'app':app,'app.understat_dataset':dataset,'app.understat_bridge':bridge}),patch.object(Catalogs,'asset',return_value=(self.root/'archive.csv','sha')):
    result=Catalogs(self.root).understat('534670',bundle)
   self.assertEqual(result['provider_id'],'2517')
-  self.assertEqual(len(result['rows']),2)
+  self.assertEqual(result['rows'],2)
   dataset.confirm_link.assert_called_once()
  def test_season_edition_is_explicit(self):
   self.assertEqual(edition_for('2022/2023'),(23,'FIFA 23'))
