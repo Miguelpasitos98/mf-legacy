@@ -60,14 +60,15 @@ test("Managers page renders without data using a mocked Base44 client",async()=>
     build.onLoad({filter:/.*/,namespace:"sdk-test"},()=>({contents:"export const base44={entities:{},auth:{}};",loader:"js"}));
     build.onResolve({filter:/^lucide-react$/},()=>({path:"icons",namespace:"icons-test"}));
     build.onLoad({filter:/.*/,namespace:"icons-test"},()=>({
-     contents:"const Icon=()=>null;export {Icon as Search,Icon as Plus,Icon as Save,Icon as Sparkles,Icon as Copy,Icon as UserRoundCog,Icon as SlidersHorizontal,Icon as ShieldCheck,Icon as ArrowUpRight,Icon as BookOpen};",
+     contents:"const Icon=()=>null;export {Icon as Search,Icon as Plus,Icon as Save,Icon as Sparkles,Icon as Copy,Icon as UserRoundCog,Icon as SlidersHorizontal,Icon as ShieldCheck,Icon as ArrowUpRight,Icon as BookOpen,Icon as Check,Icon as ChevronsUpDown,Icon as Globe2,Icon as X};",
      loader:"js"
     }));
    }}]
   });
   const Managers=require(outfile).default;
   const html=renderToString(React.createElement(MemoryRouter,{initialEntries:["/managers"]},React.createElement(Managers)));
-  assert.match(html,/Base de datos de entrenadores/);
+  assert.doesNotMatch(html,/Base de datos de entrenadores/);
+  assert.match(html,/Entrenadores/);
   assert.match(html,/Crear ficha/);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
