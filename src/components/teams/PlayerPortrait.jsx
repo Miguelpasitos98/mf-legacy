@@ -23,7 +23,6 @@ export default function PlayerPortrait({ player, className = "", fallback = "?",
       alt={alt}
       className={className}
       loading="lazy"
-      referrerPolicy="no-referrer"
       onError={() => setIndex((current) => current + 1)}
     />
   ) : (
