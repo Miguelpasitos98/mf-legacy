@@ -92,15 +92,44 @@ export function inferManagerProfileContext(data){
     suggested_name:"Filosofía general",origin:"not_specified"};
 }
 
+// Interpret only unambiguous synonyms; do not guess when the AI describes
+// a different tactic or returns an unsupported composite value.
+const tacticalAliases={
+ build_up:{
+   short:["short","short_passing","short_passes","short_build_up","possession","elaborate","elaborated","build_from_back","salida_corta","corta","pases_cortos","combinativo"],
+   mixed:["mixed","balanced","hybrid","flexible","variable","mixto","mixta","equilibrado","equilibrada","combinada"],
+   direct:["direct","direct_play","long","long_ball","long_balls","long_passing","vertical","directo","directa","juego_directo","balon_largo"]
+ },
+ transition:{
+   counter_press:["counter_press","counterpress","counter_pressing","counterpressing","gegenpressing","press_after_loss","press_after_possession_loss","presion_tras_perdida","contrapresion"],
+   regroup:["regroup","regrouping","fall_back","reorganize","reorganise","repliegue","replegar","reorganizarse"],
+   balanced:["balanced","mixed","neutral","equilibrada","equilibrado","mixta","mixto"]
+ },
+ defensive_block:{
+   low:["low","low_block","deep","deep_block","bajo","bloque_bajo"],
+   medium:["medium","mid","mid_block","medium_block","middle","medio","bloque_medio"],
+   high:["high","high_block","advanced","alto","bloque_alto"]
+ }
+};
+export function normalizeTacticalEnum(field,value){
+ const choices=tacticalAliases[field];
+ if(!choices)throw Error("Parámetro táctico desconocido: "+field);
+ const normalized=typeof value==="string"?value.trim().toLocaleLowerCase().normalize("NFD")
+   .replace(/[\u0300-\u036f]/g,"").replace(/[\s-]+/g,"_"):"";
+ for(const [canonical,aliases] of Object.entries(choices)){
+   if(aliases.includes(normalized))return canonical;
+ }
+ throw Error("La IA devolvió un valor desconocido para "+field+": "+JSON.stringify(value)+
+   ". Valores admitidos: "+Object.keys(choices).join(", ")+". Puedes corregirlo en el JSON sin repetir la investigación.");
+}
+
 export function parseManagerTacticalResponse(input) {
   const data=unwrapJSON(input);
   if(data.identifiable!==true)throw Error(String(data.reason||"La identidad o el estilo del entrenador no se han podido verificar.").slice(0,250));
   if(!["high","medium","low"].includes(data.confidence))throw Error("La IA no ha indicado un nivel de confianza válido.");
   if(!FORMATIONS.includes(data.formation))throw Error("La formación devuelta no es compatible con el editor.");
-  const enums={build_up:["short","mixed","direct"],transition:["counter_press","regroup","balanced"],defensive_block:["low","medium","high"]};
-  for(const [key,allowed] of Object.entries(enums)){
-    if(!allowed.includes(data[key]))throw Error("La IA devolvió un valor desconocido para "+key+".");
-  }
+  const tacticalValues=Object.fromEntries(["build_up","transition","defensive_block"]
+    .map(key=>[key,normalizeTacticalEnum(key,data[key])]));
   const numeric={};
   for(const {key} of DNA_AXES){
     if(typeof data[key]!=="number"||!Number.isFinite(data[key])||data[key]<0||data[key]>100)
@@ -120,8 +149,7 @@ export function parseManagerTacticalResponse(input) {
   const sourceUrls=Array.isArray(data.source_urls)
     ? [...new Set(data.source_urls.filter(validHttp).map(x=>x.trim()))].slice(0,8):[];
   const context=inferManagerProfileContext(data);
-  return {context,values:{...numeric,formation:data.formation,build_up:data.build_up,transition:data.transition,
-    defensive_block:data.defensive_block},roleText,notes:data.profile_notes.trim().slice(0,3500),
+  return {context,values:{...numeric,formation:data.formation,...tacticalValues},roleText,notes:data.profile_notes.trim().slice(0,3500),
     sourceUrls,confidence:data.confidence};
 }
 
