@@ -87,8 +87,8 @@ export default function Trophies(){
  useEffect(()=>{
   const controller=new AbortController();setCatalogLoading(true);
   fetch(TROPHY_CSV_URL,{signal:controller.signal}).then(r=>{if(!r.ok)throw Error("HTTP "+r.status);return r.text();})
-    .then(txt=>{const parsed=parseTrophyCatalog(txt);if(parsed.length!==2181)throw Error("El catálogo no contiene las 2.181 entradas esperadas: "+parsed.length);setCatalog(parsed);setCatalogError("");})
-    .catch(e=>{if(e?.name!=="AbortError")setCatalogError("No se pudo cargar el catálogo original: "+e.message);})
+    .then(txt=>{const parsed=parseTrophyCatalog(txt);if(parsed.length!==2180)throw Error("El catálogo de GitHub no contiene las 2.180 entradas esperadas: "+parsed.length);setCatalog(parsed);setCatalogError("");})
+    .catch(e=>{if(e?.name!=="AbortError")setCatalogError("No se pudo cargar el catálogo de GitHub: "+e.message);})
     .finally(()=>{if(!controller.signal.aborted)setCatalogLoading(false);});
   return ()=>controller.abort();
  },[]);
