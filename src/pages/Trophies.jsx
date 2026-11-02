@@ -3,9 +3,10 @@ import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {Search,Trophy,Plus,ChevronRight,X,Save,Image as ImageIcon,Filter,AlertCircle,Trash2,Upload,Medal,Users,Link2,RotateCcw} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
-import {useLeaguesQuery,useCountriesQuery} from "@/hooks/useSharedData";
+import {useLeaguesQuery,useCountriesQuery,useTeamsQuery} from "@/hooks/useSharedData";
 import {groupTrophies} from "@/utils/trophyGrouping";
 import TrophySyncWorkbench from "@/components/trophies/TrophySyncWorkbench";
+import TeamSearchPicker from "@/components/trophies/TeamSearchPicker";
 import TrophyDetailVisual from "@/components/trophies/TrophyDetailVisual";
 import TrophyArchiveOverview from "@/components/trophies/TrophyArchiveOverview";
 import TrophyReviewCenter from "@/components/trophies/TrophyReviewCenter";
@@ -64,6 +65,8 @@ export default function Trophies(){
  const [tab,setTab]=useState("verified");
  const [type,setType]=useState("all");
  const [category,setCategory]=useState("all");
+ const [countryFilter,setCountryFilter]=useState("all");
+ const [teamFilter,setTeamFilter]=useState("");
  const [expandedGroups,setExpandedGroups]=useState({});
  const [selectedId,setSelectedId]=useState("");
  const [newRecord,setNewRecord]=useState(false);
@@ -75,7 +78,7 @@ export default function Trophies(){
  const [honourSaving,setHonourSaving]=useState(false);
  const [showHonours,setShowHonours]=useState(true);
  const [detailTab,setDetailTab]=useState("Resumen");
- const leaguesQuery=useLeaguesQuery(),countriesQuery=useCountriesQuery();
+ const leaguesQuery=useLeaguesQuery(),countriesQuery=useCountriesQuery(),teamsQuery=useTeamsQuery();
  const trophyQuery=useQuery({...completeRecordQueryOptions(base44.entities.Trophy,TROPHY_KEY),retry:false});
  const honourQuery=useQuery({...completeRecordQueryOptions(base44.entities.TrophyHonour,HONOURS_KEY),retry:false});
 
@@ -95,6 +98,19 @@ export default function Trophies(){
  const all=useMemo(()=>mergeTrophyCatalog(catalog,rows(trophyQuery.data)),[catalog,trophyQuery.data]);
  const honours=useMemo(()=>rows(honourQuery.data),[honourQuery.data]);
  const honourCounts=useMemo(()=>{const m=new Map();for(const a of honours){const k=String(a.trophy_source_id||"");m.set(k,(m.get(k)||0)+1);}return m;},[honours]);
+ // The country groups are the same ones used by the gallery: no guessed nationality from club names.
+ const countrySections=useMemo(()=>groupTrophies(all,rows(leaguesQuery.data),rows(countriesQuery.data)),[all,leaguesQuery.data,countriesQuery.data]);
+ const countryOptions=useMemo(()=>countrySections.filter(group=>group.kind==="country").map(group=>({value:group.key,label:group.title,count:group.items.length})).sort((a,b)=>a.label.localeCompare(b.label,"es")),[countrySections]);
+ const countryTrophyIds=useMemo(()=>{
+  if(countryFilter==="all")return null;
+  const chosen=countrySections.filter(group=>countryFilter==="international"
+   ?group.kind==="world"||group.kind==="confederation"
+   :group.key===countryFilter);
+  return new Set(chosen.flatMap(group=>group.items.map(t=>String(t.source_id))));
+ },[countrySections,countryFilter]);
+ // A team's filter means verified trophies actually awarded to that exact Base44 Team.
+ const verifiedTeamTrophies=useMemo(()=>new Set(honours.filter(h=>h.recipient_type==="Team"&&h.verified===true&&String(h.recipient_id)===String(teamFilter)&&h.trophy_source_id!=null)
+  .map(h=>String(h.trophy_source_id))),[honours,teamFilter]);
  const counts=useMemo(()=>({
   total:all.length,
   identified:all.filter(t=>t.identification_status!=="Pending").length,
@@ -107,10 +123,13 @@ export default function Trophies(){
   if(tab==="registered"&&!t.id)return false;
   if(type!=="all"&&t.trophy_type!==type)return false;
   if(category!=="all"&&t.category!==category)return false;
+  if(countryTrophyIds&&!countryTrophyIds.has(String(t.source_id)))return false;
+  if(teamFilter&&!verifiedTeamTrophies.has(String(t.source_id)))return false;
   const q=normaliseSearch(query);
   return !q||normaliseSearch([t.name,t.source_name,t.source_id,t.country,t.organizer,t.category].join(" ")).includes(q);
- }).sort((a,b)=>a.name.localeCompare(b.name,"es",{numeric:true})),[all,tab,type,category,query]);
+ }).sort((a,b)=>a.name.localeCompare(b.name,"es",{numeric:true})),[all,tab,type,category,query,countryTrophyIds,teamFilter,verifiedTeamTrophies]);
  const grouped=useMemo(()=>groupTrophies(filtered,rows(leaguesQuery.data),rows(countriesQuery.data)),[filtered,leaguesQuery.data,countriesQuery.data]);
+ const teamSelectionName=rows(teamsQuery.data).find(t=>String(t.id)===String(teamFilter))?.name||"";
  
  const selected=useMemo(()=>all.find(t=>String(t.source_id)===String(selectedId))||null,[all,selectedId]);
  const selectedHonours=useMemo(()=>honours.filter(h=>String(h.trophy_source_id)===String(selectedId)).sort((a,b)=>String(b.season).localeCompare(String(a.season),"es",{numeric:true})),[honours,selectedId]);
@@ -199,8 +218,26 @@ export default function Trophies(){
      <label className="relative min-w-[210px] flex-1"><Search size={16} className="absolute left-3 top-3 text-slate-400"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nombre, país o ID original…" className={input+" h-8 pl-9 text-xs"}/></label>
      <label className="relative min-w-[155px]"><Filter size={13} className="pointer-events-none absolute left-2.5 top-3.5 text-slate-400"/><select value={type} onChange={e=>setType(e.target.value)} className={input+" h-8 pl-8 text-xs"}><option value="all">Todos los tipos</option>{TROPHY_TYPES.map(v=><option key={v} value={v}>{v}</option>)}</select></label>
      <select value={category} onChange={e=>setCategory(e.target.value)} className={input+" h-8 min-w-[145px] w-auto text-xs"}><option value="all">Todas las categorías</option>{TROPHY_CATEGORIES.map(v=><option key={v} value={v}>{v}</option>)}</select>
-     {(query||type!=="all"||category!=="all")&&<button type="button" onClick={()=>{setQuery("");setType("all");setCategory("all");}} className="rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500" title="Limpiar filtros"><RotateCcw size={15}/></button>}
+     {(query||type!=="all"||category!=="all"||countryFilter!=="all"||teamFilter)&&<button type="button" onClick={()=>{setQuery("");setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");}} className="rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500" aria-label="Limpiar todos los filtros" title="Limpiar todos los filtros"><RotateCcw size={15}/></button>}
     </div>
+    <div className="mt-2 grid grid-cols-1 items-end gap-2 sm:grid-cols-2">
+     <label className="block min-w-0">
+      <span className="mb-1 block text-[10px] font-bold text-slate-500">País de la competición</span>
+      <select aria-label="Filtrar competiciones por país" className={input+" h-10 text-xs"} value={countryFilter} onChange={e=>setCountryFilter(e.target.value)}>
+       <option value="all">Todos los países</option>
+       {countryOptions.map(option=><option key={option.value} value={option.value}>{option.label} ({option.count})</option>)}
+       <option value="international">Internacionales · FIFA y confederaciones</option>
+       <option value="unclassified">Sin país confirmado</option>
+      </select>
+     </label>
+     <div className="min-w-0">
+      <span className="mb-1 block text-[10px] font-bold text-slate-500">Equipo · títulos ganados verificados</span>
+      <TeamSearchPicker teams={rows(teamsQuery.data)} value={teamFilter} onChange={setTeamFilter}
+       loading={teamsQuery.isLoading} error={teamsQuery.isError} ariaLabel="Filtrar trofeos por equipo campeón"
+       placeholder={teamsQuery.isError?"No se pudieron cargar los equipos":"Buscar equipo…"} />
+     </div>
+    </div>
+    {teamFilter&&<p className="mt-1.5 text-[10px] text-slate-500">Mostrando solo las competiciones ganadas por {teamSelectionName||"el equipo seleccionado"} con campeón verificado; no incluye participaciones ni títulos sin registrar.</p>}
    </div>
    <div className="flex shrink-0 items-center gap-1.5"><label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"><Upload size={14}/> Importar CSV<input type="file" accept=".csv,text/csv" className="hidden" onChange={importLocal}/></label><button type="button" onClick={create} className="inline-flex items-center gap-1.5 rounded-lg bg-[#003399] px-2.5 py-2 text-[11px] font-bold text-white hover:bg-[#002977]"><Plus size={14}/> Nuevo trofeo</button></div>
   </div>}
@@ -209,6 +246,7 @@ export default function Trophies(){
    {catalogLoading&&catalog.length===0&&<div className="mt-4 rounded-xl bg-white px-5 py-6 text-sm text-slate-500">Cargando catálogo de trofeos…</div>}
    {catalogError&&<div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><AlertCircle size={16}/><span>{catalogError} Puedes importarlo manualmente con «Importar CSV».</span></div>}
    {(trophyQuery.isError||honourQuery.isError)&&<div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[11px] text-slate-500">El catálogo puede consultarse; la base de fichas o ganadores aún no está disponible. Los cambios requieren las entidades Trophy y TrophyHonour sincronizadas en Base44.</div>}
+   {teamFilter&&honourQuery.isLoading&&<div className="mt-3 text-xs text-slate-500">Consultando los títulos del equipo…</div>}
    {filtered.length>0?<div className="mt-4 space-y-7">{grouped.map(group=><section key={group.key}>
      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
       <div className="flex items-baseline gap-2"><h2 className="text-sm font-black uppercase tracking-[.08em] text-slate-900">{group.title}</h2><span className="text-[10px] font-medium text-slate-400">{group.items.length} trofeos</span></div>
@@ -216,7 +254,7 @@ export default function Trophies(){
      </div>
      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{group.items.slice(0,expandedGroups[group.key]?group.items.length:24).map(t=><TrophyCard key={t.source_id} trophy={t} manifest={imageManifest} count={honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
      {group.items.length>24&&<button type="button" onClick={()=>setExpandedGroups(current=>({...current,[group.key]:!current[group.key]}))} className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{expandedGroups[group.key]?"Mostrar menos":"Ver todos los "+group.items.length+" trofeos"}</button>}
-    </section>)}</div>:!catalogLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">No hay trofeos con estos filtros.</div>}
+    </section>)}</div>:!catalogLoading&&!honourQuery.isLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">{teamFilter?"No hay títulos ganados y verificados para este equipo con los filtros actuales. Esto no significa que el equipo no tenga otros títulos.":"No hay trofeos con estos filtros."}</div>
    <div className="my-6 flex items-center gap-2 text-[10px] text-slate-400"><ImageIcon size={13}/> Imágenes desde GitHub: <code>public/assets/trophies/ID.png</code>. Los archivos aún no incorporados muestran un icono neutro. Los datos originales no se modifican.</div>
    </>}
    {section==="palmares"&&<TrophyArchiveOverview
