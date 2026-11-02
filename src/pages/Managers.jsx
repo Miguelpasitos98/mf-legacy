@@ -163,15 +163,16 @@ export default function Managers(){
    }
    setGeneratingDNA(true);
    try{
-     const result=await base44.integrations.Core.InvokeLLM({
-       prompt:tacticalPrompt,
-       add_context_from_internet:selected.manager_kind!=="fictional"
+     const result=await base44.functions.invoke("manager-ai",{
+       mode:"tactical",manager_id:String(selected.id),name:selected.name,
+       manager_kind:selected.manager_kind,prompt:tacticalPrompt
      });
-     applyTacticalProposal(result,identity);
+     if(!result.data?.ok)throw Error(result.data?.error||"El servidor no devolvió un resultado.");
+     applyTacticalProposal(result.data.response,identity);
    }catch(e){
      if(dnaIdentityRef.current===identity){
        setShowDNAPrompt(true);
-       setError("No se pudo completar la investigación táctica: "+(e.message||"error de la integración")+". Puedes copiar el prompt y pegar aquí el JSON de ChatGPT.");
+       setError("No se pudo completar la investigación táctica: "+(e.response?.data?.error||e.message||"error de la integración")+". Puedes copiar el prompt y pegar aquí el JSON de ChatGPT.");
      }
    }finally{setGeneratingDNA(false)}
  };
@@ -203,16 +204,17 @@ export default function Managers(){
    if(managerDraft.biography.trim()&&!window.confirm("Ya existe una descripción. ¿Sustituirla por el nuevo borrador de IA?"))return;
    setGeneratingBiography(true);
    try{
-     const result=await base44.integrations.Core.InvokeLLM({
-       prompt:biographyPrompt,
-       add_context_from_internet:true
+     const result=await base44.functions.invoke("manager-ai",{
+       mode:"biography",name:managerDraft.name,manager_kind:managerDraft.manager_kind,
+       prompt:biographyPrompt
      });
-     const generated=parseBiographyResponse(result);
+     if(!result.data?.ok)throw Error(result.data?.error||"El servidor no devolvió un resultado.");
+     const generated=parseBiographyResponse(result.data.response);
      setManagerDraft(prev=>({...prev,biography:generated,source_status:prev.source_status==="verified"?"pending":prev.source_status}));
      setNotice("Borrador generado desde el nombre. Revisa hechos, fechas y fuentes antes de pulsar Guardar ficha. Nada se ha guardado automáticamente.");
    }catch(e){
      setShowBiographyPrompt(true);
-     setError("No se pudo generar la biografía dentro de Base44: "+(e.message||"integración no disponible")+". Puedes copiar el prompt y solicitarla en ChatGPT.");
+     setError("No se pudo generar la biografía dentro de Base44: "+(e.response?.data?.error||e.message||"integración no disponible")+". Puedes copiar el prompt y solicitarla en ChatGPT.");
    }finally{setGeneratingBiography(false)}
  };
  const changeCountry = id=>{
