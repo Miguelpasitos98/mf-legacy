@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk";
+import {validateCatalogueImport} from "./catalogue-identity.js";
 
 const SOURCE_SET = new Set(["fotmob", "understat", "fifa", "market"]);
 const RUNNING = new Set(["queued", "running"]);
@@ -70,6 +71,10 @@ export default async function(req) {
       if(related.length){
         if(related.every(x=>str(x.fotmob_player_id)===pid))return reply({ok:true,already_linked:true,pid});
         return bad("El jugador ya tiene otra vinculación FotMob. No se modifica automáticamente.",409);
+      }
+      if(body.catalogue_candidate_id){
+        try{await validateCatalogueImport(db,player,String(body.catalogue_candidate_id),pid);}
+        catch(error){if(error.status||error.response?.status)throw error;return bad(error.message,409);}
       }
       const backlinks=rows(await db.PlayerFotmobLink.filter({fotmob_player_id:pid},undefined,30));
       if(backlinks.some(x=>str(x.player_id)!==playerId))return bad("Este ID FotMob está vinculado a otro jugador.",409);
@@ -199,3 +204,4 @@ export default async function(req) {
     return bad("Acción desconocida.");
   } catch(e) {console.error("import-control error",e);return bad(e?.message || "Error interno.",500);}
 }
+
