@@ -155,7 +155,7 @@ export default function ManagerFit(){
   <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 md:p-5 space-y-4">
    <div className="flex flex-wrap items-center justify-between gap-2">
     <div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#315fa7]">Manager Fit · Análisis comparativo</p>
-     <h2 className="mt-1 text-base font-black text-slate-900">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}</h2></div>
+     <h2 className="mt-1 text-base font-black text-slate-900">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}</h2><p className="text-[11px] text-slate-500">{visibility.compatibleCount} compatibles · {visibility.scoredCount} evaluables en el modelo seleccionado</p></div>
     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold text-slate-600">Modelo auditable · No predice rendimiento</span>
    </div>
    <ManagerScoutingSummary scoreMode={scoreMode} visibility={visibility} roleRequirements={roleRequirements} statsLoading={statsLoading} statsError={statsError} season={season}/>
