@@ -48,7 +48,18 @@ test("scenario comparison reports incoming/outgoing players without marking unch
  balance:{axes:[{key:"pressure",score:70}]},chemistry:{evaluated:0,unavailable:1,pairs:[]}};
  const x=compareScenarios(a,b);
  assert.equal(x.retained,1);
+ assert.equal(x.repositioned,0);
  assert.deepEqual(x.onlyA,["Dos"]);
  assert.deepEqual(x.onlyB,["Tres"]);
  assert.equal(x.metrics[0].delta,10);
+});
+
+test("same footballers with different slot assignments are reported as reorganized",()=>{
+ const player={id:"p",name:"P"};
+ const a={draft:{assignments:[{id:"D0",role:"CB",primary:{player}}]},balance:{axes:[]},chemistry:{pairs:[],evaluated:0,unavailable:0}};
+ const b={draft:{assignments:[{id:"D1",role:"CB",primary:{player}}]},balance:{axes:[]},chemistry:{pairs:[],evaluated:0,unavailable:0}};
+ const result=compareScenarios(a,b);
+ assert.equal(result.retained,1);
+ assert.equal(result.repositioned,1);
+ assert.equal(result.changed,0);
 });

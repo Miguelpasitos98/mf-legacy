@@ -47,8 +47,14 @@ export function compareScenarios(a,b){
  const onlyA=[...aPlayers].filter(([id])=>!bPlayers.has(id)).map(([,name])=>name);
  const onlyB=[...bPlayers].filter(([id])=>!aPlayers.has(id)).map(([,name])=>name);
  const retained=[...aPlayers].filter(([id])=>bPlayers.has(id)).length;
+ const playerLocations=which=>new Map((which.draft?.assignments||[])
+  .filter(slot=>slot.primary?.player?.id!=null)
+  .map(slot=>[String(slot.primary.player.id),{slotId:slot.id,role:slot.role}]));
+ const aLocation=playerLocations(a),bLocation=playerLocations(b);
+ const repositioned=[...aLocation].filter(([id,pos])=>bLocation.has(id)&&
+  (bLocation.get(id).slotId!==pos.slotId||bLocation.get(id).role!==pos.role)).length;
  const pairEvidence=sc=>({evaluated:sc.chemistry.evaluated,unavailable:sc.chemistry.unavailable,
   scores:sc.chemistry.pairs.filter(p=>p.score!=null).map(p=>p.score)});
- return {metrics,onlyA,onlyB,retained,changed:onlyA.length+onlyB.length,
+ return {metrics,onlyA,onlyB,retained,repositioned,changed:onlyA.length+onlyB.length,
   pairA:pairEvidence(a),pairB:pairEvidence(b)};
 }
