@@ -19,7 +19,7 @@ export function assignSlot(slots, target, playerId) {
   if (!playerId) delete next[target];
   return next;
 }
-export default function TacticalBuilder({ team, season, roster }) {
+export default function TacticalBuilder({ team, season, roster, onDirtyChange }) {
   const [formation,setFormation] = useState("4-3-3");
   const [slots,setSlots] = useState({});
   const [selected,setSelected] = useState(null);
@@ -35,6 +35,7 @@ export default function TacticalBuilder({ team, season, roster }) {
   const [loadingSaved,setLoadingSaved] = useState(false);
   const [revision,setRevision] = useState(0);
   const [dirty,setDirty] = useState(false);
+  useEffect(()=>{onDirtyChange?.(dirty)},[dirty,onDirtyChange]);
   const exportRef=useRef(null);
   const [exporting,setExporting]=useState(false);
   const [pitchStyle,setPitchStyle]=useState("striped");
