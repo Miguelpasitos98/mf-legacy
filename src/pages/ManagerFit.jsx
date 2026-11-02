@@ -94,7 +94,7 @@ export default function ManagerFit(){
   return filterScoutingCandidates(rows,{season,
     minAge:minAge===""?null:Number(minAge),maxAge:maxAge===""?null:Number(maxAge),
     maxValueM:maxValueM===""?null:Number(maxValueM),knownValueOnly,minimumCoverage})
-   .sort((a,b)=>scoreMode==="role"?(b.roleFit.score??-1)-(a.roleFit.score??-1)||(b.roleFit.coverage-a.roleFit.coverage):scoreMode==="historical"?(b.historical.score??-1)-(a.historical.score??-1)||(b.historical.coverage-a.historical.coverage):scoreMode==="attributes"?(b.advanced.score??-1)-(a.advanced.score??-1)||(b.fit??-1)-(a.fit??-1):(b.fit??-1)-(a.fit??-1));
+   .sort((a,b)=>scoreMode==="role"?(b.roleFit.score??-1)-(a.roleFit.score??-1)||(b.roleFit.coverage-a.roleFit.coverage):scoreMode==="historical"?(b.historical.score??-1)-(a.historical.score??-1)||(b.historical.coverage-a.historical.coverage):scoreMode==="attributes"?(b.advanced.score??-1)-(a.advanced.score??-1)||(b.fit??-1)-(a.fit??-1):(b.fit??-1)-(a.fit??-1))
   .slice(0,100);
  },[players,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics,
     valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage]);
