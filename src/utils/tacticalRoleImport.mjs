@@ -90,3 +90,15 @@ export function tacticalRolePatch(item) {
     description: item.roles[0].name,
   };
 }
+
+
+/**
+ * Only close the dialog after the entire attempted import succeeded AND
+ * every JSON row was independently re-read as applied in Base44.
+ * Unmatched, protected, invalid and ambiguous rows need manual review.
+ */
+export function canAutoCloseTacticalRoleImport({done=0,failed=0,pending=0,verifiedRows=null}={}){
+  return Number.isInteger(done) && done>0 && done===pending &&
+    failed===0 && Array.isArray(verifiedRows) && verifiedRows.length>0 &&
+    verifiedRows.every(row=>row.status==="unchanged");
+}

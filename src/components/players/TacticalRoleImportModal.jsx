@@ -6,7 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { RECORD_KEYS } from "@/api/recordQueries";
 import { fetchTacticalRolePlayers } from "@/utils/fetchTacticalRolePlayers.mjs";
 import { PLAYER_DESCRIPTIONS } from "@/components/players/playerFormShared";
-import { buildTacticalRoleImportPlan, parseTacticalRoleImport, tacticalRolePatch } from "@/utils/tacticalRoleImport.mjs";
+import { buildTacticalRoleImportPlan, canAutoCloseTacticalRoleImport, parseTacticalRoleImport, tacticalRolePatch } from "@/utils/tacticalRoleImport.mjs";
 
 const allowedRoles = PLAYER_DESCRIPTIONS.flatMap(group => group.options);
 const labelByStatus = {
@@ -26,7 +26,7 @@ const snapshotSignature = rows => JSON.stringify(rows.map(item => [
 const problem = error => error?.response?.data?.message || error?.message || "Error desconocido";
 const count = (rows, status) => rows.filter(row => row.status === status).length;
 
-export default function TacticalRoleImportModal({ open, onClose }) {
+export default function TacticalRoleImportModal({ open, onClose, onCompleted }) {
   const cache = useQueryClient();
   const activeRef = useRef(false);
   const readSequence = useRef(0);
@@ -121,15 +121,28 @@ export default function TacticalRoleImportModal({ open, onClose }) {
         if (activeRef.current) setProgress({ current: done + failures.length, total: pending.length });
       }
       setResult({ done, failed: failures.length, failures });
+      let verifiedRows = null;
       if (done) {
-        // Solo invalidar la caché de jugadores: las estadísticas históricas no cambian.
+        // Refresh both the catalogue and an independent server read before
+        // claiming completion. A partial or unverified import remains open.
         await cache.invalidateQueries({ queryKey: RECORD_KEYS.Player, exact: true });
         const latestAfter = await fetchTacticalRolePlayers(base44.entities.Player, parsed.entries);
+        verifiedRows = buildTacticalRoleImportPlan(parsed.entries, latestAfter, { overwrite });
         if (activeRef.current) setAllPlayers(latestAfter);
       }
-      if (activeRef.current) setNotice(done
-        ? "Se guardaron " + done + " jugadores. El resto de campos se ha conservado."
-        : "No se aplicaron cambios.");
+      if (activeRef.current && canAutoCloseTacticalRoleImport({
+        done,failed:failures.length,pending:pending.length,verifiedRows
+      })) {
+        onCompleted?.(done);
+        onClose();
+      } else if (activeRef.current) {
+        setNotice(done
+          ? "Se guardaron " + done + " jugadores. El resto de campos se ha conservado."
+          : "No se aplicaron cambios.");
+        if (done>0 && failures.length===0 && verifiedRows?.some(row=>row.status==="ready")) {
+          setError("Se han escrito los roles, pero la verificación aún muestra cambios pendientes. Revisa los resultados antes de cerrar.");
+        }
+      }
     } catch (err) {
       if (activeRef.current) setError(problem(err));
     } finally {

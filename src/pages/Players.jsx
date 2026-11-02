@@ -1345,6 +1345,7 @@ export default function Players() {
   const [fm26CreateMissing, setFm26CreateMissing] = useState(true);
   const [fm26ImportOpen, setFm26ImportOpen] = useState(false);
   const [tacticalRoleImportOpen, setTacticalRoleImportOpen] = useState(false);
+  const [tacticalRoleImportNotice,setTacticalRoleImportNotice]=useState("");
   const [fm26NationMapping, setFm26NationMapping] = useState({});
   const [fm26NationSearch, setFm26NationSearch] = useState({});
   const [fm26CreatingNation, setFm26CreatingNation] = useState("");
@@ -3326,7 +3327,7 @@ export default function Players() {
               <Upload size={16} /><span>Import FM26 JSON</span>
             </button>
 
-            <button type="button" onClick={() => setTacticalRoleImportOpen(true)}
+            <button type="button" onClick={() => {setTacticalRoleImportNotice("");setTacticalRoleImportOpen(true)}}
               className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50"
               title="Importar dos roles tácticos y sus descripciones desde JSON">
               <FileText size={16} /><span>Importar roles JSON</span>
@@ -3351,6 +3352,10 @@ export default function Players() {
             <button type="button" className="shrink-0 rounded-md p-1 hover:bg-emerald-100" aria-label="Ocultar resultado de importación" onClick={() => setFm26Message("")}><X size={15}/></button>
           </div>
         )}
+        {tacticalRoleImportNotice&&<div role="status" className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <span>{tacticalRoleImportNotice}</span>
+          <button type="button" onClick={()=>setTacticalRoleImportNotice("")} aria-label="Ocultar resultado de importación de roles" className="shrink-0 rounded-md p-1 hover:bg-emerald-100"><X size={15}/></button>
+        </div>}
         {/* ERROR */}
         {errorMessage && (
           <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -3859,7 +3864,9 @@ export default function Players() {
         )}
 
         {/* IMPORTADOR DE ROLES POR ID FM26; independiente del importador de atributos */}
-        <TacticalRoleImportModal open={tacticalRoleImportOpen} onClose={() => setTacticalRoleImportOpen(false)} />
+        <TacticalRoleImportModal open={tacticalRoleImportOpen}
+          onClose={() => setTacticalRoleImportOpen(false)}
+          onCompleted={count=>setTacticalRoleImportNotice(`Roles tácticos importados y verificados: ${count} jugadores. Ventana cerrada automáticamente.`)} />
 
         {/* FM26 IMPORT MODAL */}
         <Fm26ImportModal
