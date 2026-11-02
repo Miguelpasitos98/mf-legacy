@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { RotateCcw, X, Save, Trash2 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { RotateCcw, X, Save, Trash2, Download, Palette } from "lucide-react";
+import html2canvas from "html2canvas";
 import { base44 } from "@/api/base44Client";
 
 export const FORMATIONS = {
@@ -34,6 +35,30 @@ export default function TacticalBuilder({ team, season, roster }) {
   const [loadingSaved,setLoadingSaved] = useState(false);
   const [revision,setRevision] = useState(0);
   const [dirty,setDirty] = useState(false);
+  const exportRef=useRef(null);
+  const [exporting,setExporting]=useState(false);
+  const [pitchStyle,setPitchStyle]=useState("striped");
+  const [pitchColor,setPitchColor]=useState("#164b35");
+  const [showPhotos,setShowPhotos]=useState(true);
+  const [showNumbers,setShowNumbers]=useState(true);
+  const [showBenchExport,setShowBenchExport]=useState(true);
+  const [exportError,setExportError]=useState("");
+  const safeFilename = value => String(value||"once").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9-_]+/g,"-").replace(/^-|-$/g,"").slice(0,70) || "once";
+  const exportPNG=async()=>{
+    if(!exportRef.current||exporting)return;
+    setExporting(true);setExportError("");
+    try{
+      const canvas=await html2canvas(exportRef.current,{backgroundColor:"#071c17",scale:Math.max(2,Math.min(3,window.devicePixelRatio||2)),useCORS:true,allowTaint:false,logging:false});
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png"));
+      if(!blob)throw new Error("El navegador no pudo generar el archivo.");
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;a.download=`${safeFilename(team.name)}-${safeFilename(season)}-${safeFilename(lineupName)}.png`;
+      document.body.appendChild(a);a.click();a.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),1500);
+    }catch(e){setExportError("No se pudo exportar el PNG. Comprueba si alguna foto externa bloquea la captura. "+(e.message||""))}
+    finally{setExporting(false)}
+  };
   const listRecords = async (entity, filter) => {
     const all = [];
     for(let skip=0;skip<=10000;skip+=200) {
@@ -162,16 +187,34 @@ export default function TacticalBuilder({ team, season, roster }) {
       <button type="button" disabled={busy} onClick={saveLineup} className="flex items-center gap-2 bg-blue-700 text-white rounded-lg px-4 py-2 disabled:opacity-50"><Save size={16}/> Guardar</button>
       {activeId&&<button type="button" disabled={busy} onClick={deleteLineup} className="flex items-center gap-2 border border-red-200 text-red-700 rounded-lg px-3 py-2 disabled:opacity-50"><Trash2 size={16}/> Eliminar</button>}
     </div>
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-4 flex flex-wrap items-end gap-3" aria-label="Personalización del campo">
+      <span className="flex items-center gap-2 font-semibold text-sm"><Palette size={17}/> Apariencia</span>
+      <label className="text-xs font-medium">Césped<select value={pitchStyle} onChange={e=>setPitchStyle(e.target.value)} className="block mt-1 border rounded-md bg-white p-2"><option value="striped">Franjas</option><option value="solid">Liso</option><option value="diagonal">Diagonal</option></select></label>
+      <label className="text-xs font-medium">Color<input type="color" aria-label="Color del césped" value={pitchColor} onChange={e=>setPitchColor(e.target.value)} className="block h-9 w-14 mt-1 rounded border cursor-pointer"/></label>
+      <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={showPhotos} onChange={e=>setShowPhotos(e.target.checked)}/> Fotos</label>
+      <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={showNumbers} onChange={e=>setShowNumbers(e.target.checked)}/> Dorsales</label>
+      <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={showBenchExport} onChange={e=>setShowBenchExport(e.target.checked)}/> Suplentes en PNG</label>
+      <button type="button" onClick={exportPNG} disabled={exporting} className="ml-auto flex items-center gap-2 bg-slate-900 text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"><Download size={16}/>{exporting?"Generando...":"Exportar PNG HD"}</button>
+    </div>
+    {exportError&&<p role="alert" className="mb-3 text-sm text-red-700">{exportError}</p>}
     {error&&<p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
     {notice&&<p role="status" className="mb-3 text-xs text-amber-700">{notice}</p>}
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_250px] gap-4">
       <div className="min-w-0">
-        <div className="relative w-full overflow-hidden rounded-2xl border-4 border-emerald-900 bg-[#174c36] aspect-[.78] sm:aspect-[1.15] lg:aspect-[1.3]" aria-label="Campo de fútbol">
+        <div ref={exportRef} className="rounded-2xl overflow-hidden bg-[#071c17] p-2 sm:p-4 text-white">
+          <div className="mb-3 flex items-center gap-3 px-2 pt-2 min-w-0">
+            {team.logo&&<img src={team.logo} crossOrigin="anonymous" alt="" className="w-10 h-10 sm:w-14 sm:h-14 object-contain flex-none"/>}
+            <div className="min-w-0 flex-1"><p className="uppercase text-[10px] tracking-[.24em] text-lime-300 font-bold">MF LEGACY · TACTICAL XI</p><h4 className="font-black text-lg sm:text-2xl truncate">{team.name}</h4><p className="text-xs text-white/60">{lineupName} · {formation} · {season}</p></div>
+            <span className="text-xs font-black text-lime-300 whitespace-nowrap">{Object.values(slots).filter(Boolean).length}/11</span>
+          </div>
+        <div className="relative w-full overflow-hidden rounded-xl border-2 border-white/20 aspect-[.78] sm:aspect-[1.08] lg:aspect-[1.15]" style={{backgroundColor:pitchColor,backgroundImage:pitchStyle==="striped"?"repeating-linear-gradient(0deg,transparent 0%,transparent 10%,rgba(255,255,255,.055) 10%,rgba(255,255,255,.055) 20%)":pitchStyle==="diagonal"?"repeating-linear-gradient(135deg,transparent 0px,transparent 54px,rgba(255,255,255,.04) 54px,rgba(255,255,255,.04) 108px)":"none"}} aria-label="Campo de fútbol">
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" fill="none" stroke="#ffffff" strokeOpacity=".23" strokeWidth=".65"><rect x="4" y="3" width="92" height="94" rx="2"/><path d="M4 50H96"/><ellipse cx="50" cy="50" rx="12" ry="9"/><path d="M31 3V18H69V3M40 3V9H60V3M31 97V82H69V97M40 97V91H60V97"/></svg>
-          {activeSlots.map(([x,y,code])=>{const id=slots[code];const entry=roster.find(r=>String(r.player_id)===id);return <button type="button" key={code} aria-label={`${code}: ${entry?.player?.name||"vacío"}`} aria-pressed={selected===code} draggable={Boolean(id)} onDragStart={e=>{if(!id){e.preventDefault();return;}setDragged(id);e.dataTransfer.setData("text/plain",id);}} onDragEnd={()=>setDragged(null)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();place(code,e.dataTransfer.getData("text/plain")||dragged);setDragged(null)}} onClick={()=>setSelected(code)} className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-[19%] sm:w-[17%] max-w-[96px] rounded-xl py-1 transition-all ${selected===code?"bg-white/25 ring-2 ring-lime-400":"hover:bg-white/10"}`} style={{left:x+"%",top:y+"%"}}>
-            <span className="relative flex w-9 h-9 sm:w-12 sm:h-12 rounded-full items-center justify-center border-2 border-lime-400 bg-[#112c26] text-white font-bold text-xs overflow-hidden">{entry?.player?.card_photo_url||entry?.player?.photo_url?<img src={entry.player.card_photo_url||entry.player.photo_url} alt="" className="w-full h-full object-cover"/>:entry?.shirt_number??"+"}</span>
-            <span className="text-[10px] sm:text-xs font-extrabold text-white text-center leading-tight w-full truncate drop-shadow-md">{entry?.player?.name?.split(" ").slice(-1)[0] || code}</span>
+          {activeSlots.map(([x,y,code])=>{const id=slots[code];const entry=roster.find(r=>String(r.player_id)===id);return <button type="button" key={code} aria-label={`${code}: ${entry?.player?.name||"vacío"}`} aria-pressed={selected===code} draggable={Boolean(id)} onDragStart={e=>{if(!id){e.preventDefault();return;}setDragged(id);e.dataTransfer.setData("text/plain",id);}} onDragEnd={()=>setDragged(null)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();place(code,e.dataTransfer.getData("text/plain")||dragged);setDragged(null)}} onClick={()=>setSelected(code)} className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-[19%] sm:w-[16%] max-w-[110px] rounded-xl py-1 transition-all touch-manipulation ${selected===code?"bg-white/25 ring-2 ring-lime-400":"hover:bg-white/10"}`} style={{left:x+"%",top:y+"%"}}>
+            <span className="relative flex w-9 h-9 sm:w-12 sm:h-12 rounded-full items-center justify-center border-2 border-lime-300 shadow-[0_5px_14px_rgba(0,0,0,.45)] bg-[#112c26] text-white font-bold text-xs overflow-hidden">{showPhotos&&(entry?.player?.card_photo_url||entry?.player?.photo_url)?<img crossOrigin="anonymous" src={entry.player.card_photo_url||entry.player.photo_url} alt="" className="w-full h-full object-cover"/>:showNumbers?(entry?.shirt_number??"+"):(id?"●":"+ ")}</span>
+            <span className="mt-1 text-[10px] sm:text-xs font-extrabold text-white text-center leading-tight w-full truncate drop-shadow-md bg-black/40 rounded px-1">{entry?.player?.name?.split(" ").slice(-1)[0] || code}</span>
           </button>})}
+        </div>
+          {showBenchExport&&bench.length>0&&<div className="pt-3 px-2 pb-2"><p className="text-[10px] uppercase tracking-widest text-lime-300 mb-2 font-bold">Banquillo · {bench.length}</p><div className="flex flex-wrap gap-2">{bench.map(pid=>{const m=roster.find(r=>String(r.player_id)===pid);return <span key={pid} className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-xs font-semibold">{showNumbers&&m?.shirt_number!=null?`${m.shirt_number} · `:""}{m?.player?.name||"Jugador"}</span>})}</div></div>}
         </div>
         <p className="mt-2 text-xs text-slate-500">Toca una posición y después un jugador. En ordenador también puedes arrastrar futbolistas entre posiciones.</p>
       </div>
