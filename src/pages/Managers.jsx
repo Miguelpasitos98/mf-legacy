@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
-import {Search,Plus,Save,UserRoundCog,SlidersHorizontal,ShieldCheck,RotateCcw,ArrowUpRight,BookOpen} from "lucide-react";
+import {Search,Plus,Save,UserRoundCog,SlidersHorizontal,ShieldCheck,ArrowUpRight,BookOpen} from "lucide-react";
 import ManagerPortrait from "@/components/managers/ManagerPortrait";
 import {DNA_AXES,ROLES,MANAGER_BLANK,PROFILE_BLANK,cleanManager,cleanProfile,decodeRoleText,validSeason,chooseAssignment,isCustomTeam} from "@/components/managers/managerModel.mjs";
 
