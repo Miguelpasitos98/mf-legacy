@@ -1,4 +1,4 @@
-import {normaliseSearch} from "./trophyCatalog";
+import {normaliseSearch} from "./trophyCatalog.js";
 
 // Only explicit federation / competition signals; ambiguous historical names remain unclassified.
 const CONTINENTAL=[
@@ -82,6 +82,10 @@ export const classifyTrophy=(trophy,leagues=[],countries=[])=>{
  if(!country&&league)country=countryById.get(String(league.country_id))||"";
  if(!country){
    const m=COUNTRY_RULES.find(([,re])=>re.test(key));if(m)country=m[0];
+ }
+ if(!country){
+   const m=EXPLICIT_COUNTRIES.find(([,re])=>re.test(key));
+   if(m)country=countries.find(c=>normaliseSearch(c.name)===normaliseSearch(m[0]))?.name||m[0];
  }
  if(country)return {key:"country:"+normaliseSearch(country),title:country,kind:"country",rank:100};
  return {key:"unclassified",title:"Sin federación o país confirmado",kind:"unclassified",rank:999};
