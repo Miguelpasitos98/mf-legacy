@@ -60,7 +60,7 @@ test("Managers page renders without data using a mocked Base44 client",async()=>
     // The nationality picker is verified separately in managerNationalitySearch.
     build.onResolve({filter:/ManagerNationalityPicker/},()=>({path:"nationality-picker",namespace:"picker-test"}));
     build.onLoad({filter:/.*/,namespace:"picker-test"},()=>({
-     contents:"import React from 'react';export default function Picker(){return React.createElement('button',{type:'button'},'Nacionalidad')}",loader:"js"
+     contents:"export default function Picker(){return null}",loader:"js"
     }));
     build.onResolve({filter:/base44Client/},()=>({path:"client",namespace:"sdk-test"}));
     build.onLoad({filter:/.*/,namespace:"sdk-test"},()=>({contents:"export const base44={entities:{},auth:{}};",loader:"js"}));
