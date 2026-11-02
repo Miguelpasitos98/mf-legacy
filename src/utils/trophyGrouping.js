@@ -10,6 +10,45 @@ const CONTINENTAL=[
  ["OFC",/\b(ofc|oceania champions league|liga de campeones de oceania|copa de naciones de oceania)\b/]
 ];
 const WORLD=/\b(fifa|copa mundial|mundial de clubes|mundial sub.?\d+|copa del mundo|world cup|club world cup|intercontinental cup|copa intercontinental|confederations cup|copa confederaciones)\b/;
+// Only explicit national names or adjectives. Unclear countries stay unclassified.
+const EXPLICIT_COUNTRIES=[
+ ["España",/\b(espana|spain|spanish)\b/],
+ ["Inglaterra",/\b(inglaterra|england|english)\b/],
+ ["Alemania",/\b(alemania|germany|german)\b/],
+ ["Francia",/\b(francia|france|french(?!\s+guiana))\b/],
+ ["Italia",/\b(italia|italy|italian)\b/],
+ ["Portugal",/\b(portugal|portuguese)\b/],
+ ["Brasil",/\b(brasil|brazil|brazilian|brasileiro|brasileira)\b/],
+ ["Argentina",/\b(argentina|argentine|argentino)\b/],
+ ["México",/\b(mexico|mexican|mexicana|mexicano)\b/],
+ ["Estados Unidos",/\b(estados unidos|united states|usa|usl)\b/],
+ ["Turquía",/\b(turquia|turkey|turkish)\b/],
+ ["Grecia",/\b(grecia|greece|greek)\b/],
+ ["Croacia",/\b(croacia|croatia|croatian)\b/],
+ ["Austria",/\b(austria|austrian)\b/],
+ ["Suiza",/\b(suiza|switzerland|swiss)\b/],
+ ["Países Bajos",/\b(paises bajos|netherlands|dutch)\b/],
+ ["Bélgica",/\b(belgica|belgium|belgian)\b/],
+ ["Dinamarca",/\b(dinamarca|denmark|danish)\b/],
+ ["Noruega",/\b(noruega|norway|norwegian)\b/],
+ ["Suecia",/\b(suecia|sweden|swedish)\b/],
+ ["Finlandia",/\b(finlandia|finland|finnish)\b/],
+ ["Polonia",/\b(polonia|poland|polish)\b/],
+ ["República Checa",/\b(republica checa|czechia|czech)\b/],
+ ["Rumanía",/\b(rumania|romania|romanian)\b/],
+ ["Escocia",/\b(escocia|scotland|scottish)\b/],
+ ["Irlanda",/\b(irlanda|ireland|irish)\b/],
+ ["Japón",/\b(japon|japan|japanese)\b/],
+ ["Corea del Sur",/\b(corea del sur|south korea|south korean)\b/],
+ ["China",/\b(china|chinese)\b/],
+ ["Egipto",/\b(egipto|egypt|egyptian)\b/],
+ ["Marruecos",/\b(marruecos|morocco|moroccan)\b/],
+ ["Sudáfrica",/\b(sudafrica|south africa|south african)\b/],
+ ["Chile",/\b(chile|chilean|chileno|chilena)\b/],
+ ["Colombia",/\b(colombia|colombian|colombiano)\b/],
+ ["Uruguay",/\b(uruguay|uruguayan|uruguayo)\b/],
+ ["Perú",/\b(peru|peruvian|peruano)\b/]
+];
 const COUNTRY_RULES=[
  ["Inglaterra",/\b(premier league de inglaterra|efl |fa cup|carabao cup|community shield|national league de inglaterra)\b/],
  ["España",/\b(laliga|la liga|copa del rey|supercopa de espana|primera federacion|segunda federacion|primera division de espana|segunda division de espana)\b/],
