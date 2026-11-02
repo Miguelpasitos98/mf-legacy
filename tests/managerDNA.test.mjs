@@ -60,7 +60,7 @@ test("Managers page renders without data using a mocked Base44 client",async()=>
     build.onLoad({filter:/.*/,namespace:"sdk-test"},()=>({contents:"export const base44={entities:{},auth:{}};",loader:"js"}));
     build.onResolve({filter:/^lucide-react$/},()=>({path:"icons",namespace:"icons-test"}));
     build.onLoad({filter:/.*/,namespace:"icons-test"},()=>({
-     contents:"const Icon=()=>null;export {Icon as Search,Icon as Plus,Icon as Save,Icon as UserRoundCog,Icon as SlidersHorizontal,Icon as ShieldCheck,Icon as ArrowUpRight,Icon as BookOpen};",
+     contents:"const Icon=()=>null;export {Icon as Search,Icon as Plus,Icon as Save,Icon as Sparkles,Icon as Copy,Icon as UserRoundCog,Icon as SlidersHorizontal,Icon as ShieldCheck,Icon as ArrowUpRight,Icon as BookOpen};",
      loader:"js"
     }));
    }}]
