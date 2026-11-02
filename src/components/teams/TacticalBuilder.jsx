@@ -194,27 +194,14 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
     setFormation(f);setSelected(null);markDirty();
     setNotice("Formación cambiada. Revisa las posiciones de los jugadores.");
   };
-  return <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 mt-6" aria-label="Constructor táctico">
-    <div className="flex flex-wrap justify-between items-center gap-3 mb-4"><div><p className="text-xs font-bold tracking-wider text-blue-700">CONSTRUCTOR TÁCTICO</p><h3 className="text-xl font-extrabold">Arma tu once · {team.name}</h3><p className="text-xs text-slate-500">{dirty?"Cambios sin guardar":activeId?"Once guardado":"Nuevo once"}</p></div><button type="button" className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm" onClick={()=>{setSlots({});setBench([]);setSelected(null);setNotice("");markDirty();}}><RotateCcw size={15}/> Vaciar campo</button></div>
-    <div className="flex gap-2 flex-wrap mb-4" aria-label="Elegir formación">{Object.keys(FORMATIONS).map(f=><button type="button" key={f} aria-pressed={f===formation} onClick={()=>changeFormation(f)} className={`rounded-full px-4 py-2 text-sm font-semibold ${f===formation?"bg-lime-400 text-slate-900":"bg-slate-100 hover:bg-slate-200"}`}>{f}</button>)}</div>
-    <div className="flex flex-wrap gap-2 items-end mb-4">
-      <label className="text-xs font-semibold flex-1 min-w-[160px]">Nombre del once<input value={lineupName} onChange={e=>{setLineupName(e.target.value);markDirty()}} maxLength={100} className="block w-full border rounded-lg px-3 py-2 text-sm mt-1"/></label>
-      <label className="text-xs font-semibold flex-1 min-w-[160px]">Onces guardados<select aria-label="Seleccionar once guardado" value={activeId} disabled={busy||loadingSaved} onChange={e=>loadLineup(e.target.value)} className="block w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="">Nuevo once</option>{lineups.map(l=><option value={l.id} key={l.id}>{l.name} · {l.formation}</option>)}</select></label>
-      <button type="button" disabled={busy} onClick={saveLineup} className="flex items-center gap-2 bg-blue-700 text-white rounded-lg px-4 py-2 disabled:opacity-50"><Save size={16}/> Guardar</button>
-      {activeId&&<button type="button" disabled={busy} onClick={deleteLineup} className="flex items-center gap-2 border border-red-200 text-red-700 rounded-lg px-3 py-2 disabled:opacity-50"><Trash2 size={16}/> Eliminar</button>}
-    </div>
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-4 flex flex-wrap items-end gap-3" aria-label="Personalización del campo">
-      <span className="flex items-center gap-2 font-semibold text-sm"><Palette size={17}/> Apariencia</span>
-      <label className="text-xs font-medium">Césped<select value={pitchStyle} onChange={e=>setPitchStyle(e.target.value)} className="block mt-1 border rounded-md bg-white p-2"><option value="striped">Franjas</option><option value="solid">Liso</option><option value="diagonal">Diagonal</option></select></label>
-      <label className="text-xs font-medium">Color<input type="color" aria-label="Color del césped" value={pitchColor} onChange={e=>setPitchColor(e.target.value)} className="block h-9 w-14 mt-1 rounded border cursor-pointer"/></label>
-      <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={showPhotos} onChange={e=>setShowPhotos(e.target.checked)}/> Fotos</label>
-      <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={showNumbers} onChange={e=>setShowNumbers(e.target.checked)}/> Dorsales</label>
-      <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={showBenchExport} onChange={e=>setShowBenchExport(e.target.checked)}/> Suplentes en PNG</label>
-      <button type="button" onClick={exportPNG} disabled={exporting} className="ml-auto flex items-center gap-2 bg-slate-900 text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"><Download size={16}/>{exporting?"Generando...":"Exportar PNG HD"}</button>
-    </div>
+  return <section className="rounded-2xl border border-slate-200 bg-white p-2 sm:p-3 mt-1" aria-label="Constructor táctico">
+    <div className="flex flex-wrap justify-between items-center gap-2 mb-2"><div><p className="text-xs font-bold tracking-wider text-blue-700">CONSTRUCTOR TÁCTICO</p><h3 className="text-xl font-extrabold">Arma tu once · {team.name}</h3><p className="text-xs text-slate-500">{dirty?"Cambios sin guardar":activeId?"Once guardado":"Nuevo once"}</p></div><button type="button" className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm" onClick={()=>{setSlots({});setBench([]);setSelected(null);setNotice("");markDirty();}}><RotateCcw size={15}/> Vaciar campo</button></div>
     {exportError&&<p role="alert" className="mb-3 text-sm text-red-700">{exportError}</p>}
     {error&&<p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
     {notice&&<p role="status" className="mb-3 text-xs text-amber-700">{notice}</p>}
+    <div className="flex flex-wrap items-center gap-2 mb-2"><span className="font-bold text-sm">Formación</span>{Object.keys(FORMATIONS).map(f=><button type="button" key={f} aria-pressed={f===formation} onClick={()=>changeFormation(f)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${formation===f?"bg-lime-400 text-slate-900":"bg-slate-100 hover:bg-slate-200"}`}>{f}</button>)}
+      <button type="button" disabled={busy||loadingSaved} onClick={saveLineup} className="ml-auto flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white"><Save size={15}/> Guardar once</button>
+    </div>
     <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_280px] gap-4">
       <div className="min-w-0">
         <div ref={exportRef} className="rounded-2xl overflow-hidden bg-[#071c17] p-2 sm:p-4 text-white min-w-0">
@@ -240,6 +227,21 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
         <div className="space-y-1 max-h-[470px] overflow-auto">{available.map(m=><button type="button" disabled={!selected} draggable onDragStart={e=>{setDragged(String(m.player_id));e.dataTransfer.setData("text/plain",String(m.player_id))}} onDragEnd={()=>setDragged(null)} onClick={()=>place(selected,m.player_id)} key={m.id} className="flex gap-2 items-center w-full text-left rounded-lg p-2 hover:bg-blue-50 disabled:opacity-60"><span className="w-9 h-9 flex-shrink-0 rounded-full overflow-hidden bg-slate-200">{m.player?.photo_url&&<img src={m.player.card_photo_url||m.player.photo_url} alt="" className="w-full h-full object-cover"/>}</span><span className="min-w-0"><span className="block text-sm font-semibold truncate">{m.player?.name||"Jugador"}</span><span className="block text-xs text-slate-500">{m.primary_position||m.player?.position||"—"}</span></span></button>)}{!available.length&&<p className="text-sm text-slate-500 p-3">No hay jugadores disponibles.</p>}</div>
       </aside>
     </div>
+    <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="cursor-pointer text-sm font-bold">Opciones del once · Onces guardados, apariencia y exportación</summary><div className="mt-3">    <div className="flex flex-wrap gap-2 items-end mb-4">
+      <label className="text-xs font-semibold flex-1 min-w-[160px]">Nombre del once<input value={lineupName} onChange={e=>{setLineupName(e.target.value);markDirty()}} maxLength={100} className="block w-full border rounded-lg px-3 py-2 text-sm mt-1"/></label>
+      <label className="text-xs font-semibold flex-1 min-w-[160px]">Onces guardados<select aria-label="Seleccionar once guardado" value={activeId} disabled={busy||loadingSaved} onChange={e=>loadLineup(e.target.value)} className="block w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="">Nuevo once</option>{lineups.map(l=><option value={l.id} key={l.id}>{l.name} · {l.formation}</option>)}</select></label>
+      {activeId&&<button type="button" disabled={busy} onClick={deleteLineup} className="flex items-center gap-2 border border-red-200 text-red-700 rounded-lg px-3 py-2 disabled:opacity-50"><Trash2 size={16}/> Eliminar</button>}
+    </div>
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-4 flex flex-wrap items-end gap-3" aria-label="Personalización del campo">
+      <span className="flex items-center gap-2 font-semibold text-sm"><Palette size={17}/> Apariencia</span>
+      <label className="text-xs font-medium">Césped<select value={pitchStyle} onChange={e=>setPitchStyle(e.target.value)} className="block mt-1 border rounded-md bg-white p-2"><option value="striped">Franjas</option><option value="solid">Liso</option><option value="diagonal">Diagonal</option></select></label>
+      <label className="text-xs font-medium">Color<input type="color" aria-label="Color del césped" value={pitchColor} onChange={e=>setPitchColor(e.target.value)} className="block h-9 w-14 mt-1 rounded border cursor-pointer"/></label>
+      <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={showPhotos} onChange={e=>setShowPhotos(e.target.checked)}/> Fotos</label>
+      <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={showNumbers} onChange={e=>setShowNumbers(e.target.checked)}/> Dorsales</label>
+      <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={showBenchExport} onChange={e=>setShowBenchExport(e.target.checked)}/> Suplentes en PNG</label>
+      <button type="button" onClick={exportPNG} disabled={exporting} className="ml-auto flex items-center gap-2 bg-slate-900 text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"><Download size={16}/>{exporting?"Generando...":"Exportar PNG HD"}</button>
+    </div>
+    </div></details>
     <div className="mt-5 border-t pt-4">
       <div className="flex justify-between items-center gap-2 mb-3"><h4 className="font-bold">Banquillo · {bench.length} suplentes</h4><span className="text-xs text-slate-500">Pulsa un jugador para añadirlo o retirarlo</span></div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
