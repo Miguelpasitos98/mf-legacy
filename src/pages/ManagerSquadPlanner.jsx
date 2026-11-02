@@ -7,6 +7,7 @@ import {canChooseLineupPlayer} from "@/components/managers/managerLineupSandbox.
 import {SCENARIO_IDS,FORMATION_CHOICES,emptyScenarios,updateScenario,resetScenario,duplicateScenario,evaluateScenario,compareScenarios} from "@/components/managers/managerScenarios.mjs";
 import {ROLE_LABELS} from "@/components/managers/managerFit.mjs";
 import {OPTIMIZER_GOALS,MAX_OPTIMIZER_CHANGES,optimizeTacticalXI} from "@/components/managers/managerLineupOptimizer.mjs";
+import {makeManagerReadOnlyDemo} from "@/components/managers/managerReadOnlyDemo.mjs";
 const loadAll=async(entity,query={})=>{
  const out=[];for(let skip=0;skip<=100000;skip+=200){
   const raw=await entity.filter(query,undefined,200,skip),part=Array.isArray(raw)?raw:raw?.data||raw?.items||[];
@@ -23,6 +24,7 @@ export default function ManagerSquadPlanner(){
  const [optimizerGoal,setOptimizerGoal]=useState("pressure");
  const [optimizerMaxChanges,setOptimizerMaxChanges]=useState(2);
  const [optimizerOpen,setOptimizerOpen]=useState(false);
+ const [demoMode,setDemoMode]=useState(false);
  const season=params.get("season")||"2026/2027",teamId=params.get("team")||"";
  const customTeams=useMemo(()=>teams.filter(isCustomTeam),[teams]);
  const team=customTeams.find(t=>String(t.id)===teamId);
@@ -40,8 +42,10 @@ export default function ManagerSquadPlanner(){
    .catch(e=>{if(live)setError(e.message||"Error al cargar plantilla")}).finally(()=>{if(live)setLoading(false)});
   return()=>{live=false};
  },[team?.id,season]);
- useEffect(()=>{setScenarios(emptyScenarios());setActiveScenario("A");setOptimizerOpen(false)},[teamId,season]);
- const plan=useMemo(()=>planSquad({team,season,players,memberships:members,assignments,managers,profiles}),[team,season,players,members,assignments,managers,profiles]);
+ useEffect(()=>{setScenarios(emptyScenarios());setActiveScenario("A");setOptimizerOpen(false)},[teamId,season,demoMode]);
+ const plan=useMemo(()=>demoMode?makeManagerReadOnlyDemo({teams,players,managers,profiles,season}):
+  planSquad({team,season,players,memberships:members,assignments,managers,profiles}),
+  [demoMode,teams,team,season,players,members,assignments,managers,profiles]);
  const lineupRoster=useMemo(()=>plan.valid?plan.roleSummary.flatMap(x=>x.roster):[],[plan]);
  const evaluated=useMemo(()=>Object.fromEntries(SCENARIO_IDS.map(id=>[id,evaluateScenario(plan,lineupRoster,scenarios[id],id)])),[plan,lineupRoster,scenarios]);
  const active=evaluated[activeScenario];
@@ -74,11 +78,18 @@ export default function ManagerSquadPlanner(){
  <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V15</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
  {error&&<p role="alert" className="p-3 border bg-red-50 rounded-lg text-red-800">{error}</p>}
  <div className="rounded-xl border p-4 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3">
- <label className="text-xs font-bold">Club personalizado<select className="block w-full border rounded-lg p-2 mt-1" aria-label="Club personalizado" value={teamId} onChange={e=>setParams({team:e.target.value,season})}><option value="">Selecciona equipo</option>{customTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+ <label className="text-xs font-bold">Club personalizado<select disabled={demoMode} className="block w-full border rounded-lg p-2 mt-1 disabled:opacity-50" aria-label="Club personalizado" value={teamId} onChange={e=>setParams({team:e.target.value,season})}><option value="">Selecciona equipo</option>{customTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
  <label className="text-xs font-bold">Temporada<input aria-label="Temporada" className="block w-full border rounded-lg p-2 mt-1" value={season} onChange={e=>setParams({team:teamId,season:e.target.value})}/></label>
  </div>
+ <section className="rounded-xl border bg-white p-3 md:p-4 space-y-2">
+ <div className="flex flex-wrap items-center justify-between gap-3">
+ <div><h2 className="font-bold text-sm">Prueba rápida V15 · Dortmund y Klopp</h2><p className="text-xs text-slate-600">Activa una plantilla temporal de lectura usando los jugadores FM26 asociados al Borussia Dortmund y el ADN histórico de Klopp.</p></div>
+ <button type="button" aria-pressed={demoMode} onClick={()=>setDemoMode(v=>!v)} className={`rounded-lg border px-4 py-2 text-sm font-bold ${demoMode?"bg-emerald-800 text-white":"bg-blue-900 text-white"}`}>{demoMode?"Salir de la demostración":"Probar optimizador sin guardar datos"}</button>
+ </div>
+ {demoMode&&<p className="text-xs rounded-lg border border-amber-200 bg-amber-50 text-amber-900 p-3">{plan.demoWarning||plan.reason||"Preparando registros…"} Los cambios desaparecen al salir o recargar. No se realizan escrituras en la base de datos.</p>}
+ </section>
  {loading?<p role="status">Cargando plantilla…</p>:plan.valid&&<>
- <div className="rounded-xl border p-4 bg-white space-y-2"><h2 className="font-bold">{team.name} · {season}</h2>
+ <div className="rounded-xl border p-4 bg-white space-y-2"><h2 className="font-bold">{plan.team.name} · {season}</h2>
  <p className="text-sm">Entrenador: <strong>{plan.manager?.name||"Sin entrenador principal asignado"}</strong> · ADN: <strong>{plan.profile?.name||"Sin ADN asignado"}</strong></p>
  <p className="text-xs text-slate-500">{plan.rosterCount} registros en la plantilla · {plan.linkedCount} jugadores clasificados por rol. Los roles se deducen de la posición principal registrada, no de la alineación titular.</p>
  {!plan.profile&&<p className="text-sm bg-amber-50 p-3 rounded-lg">Asigna un entrenador con ADN táctico en <Link to="/managers" className="underline font-semibold">MANAGERS</Link> para evaluar compatibilidad.</p>}</div>
@@ -124,7 +135,7 @@ export default function ManagerSquadPlanner(){
  </section>
  <section className="rounded-xl border bg-white p-4 space-y-4" aria-label="Optimizador de once táctico">
  <div><h3 className="font-black text-lg">Optimizador de once · V15</h3>
- <p className="text-xs text-slate-600 mt-1">Explora sustituciones dentro de la plantilla de {team.name}. Cada propuesta debe mejorar un indicador evaluable sin perjudicar de forma marcada los demás. No se incluyen fichajes ni se modifican alineaciones reales.</p></div>
+ <p className="text-xs text-slate-600 mt-1">Explora sustituciones dentro de la plantilla de {plan.team?.name||"este club"}. Cada propuesta debe mejorar un indicador evaluable sin perjudicar de forma marcada los demás. No se incluyen fichajes ni se modifican alineaciones reales.</p></div>
  <div className="flex flex-wrap items-end gap-3">
  <label className="text-xs font-bold">Objetivo táctico
  <select aria-label="Objetivo de optimización" value={optimizerGoal} onChange={e=>setOptimizerGoal(e.target.value)} className="mt-1 block border rounded-lg p-2 bg-white">
@@ -215,6 +226,7 @@ export default function ManagerSquadPlanner(){
  })}</div>
  <p className="text-xs bg-amber-50 p-3 rounded-lg border border-amber-100">La detección de necesidades es una señal inicial, no una conclusión deportiva. Una plaza sin datos no equivale a un futbolista deficiente; tampoco se infieren titulares, contratos o presupuesto disponible. No se ha modificado ningún registro.</p>
  </>}
- {!loading&&!customTeams.length&&<p className="text-sm">Aún no hay clubes personalizados que analizar. <Link className="underline" to="/squads">Abrir plantillas</Link>.</p>}
+ {!loading&&!plan.valid&&demoMode&&<p role="alert" className="p-4 border rounded-lg text-sm text-amber-800 bg-amber-50">{plan.reason}</p>}
+ {!loading&&!customTeams.length&&!demoMode&&<p className="text-sm">Aún no hay clubes personalizados que analizar. <Link className="underline" to="/squads">Abrir plantillas</Link>.</p>}
  </main>;
 }
