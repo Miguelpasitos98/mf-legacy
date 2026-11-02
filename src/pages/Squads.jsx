@@ -29,6 +29,7 @@ export default function Squads() {
   const [seasonOptions, setSeasonOptions] = useState([SEASON]);
   const [copyFrom, setCopyFrom] = useState("");
   const [seasonRevision, setSeasonRevision] = useState(0);
+  const [lineupDirty, setLineupDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -74,10 +75,11 @@ export default function Squads() {
     const assigned = new Set(members.map(m => String(m.player_id)));
     return players.filter(p => !assigned.has(String(p.id)) && p.name?.toLocaleLowerCase().includes(q)).slice(0, 40);
   }, [players, members, playerQuery]);
-  const chooseTeam = id => { setSeason(SEASON);setParams(id ? {team: String(id)} : {}); };
+  const chooseTeam = id => { if(lineupDirty&&!window.confirm("El once tiene cambios sin guardar. ¿Cambiar de equipo y descartarlos?"))return;setLineupDirty(false);setSeason(SEASON);setParams(id ? {team: String(id)} : {}); };
   const navigateSeason = next => {
     if(!validSeason(next)){setError("Temporada no válida. Usa el formato 2020/2021.");return;}
-    setError("");setMessage("");setSeason(next);
+    if(lineupDirty&&!window.confirm("El once tiene cambios sin guardar. ¿Cambiar de temporada y descartarlos?"))return;
+    setLineupDirty(false);setError("");setMessage("");setSeason(next);
   };
   const copyRoster = async () => {
     if(!teamId||!validSeason(season)||!validSeason(copyFrom)||copyFrom===season){
@@ -168,7 +170,7 @@ export default function Squads() {
           </div>
           {error&&<p role="alert" className="p-3 mb-3 rounded-lg bg-red-50 text-red-700">{error}</p>}{message&&<p role="status" className="p-3 mb-3 rounded-lg bg-green-50 text-green-700">{message}</p>}
           <div className="mb-6 rounded-xl border bg-slate-50 p-4"><label className="font-semibold text-sm block mb-2">Añadir jugador de MF LEGACY</label><div className="relative"><Search size={18} className="absolute left-3 top-3 text-slate-400"/><input value={playerQuery} onChange={e=>setPlayerQuery(e.target.value)} placeholder="Escribe al menos 2 letras del nombre..." aria-label="Buscar jugadores" className="w-full rounded-lg border bg-white p-2.5 pl-10"/></div>{playerQuery.trim().length>=2&&<div className="max-h-64 overflow-auto mt-2 rounded-lg border bg-white">{candidates.length===0?<p className="p-3 text-sm text-slate-500">Sin resultados disponibles.</p>:candidates.map(p=><div className="flex items-center gap-3 p-2 border-b last:border-0" key={p.id}>{playerImage(p)?<img src={playerImage(p)} alt="" className="w-9 h-9 rounded-full object-cover"/>:<div className="w-9 h-9 rounded-full bg-slate-200"/>}<span className="flex-1 text-sm font-medium">{p.name} <span className="text-slate-400">{p.position||""}</span></span><button disabled={busy} title="Añadir jugador" onClick={()=>add(p)} className="rounded-lg bg-blue-700 text-white p-2 disabled:opacity-50"><Plus size={16}/></button></div>)}</div>}</div>
-          {!loading && <TacticalBuilder key={`${teamId}:${season}`} team={team} season={season} roster={roster} />}
+          {!loading && <TacticalBuilder key={`${teamId}:${season}`} team={team} season={season} roster={roster} onDirtyChange={setLineupDirty} />}
           <h3 className="font-bold mt-7 mb-3">Plantilla</h3>{loading?<p className="text-slate-500">Cargando...</p>:roster.length===0?<p className="rounded-xl border border-dashed p-8 text-center text-slate-500">Todavía no has asignado jugadores.</p>:<div className="space-y-2">{roster.map(m=><div key={m.id} className="flex flex-col sm:flex-row sm:items-center gap-3 border rounded-xl p-3">
             {playerImage(m.player)?<img src={playerImage(m.player)} alt="" className="w-12 h-12 rounded-full object-cover bg-slate-100"/>:<div className="w-12 h-12 bg-slate-100 rounded-full"/>}
             <div className="flex-1 min-w-0"><p className="font-bold truncate">{m.player?.name||"Jugador no encontrado"}</p><p className="text-xs text-slate-400">{m.player?.position||"Sin posición"}</p></div>
