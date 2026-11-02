@@ -19,6 +19,7 @@ import { base44 } from "@/api/base44Client";import { useQuery, useQueryClient } 
 import PlayerFormModal from "@/components/players/PlayerFormModal";
 import Fm26ImportModal from "@/components/players/Fm26ImportModal";
 import TacticalRoleImportModal from "@/components/players/TacticalRoleImportModal";
+import {consumeQuickJsonFile} from "@/utils/quickJsonFilePicker.mjs";
 
 
 // A runtime error inside PlayerDetail must not reset the entire Players page.
@@ -1616,8 +1617,7 @@ export default function Players() {
   };
 
   const chooseFm26File = (event) => {
-    const file=event.currentTarget.files?.[0];
-    event.currentTarget.value="";
+    const file=consumeQuickJsonFile(event);
     if(!file)return; // Native picker cancelled: never open an empty modal.
     setFm26Import(null);setFm26FileName("");setFm26Message("");setFm26Error("");
     setFm26ProgressCurrent(0);setFm26ProgressTotal(0);setFm26ProgressLabel("");
@@ -1626,8 +1626,7 @@ export default function Players() {
     void handleFm26File(file);
   };
   const chooseTacticalRoleFile = (event) => {
-    const file=event.currentTarget.files?.[0];
-    event.currentTarget.value="";
+    const file=consumeQuickJsonFile(event);
     if(!file)return; // Keep PLAYERS untouched on cancellation.
     setTacticalRoleImportNotice("");
     setTacticalRoleInitialFile(file);

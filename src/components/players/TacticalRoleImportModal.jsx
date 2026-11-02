@@ -7,6 +7,7 @@ import { RECORD_KEYS } from "@/api/recordQueries";
 import { fetchTacticalRolePlayers } from "@/utils/fetchTacticalRolePlayers.mjs";
 import { PLAYER_DESCRIPTIONS } from "@/components/players/playerFormShared";
 import { buildTacticalRoleImportPlan, canAutoCloseTacticalRoleImport, parseTacticalRoleImport, tacticalRolePatch } from "@/utils/tacticalRoleImport.mjs";
+import {consumeQuickJsonFile} from "@/utils/quickJsonFilePicker.mjs";
 
 const allowedRoles = PLAYER_DESCRIPTIONS.flatMap(group => group.options);
 const labelByStatus = {
@@ -81,23 +82,26 @@ export default function TacticalRoleImportModal({ open, initialFile=null, onClos
 
   const loadFile = async file => {
     if (!file) return;
-    ++readSequence.current;
+    const sequence=++readSequence.current;
+    setLoading(true);
     setFilename(file.name); setParsed(null); setAllPlayers(null);
     setError(""); setNotice(""); setResult(null);
     try {
       if (file.size > 8 * 1024 * 1024) throw Error("El archivo supera el límite de 8 MB.");
       const text = (await file.text()).replace(/^\uFEFF/, "").trim();
       const imported = parseTacticalRoleImport(JSON.parse(text), allowedRoles);
-      if (!activeRef.current) return;
+      if (!activeRef.current || sequence!==readSequence.current) return;
       setParsed(imported);
       await lookup(imported.entries);
     } catch (err) {
-      if (activeRef.current) setError("No se pudo validar el JSON: " + problem(err));
+      if (activeRef.current && sequence===readSequence.current) {
+        setLoading(false);
+        setError("No se pudo validar el JSON: " + problem(err));
+      }
     }
   };
   const load = event => {
-    const file=event.currentTarget.files?.[0];
-    event.currentTarget.value="";
+    const file=consumeQuickJsonFile(event);
     if (file) void loadFile(file);
   };
   // Runs after the open/reset effect above: the selection made from the
