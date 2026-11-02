@@ -22,7 +22,7 @@ export function assignSlot(slots, target, playerId) {
   if (!playerId) delete next[target];
   return next;
 }
-export default function TacticalBuilder({ team, season, roster, allPlayers = [], comparison = [], onEnsurePlayer, onDirtyChange }) {
+export default function TacticalBuilder({ team, season, roster, allPlayers = [], comparison = [], balanceComparison = [], onEnsurePlayer, onDirtyChange }) {
   const [formation,setFormation] = useState("4-3-3");
   const [slots,setSlots] = useState({});
   const [slotPositions,setSlotPositions]=useState({});
@@ -275,7 +275,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
         <p className="mt-2 text-xs text-slate-500">Pulsa una posición para elegir jugador. Arrastra cualquier ficha con el dedo o ratón para moverla libremente.</p>
       </div>
       <aside className="hidden xl:block border rounded-xl p-3 min-w-0 h-[min(69dvh,670px)] overflow-y-auto">
-        {selected?<PlayerPicker key={selected} selected={selected} roster={roster} allPlayers={allPlayers} onPick={pickPlayer} onClose={()=>setSelected(null)} busy={busy}/>:<BalancePanel assessment={assessment} comparison={comparison} season={season}/>}
+        {selected?<PlayerPicker key={selected} selected={selected} roster={roster} allPlayers={allPlayers} onPick={pickPlayer} onClose={()=>setSelected(null)} busy={busy}/>:<BalancePanel assessment={assessment} comparison={comparison} balanceComparison={balanceComparison} season={season}/>}
       </aside>
     </div>
     {selected&&<div className="xl:hidden fixed inset-0 z-[100] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={()=>setSelected(null)}>
@@ -283,7 +283,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
         <PlayerPicker key={selected} selected={selected} roster={roster} allPlayers={allPlayers} onPick={pickPlayer} onClose={()=>setSelected(null)} busy={busy}/>
       </div>
     </div>}
-    <div className="xl:hidden mt-2 rounded-xl border p-3"><BalancePanel assessment={assessment} comparison={comparison} season={season}/></div>
+    <div className="xl:hidden mt-2 rounded-xl border p-3"><BalancePanel assessment={assessment} comparison={comparison} balanceComparison={balanceComparison} season={season}/></div>
     <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="cursor-pointer text-sm font-bold">Opciones del once · Onces guardados, apariencia y exportación</summary><div className="mt-3">    <div className="flex flex-wrap gap-2 items-end mb-4">
       <label className="text-xs font-semibold flex-1 min-w-[160px]">Nombre del once<input value={lineupName} onChange={e=>{setLineupName(e.target.value);markDirty()}} maxLength={100} className="block w-full border rounded-lg px-3 py-2 text-sm mt-1"/></label>
       <label className="text-xs font-semibold flex-1 min-w-[160px]">Onces guardados<select aria-label="Seleccionar once guardado" value={activeId} disabled={busy||loadingSaved} onChange={e=>loadLineup(e.target.value)} className="block w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="">Nuevo once</option>{lineups.map(l=><option value={l.id} key={l.id}>{l.name} · {l.formation}</option>)}</select></label>
@@ -299,7 +299,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
       <button type="button" onClick={exportPNG} disabled={exporting} className="ml-auto flex items-center gap-2 bg-slate-900 text-white rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"><Download size={16}/>{exporting?"Generando...":"Exportar PNG HD"}</button>
     </div>
     </div></details>
-    <div className="mt-5 border-t pt-4">
+    <details className="mt-3 border-t pt-3"><summary className="cursor-pointer text-sm font-bold">Banquillo · {bench.length} suplentes</summary><div className="mt-2">
       <div className="flex justify-between items-center gap-2 mb-3"><h4 className="font-bold">Banquillo · {bench.length} suplentes</h4><span className="text-xs text-slate-500">Pulsa un jugador para añadirlo o retirarlo</span></div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {roster.filter(m=>!Object.values(slots).includes(String(m.player_id))).map(m=>{
@@ -310,6 +310,6 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
           </button>;
         })}
       </div>
-    </div>
+    </div></details>
   </section>;
 }

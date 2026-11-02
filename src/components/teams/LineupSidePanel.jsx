@@ -2,8 +2,9 @@ import React, { useMemo, useState } from "react";
 import { Search, X, ShieldCheck, AlertTriangle } from "lucide-react";
 import PlayerPortrait from "./PlayerPortrait";
 
-export function BalancePanel({ assessment, comparison, season }) {
+export function BalancePanel({ assessment, comparison, balanceComparison = [], season }) {
   const {balance,quality,knownCA,total,fitScore,zoneCount,warnings}=assessment;
+  const balanceRank = total>=8 && balanceComparison.length>=3 ? Math.round(100*balanceComparison.filter(v=>v<=balance).length/balanceComparison.length):null;
   const rank = quality!==null && knownCA>=8 && comparison.length>=3
     ? Math.round(100*comparison.filter(value=>value<=quality).length/comparison.length) : null;
   return <div className="space-y-3 text-slate-800" aria-label="Análisis del once">
@@ -18,6 +19,7 @@ export function BalancePanel({ assessment, comparison, season }) {
       <div className="rounded-xl border p-3"><div className="text-xs text-slate-500">Adecuación a zona</div><strong className="text-xl tabular-nums">{fitScore}%</strong><div className="text-[11px] text-slate-500">Posiciones registradas</div></div>
     </div>
     <div className="grid grid-cols-4 gap-1 text-center">{Object.entries(zoneCount).map(([key,value])=><div className="border rounded-lg p-1.5" key={key}><div className="text-[10px] text-slate-500">{key}</div><strong>{value}</strong></div>)}</div>
+    {balanceRank!==null?<p className="rounded-lg bg-emerald-50 p-2 text-xs">Equilibrio superior al <strong>{balanceRank}%</strong> de los {balanceComparison.length} onces guardados comparables de esta temporada.</p>:<p className="text-xs text-slate-500">Para comparar equilibrio táctico hacen falta al menos 3 onces rivales guardados y suficientemente completos.</p>}
     {rank!==null?<p className="rounded-lg bg-blue-50 p-2 text-xs">Tu XI supera en CA medio al <strong>{rank}%</strong> de las {comparison.length} plantillas comparables (referencia: sus mejores 11 CA disponibles).</p>:<p className="text-xs text-slate-500">Comparación entre equipos pendiente: se necesitan al menos 8 CA del XI y 3 plantillas rivales con datos suficientes.</p>}
     {season!=="2026/2027"&&<p className="text-xs rounded-lg bg-amber-50 p-2 text-amber-800">Atención: el CA procede de FM26, no es una valoración histórica de {season}.</p>}
     {warnings.length>0?<div className="rounded-lg bg-amber-50 p-2"><div className="flex gap-1 items-center text-xs font-bold text-amber-800"><AlertTriangle size={14}/> Aspectos a revisar</div>{warnings.slice(0,3).map(w=><p className="text-xs text-amber-800 mt-1" key={w}>• {w}</p>)}</div>:<div className="flex gap-2 items-center text-xs text-emerald-700"><ShieldCheck size={16}/> Sin alertas importantes de cobertura.</div>}

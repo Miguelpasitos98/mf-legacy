@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Search, Plus, Trash2, Users, Copy, CalendarDays } from "lucide-react";
 import TacticalBuilder from "@/components/teams/TacticalBuilder";
-import { referenceTeams } from "@/components/teams/lineupAnalysis.mjs";
+import { referenceTeams, analyzeLineup } from "@/components/teams/lineupAnalysis.mjs";
 
 const SEASON = "2026/2027";
 const validSeason = value => /^20\d{2}\/20\d{2}$/.test(value) && Number(value.slice(5)) === Number(value.slice(0,4)) + 1;
@@ -32,6 +32,7 @@ export default function Squads() {
   const [seasonRevision, setSeasonRevision] = useState(0);
   const [lineupDirty, setLineupDirty] = useState(false);
   const [comparison,setComparison]=useState([]);
+  const [balanceComparison,setBalanceComparison]=useState([]);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -78,11 +79,35 @@ export default function Squads() {
     return players.filter(p => !assigned.has(String(p.id)) && p.name?.toLocaleLowerCase().includes(q)).slice(0, 40);
   }, [players, members, playerQuery]);
   useEffect(()=>{
-    if(!teamId || !players.length){setComparison([]);return;}
+    if(!teamId || !players.length){setComparison([]);setBalanceComparison([]);return;}
     let active=true;
-    loadAll(base44.entities.TeamSquadMembership,{team_type:"club",season})
-      .then(rows=>{if(active)setComparison(referenceTeams(rows,players,teamId))})
-      .catch(()=>{if(active)setComparison([])});
+    const gather=async()=>{
+      try{
+        const [membershipRows,lineupRows]=await Promise.all([
+          loadAll(base44.entities.TeamSquadMembership,{team_type:"club",season}),
+          loadAll(base44.entities.TeamLineup,{team_type:"club",season})
+        ]);
+        if(!active)return;
+        setComparison(referenceTeams(membershipRows,players,teamId));
+        const distinct=new Set();
+        const otherLineups=lineupRows.filter(l=>{
+          const id=String(l.team_id);
+          if(id===String(teamId)||distinct.has(id))return false;
+          distinct.add(id);return true;
+        }).slice(0,12);
+        const byPlayer=new Map(players.map(p=>[String(p.id),p]));
+        const results=await Promise.allSettled(otherLineups.map(async l=>{
+          const records=await loadAll(base44.entities.TeamLineupSlot,{lineup_id:l.id});
+          const placed=records.filter(r=>byPlayer.has(String(r.player_id))&&Number.isFinite(Number(r.x_position))&&Number.isFinite(Number(r.y_position)))
+            .map(r=>({player_id:String(r.player_id),x:Number(r.x_position),y:Number(r.y_position)}));
+          if(placed.length<8)return null;
+          const thosePlayers=placed.map(r=>({player_id:r.player_id,player:byPlayer.get(r.player_id)}));
+          return analyzeLineup(placed,thosePlayers).balance;
+        }));
+        if(active)setBalanceComparison(results.filter(r=>r.status==="fulfilled" && typeof r.value==="number").map(r=>r.value));
+      }catch{if(active){setComparison([]);setBalanceComparison([])}}
+    };
+    gather();
     return ()=>{active=false};
   },[teamId,season,players,seasonRevision]);
   const ensurePlayerForSquad = async player => {
@@ -179,7 +204,7 @@ export default function Squads() {
       <section className="rounded-2xl border border-slate-200 bg-white p-3 md:p-4 min-h-[430px] min-w-0">
         {!team ? <div className="flex items-center justify-center h-64 text-slate-500">Selecciona un equipo para gestionar su plantilla.</div> : <>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><div className="flex gap-3 items-center">{team.logo&&<img src={team.logo} alt="" className="w-12 h-12 object-contain"/>}<div><h2 className="text-2xl font-extrabold">{team.name}</h2><p className="text-sm text-slate-500">{roster.length} jugadores asignados</p></div></div><label className="text-sm font-medium">Temporada <select aria-label="Temporada histórica" value={season} onChange={e=>navigateSeason(e.target.value)} className="block mt-1 w-40 rounded-lg border px-3 py-2">{sortSeasons([...seasonOptions,season]).map(s=><option key={s} value={s}>{s}</option>)}</select></label></div>
-          <TacticalBuilder key={`${teamId}:${season}`} team={team} season={season} roster={roster} allPlayers={players} comparison={comparison} onEnsurePlayer={ensurePlayerForSquad} onDirtyChange={setLineupDirty} />
+          <TacticalBuilder key={`${teamId}:${season}`} team={team} season={season} roster={roster} allPlayers={players} comparison={comparison} balanceComparison={balanceComparison} onEnsurePlayer={ensurePlayerForSquad} onDirtyChange={setLineupDirty} />
           <details className="mb-2 rounded-xl border border-blue-100 bg-blue-50/60 p-3"><summary className="cursor-pointer font-semibold text-sm">Temporadas históricas · Crear campaña o copiar plantilla</summary><div className="mt-3">
             <div className="flex flex-wrap gap-3 items-center justify-between">
               <div><h3 className="font-bold flex items-center gap-2"><CalendarDays size={17}/> Archivo de temporadas</h3><p className="text-xs text-slate-600">Cambia de campaña sin alterar otras plantillas. Puedes copiar jugadores de una temporada existente.</p></div>
