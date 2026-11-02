@@ -1,8 +1,9 @@
 import React,{useEffect,useMemo,useRef,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
-import {Search,Plus,Save,UserRoundCog,SlidersHorizontal,ShieldCheck,ArrowUpRight,BookOpen} from "lucide-react";
+import {Search,Plus,Save,Sparkles,Copy,UserRoundCog,SlidersHorizontal,ShieldCheck,ArrowUpRight,BookOpen} from "lucide-react";
 import ManagerPortrait from "@/components/managers/ManagerPortrait";
+import {resolveManagerCountry,buildManagerBiographyPrompt,parseBiographyResponse} from "@/components/managers/managerBiography.mjs";
 import {DNA_AXES,ROLES,MANAGER_BLANK,PROFILE_BLANK,cleanManager,cleanProfile,decodeRoleText,validSeason,chooseAssignment,isCustomTeam} from "@/components/managers/managerModel.mjs";
 
 const getRows = async (entity,query={})=>{
@@ -27,12 +28,16 @@ export default function Managers(){
  const [profiles,setProfiles]=useState([]);
  const [assignments,setAssignments]=useState([]);
  const [teams,setTeams]=useState([]);
+ const [countries,setCountries]=useState([]);
  const [isAdmin,setIsAdmin]=useState(null);
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const [search,setSearch]=useState("");
+ const [countrySearch,setCountrySearch]=useState("");
+ const [generatingBiography,setGeneratingBiography]=useState(false);
+ const [showBiographyPrompt,setShowBiographyPrompt]=useState(false);
  const [tab,setTab]=useState("identity");
  const [managerDraft,setManagerDraft]=useState({...MANAGER_BLANK});
  const [profileId,setProfileId]=useState("");
@@ -44,18 +49,20 @@ export default function Managers(){
  const newManagerTabRef=useRef("");
 
  const selected=managers.find(m=>String(m.id)===managerParam)||null;
+ const chosenCountry=useMemo(()=>resolveManagerCountry(managerDraft,countries),[managerDraft.country_id,managerDraft.nationality,countries]);
+ const sortedCountries=useMemo(()=>countries.filter(c=>c?.id&&c?.name).sort((a,b)=>String(a.name).localeCompare(String(b.name),"es")),[countries]);
  const customTeams=useMemo(()=>teams.filter(isCustomTeam).sort((a,b)=>String(a.name).localeCompare(String(b.name))),[teams]);
  const managerProfiles=useMemo(()=>profiles.filter(p=>String(p.manager_id)===String(selected?.id||"")).sort((a,b)=>Number(Boolean(b.is_default))-Number(Boolean(a.is_default))||String(b.season||"").localeCompare(String(a.season||""))),[profiles,selected?.id]);
  const managerAssignments=assignments.filter(a=>String(a.manager_id)===String(selected?.id)&&a.team_type==="club"&&customTeams.some(t=>String(t.id)===String(a.team_id)));
  const visible=useMemo(()=>managers.filter(m=>normalize([m.name,m.display_name,m.nationality,m.manager_kind].join(" ")).includes(normalize(search))).sort((a,b)=>Number(Boolean(b.is_active))-Number(Boolean(a.is_active))||String(a.name).localeCompare(String(b.name))),[managers,search]);
 
  const refresh=async()=>{
-  const [m,p,a,t]=await Promise.all([
+  const [m,p,a,t,c]=await Promise.all([
    getRows(base44.entities.Manager),getRows(base44.entities.ManagerTacticalProfile),
-   getRows(base44.entities.TeamManagerAssignment),getRows(base44.entities.Team)
+   getRows(base44.entities.TeamManagerAssignment),getRows(base44.entities.Team),getRows(base44.entities.Country)
   ]);
-  setManagers(m);setProfiles(p);setAssignments(a);setTeams(t);
-  return {managers:m,profiles:p,assignments:a,teams:t};
+  setManagers(m);setProfiles(p);setAssignments(a);setTeams(t);setCountries(c);
+  return {managers:m,profiles:p,assignments:a,teams:t,countries:c};
  };
  useEffect(()=>{
   let live=true;
@@ -64,10 +71,10 @@ export default function Managers(){
    getRows(base44.entities.Manager),
    getRows(base44.entities.ManagerTacticalProfile),
    getRows(base44.entities.TeamManagerAssignment),
-   getRows(base44.entities.Team)
-  ]).then(([me,m,p,a,t])=>{
+   getRows(base44.entities.Team),getRows(base44.entities.Country)
+  ]).then(([me,m,p,a,t,c])=>{
    if(!live)return;
-   setIsAdmin(me?.role==="admin");setManagers(m);setProfiles(p);setAssignments(a);setTeams(t);
+   setIsAdmin(me?.role==="admin");setManagers(m);setProfiles(p);setAssignments(a);setTeams(t);setCountries(c);
    if(!managerParam&&m.length)setParams({manager:String(m[0].id)},{replace:true});
   }).catch(e=>{if(live)setError("Error al cargar Manager DNA: "+String(e.message||e))})
   .finally(()=>{if(live)setLoading(false)});
@@ -106,11 +113,48 @@ export default function Managers(){
  const openManager=id=>{setParams({manager:String(id)});setError("");setNotice("");};
  const updateManager=(key,value)=>setManagerDraft(prev=>({...prev,[key]:value}));
  const updateProfile=(key,value)=>setProfileDraft(prev=>({...prev,[key]:value}));
+ const biographyPrompt=useMemo(()=>{
+   try{return buildManagerBiographyPrompt(managerDraft.name,chosenCountry?.name||managerDraft.nationality);}
+   catch{return "";}
+ },[managerDraft.name,managerDraft.nationality,chosenCountry?.name]);
+ const copyBiographyPrompt=async()=>{
+   setError("");setNotice("");
+   try{
+     if(!biographyPrompt)throw Error("Primero escribe el nombre del entrenador.");
+     if(!navigator.clipboard?.writeText)throw Error("El navegador no permite copiar automáticamente.");
+     await navigator.clipboard.writeText(biographyPrompt);
+     setNotice("Prompt copiado. Puedes pegarlo en ChatGPT y revisar la biografía antes de guardarla.");
+   }catch(e){setShowBiographyPrompt(true);setError((e.message||"No se pudo copiar el prompt.")+" Puedes seleccionar el texto en el recuadro inferior.");}
+ };
+ const generateBiography=async()=>{
+   if(generatingBiography||busy||!canWrite)return;
+   setError("");setNotice("");
+   if(!biographyPrompt){setError("Escribe primero el nombre completo del entrenador.");return;}
+   if(managerDraft.biography.trim()&&!window.confirm("Ya existe una descripción. ¿Sustituirla por el nuevo borrador de IA?"))return;
+   setGeneratingBiography(true);
+   try{
+     const result=await base44.integrations.Core.InvokeLLM({
+       prompt:biographyPrompt,
+       add_context_from_internet:true
+     });
+     const generated=parseBiographyResponse(result);
+     setManagerDraft(prev=>({...prev,biography:generated,source_status:prev.source_status==="verified"?"pending":prev.source_status}));
+     setNotice("Borrador generado desde el nombre. Revisa hechos, fechas y fuentes antes de pulsar Guardar ficha. Nada se ha guardado automáticamente.");
+   }catch(e){
+     setShowBiographyPrompt(true);
+     setError("No se pudo generar la biografía dentro de Base44: "+(e.message||"integración no disponible")+". Puedes copiar el prompt y solicitarla en ChatGPT.");
+   }finally{setGeneratingBiography(false)}
+ };
+ const changeCountry = id=>{
+   const country=countries.find(c=>String(c.id)===String(id));
+   setManagerDraft(prev=>({...prev,country_id:country?.id||"",nationality:country?.name||""}));
+ };
+ const canWrite=isAdmin===true;
  const saveManager=async event=>{
   event.preventDefault();if(busy||isAdmin!==true)return;
   setBusy(true);setError("");setNotice("");
   try{
-   const payload=cleanManager(managerDraft);
+   const payload=cleanManager({...managerDraft,country_id:chosenCountry?.id||"",nationality:chosenCountry?.name||managerDraft.nationality});
    if(selected){
     await base44.entities.Manager.update(selected.id,payload);
     await refresh();setNotice("Ficha de entrenador actualizada.");
@@ -197,7 +241,6 @@ export default function Managers(){
   finally{setBusy(false)}
  };
 
- const canWrite=isAdmin===true;
  return <main className="mx-auto max-w-[1650px] px-3 py-4 md:px-6 text-slate-900">
   <div className="rounded-2xl bg-[#091e1b] text-white px-5 py-5 mb-4 flex flex-wrap justify-between items-center gap-3">
    <div><p className="text-xs font-bold uppercase tracking-[.2em] text-lime-300">MF LEGACY · MANAGER DNA</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Base de datos de entrenadores</h1><p className="text-sm text-slate-300 mt-1">Identidad, filosofía y proyectos deportivos de tus clubes personalizados.</p></div>
@@ -233,14 +276,35 @@ export default function Managers(){
      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div><label className={label} htmlFor="manager-name">Nombre completo *</label><input id="manager-name" required maxLength={160} className={input} value={managerDraft.name} onChange={e=>updateManager("name",e.target.value)} placeholder="Nombre del entrenador" disabled={!canWrite}/></div>
       <div><label className={label}>Nombre de presentación</label><input className={input} maxLength={100} value={managerDraft.display_name} onChange={e=>updateManager("display_name",e.target.value)} placeholder="Nombre abreviado" disabled={!canWrite}/></div>
-      <div><label className={label}>Nacionalidad</label><input className={input} value={managerDraft.nationality} onChange={e=>updateManager("nationality",e.target.value)} disabled={!canWrite}/></div>
+      <div><label className={label}>Nacionalidad · Countries</label>
+       <div className="flex gap-2 items-center">
+        {chosenCountry?.flag&&<img src={chosenCountry.flag} alt="" className="h-7 w-10 rounded object-contain shrink-0" onError={e=>{e.currentTarget.style.display="none"}}/>}
+        <select aria-label="País de nacionalidad" className={input} value={chosenCountry?.id||""} onChange={e=>changeCountry(e.target.value)} disabled={!canWrite}>
+          <option value="">Seleccionar país de Countries…</option>
+          {sortedCountries.map(country=><option key={country.id} value={country.id}>{country.name}{country.code?" · "+country.code:""}</option>)}
+        </select>
+       </div>
+       {!chosenCountry&&managerDraft.nationality&&<p className="text-xs text-amber-700 mt-1">Nombre anterior: {managerDraft.nationality}. Selecciona su ficha de Countries para vincularlo.</p>}
+       <p className="text-[11px] text-slate-500 mt-1">Se guardará el ID de Country; no se creará ningún país nuevo.</p>
+      </div>
       <div><label className={label}>Nacimiento</label><input type="date" className={input} value={managerDraft.date_of_birth||""} onChange={e=>updateManager("date_of_birth",e.target.value)} disabled={!canWrite}/></div>
       <div><label className={label}>Tipo de entrenador</label><select className={input} value={managerDraft.manager_kind} onChange={e=>updateManager("manager_kind",e.target.value)} disabled={!canWrite}><option value="real">Real</option><option value="fictional">Ficticio / creado por mí</option></select></div>
       <div><label className={label}>Estado de la información</label><select className={input} value={managerDraft.source_status} onChange={e=>updateManager("source_status",e.target.value)} disabled={!canWrite}><option value="manual">Manual / sin verificar</option><option value="pending">Pendiente de verificar</option><option value="verified">Verificado con fuente</option></select></div>
       <div><label className={label}>URL de fotografía</label><input className={input} type="url" value={managerDraft.photo_url} onChange={e=>updateManager("photo_url",e.target.value)} placeholder="https://..." disabled={!canWrite}/></div>
       <div><label className={label}>Fuente de información</label><input className={input} type="url" value={managerDraft.source_url} onChange={e=>updateManager("source_url",e.target.value)} placeholder="https://..." disabled={!canWrite}/></div>
      </div>
-     <div><label className={label}>Trayectoria y descripción</label><textarea className={input} rows={4} value={managerDraft.biography} onChange={e=>updateManager("biography",e.target.value)} placeholder="Biografía breve, trayectoria..." disabled={!canWrite}/></div>
+     <div>
+      <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
+       <label className={label+" mb-0"} htmlFor="manager-biography">Trayectoria y descripción</label>
+       <div className="flex gap-2 flex-wrap">
+        <button type="button" disabled={!canWrite||generatingBiography||!managerDraft.name.trim()} onClick={generateBiography} className="inline-flex gap-1 items-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"><Sparkles size={14}/>{generatingBiography?"Investigando…":"Redactar con IA desde el nombre"}</button>
+        <button type="button" disabled={!biographyPrompt} onClick={copyBiographyPrompt} className="inline-flex gap-1 items-center rounded-lg border px-3 py-1.5 text-xs font-bold text-slate-700 disabled:opacity-40"><Copy size={14}/> Copiar prompt para ChatGPT</button>
+       </div>
+      </div>
+      <textarea id="manager-biography" className={input} rows={5} value={managerDraft.biography} onChange={e=>updateManager("biography",e.target.value)} placeholder="Escribe el nombre arriba y pulsa Redactar con IA para preparar una biografía editable…" disabled={!canWrite}/>
+      <p className="mt-1 text-[11px] text-slate-500">El prompt usa el nombre y el país elegido, pide trayectoria contrastada, logros y fuentes. El borrador no se guarda hasta que pulses Guardar ficha. La generación puede consumir créditos de integración de Base44.</p>
+      {showBiographyPrompt&&<details open className="mt-2 rounded-xl border p-3 bg-slate-50"><summary className="font-semibold text-xs cursor-pointer">Prompt preparado desde el nombre</summary><textarea aria-label="Prompt para ChatGPT" value={biographyPrompt} readOnly className={input+" mt-2 font-mono"} rows={8} onFocus={e=>e.target.select()}/></details>}
+     </div>
      <div><label className={label}>Observaciones privadas del proyecto</label><textarea className={input} rows={2} value={managerDraft.notes} onChange={e=>updateManager("notes",e.target.value)} disabled={!canWrite}/></div>
      <button className={primary} disabled={!canWrite||busy} type="submit"><Save size={16}/>{busy?"Guardando...":selected?"Guardar ficha":"Crear entrenador"}</button>
     </form>}
