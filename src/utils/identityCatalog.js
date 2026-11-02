@@ -9,7 +9,8 @@ export function identityView(player,matches=[],links=[],catalog=[]){
  const proposed=candidate?.proposed_fotmob_id||'';
  const source=catalog.find(c=>c.fotmob_id===(fid||proposed));
  const status=conflict?'conflicto':verified?'identidad_confirmada':link?'automatic_existing':candidate?.status==='identidad_confirmada'?'approval_pending':candidate?.status||(!uid?'sin_fm26':'sin_candidato');
- return {player,candidate,link,source,fotmob_id:fid,proposed_fotmob_id:proposed,status,verified,source_missing:Boolean(fid&&!source),label:IDENTITY_LABELS[status]||status};
+ return {player,candidate,link,source,fotmob_id:fid,proposed_fotmob_id:proposed,status,verified,identity_conflict:conflict,source_missing:Boolean(fid&&!source),label:IDENTITY_LABELS[status]||status};
 }
 export function escapeIdentitySearch(value){return String(value||'').trim().slice(0,100).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+
 

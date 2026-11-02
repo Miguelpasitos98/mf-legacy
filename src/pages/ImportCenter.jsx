@@ -11,6 +11,9 @@ import HistoricalReview from "@/components/imports/HistoricalReview";
 import {historyCanRetry} from "@/utils/importHistoryReview";
 import {importProgressSummary} from "@/utils/importCoverage";
 import {groupImportJobs,visibleImportGroups} from "@/utils/importJobGroups";
+import useImportPlayerIdentity from "@/hooks/useImportPlayerIdentity";
+import {importIdentitySuggestion} from "@/utils/importIdentitySuggestion";
+import {IDENTITY_KEY} from "@/hooks/useIdentityCatalog";
 
 const SOURCES=[{id:"fotmob",label:"FotMob"},{id:"understat",label:"Understat"},{id:"fifa",label:"FIFA / EA FC"},{id:"market",label:"Transfermarkt"}];
 const ACTIVE=["queued","running"];
@@ -40,6 +43,7 @@ export default function ImportCenter(){
   const [search,setSearch]=useState("");
   const [selectedSources,setSelectedSources]=useState(SOURCES.map(x=>x.id));
   const [fotmobDraft,setFotmobDraft]=useState("");
+  const [fotmobDraftTouched,setFotmobDraftTouched]=useState(false);
   const [reviewedGroups,setReviewedGroups]=useState({});
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
@@ -55,6 +59,11 @@ export default function ImportCenter(){
   const [expandedPlayers,setExpandedPlayers]=useState({});
   const [technicalHistory,setTechnicalHistory]=useState({});
   currentJob.current=selectedJob;
+  const player=selectedPlayer?.id===selection?selectedPlayer:players.find(p=>p.id===selection);
+  const identity=useImportPlayerIdentity(player);
+  const identityView=identity.data?.player?.id===selection?identity.data:null;
+  const catalogueSuggestion=importIdentitySuggestion(identityView);
+  useEffect(()=>{setFotmobDraft("");setFotmobDraftTouched(false);},[selection]);
 
   const refresh=useCallback(async({forceCandidates=false}={})=>{
     const request=++refreshSequence.current;
@@ -85,15 +94,14 @@ export default function ImportCenter(){
   },[refresh]);
   useEffect(()=>{setCandidateRows([]);setCandidatesLoading(Boolean(selectedJob));setPreview(null);setReviewedGroups({});},[selectedJob]);
   useEffect(()=>{
-    setLinks([]);
-    if(!selection){setLinksState("idle");return;}
-    setLinksState("loading");
-    let live=true;
-    base44.entities.PlayerFotmobLink.filter({player_id:selection},undefined,30)
-      .then(result=>{if(live){setLinks(responseRows(result));setLinksState("ready");}})
-      .catch(e=>{if(live){setLinksState("error");setError(reason(e));}});
-    return ()=>{live=false;};
-  },[selection]);
+    if(!selection){setLinks([]);setLinksState("idle");return;}
+    if(identity.error){setLinks([]);setLinksState("error");setError(reason(identity.error));return;}
+    if(!identityView){setLinks([]);setLinksState("loading");return;}
+    setLinks(identityView.link?[identityView.link]:[]);
+    // Conflicting records must not fall through to the manual-ID path.
+    if(identityView.identity_conflict){setLinksState("error");setError("La identidad FotMob contiene vínculos o fuentes contradictorios.");return;}
+    setLinksState("ready");
+  },[selection,identityView,identity.error]);
   useEffect(()=>{
     if(!selection){setStatsStatus({state:"idle",count:0,ids:[]});return;}
     let active=true;
@@ -123,12 +131,13 @@ export default function ImportCenter(){
     },300);
     return ()=>{cancelled=true;clearTimeout(timer);};
   },[search,selectedPlayer]);
-  const player=selectedPlayer?.id===selection?selectedPlayer:players.find(p=>p.id===selection);
   const candidateIds=[...new Set(links.map(l=>String(l.fotmob_player_id||"")).filter(Boolean))];
   const fotmob=candidateIds.length===1?candidateIds[0]:"";
-  const linked=links.length>0&&candidateIds.length===1&&links.every(l=>String(l.fotmob_player_id||"")===fotmob)&&links.some(l=>["confirmed","verified","manual","manual_confirmada","confirmada","automatic_exact_name_unique","automatic_existing_stats_unique"].includes(String(l.verification||"").toLowerCase()));
+  const linked=Boolean(identityView)&&links.length>0&&candidateIds.length===1&&links.every(l=>l.player_id===selection&&String(l.fotmob_player_id||"")===fotmob)&&links.some(l=>["confirmed","verified","manual","manual_confirmada","confirmada","automatic_exact_name_unique","automatic_existing_stats_unique"].includes(String(l.verification||"").toLowerCase()));
   const historyFotmobId=statsStatus.state==="ready"&&statsStatus.ids.length===1&&/^[0-9]{1,15}$/.test(statsStatus.ids[0])?statsStatus.ids[0]:"";
-  const availableFotmobId=linked?fotmob:links.length===0?(historyFotmobId||fotmobDraft):"";
+  const effectiveDraft=identityView?(fotmobDraftTouched?fotmobDraft:(catalogueSuggestion?.fotmob_id||fotmobDraft)):"";
+  const usingCatalogueSuggestion=!linked&&!historyFotmobId&&!fotmobDraftTouched&&Boolean(catalogueSuggestion);
+  const availableFotmobId=identityView?(linked?fotmob:links.length===0?(historyFotmobId||effectiveDraft):""):"";
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
   const canStartHistory=coordinator==="ready"&&Boolean(player)&&linksState==="ready"&&(linked||links.length===0&&/^[0-9]{1,15}$/.test(availableFotmobId))&&!active&&selectedSources.length>0&&!busy;
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
@@ -177,11 +186,12 @@ export default function ImportCenter(){
         if(!/^[0-9]{1,15}$/.test(availableFotmobId))throw Error("Introduce un ID FotMob válido.");
         const linkedResult=await base44.functions.invoke("import-control",{
           action:"link",player_id:player.id,
-          ...(historyFotmobId?{use_stored_fotmob_id:true}:{fotmob_player_id:availableFotmobId,confirmed:true})
+          ...(historyFotmobId?{use_stored_fotmob_id:true}:{fotmob_player_id:availableFotmobId,confirmed:true,...(usingCatalogueSuggestion?{catalogue_candidate_id:catalogueSuggestion.candidate_id}:{})})
         });
         if(!linkedResult.data?.ok)throw Error(linkedResult.data?.error||"No se pudo establecer el vínculo FotMob.");
         const updatedLinks=await base44.entities.PlayerFotmobLink.filter({player_id:player.id},undefined,30);
         setLinks(responseRows(updatedLinks));
+        await cache.invalidateQueries({queryKey:IDENTITY_KEY});
       }
       const resp=await base44.functions.invoke("import-control",{action,...payload});
       setNotice(action==="start"?"Historial solicitado. El trabajador local reutilizará las cachés y consultará las fuentes disponibles; después podrás revisar todas las temporadas juntas.":action==="retry-fotmob"?"Solo las competiciones FotMob pendientes están en cola; los valores anteriores se conservan.":action==="retry-pending"?"Solo los periodos pendientes están en cola; los datos encontrados y guardados se reutilizan.":["retry","resume"].includes(action)?"Trabajo en cola para reanudar desde sus datos guardados.":action==="release-stale"?"Concesión caducada liberada; ya puedes reintentar.":"Trabajo cancelado.");
@@ -276,16 +286,16 @@ export default function ImportCenter(){
         {selection&&<p className="text-sm font-medium text-[#003399]">{statsStatus.state==="loading"?"Comprobando temporadas en STATS…":statsStatus.state==="ready"?(statsStatus.count===0?"Sin temporadas en STATS · Primera importación":statsStatus.count+" registros en STATS · Puedes añadir temporadas que falten"):statsStatus.state==="partial"?"Más de 199 registros: recuento parcial":"No se pudo consultar STATS; no se han modificado datos."}</p>}
         {selection&&<p className="text-sm text-slate-600">FotMob: <strong>{linksState==="loading"?"Leyendo vinculación…":linked?fotmob:links.length>0?"Vínculo pendiente de revisión":availableFotmobId||"ID no disponible"}</strong>{linksState==="ready"&&linked&&<span className="ml-1 text-emerald-700" aria-label="ID FotMob listo">✓ Listo</span>}{linksState==="ready"&&!linked&&links.length===0&&historyFotmobId&&<span className="ml-1 text-emerald-700" aria-label="ID FotMob guardado">✓ Guardado en STATS</span>}</p>}
         {player&&linksState==="ready"&&!linked&&links.length===0&&!historyFotmobId&&<div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3 space-y-2">
-          <label className="block text-xs font-medium text-slate-700" htmlFor="fotmob-recovery-id">ID FotMob (no encontrado en la ficha)</label>
+          <label className="block text-xs font-medium text-slate-700" htmlFor="fotmob-recovery-id">{usingCatalogueSuggestion?"ID FotMob propuesto por el catálogo":"ID FotMob (no encontrado en la ficha)"}</label>
           <input id="fotmob-recovery-id" type="text" inputMode="numeric" maxLength={15} aria-label="ID FotMob"
-            value={fotmobDraft} onChange={e=>setFotmobDraft(e.target.value.replace(/[^0-9]/g,""))}
+            value={effectiveDraft} onChange={e=>{setFotmobDraft(e.target.value.replace(/[^0-9]/g,""));setFotmobDraftTouched(true);}}
             placeholder="Introduce el ID para recuperar el historial" className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"/>
-          <p className="text-[11px] text-slate-500">Se vinculará automáticamente al iniciar la recuperación. Comprueba que pertenece al jugador seleccionado.</p>
+          <p className="text-[11px] text-slate-500">{usingCatalogueSuggestion?`Propuesta unívoca para ${catalogueSuggestion.name}. Confirma el ID al recuperar el historial; todavía no es un vínculo guardado.`:"Se vinculará al iniciar la recuperación. Comprueba que pertenece al jugador seleccionado."}</p>
         </div>}
         {player&&linksState==="ready"&&!linked&&links.length>0&&<p className="text-xs text-amber-800">Existen vinculaciones FotMob sin confirmar o contradictorias; no se modifican automáticamente.</p>}
         <h3 className="font-semibold text-sm">2. Fuentes para extraer estadísticas</h3>
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
-        <button disabled={!canStartHistory} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Recuperar historial disponible</button>
+        <button disabled={!canStartHistory} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">{usingCatalogueSuggestion?"Confirmar ID del catálogo y recuperar historial":"Recuperar historial disponible"}</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
         <button type="button" disabled={!player||!linked||busy||active}
           onClick={enrichUnderstat} className="w-full py-2 rounded-lg border border-blue-200 bg-blue-50 text-[#003399] font-semibold disabled:opacity-40">
@@ -508,3 +518,4 @@ export default function ImportCenter(){
     </section>}
   </div>;
 }
+
