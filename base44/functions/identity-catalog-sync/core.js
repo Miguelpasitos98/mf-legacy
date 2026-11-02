@@ -52,6 +52,7 @@ export async function applyApprovedLinks(db,input){
   if(owners.length!==1||approval.base44_id&&approval.base44_id!==player.id){block('Jugador ausente o ambiguo por UID FM26.');continue;}
   const relevant=links.filter(l=>l.player_id===player.id||l.fotmob_player_id===approval.fotmob_id);
   if(relevant.length){if(relevant.length===1&&relevant[0].player_id===player.id&&relevant[0].fotmob_player_id===approval.fotmob_id){unchanged++;continue;}block('Vínculo existente incompatible; no se modifica.');continue;}
+  if(approval.reason.startsWith('Existing Base44 manual link ')){block('El vínculo previo ya no existe en Base44; requiere una nueva aprobación explícita.');continue;}
   const evidence=candidates.filter(c=>c.fm26_uid===approval.fm_uid),source=catalog.filter(c=>c.fotmob_id===approval.fotmob_id);
   if(evidence.length!==1||source.length!==1||evidence[0].status!=='identidad_confirmada'||evidence[0].confirmed_fotmob_id!==approval.fotmob_id){block('Faltan fuentes y confirmación local compatibles.');continue;}
   const dates=[normalizeDate(player.date_of_birth),normalizeDate(evidence[0].fm26_birth_date),normalizeDate(source[0].birth_date)].filter(Boolean);
