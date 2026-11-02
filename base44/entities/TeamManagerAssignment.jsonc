@@ -1,0 +1,58 @@
+{
+  "name": "TeamManagerAssignment",
+  "type": "object",
+  "properties": {
+    "team_type": {
+      "type": "string",
+      "enum": [
+        "club"
+      ],
+      "default": "club"
+    },
+    "team_id": {
+      "type": "string"
+    },
+    "manager_id": {
+      "type": "string"
+    },
+    "tactical_profile_id": {
+      "type": "string"
+    },
+    "season": {
+      "type": "string"
+    },
+    "assignment_name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "is_primary": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "team_id",
+    "manager_id",
+    "season"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

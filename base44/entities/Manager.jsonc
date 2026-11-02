@@ -1,0 +1,76 @@
+{
+  "name": "Manager",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre completo del entrenador"
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "nationality": {
+      "type": "string"
+    },
+    "date_of_birth": {
+      "type": "string",
+      "description": "Fecha opcional ISO YYYY-MM-DD"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "manager_kind": {
+      "type": "string",
+      "enum": [
+        "real",
+        "fictional"
+      ],
+      "default": "real"
+    },
+    "biography": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string",
+      "description": "URL de evidencia de datos reales"
+    },
+    "source_status": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "verified",
+        "pending"
+      ],
+      "default": "manual"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "manager_kind"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

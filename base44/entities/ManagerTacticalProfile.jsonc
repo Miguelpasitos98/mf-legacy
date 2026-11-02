@@ -1,0 +1,101 @@
+{
+  "name": "ManagerTacticalProfile",
+  "type": "object",
+  "properties": {
+    "manager_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "season": {
+      "type": "string"
+    },
+    "formation": {
+      "type": "string"
+    },
+    "possession": {
+      "type": "integer"
+    },
+    "pressing": {
+      "type": "integer"
+    },
+    "tempo": {
+      "type": "integer"
+    },
+    "defensive_line": {
+      "type": "integer"
+    },
+    "attacking_width": {
+      "type": "integer"
+    },
+    "risk_taking": {
+      "type": "integer"
+    },
+    "build_up": {
+      "type": "string",
+      "enum": [
+        "short",
+        "mixed",
+        "direct"
+      ]
+    },
+    "transition": {
+      "type": "string",
+      "enum": [
+        "counter_press",
+        "regroup",
+        "balanced"
+      ]
+    },
+    "defensive_block": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "player_role_priorities": {
+      "type": "string",
+      "description": "JSON serializado por rol; configuraci\u00f3n manual, sin datos inventados"
+    },
+    "profile_notes": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false
+    },
+    "version": {
+      "type": "integer",
+      "default": 1
+    }
+  },
+  "required": [
+    "manager_id",
+    "name",
+    "formation"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
