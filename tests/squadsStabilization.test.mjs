@@ -23,6 +23,8 @@ test('the bench, lineup, export and responsive controls remain available',()=>{
  assert.match(builder,/const toggleBench/);
  assert.match(builder,/exportPNG=async/);
  assert.match(builder,/html2canvas/);
- assert.match(builder,/2xl:grid-cols/);
+ assert.match(builder,/xl:grid-cols/);
+ assert.match(builder,/max-h-\[min\(62vh,650px\)\]/);
+ assert.match(builder,/logoError/);
  assert.match(builder,/showBenchExport/);
 });
