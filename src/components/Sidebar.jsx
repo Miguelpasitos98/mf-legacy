@@ -29,42 +29,42 @@ const DESCRIPTION_ICON =
 export const VIEW_OPTIONS = [
   {
     id: "all",
-    label: "All players",
+    label: "Todos los jugadores",
     icon: ALL_PLAYERS_ICON,
   },
   {
     id: "teams",
-    label: "By teams",
+    label: "Por equipos",
     icon: TEAMS_ICON,
   },
   {
     id: "leagues",
-    label: "By leagues",
+    label: "Por ligas",
     icon: LEAGUES_ICON,
   },
   {
     id: "candidates",
-    label: "Candidates",
+    label: "Candidatos",
     icon: CANDIDATES_ICON,
   },
   {
     id: "countries",
-    label: "By countries",
+    label: "Por países",
     icon: COUNTRIES_ICON,
   },
   {
     id: "positions",
-    label: "By position",
+    label: "Por posición",
     icon: POSITION_ICON,
   },
   {
     id: "age",
-    label: "By age",
+    label: "Por edad",
     icon: AGE_ICON,
   },
   {
     id: "description",
-    label: "By description",
+    label: "Por descripción",
     icon: DESCRIPTION_ICON,
   },
 ];
