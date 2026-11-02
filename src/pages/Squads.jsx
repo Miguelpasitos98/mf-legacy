@@ -19,6 +19,8 @@ const loadAll = async (entity, filter = {}) => {
   return results;
 };
 const playerImage = p => p?.card_photo_url || p?.photo_url || "";
+// Solo clubes marcados explícitamente como personalizados en la ficha de Equipos.
+export const isCustomSquadTeam = team => team?.is_custom_club === true || team?.isCustomClub === true;
 export default function Squads() {
   const [params, setParams] = useSearchParams();
   const [teams, setTeams] = useState([]);
@@ -38,7 +40,9 @@ export default function Squads() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const teamId = params.get("team") || "";
-  const team = teams.find(t => String(t.id) === teamId);
+  const customTeams = useMemo(() => teams.filter(isCustomSquadTeam), [teams]);
+  const allowedTeamIds = useMemo(() => new Set(customTeams.map(t => String(t.id))), [customTeams]);
+  const team = customTeams.find(t => String(t.id) === teamId);
   useEffect(() => {
     let alive = true;
     Promise.all([loadAll(base44.entities.Team), loadAll(base44.entities.Player)]).then(([t,p]) => {
@@ -49,7 +53,7 @@ export default function Squads() {
     return () => { alive = false };
   }, []);
   useEffect(() => {
-    if(!teamId){setSeasonOptions([SEASON]);setCopyFrom("");return;}
+    if(!team){setSeasonOptions([SEASON]);setCopyFrom("");return;}
     let live=true;
     Promise.all([
       loadAll(base44.entities.TeamSquadMembership,{team_type:"club",team_id:teamId}),
@@ -60,9 +64,9 @@ export default function Squads() {
       setSeasonOptions(options);setCopyFrom(previous=>options.includes(previous)?previous:(options.find(s=>s!==season)||""));
     }).catch(e=>{if(live)setError(e.message||"No se pudieron recuperar las temporadas históricas")});
     return ()=>{live=false};
-  },[teamId,seasonRevision]);
+  },[teamId,team?.id,seasonRevision]);
   useEffect(() => {
-    if (!teamId || !season.trim()) { setMembers([]); return; }
+    if (!team || !season.trim()) { setMembers([]); return; }
     let alive = true;
     setError(""); setLoading(true);
     loadAll(base44.entities.TeamSquadMembership, { team_type: "club", team_id: teamId, season: season.trim() })
@@ -70,7 +74,7 @@ export default function Squads() {
       .catch(e => alive && setError(e.message || "Error al cargar la plantilla"))
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
-  }, [teamId, season, seasonRevision]);
+  }, [teamId, team?.id, season, seasonRevision]);
   const roster = useMemo(() => members.map(m => ({ ...m, player: players.find(p => String(p.id) === String(m.player_id)) })).sort((a,b) => (a.sort_order ?? 999) - (b.sort_order ?? 999)), [members,players]);
   const candidates = useMemo(() => {
     const q = playerQuery.trim().toLocaleLowerCase();
@@ -79,7 +83,7 @@ export default function Squads() {
     return players.filter(p => !assigned.has(String(p.id)) && p.name?.toLocaleLowerCase().includes(q)).slice(0, 40);
   }, [players, members, playerQuery]);
   useEffect(()=>{
-    if(!teamId || !players.length){setComparison([]);setBalanceComparison([]);return;}
+    if(!team || !players.length){setComparison([]);setBalanceComparison([]);return;}
     let active=true;
     const gather=async()=>{
       try{
@@ -88,11 +92,11 @@ export default function Squads() {
           loadAll(base44.entities.TeamLineup,{team_type:"club",season})
         ]);
         if(!active)return;
-        setComparison(referenceTeams(membershipRows,players,teamId));
+        setComparison(referenceTeams(membershipRows.filter(m=>allowedTeamIds.has(String(m.team_id))),players,teamId));
         const distinct=new Set();
         const otherLineups=lineupRows.filter(l=>{
           const id=String(l.team_id);
-          if(id===String(teamId)||distinct.has(id))return false;
+          if(!allowedTeamIds.has(id)||id===String(teamId)||distinct.has(id))return false;
           distinct.add(id);return true;
         }).slice(0,12);
         const byPlayer=new Map(players.map(p=>[String(p.id),p]));
@@ -109,9 +113,9 @@ export default function Squads() {
     };
     gather();
     return ()=>{active=false};
-  },[teamId,season,players,seasonRevision]);
+  },[teamId,team?.id,season,players,seasonRevision,allowedTeamIds]);
   const ensurePlayerForSquad = async player => {
-    if(!teamId||!player?.id)throw new Error("Jugador o equipo no válido.");
+    if(!team||!player?.id)throw new Error("La asignación solo está disponible para clubes personalizados.");
     if(members.some(m=>String(m.player_id)===String(player.id)))return;
     if(busy)throw new Error("Hay otra operación en curso.");
     setBusy(true);setError("");
@@ -128,7 +132,7 @@ export default function Squads() {
     }catch(e){setError(e.message||"No se pudo vincular el jugador");throw e}
     finally{setBusy(false)}
   };
-  const chooseTeam = id => { if(lineupDirty&&!window.confirm("El once tiene cambios sin guardar. ¿Cambiar de equipo y descartarlos?"))return;setLineupDirty(false);setSeason(SEASON);setParams(id ? {team: String(id)} : {}); };
+  const chooseTeam = id => { if(id && !allowedTeamIds.has(String(id)))return; if(lineupDirty&&!window.confirm("El once tiene cambios sin guardar. ¿Cambiar de equipo y descartarlos?"))return;setLineupDirty(false);setSeason(SEASON);setParams(id ? {team: String(id)} : {}); };
   const navigateSeason = next => {
     if(!validSeason(next)){setError("Temporada no válida. Usa el formato 2020/2021.");return;}
     if(lineupDirty&&!window.confirm("El once tiene cambios sin guardar. ¿Cambiar de temporada y descartarlos?"))return;
@@ -136,7 +140,7 @@ export default function Squads() {
   };
   const copyRoster = async () => {
     if(busy)return;
-    if(!teamId||!validSeason(season)||!validSeason(copyFrom)||copyFrom===season){
+    if(!team||!validSeason(season)||!validSeason(copyFrom)||copyFrom===season){
       setError("Selecciona dos temporadas distintas y válidas.");return;
     }
     setBusy(true);setError("");setMessage("");
@@ -179,7 +183,7 @@ export default function Squads() {
     catch(e) { setError(e.message || "Error al guardar. No se han confirmado los cambios."); }
     finally { setBusy(false); }
   };
-  const add = p => { if(busy || !p?.id || !teamId)return; return act(async () => {
+  const add = p => { if(busy || !p?.id || !team)return; return act(async () => {
     if (members.some(m => String(m.player_id) === String(p.id))) return;
     await base44.entities.TeamSquadMembership.create({
       team_type:"club", team_id:teamId, player_id:String(p.id),season:season.trim(),
@@ -189,20 +193,23 @@ export default function Squads() {
     });
     setPlayerQuery("");
   }, "Jugador añadido a la plantilla."); };
-  const update = (m, patch) => !busy && m?.id && act(async () => { await base44.entities.TeamSquadMembership.update(m.id, patch); }, "Jugador actualizado.");
+  const update = (m, patch) => !busy && team && m?.id && act(async () => { await base44.entities.TeamSquadMembership.update(m.id, patch); }, "Jugador actualizado.");
   const remove = m => {
-    if (busy || !m?.id) return;
+    if (busy || !team || !m?.id) return;
     if (!window.confirm("¿Quitar a este jugador de esta plantilla? Sus fichas y estadísticas permanecerán intactas.")) return;
     act(() => base44.entities.TeamSquadMembership.delete(m.id), "Jugador retirado de la plantilla.");
   };
   return <div className="mx-auto max-w-[1650px] px-3 py-3 md:px-5 text-slate-900">
-    <div className="mb-3"><p className="text-xs font-bold uppercase tracking-[.2em] text-blue-700">MF LEGACY</p><h1 className="text-3xl md:text-4xl font-black">Plantillas y Onces</h1><p className="text-slate-500 mt-1">Gestiona las plantillas de los clubes creados. Gestiona tus equipos y construye alineaciones tácticas interactivas.</p></div>
+    <div className="mb-3"><p className="text-xs font-bold uppercase tracking-[.2em] text-blue-700">MF LEGACY</p><h1 className="text-3xl md:text-4xl font-black">Plantillas y Onces</h1><p className="text-slate-500 mt-1">Crea plantillas y onces de tus clubes personalizados, sin afectar a los equipos reales de la base.</p></div>
     <div className="grid grid-cols-1 lg:grid-cols-[205px_minmax(0,1fr)] gap-3">
-      <aside className="rounded-2xl border border-slate-200 bg-white p-4 lg:self-start"><h2 className="font-bold mb-3">Equipos</h2><div className="relative mb-3"><Search className="absolute left-3 top-3 text-slate-400" size={17}/><input aria-label="Buscar equipo" value={teamQuery} onChange={e=>setTeamQuery(e.target.value)} placeholder="Buscar equipo..." className="w-full rounded-lg border border-slate-200 p-2.5 pl-9"/></div>
-        <div className="max-h-[650px] overflow-auto space-y-1">{teams.filter(t=>t.name?.toLowerCase().includes(teamQuery.toLowerCase())).map(t=><button type="button" key={t.id} onClick={()=>chooseTeam(t.id)} className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-slate-100 ${teamId === String(t.id)?"bg-blue-50 ring-1 ring-blue-300":""}`}>{t.logo?<img src={t.logo} className="w-8 h-8 object-contain" alt=""/>:<Users size={23}/>}<span className="text-sm font-semibold">{t.name}</span></button>)}</div>
+      <aside className="rounded-2xl border border-slate-200 bg-white p-4 lg:self-start"><h2 className="font-bold mb-3">Mis clubes personalizados</h2><div className="relative mb-3"><Search className="absolute left-3 top-3 text-slate-400" size={17}/><input aria-label="Buscar equipo" value={teamQuery} onChange={e=>setTeamQuery(e.target.value)} placeholder="Buscar equipo..." className="w-full rounded-lg border border-slate-200 p-2.5 pl-9"/></div>
+        <div className="max-h-[650px] overflow-auto space-y-1">{customTeams.filter(t=>t.name?.toLowerCase().includes(teamQuery.toLowerCase())).map(t=><button type="button" key={t.id} onClick={()=>chooseTeam(t.id)} className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-slate-100 ${teamId === String(t.id)?"bg-blue-50 ring-1 ring-blue-300":""}`}>{t.logo?<img src={t.logo} className="w-8 h-8 object-contain" alt=""/>:<Users size={23}/>}<span className="text-sm font-semibold">{t.name}</span></button>)}</div>
       </aside>
       <section className="rounded-2xl border border-slate-200 bg-white p-3 md:p-4 min-h-[430px] min-w-0">
-        {!team ? <div className="flex items-center justify-center h-64 text-slate-500">Selecciona un equipo para gestionar su plantilla.</div> : <>
+        {!team ? <div className="flex flex-col items-center justify-center h-64 text-center gap-2 px-4">
+          <p className="font-semibold text-slate-700">{!loading && customTeams.length === 0 ? "Todavía no hay clubes marcados como personalizados." : "Selecciona uno de tus clubes personalizados."}</p>
+          <p className="text-sm text-slate-500">{teamId && !allowedTeamIds.has(teamId) ? "Este equipo no está marcado como club personalizado, por lo que no se puede editar aquí." : "Puedes marcar un club como personalizado desde su ficha en Equipos."}</p>
+        </div> : <>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><div className="flex gap-3 items-center">{team.logo&&<img src={team.logo} alt="" className="w-12 h-12 object-contain"/>}<div><h2 className="text-2xl font-extrabold">{team.name}</h2><p className="text-sm text-slate-500">{roster.length} jugadores asignados</p></div></div><label className="text-sm font-medium">Temporada <select aria-label="Temporada histórica" value={season} onChange={e=>navigateSeason(e.target.value)} className="block mt-1 w-40 rounded-lg border px-3 py-2">{sortSeasons([...seasonOptions,season]).map(s=><option key={s} value={s}>{s}</option>)}</select></label></div>
           <TacticalBuilder key={`${teamId}:${season}`} team={team} season={season} roster={roster} allPlayers={players} comparison={comparison} balanceComparison={balanceComparison} onEnsurePlayer={ensurePlayerForSquad} onDirtyChange={setLineupDirty} />
           <details className="mb-2 rounded-xl border border-blue-100 bg-blue-50/60 p-3"><summary className="cursor-pointer font-semibold text-sm">Temporadas históricas · Crear campaña o copiar plantilla</summary><div className="mt-3">
