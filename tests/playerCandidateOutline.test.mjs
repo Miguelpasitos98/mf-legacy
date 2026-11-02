@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {candidateOutlineClass} from "../src/components/players/playerCandidateOutline.mjs";
 
-test("the normal catalogue NEVER outlines candidates in green",()=>{
+test("normal catalogue stays neutral outside multi-selection",()=>{
  const candidate={manager_fit_candidate:true};
  assert.equal(candidateOutlineClass(candidate), "border-slate-200 hover:border-slate-300");
  assert.equal(candidateOutlineClass(candidate,false,false),"border-slate-200 hover:border-slate-300");
  assert.equal(candidateOutlineClass({manager_fit_candidate:false},false,true),"border-slate-200 hover:border-slate-300");
 });
-test("dedicated candidate view uses a soft emerald border and subtle ring",()=>{
+test("multi-select marks registered candidates in every PLAYERS view",()=>{
  const style=candidateOutlineClass({manager_fit_candidate:true},false,true);
  assert.match(style,/border-\[#8FAF9C\]/);
  assert.match(style,/ring-1 ring-\[#DDEAE0\]/);
@@ -25,20 +25,20 @@ test("only saved boolean true is eligible, even in candidate view",()=>{
  assert.equal(candidateOutlineClass({manager_fit_candidate:"true"},false,true),"border-slate-200 hover:border-slate-300");
  assert.equal(candidateOutlineClass({manager_fit_candidate:null},false,true),"border-slate-200 hover:border-slate-300");
 });
-test("candidate view passes the scope prop, not the ordinary catalogue",()=>{
+test("candidate outline is controlled directly by selectionMode on every card",()=>{
  const card=fs.readFileSync("src/components/players/PlayerCard.jsx","utf8");
  const players=fs.readFileSync("src/pages/Players.jsx","utf8");
- assert.match(card,/candidateOutlineClass\(player,selected,candidateView\)/);
- assert.match(players,/candidateView=\{bulkMode\} hasStats=/);
+ assert.match(card,/candidateOutlineClass\(player,selected,selectionMode\)/);
+ assert.doesNotMatch(players,/candidateView=/);
+ assert.equal((players.match(/<PlayerCard\b/g)||[]).length,(players.match(/selectionMode=\{bulkMode\}/g)||[]).length);
  assert.match(players,/viewMode === "candidates"/);
  assert.match(players,/viewMode === "all"/);
  assert.match(players,/const normalizePlayer = \(player\) => \(\{\s*\.\.\.player,/);
 });
 
-test("green candidate border is active only in multi-select, even in candidates view",()=>{
- const players=fs.readFileSync("src/pages/Players.jsx","utf8");
- assert.match(players,/candidateView=\{bulkMode\}/);
- assert.match(players,/selectionMode=\{bulkMode\}/);
- assert.equal(candidateOutlineClass({manager_fit_candidate:true},false,false),"border-slate-200 hover:border-slate-300");
- assert.match(candidateOutlineClass({manager_fit_candidate:true},false,true),/border-\[#8FAF9C\]/);
+test("candidate status does not equate to being selected",()=>{
+ const player={manager_fit_candidate:true};
+ assert.equal(candidateOutlineClass(player,false,false),"border-slate-200 hover:border-slate-300");
+ assert.match(candidateOutlineClass(player,false,true),/ring-1 ring-\[#DDEAE0\]/);
+ assert.match(candidateOutlineClass(player,true,true),/ring-2 ring-blue-300/);
 });

@@ -3439,14 +3439,14 @@ export default function Players() {
               </div>
             )}
 
-            {/* CANDIDATES — outline visible only in multi-selection mode */}
+            {/* CANDIDATES — outlines activate on all PLAYERS cards in multi-selection mode */}
             {viewMode === "candidates" && (
               <section className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
                   <h2 className="text-sm font-extrabold text-slate-800">Bolsa de candidatos · Manager Fit</h2>
                   <span className="text-xs font-semibold text-slate-500">{filteredPlayers.length} jugadores</span>
                 </div>
-                <p className="text-xs text-slate-600">El contorno verde salvia se activa cuando usas Selección múltiple. Fuera de ese modo, las tarjetas mantienen su diseño habitual.</p>
+                <p className="text-xs text-slate-600">Con «Selección múltiple», el contorno verde salvia identifica los jugadores que ya están en la bolsa, tanto aquí como en el catálogo general y las demás vistas. Fuera de ese modo, las tarjetas mantienen su diseño habitual.</p>
                 <div className="mf-player-grid gap-x-4 gap-y-4">
                   {filteredPlayers.map((player,index)=>(
                     <PlayerCard key={player.id || `${player.name}-${player.dateOfBirth}`}
@@ -3454,7 +3454,7 @@ export default function Players() {
                       country={countryById[player.countryId]}
                       selectionMode={bulkMode} selected={bulkSelectedIds.has(String(player.id))}
                       onToggleSelection={toggleBulkPlayer} onSelect={handleSelectPlayer}
-                      candidateView={bulkMode} hasStats={playersWithStats.has(String(player.id))}
+                      hasStats={playersWithStats.has(String(player.id))}
                       priority={index<6}/>
                   ))}
                 </div>
