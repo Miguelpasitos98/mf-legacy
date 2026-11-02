@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Search, Plus, Trash2, Users } from "lucide-react";
+import { Search, Plus, Trash2, Users, Copy, CalendarDays } from "lucide-react";
 import TacticalBuilder from "@/components/teams/TacticalBuilder";
 
 const SEASON = "2026/2027";
+const validSeason = value => /^20\d{2}\/20\d{2}$/.test(value) && Number(value.slice(5)) === Number(value.slice(0,4)) + 1;
+const sortSeasons = values => [...new Set(values.filter(validSeason))].sort((a,b)=>b.localeCompare(a));
 const loadAll = async (entity, filter = {}) => {
   let results = [];
   for (let skip = 0; skip <= 10000; skip += 200) {
@@ -24,6 +26,9 @@ export default function Squads() {
   const [teamQuery, setTeamQuery] = useState("");
   const [playerQuery, setPlayerQuery] = useState("");
   const [season, setSeason] = useState(SEASON);
+  const [seasonOptions, setSeasonOptions] = useState([SEASON]);
+  const [copyFrom, setCopyFrom] = useState("");
+  const [seasonRevision, setSeasonRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -40,6 +45,19 @@ export default function Squads() {
     return () => { alive = false };
   }, []);
   useEffect(() => {
+    if(!teamId){setSeasonOptions([SEASON]);setCopyFrom("");return;}
+    let live=true;
+    Promise.all([
+      loadAll(base44.entities.TeamSquadMembership,{team_type:"club",team_id:teamId}),
+      loadAll(base44.entities.TeamLineup,{team_type:"club",team_id:teamId})
+    ]).then(([memberships,lineups])=>{
+      if(!live)return;
+      const options=sortSeasons([SEASON,...memberships.map(m=>m.season),...lineups.map(l=>l.season)]);
+      setSeasonOptions(options);setCopyFrom(previous=>options.includes(previous)?previous:(options.find(s=>s!==season)||""));
+    }).catch(e=>{if(live)setError(e.message||"No se pudieron recuperar las temporadas históricas")});
+    return ()=>{live=false};
+  },[teamId,seasonRevision]);
+  useEffect(() => {
     if (!teamId || !season.trim()) { setMembers([]); return; }
     let alive = true;
     setError(""); setLoading(true);
@@ -48,7 +66,7 @@ export default function Squads() {
       .catch(e => alive && setError(e.message || "Error al cargar la plantilla"))
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
-  }, [teamId, season]);
+  }, [teamId, season, seasonRevision]);
   const roster = useMemo(() => members.map(m => ({ ...m, player: players.find(p => String(p.id) === String(m.player_id)) })).sort((a,b) => (a.sort_order ?? 999) - (b.sort_order ?? 999)), [members,players]);
   const candidates = useMemo(() => {
     const q = playerQuery.trim().toLocaleLowerCase();
@@ -56,11 +74,51 @@ export default function Squads() {
     const assigned = new Set(members.map(m => String(m.player_id)));
     return players.filter(p => !assigned.has(String(p.id)) && p.name?.toLocaleLowerCase().includes(q)).slice(0, 40);
   }, [players, members, playerQuery]);
-  const chooseTeam = id => setParams(id ? {team: String(id)} : {});
+  const chooseTeam = id => { setSeason(SEASON);setParams(id ? {team: String(id)} : {}); };
+  const navigateSeason = next => {
+    if(!validSeason(next)){setError("Temporada no válida. Usa el formato 2020/2021.");return;}
+    setError("");setMessage("");setSeason(next);
+  };
+  const copyRoster = async () => {
+    if(!teamId||!validSeason(season)||!validSeason(copyFrom)||copyFrom===season){
+      setError("Selecciona dos temporadas distintas y válidas.");return;
+    }
+    setBusy(true);setError("");setMessage("");
+    const created=[];
+    try {
+      const [source,destination]=await Promise.all([
+        loadAll(base44.entities.TeamSquadMembership,{team_type:"club",team_id:teamId,season:copyFrom}),
+        loadAll(base44.entities.TeamSquadMembership,{team_type:"club",team_id:teamId,season})
+      ]);
+      if(!source.length)throw new Error("La temporada de origen no tiene jugadores.");
+      const existing=new Set(destination.map(m=>String(m.player_id)));
+      const missing=source.filter(m=>!existing.has(String(m.player_id)));
+      if(!missing.length){setMessage("La temporada de destino ya contiene todos los jugadores de origen.");return;}
+      if(!window.confirm(`Copiar ${missing.length} jugadores de ${copyFrom} a ${season}? No se modificarán los registros existentes ni los onces.`))return;
+      try{
+        for(const m of missing){
+          const row=await base44.entities.TeamSquadMembership.create({
+            team_type:"club",team_id:teamId,player_id:String(m.player_id),season,
+            ...(m.shirt_number!=null?{shirt_number:m.shirt_number}:{}),
+            primary_position:m.primary_position||"",secondary_positions:m.secondary_positions||[],
+            squad_role:m.squad_role||"rotation",status:m.status||"active",sort_order:m.sort_order??0,
+            notes:m.notes||""
+          });
+          created.push(row);
+        }
+      }catch(e){
+        const rollback=await Promise.allSettled(created.map(row=>base44.entities.TeamSquadMembership.delete(row.id)));
+        throw new Error((e.message||"Error al copiar")+"; "+(rollback.some(x=>x.status==="rejected")?"revisa registros parcialmente creados.":"se han revertido los registros de esta operación."));
+      }
+      setMessage(`${created.length} jugadores copiados a ${season}. Los onces y estadísticas no se han modificado.`);
+      setSeasonRevision(v=>v+1);
+    }catch(e){setError(e.message||"No se pudo copiar la plantilla.")}
+    finally{setBusy(false)}
+  };
   const reload = async () => setMembers(await loadAll(base44.entities.TeamSquadMembership, {team_type:"club", team_id:teamId, season:season.trim()}));
   const act = async (fn, ok) => {
     setBusy(true); setError(""); setMessage("");
-    try { await fn(); await reload(); setMessage(ok); }
+    try { await fn(); await reload(); setSeasonRevision(v=>v+1); setMessage(ok); }
     catch(e) { setError(e.message || "Error al guardar. No se han confirmado los cambios."); }
     finally { setBusy(false); }
   };
@@ -87,7 +145,27 @@ export default function Squads() {
       </aside>
       <section className="rounded-2xl border border-slate-200 bg-white p-4 md:p-6 min-h-[430px]">
         {!team ? <div className="flex items-center justify-center h-64 text-slate-500">Selecciona un equipo para gestionar su plantilla.</div> : <>
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-5"><div className="flex gap-3 items-center">{team.logo&&<img src={team.logo} alt="" className="w-12 h-12 object-contain"/>}<div><h2 className="text-2xl font-extrabold">{team.name}</h2><p className="text-sm text-slate-500">{roster.length} jugadores asignados</p></div></div><label className="text-sm font-medium">Temporada <input aria-label="Temporada" value={season} onChange={e=>setSeason(e.target.value)} className="block mt-1 w-36 rounded-lg border px-3 py-2"/></label></div>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5"><div className="flex gap-3 items-center">{team.logo&&<img src={team.logo} alt="" className="w-12 h-12 object-contain"/>}<div><h2 className="text-2xl font-extrabold">{team.name}</h2><p className="text-sm text-slate-500">{roster.length} jugadores asignados</p></div></div><label className="text-sm font-medium">Temporada <select aria-label="Temporada histórica" value={season} onChange={e=>navigateSeason(e.target.value)} className="block mt-1 w-40 rounded-lg border px-3 py-2">{sortSeasons([...seasonOptions,season]).map(s=><option key={s} value={s}>{s}</option>)}</select></label></div>
+          <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/60 p-3 sm:p-4">
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+              <div><h3 className="font-bold flex items-center gap-2"><CalendarDays size={17}/> Archivo de temporadas</h3><p className="text-xs text-slate-600">Cambia de campaña sin alterar otras plantillas. Puedes copiar jugadores de una temporada existente.</p></div>
+              <label className="text-xs font-semibold">Abrir nueva campaña
+                <select aria-label="Abrir temporada histórica" value="" onChange={e=>{if(e.target.value)navigateSeason(e.target.value)}} className="block w-36 mt-1 rounded-lg border p-2 bg-white">
+                  <option value="">Seleccionar…</option>
+                  {Array.from({length:20},(_,i)=>{const y=2026-i;return `${y}/${y+1}`}).filter(s=>s!==season).map(s=><option value={s} key={s}>{s}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="flex flex-wrap items-end gap-2 mt-3">
+              <label className="text-xs font-semibold">Copiar plantilla desde
+                <select aria-label="Temporada origen" value={copyFrom} onChange={e=>setCopyFrom(e.target.value)} className="block w-40 mt-1 rounded-lg border bg-white p-2">
+                  <option value="">Seleccionar…</option>
+                  {seasonOptions.filter(s=>s!==season).map(s=><option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+              <button type="button" disabled={busy||loading||!copyFrom||copyFrom===season} onClick={copyRoster} className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"><Copy size={15}/> Copiar sin sobrescribir</button>
+            </div>
+          </div>
           {error&&<p role="alert" className="p-3 mb-3 rounded-lg bg-red-50 text-red-700">{error}</p>}{message&&<p role="status" className="p-3 mb-3 rounded-lg bg-green-50 text-green-700">{message}</p>}
           <div className="mb-6 rounded-xl border bg-slate-50 p-4"><label className="font-semibold text-sm block mb-2">Añadir jugador de MF LEGACY</label><div className="relative"><Search size={18} className="absolute left-3 top-3 text-slate-400"/><input value={playerQuery} onChange={e=>setPlayerQuery(e.target.value)} placeholder="Escribe al menos 2 letras del nombre..." aria-label="Buscar jugadores" className="w-full rounded-lg border bg-white p-2.5 pl-10"/></div>{playerQuery.trim().length>=2&&<div className="max-h-64 overflow-auto mt-2 rounded-lg border bg-white">{candidates.length===0?<p className="p-3 text-sm text-slate-500">Sin resultados disponibles.</p>:candidates.map(p=><div className="flex items-center gap-3 p-2 border-b last:border-0" key={p.id}>{playerImage(p)?<img src={playerImage(p)} alt="" className="w-9 h-9 rounded-full object-cover"/>:<div className="w-9 h-9 rounded-full bg-slate-200"/>}<span className="flex-1 text-sm font-medium">{p.name} <span className="text-slate-400">{p.position||""}</span></span><button disabled={busy} title="Añadir jugador" onClick={()=>add(p)} className="rounded-lg bg-blue-700 text-white p-2 disabled:opacity-50"><Plus size={16}/></button></div>)}</div>}</div>
           {!loading && <TacticalBuilder team={team} season={season} roster={roster} />}
