@@ -49,7 +49,7 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
     if(!exportRef.current||exporting)return;
     setExporting(true);setExportError("");
     try{
-      const canvas=await html2canvas(exportRef.current,{backgroundColor:"#071c17",scale:Math.max(2,Math.min(3,window.devicePixelRatio||2)),useCORS:true,allowTaint:false,logging:false});
+      const canvas=await html2canvas(exportRef.current,{backgroundColor:"#071c17",scale:Math.max(2,Math.min(3,window.devicePixelRatio||2)),useCORS:true,allowTaint:false,logging:false,imageTimeout:5000});
       const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png"));
       if(!blob)throw new Error("El navegador no pudo generar el archivo.");
       const url=URL.createObjectURL(blob);
@@ -62,7 +62,7 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
   };
   const listRecords = async (entity, filter) => {
     const all = [];
-    for(let skip=0;skip<=10000;skip+=200) {
+    for(let skip=0;skip<=100000;skip+=200) {
       const page = await entity.filter(filter, undefined, 200, skip);
       const rows = Array.isArray(page) ? page : page?.data || [];
       all.push(...rows);
@@ -81,6 +81,7 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
   const availableIds = new Set(roster.map(r=>String(r.player_id)));
   const markDirty = () => setDirty(true);
   const loadLineup = async id => {
+    if(busy)return;
     if(dirty && !window.confirm("Hay cambios sin guardar. ¿Descartarlos?")) return;
     if(!id){setSlots({});setBench([]);setActiveId("");setLineupName("Nuevo once");setDirty(false);return;}
     setBusy(true);setError("");
@@ -92,7 +93,14 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
       const chosen=lineups.find(l=>l.id===id && l.season===season && String(l.team_id)===String(team.id));
       if(!chosen) throw new Error("No se encontró el once seleccionado");
       const newSlots={};
-      for(const s of savedSlots) if(availableIds.has(String(s.player_id))) newSlots[s.slot_code]=String(s.player_id);
+      const validCodes=new Set((FORMATIONS[chosen.formation]||FORMATIONS["4-3-3"]).map(s=>s[2]));
+      const assignedIds=new Set();
+      for(const s of savedSlots.sort((a,b)=>String(a.created_date||"").localeCompare(String(b.created_date||"")))){
+        const pid=String(s.player_id);
+        if(validCodes.has(s.slot_code)&&availableIds.has(pid)&&!assignedIds.has(pid)){
+          newSlots[s.slot_code]=pid;assignedIds.add(pid);
+        }
+      }
       const occupied=new Set(Object.values(newSlots));
       const newBench=savedBench.sort((a,b)=>(a.bench_order??0)-(b.bench_order??0))
         .map(b=>String(b.player_id)).filter(pid=>availableIds.has(pid)&&!occupied.has(pid));
@@ -103,6 +111,7 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
     finally{setBusy(false)}
   };
   const saveLineup = async () => {
+    if(busy || loadingSaved)return;
     const name=lineupName.trim();
     if(!name){setError("Escribe un nombre para el once.");return;}
     if(!season.trim()){setError("La temporada es obligatoria.");return;}
@@ -132,15 +141,21 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
         await Promise.allSettled(inserted.map(x=>x.type==="slot"?base44.entities.TeamLineupSlot.delete(x.record.id):base44.entities.TeamLineupBench.delete(x.record.id)));
         throw e;
       }
-      for(const r of oldSlots) await base44.entities.TeamLineupSlot.delete(r.id);
-      for(const r of oldBench) await base44.entities.TeamLineupBench.delete(r.id);
+      // Reconcile only after all new children exist; leave a recoverable error if cleanup fails.
+      // A partial write must never be reported as a successful save.
       await base44.entities.TeamLineup.update(id,{name,formation});
+      const cleanup=await Promise.allSettled([
+        ...oldSlots.map(r=>base44.entities.TeamLineupSlot.delete(r.id)),
+        ...oldBench.map(r=>base44.entities.TeamLineupBench.delete(r.id))
+      ]);
+      if(cleanup.some(r=>r.status==="rejected"))throw new Error("La nueva versión se escribió, pero no se pudieron limpiar todos los registros anteriores. No vuelvas a guardar hasta revisar duplicados.");
       setActiveId(id);setDirty(false);setRevision(r=>r+1);setNotice("Once guardado correctamente.");
     }catch(e){
       setError("No se pudo completar el guardado: "+(e.message||"Error desconocido")+". Revisa el once antes de reintentarlo.");
     }finally{setBusy(false)}
   };
   const deleteLineup = async () => {
+    if(busy)return;
     if(!activeId||!window.confirm("¿Eliminar definitivamente este once guardado? La plantilla y los jugadores no se borrarán."))return;
     setBusy(true);setError("");
     try{
@@ -153,7 +168,7 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
     finally{setBusy(false)}
   };
   const toggleBench = id => {
-    if(!id)return;
+    if(!id || busy || Object.values(slots).includes(String(id)))return;
     const pid=String(id);
     setBench(b=>b.includes(pid)?b.filter(v=>v!==pid):[...b,pid]);
     setDirty(true);
@@ -163,7 +178,7 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
   const used = new Set([...Object.values(slots).filter(Boolean),...bench]);
   const available = roster.filter(r => !used.has(String(r.player_id)) && r.player?.name?.toLowerCase().includes(search.toLowerCase()));
   const place = (target,playerId) => {
-    if (!target || !playerId) return;
+    if (busy || !target || !playerId || !availableIds.has(String(playerId))) return;
     const displaced = slots[target];
     setSlots(s => assignSlot(s,target,String(playerId)));
     setBench(b=>b.filter(id=>id!==String(playerId) && id!==String(displaced)));
@@ -200,9 +215,9 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
     {exportError&&<p role="alert" className="mb-3 text-sm text-red-700">{exportError}</p>}
     {error&&<p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
     {notice&&<p role="status" className="mb-3 text-xs text-amber-700">{notice}</p>}
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_250px] gap-4">
+    <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_280px] gap-4">
       <div className="min-w-0">
-        <div ref={exportRef} className="rounded-2xl overflow-hidden bg-[#071c17] p-2 sm:p-4 text-white">
+        <div ref={exportRef} className="rounded-2xl overflow-hidden bg-[#071c17] p-2 sm:p-4 text-white min-w-0">
           <div className="mb-3 flex items-center gap-3 px-2 pt-2 min-w-0">
             {team.logo&&<img src={team.logo} crossOrigin="anonymous" alt="" className="w-10 h-10 sm:w-14 sm:h-14 object-contain flex-none"/>}
             <div className="min-w-0 flex-1"><p className="uppercase text-[10px] tracking-[.24em] text-lime-300 font-bold">MF LEGACY · TACTICAL XI</p><h4 className="font-black text-lg sm:text-2xl truncate">{team.name}</h4><p className="text-xs text-white/60">{lineupName} · {formation} · {season}</p></div>

@@ -9,7 +9,7 @@ const validSeason = value => /^20\d{2}\/20\d{2}$/.test(value) && Number(value.sl
 const sortSeasons = values => [...new Set(values.filter(validSeason))].sort((a,b)=>b.localeCompare(a));
 const loadAll = async (entity, filter = {}) => {
   let results = [];
-  for (let skip = 0; skip <= 10000; skip += 200) {
+  for (let skip = 0; skip <= 100000; skip += 200) {
     const page = await entity.filter(filter, undefined, 200, skip);
     const records = Array.isArray(page) ? page : page?.data ?? [];
     results = results.concat(records);
@@ -82,6 +82,7 @@ export default function Squads() {
     setLineupDirty(false);setError("");setMessage("");setSeason(next);
   };
   const copyRoster = async () => {
+    if(busy)return;
     if(!teamId||!validSeason(season)||!validSeason(copyFrom)||copyFrom===season){
       setError("Selecciona dos temporadas distintas y válidas.");return;
     }
@@ -94,7 +95,8 @@ export default function Squads() {
       ]);
       if(!source.length)throw new Error("La temporada de origen no tiene jugadores.");
       const existing=new Set(destination.map(m=>String(m.player_id)));
-      const missing=source.filter(m=>!existing.has(String(m.player_id)));
+      const seen=new Set(existing);
+      const missing=source.filter(m=>{const id=String(m.player_id);if(seen.has(id))return false;seen.add(id);return Boolean(m.player_id);});
       if(!missing.length){setMessage("La temporada de destino ya contiene todos los jugadores de origen.");return;}
       if(!window.confirm(`Copiar ${missing.length} jugadores de ${copyFrom} a ${season}? No se modificarán los registros existentes ni los onces.`))return;
       try{
@@ -124,7 +126,7 @@ export default function Squads() {
     catch(e) { setError(e.message || "Error al guardar. No se han confirmado los cambios."); }
     finally { setBusy(false); }
   };
-  const add = p => act(async () => {
+  const add = p => { if(busy || !p?.id || !teamId)return; return act(async () => {
     if (members.some(m => String(m.player_id) === String(p.id))) return;
     await base44.entities.TeamSquadMembership.create({
       team_type:"club", team_id:teamId, player_id:String(p.id),season:season.trim(),
@@ -133,9 +135,10 @@ export default function Squads() {
       squad_role:"rotation",status:"active",sort_order:members.length
     });
     setPlayerQuery("");
-  }, "Jugador añadido a la plantilla.");
-  const update = (m, patch) => act(async () => { await base44.entities.TeamSquadMembership.update(m.id, patch); }, "Jugador actualizado.");
+  }, "Jugador añadido a la plantilla."); };
+  const update = (m, patch) => !busy && m?.id && act(async () => { await base44.entities.TeamSquadMembership.update(m.id, patch); }, "Jugador actualizado.");
   const remove = m => {
+    if (busy || !m?.id) return;
     if (!window.confirm("¿Quitar a este jugador de esta plantilla? Sus fichas y estadísticas permanecerán intactas.")) return;
     act(() => base44.entities.TeamSquadMembership.delete(m.id), "Jugador retirado de la plantilla.");
   };
