@@ -3554,22 +3554,21 @@ export default function Players() {
                 {groupedByTeam.map(
                   (group) => (
                     <section key={group.id}>
-                      <GroupHeader
-                        type="team"
-                        name={
-                          group.team?.name ||
-                          "No club"
-                        }
-                        logo={group.team?.logo}
-                        count={group.players.length}
-                      />
-
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <GroupHeader type="team" name={group.team?.name||"Sin equipo"} logo={group.team?.logo} count={group.players.length} />
+                        {bulkMode&&<button type="button" disabled={bulkBusy}
+                          aria-pressed={group.players.length>0&&selectedGroupCount(bulkSelectedIds,group.players)===groupPlayerIds(group.players).length}
+                          onClick={()=>toggleBulkGroup(group.players)}
+                          className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-100 disabled:opacity-50">
+                          {group.players.length>0&&selectedGroupCount(bulkSelectedIds,group.players)===groupPlayerIds(group.players).length?"Quitar selección de equipo":"Seleccionar equipo"} ({selectedGroupCount(bulkSelectedIds,group.players)}/{groupPlayerIds(group.players).length})
+                        </button>}
+                      </div>
                       <div className="mf-player-grid gap-x-4 gap-y-4">
                         {group.players.map(
                           (player) => (
                             <PlayerCard
                           selectionMode={bulkMode}
-                          selected={bulkIds.includes(String(player.id))}
+                          selected={bulkSelectedIds.has(String(player.id))}
                           onToggleSelection={toggleBulkPlayer}
                               key={
                                 player.id ||

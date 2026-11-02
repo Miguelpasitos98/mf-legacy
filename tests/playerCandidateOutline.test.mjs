@@ -29,8 +29,16 @@ test("candidate view passes the scope prop, not the ordinary catalogue",()=>{
  const card=fs.readFileSync("src/components/players/PlayerCard.jsx","utf8");
  const players=fs.readFileSync("src/pages/Players.jsx","utf8");
  assert.match(card,/candidateOutlineClass\(player,selected,candidateView\)/);
- assert.match(players,/candidateView hasStats=/);
+ assert.match(players,/candidateView=\{bulkMode\} hasStats=/);
  assert.match(players,/viewMode === "candidates"/);
  assert.match(players,/viewMode === "all"/);
  assert.match(players,/const normalizePlayer = \(player\) => \(\{\s*\.\.\.player,/);
+});
+
+test("green candidate border is active only in multi-select, even in candidates view",()=>{
+ const players=fs.readFileSync("src/pages/Players.jsx","utf8");
+ assert.match(players,/candidateView=\{bulkMode\}/);
+ assert.match(players,/selectionMode=\{bulkMode\}/);
+ assert.equal(candidateOutlineClass({manager_fit_candidate:true},false,false),"border-slate-200 hover:border-slate-300");
+ assert.match(candidateOutlineClass({manager_fit_candidate:true},false,true),/border-\[#8FAF9C\]/);
 });
