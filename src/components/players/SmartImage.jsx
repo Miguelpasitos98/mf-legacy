@@ -1,53 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
+import {directPlayerImageUrl} from "./playerPhotoSource.mjs";
 
 /**
- * SmartImage — imagen con gestión robusta de carga para fotografías externas.
- *
- * - Estados por imagen: loading / loaded / error.
- * - Skeleton discreto mientras carga (no aparece el placeholder prematuramente).
- * - Reintentos automáticos (máximo 3) con espera progresiva para errores
- *   temporales (429, 5xx, red, CORS). Conserva la URL original para no romper
- *   la caché del navegador: las fotos ya cargadas se reutilizan al filtrar,
- *   ordenar o volver a Players.
- * - Distingue errores permanentes (400/403/404/410) de temporales mediante una
- *   sonda HEAD best-effort. Una URL inválida no se reintenta indefinidamente.
- * - `loading="lazy"` por defecto; `eager` para priorizar la primera fila.
- * - Cancela reintentos al desmontar o al cambiar la URL (sin condiciones de carrera).
+ * Photos may be stored as GitHub blob links that redirect repeatedly.
+ * Resolve to the image host and retry temporary failures without issuing
+ * CORS HEAD probes for every card (which can be rejected by the provider).
+ * Keep original player image fields unchanged.
  */
-
-const MAX_ATTEMPTS = 3;
-const BACKOFF_MS = [600, 1200, 2400];
-
-const isPermanentStatus = (status) =>
-  status === 400 ||
-  status === 403 ||
-  status === 404 ||
-  status === 410 ||
-  status === 451;
-
-const probeUrl = (url, timeoutMs = 4000) =>
-  new Promise((resolve) => {
-    if (typeof AbortController === "undefined" || typeof fetch === "undefined") {
-      resolve({ status: null, probed: false });
-      return;
-    }
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    fetch(url, {
-      method: "HEAD",
-      mode: "cors",
-      cache: "no-cache",
-      signal: controller.signal,
-    })
-      .then((res) => {
-        clearTimeout(timer);
-        resolve({ status: res.status, probed: true });
-      })
-      .catch(() => {
-        clearTimeout(timer);
-        resolve({ status: null, probed: false });
-      });
-  });
+const MAX_RETRIES=3;
+const BACKOFF_MS=[900,2200,4400];
 
 export default function SmartImage({
   src,
@@ -56,7 +17,8 @@ export default function SmartImage({
   fallback = null,
   eager = false,
 }) {
-  const [status, setStatus] = useState(() => (src ? "loading" : "error"));
+  const directSrc=directPlayerImageUrl(src);
+  const [status, setStatus] = useState(() => (directSrc ? "loading" : "error"));
   const [reloadKey, setReloadKey] = useState(0);
   const attemptRef = useRef(0);
   const timerRef = useRef(null);
@@ -65,7 +27,7 @@ export default function SmartImage({
   useEffect(() => {
     cancelledRef.current = false;
     attemptRef.current = 0;
-    setStatus(src ? "loading" : "error");
+    setStatus(directSrc ? "loading" : "error");
     setReloadKey((k) => k + 1);
     return () => {
       cancelledRef.current = true;
@@ -74,7 +36,7 @@ export default function SmartImage({
         timerRef.current = null;
       }
     };
-  }, [src]);
+  }, [directSrc]);
 
   const handleLoaded = () => {
     if (cancelledRef.current) return;
@@ -83,12 +45,13 @@ export default function SmartImage({
 
   const scheduleRetry = () => {
     if (cancelledRef.current) return;
-    if (attemptRef.current >= MAX_ATTEMPTS) {
+    if (attemptRef.current >= MAX_RETRIES) {
       setStatus("error");
       return;
     }
-    const delay = BACKOFF_MS[attemptRef.current] ?? 2400;
+    const delay = BACKOFF_MS[attemptRef.current] ?? 4400;
     timerRef.current = setTimeout(() => {
+      timerRef.current = null;
       if (cancelledRef.current) return;
       attemptRef.current += 1;
       setReloadKey((k) => k + 1);
@@ -97,23 +60,14 @@ export default function SmartImage({
   };
 
   const handleError = () => {
-    if (cancelledRef.current) return;
-    // Solo se sondan URLs http(s). data:/blob:/otros se reintentan sin sonda.
-    if (!/^https?:\/\//i.test(src)) {
-      scheduleRetry();
-      return;
-    }
-    probeUrl(src).then((result) => {
-      if (cancelledRef.current) return;
-      if (result.probed && result.status !== null && isPermanentStatus(result.status)) {
-        setStatus("error");
-        return;
-      }
-      scheduleRetry();
-    });
+    // A browser image request is authoritative; CORS HEAD probes are not.
+    // Retrying the already-resolved image source avoids additional GitHub
+    // redirects and the avalanche of 403/429 HEAD responses.
+    if (cancelledRef.current || timerRef.current!==null)return;
+    scheduleRetry();
   };
 
-  if (!src || status === "error") {
+  if (!directSrc || status === "error") {
     return fallback;
   }
 
@@ -127,7 +81,7 @@ export default function SmartImage({
       )}
       <img
         key={reloadKey}
-        src={src}
+        src={directSrc}
         alt={alt}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
