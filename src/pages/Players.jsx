@@ -3555,7 +3555,7 @@ export default function Players() {
                   (group) => (
                     <section key={group.id}>
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <GroupHeader type="team" name={group.team?.name||"Sin equipo"} logo={group.team?.logo} count={group.players.length} />
+                        <div className="min-w-0 flex-1"><GroupHeader type="team" name={group.team?.name||"Sin equipo"} logo={group.team?.logo} count={group.players.length} /></div>
                         {bulkMode&&<button type="button" disabled={bulkBusy}
                           aria-pressed={group.players.length>0&&selectedGroupCount(bulkSelectedIds,group.players)===groupPlayerIds(group.players).length}
                           onClick={()=>toggleBulkGroup(group.players)}
