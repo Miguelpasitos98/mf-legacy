@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import {
   Search, Plus, X, Upload, FileText, CheckCircle2, AlertCircle,
   Loader2, Users, Building2, Globe2, ChevronDown,
-  ArrowDownAZ, ArrowUpAZ, Cake, Goal,
+  ArrowDownAZ, ArrowUpAZ, Cake, Goal, ChevronRight, ChevronUp,
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
 import {candidatePoolValue} from "@/components/managers/managerCandidatePool.mjs";
 import {groupPlayersByLeague} from "@/components/players/playerLeagueGroups.mjs";
+import {groupPlayerIds,selectedGroupCount,toggleGroupSelection} from "@/components/players/playerGroupSelection.mjs";
 import {updatePlayerCacheRows} from "@/utils/playerEditPatch";
 import {readPlayersViewState,savePlayersViewState} from "@/utils/playersViewState";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
@@ -1369,6 +1370,8 @@ export default function Players() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkFeedback, setBulkFeedback] = useState("");
   const [bulkDeleteIds, setBulkDeleteIds] = useState([]);
+  const [collapsedLeagues,setCollapsedLeagues]=useState({});
+  const [collapsedLeagueTeams,setCollapsedLeagueTeams]=useState({});
 
 
 
@@ -1667,6 +1670,9 @@ export default function Players() {
     finally { setFm26Busy(false); }
   };
 
+  const toggleLeagueFold = useCallback(id=>setCollapsedLeagues(old=>({...old,[id]:!old[id]})),[]);
+  const toggleLeagueTeamFold = useCallback(id=>setCollapsedLeagueTeams(old=>({...old,[id]:!old[id]})),[]);
+  const toggleBulkGroup = useCallback(groupPlayers=>setBulkIds(old=>toggleGroupSelection(old,groupPlayers)),[]);
   const toggleBulkPlayer = useCallback((id) => {
     const key = String(id);
     setBulkIds(old => old.includes(key) ? old.filter(x => x !== key) : [...old, key]);
@@ -1991,6 +1997,7 @@ export default function Players() {
     });
   }, [filteredPlayers, teamById, viewMode]);
 
+  const bulkSelectedIds=useMemo(()=>new Set(bulkIds),[bulkIds]);
   const groupedByLeague = useMemo(
     ()=>viewMode==="leagues"?groupPlayersByLeague(filteredPlayers,teamById,catalogLeagues):[],
     [filteredPlayers,teamById,catalogLeagues,viewMode]
@@ -3432,61 +3439,112 @@ export default function Players() {
               </div>
             )}
 
-            {/* CANDIDATES — emerald outlines are deliberately exclusive to this view */}
+            {/* CANDIDATES — outline visible only in multi-selection mode */}
             {viewMode === "candidates" && (
               <section className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
                   <h2 className="text-sm font-extrabold text-slate-800">Bolsa de candidatos · Manager Fit</h2>
                   <span className="text-xs font-semibold text-slate-500">{filteredPlayers.length} jugadores</span>
                 </div>
-                <p className="text-xs text-slate-600">El contorno verde suave identifica exclusivamente a los futbolistas que has añadido a tu bolsa. En la vista general las tarjetas mantienen su diseño habitual.</p>
+                <p className="text-xs text-slate-600">El contorno verde salvia se activa cuando usas Selección múltiple. Fuera de ese modo, las tarjetas mantienen su diseño habitual.</p>
                 <div className="mf-player-grid gap-x-4 gap-y-4">
                   {filteredPlayers.map((player,index)=>(
                     <PlayerCard key={player.id || `${player.name}-${player.dateOfBirth}`}
                       player={player} team={teamById[player.teamId]}
                       country={countryById[player.countryId]}
-                      selectionMode={bulkMode} selected={bulkIds.includes(String(player.id))}
+                      selectionMode={bulkMode} selected={bulkSelectedIds.has(String(player.id))}
                       onToggleSelection={toggleBulkPlayer} onSelect={handleSelectPlayer}
-                      candidateView hasStats={playersWithStats.has(String(player.id))}
+                      candidateView={bulkMode} hasStats={playersWithStats.has(String(player.id))}
                       priority={index<6}/>
                   ))}
                 </div>
               </section>
             )}
 
-            {/* BY LEAGUES — current club association; no historical inference */}
+            {/* BY LEAGUES — current club association; fold and bulk-select filtered groups */}
             {viewMode === "leagues" && (
-              <div className="space-y-8">
+              <div className="space-y-6">
                 {leaguesViewQuery.isLoading&&<p role="status" className="text-xs text-slate-500">Cargando competiciones…</p>}
                 {leaguesViewQuery.isError&&<p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">No se ha podido consultar el catálogo de ligas. Se muestran los equipos en sus grupos de competición pendientes de identificar, sin perder jugadores.</p>}
-                <p className="text-xs text-slate-500">Los jugadores se agrupan por la liga que figura actualmente en su equipo de MF LEGACY. Esta vista no reconstruye las ligas de temporadas históricas.</p>
-                {groupedByLeague.map(league=>(
-                  <section key={league.id} className="space-y-3">
-                    <GroupHeader type="league" name={league.name} logo={league.logo}
-                      count={league.count} />
-                    {league.unresolved&&<p className="text-xs text-amber-800">La liga de estos equipos todavía no tiene una ficha identificada en el catálogo.</p>}
-                    <div className="space-y-5">
-                      {league.teams.map(group=>(
-                        <div key={group.id} className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600">
-                            {normalizeImageUrl(group.team?.logo)&&<img alt="" loading="lazy" src={normalizeImageUrl(group.team.logo)} className="h-6 w-6 object-contain"/>}
-                            <span>{group.name}</span><span className="font-normal text-slate-400">· {group.players.length} jugadores</span>
-                          </div>
-                          <div className="mf-player-grid gap-x-4 gap-y-4">
-                            {group.players.map(player=>(
-                              <PlayerCard key={player.id || `${player.name}-${player.dateOfBirth}`}
-                                player={player} team={group.team} country={countryById[player.countryId]}
-                                selectionMode={bulkMode} selected={bulkIds.includes(String(player.id))}
-                                onToggleSelection={toggleBulkPlayer} onSelect={handleSelectPlayer}
-                                hasStats={playersWithStats.has(String(player.id))}
-                                compact hideTeam/>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                <div className="flex flex-wrap justify-between items-center gap-2">
+                  <p className="text-xs text-slate-500">Agrupación por liga actual de cada club. Los filtros activos se respetan al seleccionar grupos.</p>
+                  {groupedByLeague.length>0&&<div className="flex gap-2 text-xs">
+                    <button type="button" className="rounded-lg border bg-white px-3 py-1.5 font-semibold hover:bg-slate-50" onClick={()=>setCollapsedLeagues(Object.fromEntries(groupedByLeague.map(g=>[g.id,true])))}>Plegar todas</button>
+                    <button type="button" className="rounded-lg border bg-white px-3 py-1.5 font-semibold hover:bg-slate-50" onClick={()=>{setCollapsedLeagues({});setCollapsedLeagueTeams({})}}>Desplegar todas</button>
+                  </div>}
+                </div>
+                {groupedByLeague.map(league=>{
+                  const leagueKey=String(league.id);
+                  const leaguePlayers=league.teams.flatMap(teamGroup=>teamGroup.players);
+                  const leagueSelected=selectedGroupCount(bulkSelectedIds,leaguePlayers);
+                  const leagueTotal=groupPlayerIds(leaguePlayers).length;
+                  const isLeagueClosed=Boolean(collapsedLeagues[leagueKey]);
+                  return <section key={leagueKey} className="rounded-xl border border-slate-200 bg-white p-3 md:p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <button type="button" aria-expanded={!isLeagueClosed}
+                        aria-label={(isLeagueClosed?"Desplegar ":"Plegar ")+league.name}
+                        onClick={()=>toggleLeagueFold(leagueKey)}
+                        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left hover:bg-slate-50">
+                        {normalizeImageUrl(league.logo)?
+                          <img src={normalizeImageUrl(league.logo)} alt="" loading="lazy" className="h-10 w-10 shrink-0 object-contain"/>:
+                          <Globe2 size={22} className="shrink-0 text-slate-400"/>}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-extrabold text-slate-900">{league.name}</span>
+                          <span className="block text-[11px] text-slate-500">{leagueTotal} jugadores · {league.teams.length} equipos{bulkMode?` · ${leagueSelected} seleccionados`:""}</span>
+                        </span>
+                        {isLeagueClosed?<ChevronRight size={19} className="shrink-0 text-slate-500"/>:<ChevronUp size={19} className="shrink-0 text-slate-500"/>}
+                      </button>
+                      {bulkMode&&<button type="button" disabled={bulkBusy||leagueTotal===0}
+                        aria-pressed={leagueTotal>0&&leagueSelected===leagueTotal}
+                        onClick={()=>toggleBulkGroup(leaguePlayers)}
+                        className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-100 disabled:opacity-50">
+                        {leagueTotal>0&&leagueSelected===leagueTotal?"Quitar selección de liga":"Seleccionar liga"} ({leagueSelected}/{leagueTotal})
+                      </button>}
                     </div>
-                  </section>
-                ))}
+                    {!isLeagueClosed&&<>
+                      {league.unresolved&&<p className="text-xs text-amber-800">La liga todavía no tiene una ficha identificada en el catálogo.</p>}
+                      <div className="space-y-3">
+                        {league.teams.map(group=>{
+                          const teamKey=leagueKey+"::"+String(group.id);
+                          const teamSelected=selectedGroupCount(bulkSelectedIds,group.players);
+                          const teamTotal=groupPlayerIds(group.players).length;
+                          const isTeamClosed=Boolean(collapsedLeagueTeams[teamKey]);
+                          return <section key={teamKey} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2 md:p-3 space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <button type="button" aria-expanded={!isTeamClosed}
+                                aria-label={(isTeamClosed?"Desplegar ":"Plegar ")+group.name}
+                                onClick={()=>toggleLeagueTeamFold(teamKey)}
+                                className="flex min-w-0 flex-1 items-center gap-2 rounded-md p-1 text-left hover:bg-slate-100">
+                                {normalizeImageUrl(group.team?.logo)?
+                                  <img src={normalizeImageUrl(group.team.logo)} alt="" loading="lazy" className="h-7 w-7 shrink-0 object-contain"/>:
+                                  <Building2 size={19} className="shrink-0 text-slate-400"/>}
+                                <span className="min-w-0 flex-1 truncate text-xs font-extrabold text-slate-700">{group.name}</span>
+                                <span className="shrink-0 text-[11px] text-slate-500">{teamTotal}{bulkMode?` · ${teamSelected} sel.`:""}</span>
+                                {isTeamClosed?<ChevronRight size={17} className="shrink-0 text-slate-500"/>:<ChevronUp size={17} className="shrink-0 text-slate-500"/>}
+                              </button>
+                              {bulkMode&&<button type="button" disabled={bulkBusy||teamTotal===0}
+                                aria-pressed={teamTotal>0&&teamSelected===teamTotal}
+                                onClick={()=>toggleBulkGroup(group.players)}
+                                className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-bold text-blue-800 hover:bg-blue-50 disabled:opacity-50">
+                                {teamTotal>0&&teamSelected===teamTotal?"Quitar selección":"Seleccionar equipo"} ({teamSelected}/{teamTotal})
+                              </button>}
+                            </div>
+                            {!isTeamClosed&&<div className="mf-player-grid gap-x-4 gap-y-4">
+                              {group.players.map(player=>(
+                                <PlayerCard key={player.id || `${player.name}-${player.dateOfBirth}`}
+                                  player={player} team={group.team} country={countryById[player.countryId]}
+                                  selectionMode={bulkMode} selected={bulkSelectedIds.has(String(player.id))}
+                                  onToggleSelection={toggleBulkPlayer} onSelect={handleSelectPlayer}
+                                  hasStats={playersWithStats.has(String(player.id))}
+                                  compact hideTeam/>
+                              ))}
+                            </div>}
+                          </section>;
+                        })}
+                      </div>
+                    </>}
+                  </section>;
+                })}
               </div>
             )}
 
