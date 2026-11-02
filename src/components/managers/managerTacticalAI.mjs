@@ -162,6 +162,10 @@ export function normalizeResearchScope(data,{onWarning}={}){
   season:["season","single_season","temporada","campaign","campana"]
  };
  const normalized=cleanEnumToken(data?.profile_scope);
+ if(!normalized&&!validSeason(data?.season)&&!validSeason(data?.period_start)){
+   // Legacy JSON supplies no structured scope. Preserve ETAPA REPRESENTADA.
+   return null;
+ }
  for(const [canonical,items] of Object.entries(aliases))if(items.includes(normalized))return canonical;
  // Explicit valid dates can recover a period or a single season without
  // inventing calendar boundaries.
@@ -219,7 +223,7 @@ export function parseManagerTacticalResponse(input) {
     throw Error("Falta la justificación del análisis táctico.");
   const sourceUrls=Array.isArray(data.source_urls)
     ? [...new Set(data.source_urls.filter(validHttp).map(x=>x.trim()))].slice(0,8):[];
-  const context=inferManagerProfileContext({...data,profile_scope:scope});
+  const context=inferManagerProfileContext(scope===null?data:{...data,profile_scope:scope});
   return {context,values:{...numeric,formation,...tacticalValues},roleText,notes:data.profile_notes.trim().slice(0,3500),
     sourceUrls,confidence,warnings};
 }
