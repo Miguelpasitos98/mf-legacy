@@ -51,6 +51,7 @@ export default function Managers(){
  const selected=managers.find(m=>String(m.id)===managerParam)||null;
  const chosenCountry=useMemo(()=>resolveManagerCountry(managerDraft,countries),[managerDraft.country_id,managerDraft.nationality,countries]);
  const sortedCountries=useMemo(()=>countries.filter(c=>c?.id&&c?.name).sort((a,b)=>String(a.name).localeCompare(String(b.name),"es")),[countries]);
+ const filteredCountries=useMemo(()=>sortedCountries.filter(c=>!countrySearch||normalize(c.name+" "+(c.code||"")).includes(normalize(countrySearch))||String(c.id)===String(chosenCountry?.id)),[sortedCountries,countrySearch,chosenCountry?.id]);
  const customTeams=useMemo(()=>teams.filter(isCustomTeam).sort((a,b)=>String(a.name).localeCompare(String(b.name))),[teams]);
  const managerProfiles=useMemo(()=>profiles.filter(p=>String(p.manager_id)===String(selected?.id||"")).sort((a,b)=>Number(Boolean(b.is_default))-Number(Boolean(a.is_default))||String(b.season||"").localeCompare(String(a.season||""))),[profiles,selected?.id]);
  const managerAssignments=assignments.filter(a=>String(a.manager_id)===String(selected?.id)&&a.team_type==="club"&&customTeams.some(t=>String(t.id)===String(a.team_id)));
@@ -154,6 +155,7 @@ export default function Managers(){
   event.preventDefault();if(busy||isAdmin!==true)return;
   setBusy(true);setError("");setNotice("");
   try{
+   if(managerDraft.nationality&&!chosenCountry)throw Error("Selecciona la nacionalidad desde Countries. El texto antiguo no está vinculado a ningún país.");
    const payload=cleanManager({...managerDraft,country_id:chosenCountry?.id||"",nationality:chosenCountry?.name||managerDraft.nationality});
    if(selected){
     await base44.entities.Manager.update(selected.id,payload);
@@ -281,9 +283,10 @@ export default function Managers(){
         {chosenCountry?.flag&&<img src={chosenCountry.flag} alt="" className="h-7 w-10 rounded object-contain shrink-0" onError={e=>{e.currentTarget.style.display="none"}}/>}
         <select aria-label="País de nacionalidad" className={input} value={chosenCountry?.id||""} onChange={e=>changeCountry(e.target.value)} disabled={!canWrite}>
           <option value="">Seleccionar país de Countries…</option>
-          {sortedCountries.map(country=><option key={country.id} value={country.id}>{country.name}{country.code?" · "+country.code:""}</option>)}
+          {filteredCountries.map(country=><option key={country.id} value={country.id}>{country.name}{country.code?" · "+country.code:""}</option>)}
         </select>
        </div>
+       <input aria-label="Buscar países de Countries" className={input+" mt-2"} value={countrySearch} onChange={e=>setCountrySearch(e.target.value)} placeholder="Filtrar países por nombre o código…" disabled={!canWrite}/>
        {!chosenCountry&&managerDraft.nationality&&<p className="text-xs text-amber-700 mt-1">Nombre anterior: {managerDraft.nationality}. Selecciona su ficha de Countries para vincularlo.</p>}
        <p className="text-[11px] text-slate-500 mt-1">Se guardará el ID de Country; no se creará ningún país nuevo.</p>
       </div>
