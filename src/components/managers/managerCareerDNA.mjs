@@ -120,6 +120,7 @@ export function parseManagerCareerResponse(input){
     if(!["period","season"].includes(profileScope))
       throw Error("Cada evolución requiere periodo o temporada específicos y fechas válidas: "+id+".");
     const normalized=parseManagerTacticalResponse({...model,profile_scope:profileScope,identifiable:true,confidence});
+    warnings.push(...scopeWarnings.map(w=>({...w,modelId:id})),...normalized.warnings.map(w=>({...w,modelId:id})));
     // Also check compatible dates with the canonical saved entity schema.
     const draft=previewManagerTacticalDraft({...PROFILE_BLANK,name:"Modelo principal"},normalized);
     draft.name=trim(model.suggested_name||draft.name,140);
@@ -146,6 +147,7 @@ export function parseManagerCareerResponse(input){
       successTier,resultsSummary:resultSummary,honours,changes};
   });
   const generalParsed=parseManagerTacticalResponse({...data.general_philosophy,profile_scope:"general",identifiable:true,confidence});
+  warnings.push(...generalParsed.warnings.map(w=>({...w,modelId:"general"})));
   const general=previewManagerTacticalDraft({...PROFILE_BLANK,name:"Filosofía general"},generalParsed);
   general.name="Filosofía general"; general.profile_scope="general";
   cleanProfile(general,"placeholder",generalParsed.roleText);

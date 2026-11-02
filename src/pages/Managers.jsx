@@ -50,6 +50,7 @@ export default function Managers(){
  const [dnaJsonInput,setDnaJsonInput]=useState("");
  const [dnaDraftReady,setDnaDraftReady]=useState(false);
  const [scopeSuggestion,setScopeSuggestion]=useState(null);
+ const [tacticalWarnings,setTacticalWarnings]=useState([]);
  const dnaIdentityRef=useRef("");
  const [tab,setTab]=useState("identity");
  const [managerDraft,setManagerDraft]=useState({...MANAGER_BLANK});
@@ -99,7 +100,7 @@ export default function Managers(){
  useEffect(()=>{
   setManagerDraft(selected?{...MANAGER_BLANK,...selected}:{...MANAGER_BLANK});
   setProfileId("");setTab(newManagerTabRef.current===String(selected?.id)?"dna":"identity");
-  newManagerTabRef.current="";setDnaDraftReady(false);setScopeSuggestion(null);setShowDNAPrompt(false);setDnaJsonInput("");setDnaContext("");setCareerDraft(null);setCareerSelected({});setNotice("");setError("");
+  newManagerTabRef.current="";setDnaDraftReady(false);setScopeSuggestion(null);setTacticalWarnings([]);setShowDNAPrompt(false);setDnaJsonInput("");setDnaContext("");setCareerDraft(null);setCareerSelected({});setNotice("");setError("");
  },[selected?.id]);
  useEffect(()=>{
   const profilesOfSelected=profiles.filter(p=>String(p.manager_id)===String(selected?.id||""));
@@ -146,7 +147,7 @@ export default function Managers(){
      setCareerDraft(parsed);
      const selection=Object.fromEntries([...parsed.models.map(m=>[m.id,true]),["general",true]]);
      setCareerSelected(selection);setCareerMakeGeneralDefault(false);
-     setNotice("Investigación histórica cargada: "+parsed.models.length+" grandes evoluciones y una filosofía general. Revisa los modelos antes de importarlos. Nada se ha guardado.");
+     setNotice("Investigación histórica cargada: "+parsed.models.length+" grandes evoluciones y una filosofía general. Revisa los modelos antes de importarlos. Nada se ha guardado."+(parsed.warnings.length?" Se han detectado "+parsed.warnings.length+" valores no estándar y se han marcado para revisión, sin repetir la investigación.":""));
      setError("");return true;
    }
    return applyTacticalProposal(data,identity);
@@ -216,10 +217,11 @@ export default function Managers(){
    const context=effectiveProfileContext(profileDraft,parsed);
    setScopeSuggestion(context);
    setRoleText(parsed.roleText);
+   setTacticalWarnings(parsed.warnings||[]);
    setDnaDraftReady(true);
    const label=context?.scope==="period"?"Etapa "+context.period_start+"–"+context.period_end:
      context?.scope==="season"?"Temporada "+context.season:"Filosofía general";
-   setNotice("ADN táctico propuesto (confianza "+parsed.confidence+"). Alcance detectado: "+label+". Revisa fechas, nombre y fuentes; NO se ha guardado en Base44.");
+   setNotice("ADN táctico propuesto (confianza "+parsed.confidence+"). Alcance detectado: "+label+". Revisa fechas, nombre y fuentes; NO se ha guardado en Base44."+(parsed.warnings.length?" "+parsed.warnings.length+" valor(es) no estándar ajustado(s) provisionalmente y detallado(s) en las notas.":""));
    setError("");
    return true;
  };
@@ -527,6 +529,10 @@ export default function Managers(){
            <div><h4 className="font-extrabold">Trayectoria táctica identificada</h4><p className="text-xs text-slate-600">{careerDraft.models.length} modelos históricos y una síntesis. Confianza de la investigación: {careerDraft.confidence}. Las valoraciones de éxito son cualitativas.</p></div>
            <span className="text-xs font-bold border rounded-lg px-2 py-1">Revisión previa · Sin guardar</span>
          </div>
+         {careerDraft.warnings.length>0&&<div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+           <strong>Valores de IA para revisión ({careerDraft.warnings.length}).</strong> Se ha conservado el análisis sin inventar tácticas. Comprueba los campos antes de guardar.
+           <ul className="mt-2 list-disc space-y-1 pl-4">{careerDraft.warnings.slice(0,16).map((w,i)=><li key={i}>{w.modelId?String(w.modelId)+" · ":""}{w.field}: «{w.original}» → «{w.fallback}». {w.reason}.</li>)}</ul>
+         </div>}
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">{careerDraft.models.map(item=><div className="border rounded-xl p-3 space-y-2" key={item.id}>
            <div className="flex gap-2 items-start">
              <label className="flex items-center gap-2 flex-1 text-sm font-bold"><input type="checkbox" disabled={!canWrite||busy} checked={Boolean(careerSelected[item.id])} onChange={e=>setCareerSelected(prev=>({...prev,[item.id]:e.target.checked}))}/>{item.profile.name}</label>
@@ -551,6 +557,10 @@ export default function Managers(){
          </div>
          <p className="text-xs text-slate-600">Los perfiles se crearán como nuevos registros solo después de confirmar. Si ya existe la misma etapa, no se sobrescribirá. Abrir un modelo en el editor no modifica el lote seleccionado.</p>
          <button type="button" onClick={saveCareerProfiles} disabled={!canWrite||busy||generatingDNA||!Object.values(careerSelected).some(Boolean)} className={primary}>Guardar modelos seleccionados ({Object.values(careerSelected).filter(Boolean).length})</button>
+       </div>}
+       {dnaDraftReady&&tacticalWarnings.length>0&&<div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+         <strong>{tacticalWarnings.length} valor(es) del JSON requieren revisión.</strong> La investigación se ha conservado y los originales figuran en las notas.
+         <ul className="mt-2 list-disc pl-4 space-y-1">{tacticalWarnings.map((w,i)=><li key={i}>{w.field}: «{w.original}» → «{w.fallback}» (provisional). {w.reason}.</li>)}</ul>
        </div>}
        {dnaDraftReady&&<div role="status" className="rounded-lg bg-emerald-50 p-3 border border-emerald-200 text-sm">
          <p className="font-bold text-emerald-800">Periodo interpretado: {profileScopeLabel(profileDraft)}</p>
