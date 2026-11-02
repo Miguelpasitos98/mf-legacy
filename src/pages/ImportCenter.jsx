@@ -207,6 +207,25 @@ export default function ImportCenter(){
       await refresh({forceCandidates:true});
     }catch(e){setError(reason(e));}finally{setBusy(false);}
   };
+  const enrichUnderstat=async()=>{
+    if(!player||!linked||busy||active)return;
+    setBusy(true);setError("");setNotice("");
+    try{
+      const response=await base44.functions.invoke("understat-auto",{
+        action:"enrich",player_id:player.id,fotmob_player_id:fotmob
+      });
+      const data=response?.data||{};
+      if(!data.ok)throw Error(data.error||"No se pudo recuperar Understat");
+      const updated=(data.saved||0)+(data.updated||0);
+      const blocked=(data.skipped||[]).length;
+      setNotice(data.status==="verified"
+        ?"Understat histórico: "+updated+" temporadas completadas, "+(data.unchanged||0)+
+         " ya guardadas y "+blocked+" sin datos de temporada completa. Fuente verificada hasta 2024/25; no se modifica FotMob."
+        :"Understat: "+(data.reason||"No hay datos históricos con identidad inequívoca."));
+      if(updated)await invalidateApplied();
+    }catch(e){setError("Consulta Understat: "+reason(e));}
+    finally{setBusy(false);}
+  };
   const scanCache=async()=>{
     if(!player||!linked)return;
     setBusy(true);setError("");setNotice("");
@@ -268,6 +287,11 @@ export default function ImportCenter(){
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
         <button disabled={!canStartHistory} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Recuperar historial disponible</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
+        <button type="button" disabled={!player||!linked||busy||active}
+          onClick={enrichUnderstat} className="w-full py-2 rounded-lg border border-blue-200 bg-blue-50 text-[#003399] font-semibold disabled:opacity-40">
+          Recuperar xG Chain / Buildup automáticamente (Understat)
+        </button>
+        <p className="text-[11px] text-slate-500">Fuente pública contrastada hasta 2024/25. Se verifica nombre, club, temporada y liga; las temporadas parciales o ambiguas quedan pendientes.</p>
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>
         <p className="text-xs text-slate-500">Primera importación: el trabajador de tu PC consulta el perfil y las temporadas disponibles con los límites configurados. Understat usa ligas compatibles y cachés/archivos públicos. FIFA/FC usa revisiones de Career Mode anteriores al lanzamiento; mercado usa valoraciones fechadas dentro de cada temporada. No se altera FM26.</p>
