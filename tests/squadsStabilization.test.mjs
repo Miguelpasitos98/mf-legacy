@@ -4,7 +4,7 @@ import fs from 'node:fs';
 const squads=fs.readFileSync('src/pages/Squads.jsx','utf8');
 const builder=fs.readFileSync('src/components/teams/TacticalBuilder.jsx','utf8');
 test('historical data isolated by club and season',()=>{
- assert.match(squads,/team_type:"club", team_id: teamId, season: season.trim\(\)/);
+ assert.match(squads,/team_type: "club", team_id: teamId, season: season.trim\(\)/);
  assert.match(builder,/team_type:"club",team_id:String\(team.id\),season/);
  assert.match(builder,/l.season===season && String\(l.team_id\)===String\(team.id\)/);
 });
