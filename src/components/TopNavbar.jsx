@@ -10,6 +10,7 @@ const footballNav = [
     { label: "KITS", path: "/news" },
     { label: "STATS", path: "/stats" },
     { label: "IMPORT", path: "/import-center" },
+    { label: "CATÁLOGO", path: "/identity-catalog" },
     { label: "POSESIÓN", path: "/possession" },
     { label: "PLAYERS", path: "/players" },
     { label: "TEAMS", path: "/teams" },

@@ -9,6 +9,7 @@ import ScrollToTop from "./components/ScrollToTop";
 
 // Page imports
 import Layout from "@/components/Layout";
+import IdentityCatalog from "@/pages/IdentityCatalog";
 import Home from "@/pages/Home";
 import Countries from "@/pages/Countries";
 import Teams from "@/pages/Teams";
@@ -73,6 +74,7 @@ const AuthenticatedApp = () => {
         <Route path="/import-histories" element={<ImportHistory />} />
         <Route path="/import-unified" element={<ImportUnified />} />
         <Route path="/import-center" element={<ImportCenter />} />
+        <Route path="/identity-catalog" element={<IdentityCatalog />} />
         <Route path="/import-native" element={<NativeImport />} />
       </Route>
 
