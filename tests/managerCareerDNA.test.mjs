@@ -5,7 +5,7 @@ import {buildManagerCareerPrompt,parseManagerCareerResponse,careerToProfilePaylo
 import {cleanProfile,PROFILE_BLANK} from "../src/components/managers/managerModel.mjs";
 const roles={GK:"Salida y cobertura",CB:"Central potente",FB:"Lateral profundo",DM:"Pivote",AM:"Interior",WG:"Extremo",ST:"Falso nueve"};
 const base=(name,scope,club,start,end,stats={})=>({
- model_id:name.toLowerCase().replace(/\s/g,"_"),profile_scope:scope,reference_club:club,
+ model_id:name.startsWith("Dortmund")?"dortmund_2010_2013":name.startsWith("Liverpool")?"liverpool_2018_2020":"general_model",profile_scope:scope,reference_club:club,
  period_start:start,period_end:end,season:"",suggested_name:name,
  formation:"4-3-3",possession:60,pressing:80,tempo:75,defensive_line:70,attacking_width:80,risk_taking:68,
  build_up:"mixed",transition:"counter_press",defensive_block:"high",
@@ -62,7 +62,7 @@ test("career JSON classifies and orders different eras, identifies most successf
  assert.equal(genSaved.season,"");
 });
 test("profile identity prevents duplicate periods but preserves different seasons and clubs",()=>{
- const x=cleanProfile({...PROFILE_BLANK,name:"A",profile_scope:"period",reference_club:"Liverpool",period_start:"2018/2019",period_end:"2019/2020"},"mgr");
+ const x=cleanProfile({...PROFILE_BLANK,name:"Perfil A",profile_scope:"period",reference_club:"Liverpool",period_start:"2018/2019",period_end:"2019/2020"},"mgr");
  const y={...x,name:"Different name"};
  assert.equal(profileIdentity(x),profileIdentity(y));
  const z={...x,reference_club:"Dortmund"};
@@ -86,5 +86,5 @@ test("UI offers optional import after review and does not overwrite existing pro
  assert.match(source,/ManagerTacticalProfile\.create\(payload\)/);
  assert.match(source,/Promise\.allSettled\(created\.map/);
  assert.match(source,/profileScopeLabel\(item.profile\)/);
- assert.match(source,/profileIdentity\(profile\)/);
+ assert.match(source,/managerProfiles.map\(profileIdentity\)/);
 });

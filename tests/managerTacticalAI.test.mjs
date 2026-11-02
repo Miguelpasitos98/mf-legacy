@@ -47,9 +47,10 @@ test("missing or unsupported values refuse instead of guessing numeric parameter
 });
 test("Manager DNA UI supports independent AI, copy and paste without auto save",()=>{
  const s=fs.readFileSync("src/pages/Managers.jsx","utf8");
- assert.match(s,/Investigar y completar ADN/);
+ assert.match(s,/Investigar ADN individual/);
+ assert.match(s,/Investigar trayectoria completa/);
  assert.match(s,/Copiar prompt para ChatGPT/);
- assert.match(s,/Aplicar JSON al borrador/);
+ assert.match(s,/Interpretar JSON y mostrar borrador/);
  assert.match(s,/previewManagerTacticalDraft/);
  assert.match(s,/base44\.functions\.invoke\("manager-ai"/);
  assert.match(s,/setProfileDraft\(prev=>previewManagerTacticalDraft/);
