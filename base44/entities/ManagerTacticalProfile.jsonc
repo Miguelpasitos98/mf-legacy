@@ -58,7 +58,7 @@
     },
     "player_role_priorities": {
       "type": "string",
-      "description": "JSON serializado por rol; configuraci\u00f3n manual, sin datos inventados"
+      "description": "JSON serializado por rol; configuración manual, sin datos inventados"
     },
     "profile_notes": {
       "type": "string"
@@ -73,6 +73,27 @@
     "version": {
       "type": "integer",
       "default": 1
+    },
+    "profile_scope": {
+      "type": "string",
+      "enum": [
+        "general",
+        "period",
+        "season"
+      ],
+      "description": "General, etapa de varias temporadas, o campaña específica"
+    },
+    "reference_club": {
+      "type": "string",
+      "description": "Club o equipo al que se refiere la etapa táctica; no modifica el club del entrenador"
+    },
+    "period_start": {
+      "type": "string",
+      "description": "Primera temporada YYYY/YYYY del periodo, inclusive"
+    },
+    "period_end": {
+      "type": "string",
+      "description": "Última temporada YYYY/YYYY del periodo, inclusive"
     }
   },
   "required": [
