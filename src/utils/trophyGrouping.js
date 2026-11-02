@@ -11,6 +11,7 @@ const CONTINENTAL=[
 ];
 const WORLD=/\b(fifa|copa mundial|mundial de clubes|mundial sub.?\d+|copa del mundo|world cup|club world cup|intercontinental cup|copa intercontinental|confederations cup|copa confederaciones)\b/;
 // Only explicit national names or adjectives. Unclear countries stay unclassified.
+/** @type {Array<[string, RegExp]>} */
 const EXPLICIT_COUNTRIES=[
  ["España",/\b(espana|spain|spanish)\b/],
  ["Inglaterra",/\b(inglaterra|england|english)\b/],
