@@ -133,7 +133,7 @@ export function normalizeManagerFormation(raw){
  const parts=canonical.split("-");
  const counts=parts.map(Number);
  if(parts.length<2||parts.length>5||parts.some(p=>!/^\d$/.test(p))||
-    counts.some(n=>n<1||n>6)||counts.reduce((a,b)=>a+b,0)!==10)
+    counts.some(n=>n<1||n>5)||counts[0]<3||counts[0]>5||counts.reduce((a,b)=>a+b,0)!==10)
   throw Error("Formación no reconocida: "+JSON.stringify(raw)+
     ". Introduce una distribución válida de 10 jugadores de campo, por ejemplo 4-2-2-2, sin contar al portero.");
  return parts.join("-");
