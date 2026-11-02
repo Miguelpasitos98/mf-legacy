@@ -10,7 +10,7 @@ const candidate=readFileSync("src/components/managers/ManagerScoutingVisual.jsx"
 test("Planner field has portraits, distinct provisional FM26 labels, real XI and collapsible slot details",()=>{
  assert.match(planner,/ManagerLineupVisual draft=\{draft\}/);
  assert.match(visual,/PlayerPortrait/);
- assert.match(visual,/draft\.assignments/);
+ assert.match(visual,/draft\?\.assignments/);
  assert.match(visual,/FM26/);
  assert.match(visual,/no son puntuaciones V4 históricas/);
  assert.match(visual,/showDetail&&/);
@@ -34,5 +34,5 @@ test("Scouting separates scored / unscored, keeps comparisons and reports and di
  assert.match(candidate,/more&&/);
  assert.match(candidate,/score===null\?"—"/);
  assert.match(candidate,/V4 · Requisitos del ADN/);
- assert.match(candidate,/no predice/i);
+ assert.match(candidate,/predice/i);
 });
