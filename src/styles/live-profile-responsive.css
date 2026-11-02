@@ -27,6 +27,12 @@
 .mf-player-match-art img { width: 100%; height: auto; }
 .mf-player-adaptive .mf-player-cards { position: relative; inset: auto; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,2.1fr) minmax(0,1fr); width: calc(100% - 48px); gap: 16px; margin: 0 24px 24px; transform: none; pointer-events: auto; }
 .mf-player-adaptive .mf-player-cards > div { height: 220px; }
+/* La descripción puede ser distinta para cada futbolista y debe poder leerse entera. */
+.mf-player-tactical-card .mf-tactical-identity-content { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; }
+.mf-player-tactical-card .mf-tactical-identity-content > p, .mf-player-tactical-card .mf-tactical-identity-content > h2 { overflow-wrap: anywhere; }
+.mf-player-tactical-card .mf-tactical-identity-content { animation: mf-tactical-identity-fade .18s ease-out; }
+@keyframes mf-tactical-identity-fade { from { opacity: .45; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .mf-player-tactical-card .mf-tactical-identity-content { animation: none; } }
 .mf-player-adaptive .mf-player-cards .mf-market-card { height: 260px; padding: 16px; }
 .mf-player-adaptive .mf-market-extremes > span { white-space: normal; }
 .mf-market-chart { container-type: inline-size; }
@@ -40,6 +46,7 @@
   .mf-player-adaptive .mf-player-cards { grid-template-columns: repeat(2,minmax(0,1fr)); width: calc(100% - 32px); margin-inline: 16px; }
   .mf-player-adaptive .mf-player-cards .mf-market-card { grid-column: 1/-1; grid-row: 1; height: 260px; }
   .mf-player-adaptive .mf-player-cards > div { height: 100px; }
+  .mf-player-adaptive .mf-player-cards > .mf-player-tactical-card { grid-column: 1/-1; height: auto; min-height: 190px; }
 }
 @media (max-height: 600px) {
   .mf-trophies { height: auto; min-height: 100%; display: block; }

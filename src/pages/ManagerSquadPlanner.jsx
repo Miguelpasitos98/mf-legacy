@@ -37,6 +37,7 @@ export default function ManagerSquadPlanner(){
    .catch(e=>{if(live)setError(e.message||"Error al cargar plantilla")}).finally(()=>{if(live)setLoading(false)});
   return()=>{live=false};
  },[team?.id,season]);
+ useEffect(()=>{setOverrides({})},[teamId,season]);
  const plan=useMemo(()=>planSquad({team,season,players,memberships:members,assignments,managers,profiles}),[team,season,players,members,assignments,managers,profiles]);
  const formationPlan=useMemo(()=>suggestFormationXI(plan,plan.profile?.formation||""),[plan]);
  const lineupRoster=useMemo(()=>plan.valid?plan.roleSummary.flatMap(x=>x.roster):[],[plan]);
@@ -60,16 +61,16 @@ export default function ManagerSquadPlanner(){
  <section className="rounded-xl border bg-white p-4 space-y-3">
  <h3 className="font-black">Once orientativo por formación · {plan.profile?.formation||"Sin formación"}</h3>
  <p className="text-xs text-slate-600">Propuesta automática sin modificar la alineación guardada. Un jugador solo puede ocupar una plaza; las alternativas no están asignadas. La selección utiliza posición y, cuando existen, atributos FM26.</p>
- {formationPlan.valid?<><p className="text-sm font-semibold">{formationPlan.filled}/11 plazas con candidatos · {formationPlan.vacancies} sin candidato posicional</p>
- <div className="space-y-2 rounded-xl bg-[#e8f3ed] border border-emerald-200 p-3">{Array.from(new Set(formationPlan.assignments.map(s=>s.line))).sort((a,b)=>b-a).map(line=>
- <div key={line} className="flex justify-around gap-1 flex-wrap">{formationPlan.assignments.filter(s=>s.line===line).map(slot=>
+ {formationPlan.valid?<><p className="text-sm font-semibold">{draft.filled}/11 plazas con candidatos · {draft.vacancies} sin candidato posicional</p>
+ <div className="space-y-2 rounded-xl bg-[#e8f3ed] border border-emerald-200 p-3">{Array.from(new Set(draft.assignments.map(s=>s.line))).sort((a,b)=>b-a).map(line=>
+ <div key={line} className="flex justify-around gap-1 flex-wrap">{draft.assignments.filter(s=>s.line===line).map(slot=>
  <div key={slot.id} className="rounded-lg bg-white/95 border border-emerald-100 p-2 text-center w-[min(160px,46%)] min-w-[95px]">
  <p className="text-[10px] font-bold text-emerald-800">{ROLE_LABELS[slot.role]}</p>
  <p className="text-xs font-bold truncate" title={slot.primary?.player.name||"Vacante"}>{slot.primary?.player.name||"Vacante"}</p>
  <p className="text-[10px] text-slate-500">Encaje {slot.primary?.estimatedFit??"—"}/100</p>
  <p className="text-[10px] text-blue-700 truncate" title={slot.advanced?.recommendation?.name||"Sin función evaluable"}>{slot.advanced?.recommendation?.name||"Función no evaluable"}</p>
  </div>)}</div>)}</div>
- <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">{formationPlan.assignments.map(slot=><div key={slot.id} className="border rounded-lg p-3 text-xs">
+ <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">{draft.assignments.map(slot=><div key={slot.id} className="border rounded-lg p-3 text-xs">
  <strong>{ROLE_LABELS[slot.role]} · {slot.primary?.player.name||"Vacante"}</strong>
  {slot.advanced&&<div className="mt-1 rounded bg-slate-50 p-2"><p className="font-semibold">Función orientativa: {slot.advanced.recommendation?.name||"No evaluable"} · {slot.advanced.recommendation?.score??"—"}/100</p>
  <p className="text-slate-600">Preferencias reconocidas: {slot.advanced.preferred.join(", ")||"Ninguna explícita; se muestran alternativas genéricas"}</p>
