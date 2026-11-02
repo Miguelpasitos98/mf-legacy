@@ -18,6 +18,7 @@ function ClubLogo({team,size="md"}){
 export default function CustomClubSearch({teams=[],selectedId="",disabled=false,onSelect}){
  const [open,setOpen]=useState(false);
  const [query,setQuery]=useState("");
+ useEffect(()=>{if(disabled){setOpen(false);setQuery("")}},[disabled]);
  const selected=teams.find(t=>String(t.id)===String(selectedId))||null;
  const candidates=useMemo(()=>searchCustomClubs(teams,query),[teams,query]);
  const choose=id=>{
