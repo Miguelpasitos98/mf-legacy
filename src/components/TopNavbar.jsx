@@ -16,6 +16,7 @@ const footballNav = [
     { label: "TEAMS", path: "/teams" },
     { label: "PLANTILLAS", path: "/squads" },
     { label: "MANAGERS", path: "/managers" },
+    { label: "MANAGER FIT", path: "/manager-fit" },
     { label: "TROPHIES", path: "/trophies" },
     { label: "COUNTRIES", path: "/countries" },
   ];

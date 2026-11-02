@@ -26,6 +26,7 @@ import NativeImport from "@/pages/NativeImport";
 import TeamPossession from "@/pages/TeamPossession";
 import Squads from "@/pages/Squads";
 import Managers from "@/pages/Managers";
+import ManagerFit from "@/pages/ManagerFit";
 
 const AuthenticatedApp = () => {
   const {
@@ -63,6 +64,7 @@ const AuthenticatedApp = () => {
         <Route path="/teams" element={<Teams />} />
         <Route path="/squads" element={<Squads />} />
         <Route path="/managers" element={<Managers />} />
+        <Route path="/manager-fit" element={<ManagerFit />} />
         <Route path="/trophies" element={<Trophies />} />
         <Route path="/news" element={<Kits />} />
         <Route path="/schedule" element={<Stadiums />} />
