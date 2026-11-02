@@ -8,6 +8,7 @@ import {groupTrophies} from "@/utils/trophyGrouping";
 import {countryTrophyIdsFromSections,verifiedTeamTrophyIds} from "@/utils/trophyCatalogFilters";
 import TrophySyncWorkbench from "@/components/trophies/TrophySyncWorkbench";
 import TeamSearchPicker from "@/components/trophies/TeamSearchPicker";
+import CountrySearchPicker from "@/components/trophies/CountrySearchPicker";
 import TrophyDetailVisual from "@/components/trophies/TrophyDetailVisual";
 import TrophyArchiveOverview from "@/components/trophies/TrophyArchiveOverview";
 import TrophyReviewCenter from "@/components/trophies/TrophyReviewCenter";
@@ -215,15 +216,14 @@ export default function Trophies(){
      {(query||type!=="all"||category!=="all"||countryFilter!=="all"||teamFilter)&&<button type="button" onClick={()=>{setQuery("");setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");}} className="rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500" aria-label="Limpiar todos los filtros" title="Limpiar todos los filtros"><RotateCcw size={15}/></button>}
     </div>
     <div className="mt-2 grid grid-cols-1 items-end gap-2 sm:grid-cols-2">
-     <label className="block min-w-0">
+     <div className="min-w-0">
       <span className="mb-1 block text-[10px] font-bold text-slate-500">País de la competición</span>
-      <select aria-label="Filtrar competiciones por país" className={input+" h-10 text-xs"} value={countryFilter} onChange={e=>setCountryFilter(e.target.value)}>
-       <option value="all">Todos los países</option>
-       {countryOptions.map(option=><option key={option.value} value={option.value}>{option.label} ({option.count})</option>)}
-       <option value="international">Internacionales · FIFA y confederaciones</option>
-       <option value="unclassified">Sin país confirmado</option>
-      </select>
-     </label>
+      <CountrySearchPicker
+       options={[{value:"all",label:"Todos los países"},...countryOptions,
+        {value:"international",label:"Internacionales · FIFA y confederaciones"},
+        {value:"unclassified",label:"Sin país confirmado"}]}
+       value={countryFilter} onChange={setCountryFilter}/>
+     </div>
      <div className="min-w-0">
       <span className="mb-1 block text-[10px] font-bold text-slate-500">Equipo · títulos ganados verificados</span>
       <TeamSearchPicker teams={rows(teamsQuery.data)} value={teamFilter} onChange={setTeamFilter}
