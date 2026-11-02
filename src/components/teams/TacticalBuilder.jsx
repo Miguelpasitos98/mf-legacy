@@ -46,7 +46,7 @@ export default function TacticalBuilder({ team, season, roster }) {
   };
   useEffect(()=>{
     let live=true;
-    setLoadingSaved(true);setError("");setActiveId("");setLineups([]);
+    setLoadingSaved(true);setError("");
     listRecords(base44.entities.TeamLineup,{team_type:"club",team_id:String(team.id),season}).then(rows=>{if(live)setLineups(rows)})
       .catch(e=>{if(live)setError(e.message || "No se pudieron cargar los onces")})
       .finally(()=>{if(live)setLoadingSaved(false)});
