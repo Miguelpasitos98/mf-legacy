@@ -1,0 +1,73 @@
+{
+  "type": "object",
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "name": "FotmobCatalogPlayer",
+  "properties": {
+    "fotmob_id": {
+      "type": "string"
+    },
+    "player_name": {
+      "type": "string"
+    },
+    "normalized_name": {
+      "type": "string"
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "birth_date": {
+      "type": "string"
+    },
+    "country": {
+      "type": "string"
+    },
+    "position": {
+      "type": "string"
+    },
+    "teams": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "source_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source_updated_at": {
+      "type": "string"
+    },
+    "content_hash": {
+      "type": "string"
+    },
+    "synced_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "fotmob_id",
+    "player_name"
+  ]
+}

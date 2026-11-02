@@ -1,0 +1,85 @@
+{
+  "type": "object",
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "name": "Fm26IdentityCandidate",
+  "properties": {
+    "fm26_uid": {
+      "type": "string"
+    },
+    "fm26_unique_id": {
+      "type": "string"
+    },
+    "fm26_name": {
+      "type": "string"
+    },
+    "fm26_birth_date": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "identidad_confirmada",
+        "alta_confianza",
+        "probable",
+        "revision_necesaria",
+        "conflicto",
+        "sin_candidato"
+      ]
+    },
+    "proposed_fotmob_id": {
+      "type": "string"
+    },
+    "confirmed_fotmob_id": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number"
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "reason": {
+      "type": "string"
+    },
+    "source_warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source_updated_at": {
+      "type": "string"
+    },
+    "content_hash": {
+      "type": "string"
+    },
+    "synced_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "fm26_uid",
+    "fm26_name",
+    "status"
+  ]
+}
