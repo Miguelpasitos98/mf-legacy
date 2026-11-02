@@ -65,7 +65,7 @@ const COUNTRY_RULES=[
  ["España",/\b(laliga|copa del rey|supercopa de espana|primera federacion|segunda federacion|primera division de espana|segunda division de espana)\b|^la liga$/],
  ["Alemania",/\b(bundesliga|dfb.pokal|supercopa de alemania|oberliga)\b|^3\. liga$|^regionalliga (?:nord|sud|west|sudwest|bayern|nordost)(?:-|$)/],
  ["Italia",/\b(coppa italia|copa de italia|supercoppa italiana)\b|^serie (?:a|b|c(?:\/[abc])?)$/],
- ["Francia",/\b(copa de francia|coupe de france|trofeo de campeones de francia)\b|^ligue 1(?: mcdonalds?)?$|^ligue 2$/],
+ ["Francia",/\b(copa de francia|coupe de france|trofeo de campeones de francia)\b|^ligue 1(?: mcdonald['’]?s)?$|^ligue 2$/],
  ["Portugal",/\b(primeira liga|liga portugal|taca de portugal|supertaca de portugal|liga portugal 2)\b/],
  ["Países Bajos",/\b(eredivisie|eerste divisie|knvb|copa de los paises bajos)\b/],
  ["Brasil",/\b(brasileirao|copa de brasil|campeonato carioca|campeonato paulista|serie a de brasil|serie b de brasil)\b/],
