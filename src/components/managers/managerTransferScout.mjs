@@ -26,7 +26,7 @@ export function valuationForSeason(rows,playerId,season){
  candidates.sort((a,b)=>b.date.localeCompare(a.date));
  return candidates[0];
 }
-export function filterScoutingCandidates(items,{season,minAge=null,maxAge=null,maxValueM=null,knownValueOnly=false,minimumCoverage=0}={}){
+export function filterScoutingCandidates(items,{season,minAge=null,maxAge=null,maxValueM=null,knownValueOnly=false,minimumCoverage=0,coverageMode="role"}={}){
  return items.filter(item=>{
   const age=ageOnSeason(item.player,season);
   if(minAge!==null&&(age===null||age<minAge))return false;
@@ -34,7 +34,10 @@ export function filterScoutingCandidates(items,{season,minAge=null,maxAge=null,m
   const value=item.valuation?.eur??null;
   if(knownValueOnly&&value===null)return false;
   if(maxValueM!==null&&(value===null||value>maxValueM*1000000))return false;
-  if(minimumCoverage>0&&(item.roleFit?.coverage??0)<minimumCoverage)return false;
+  const coverage=coverageMode==="historical"?item.historical?.coverage:
+    coverageMode==="attributes"?item.advanced?.coverage:
+    coverageMode==="position"?(item.fit===null?0:100):item.roleFit?.coverage;
+  if(minimumCoverage>0&&(coverage??0)<minimumCoverage)return false;
   return true;
  });
 }

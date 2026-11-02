@@ -10,6 +10,7 @@ import {ageOnSeason,valuationForSeason,filterScoutingCandidates,formatTransferVa
 import {MAX_COMPARE,toggleCandidate,compareCandidates,candidateOverview} from "@/components/managers/managerCandidateCompare.mjs";
 import {managerFitAttributes} from "@/components/managers/managerFitAttributes.mjs";
 import {profileScopeLabel} from "@/components/managers/managerModel.mjs";
+import {visibleManagerFitCandidates} from "@/components/managers/managerFitVisibility.mjs";
 const all=async(entity,query={})=>{
  const output=[];
  for(let skip=0;skip<100000;skip+=200){
@@ -87,20 +88,20 @@ export default function ManagerFit(){
  },[players,role,seasonStats,understatRows,season]);
  const historicalPeerMetrics=useMemo(()=>[...historicalIndex.values()],[historicalIndex]);
  const roleRequirements=useMemo(()=>deriveRoleRequirements(profile,role),[profile,role]);
- const results=useMemo(()=>{
-  if(!profile)return [];
+ const visibility=useMemo(()=>{
+  if(!profile)return {rows:[],fallback:false,compatibleCount:0,scoredCount:0,unscoredCount:0,shownCount:0};
   const rows=rankPlayers(players,role,profile,{search,minCA,showUnknown:true})
-   .map(item=>({...item,valuation:valuationForSeason(valuationRows,item.player.id,season),advanced:managerFitAttributes(item.player,role,profile),
+   .map(item=>({...item,valuation:valuationForSeason(valuationRows,item.player.id,season),
+     advanced:managerFitAttributes(item.player,role,profile),
      historical:seasonPercentiles(historicalIndex.get(String(item.player.id))||{},historicalPeerMetrics,role,profile),
-     roleFit:evaluateRoleRequirements(historicalIndex.get(String(item.player.id))||{},historicalPeerMetrics,role,profile)}))
-   .filter(item=>showUnknown||(scoreMode==="role"?item.roleFit.score!==null:scoreMode==="historical"?item.historical.score!==null:scoreMode==="attributes"?item.advanced.score!==null:item.fit!==null));
-  return filterScoutingCandidates(rows,{season,
+     roleFit:evaluateRoleRequirements(historicalIndex.get(String(item.player.id))||{},historicalPeerMetrics,role,profile)}));
+  const eligible=filterScoutingCandidates(rows,{season,
     minAge:minAge===""?null:Number(minAge),maxAge:maxAge===""?null:Number(maxAge),
-    maxValueM:maxValueM===""?null:Number(maxValueM),knownValueOnly,minimumCoverage})
-   .sort((a,b)=>scoreMode==="role"?(b.roleFit.score??-1)-(a.roleFit.score??-1)||(b.roleFit.coverage-a.roleFit.coverage):scoreMode==="historical"?(b.historical.score??-1)-(a.historical.score??-1)||(b.historical.coverage-a.historical.coverage):scoreMode==="attributes"?(b.advanced.score??-1)-(a.advanced.score??-1)||(b.fit??-1)-(a.fit??-1):(b.fit??-1)-(a.fit??-1))
-  .slice(0,100);
+    maxValueM:maxValueM===""?null:Number(maxValueM),knownValueOnly,minimumCoverage,coverageMode:scoreMode});
+  return visibleManagerFitCandidates(eligible,{scoreMode,showUnknown});
  },[players,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics,
     valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage]);
+ const results=visibility.rows;
  const comparedRows=useMemo(()=>{
   if(!profile||!comparedIds.length)return [];
   return compareCandidates(comparedIds.map(playerId=>{
@@ -151,8 +152,15 @@ export default function ManagerFit(){
    {manager&&profile?<div className="text-xs rounded-lg bg-blue-50 p-3"><strong>{manager.name} · {profile.name}</strong><p className="mt-1"><strong>Lo que busca en {ROLE_LABELS[role].toLowerCase()}:</strong> {(()=>{try{return JSON.parse(profile.player_role_priorities||"{}")[role]||"Sin descripción específica"}catch{return "Sin descripción específica"}})()}</p></div>:!loading&&<p className="text-sm text-amber-700">Necesitas un entrenador con un ADN guardado antes de evaluar futbolistas. <Link className="underline" to="/managers">Abrir MANAGERS</Link>.</p>}
   </section>
   <section className="border rounded-2xl bg-white p-3 md:p-4 space-y-3">
-   <div className="flex gap-2 items-center justify-between flex-wrap"><h2 className="font-bold">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}</h2><span className="text-xs text-slate-500">Criterios auditables · No predice rendimiento</span></div>
+   <div className="flex gap-2 items-center justify-between flex-wrap"><h2 className="font-bold">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}{!loading&&visibility.compatibleCount>0&&<span className="ml-2 font-normal text-xs text-slate-500">({visibility.compatibleCount} compatibles · {visibility.scoredCount} evaluables)</span>}</h2><span className="text-xs text-slate-500">Criterios auditables · No predice rendimiento</span></div>
    {scoreMode==="role"&&<div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-xs"><strong>Criterios identificados:</strong> {roleRequirements.matched.length?roleRequirements.matched.map(x=>x.label).join(" · "):"Ninguno reconocido de forma fiable"}<p className="mt-1 text-slate-600">Solo se consideran indicadores vinculados explícitamente al rol; esta interpretación no utiliza IA en cada búsqueda ni altera el perfil guardado.</p></div>}
+   {visibility.fallback&&!loading&&!statsLoading&&<div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+    <strong>Hay {visibility.compatibleCount} jugadores compatibles con la posición seleccionada.</strong> No existe evidencia suficiente para asignarles una puntuación {scoreMode==="role"?"V4 de encaje con los requisitos de este ADN":scoreMode==="historical"?"histórica V3":"FM26 V2"}.
+    Se muestran los {visibility.shownCount} primeros ordenados por adecuación posicional, con el encaje sin evaluar marcado como «—». La puntuación de posición NO sustituye al encaje táctico.
+    {scoreMode==="role"&&roleRequirements.unmatched&&<> El texto del ADN no permite reconocer indicadores suficientes; prueba otro perfil o el modo <strong>«Encaje FM26 + ADN»</strong>.</>}
+    {scoreMode==="role"&&!roleRequirements.unmatched&&<> Para calcular percentiles V4 se requieren por lo menos diez compañeros comparables por indicador y dos métricas medidas por futbolista.</>}
+   </div>}
+   {!loading&&!statsLoading&&!visibility.fallback&&visibility.unscoredCount>0&&visibility.scoredCount>0&&!showUnknown&&<p className="text-xs text-slate-600">Se muestran {visibility.scoredCount} jugadores evaluables; hay {visibility.unscoredCount} compatibles con la posición cuyo encaje no puede puntuarse. Activa «Incluir encaje no evaluable» para verlos.</p>}
    {statsError&&<p role="alert" className="text-sm bg-red-50 border rounded-lg p-3">{statsError}</p>}
    {statsLoading&&<p role="status" className="text-xs text-blue-700">Cargando métricas de {season}…</p>}
    <p className="text-xs bg-amber-50 border border-amber-100 rounded-lg p-3 text-amber-900"><strong>V4 experimental:</strong> vincula frases reconocibles de las preferencias por posición a proxies estadísticos por temporada; no infiere capacidades sin mediciones. <strong>V3 histórico:</strong> selecciona una campaña para comparar únicamente registros de esa misma temporada y rol, con al menos 10 observaciones por indicador. La nota se basa en percentiles de métricas disponibles; es una estimación, no una medida directa de la filosofía del entrenador. Sin suficientes indicadores aparece «—». <strong>V2 experimental:</strong> combina adecuación posicional, atributos técnicos/físicos/mentales disponibles en FM26 y preferencias generales del ADN (ej. presión o posesión). Se muestra la cobertura y la confianza. No mide todavía datos históricos por temporada ni comprende automáticamente las descripciones de roles. El CA se mantiene independiente del resultado.</p>
@@ -221,7 +229,9 @@ export default function ManagerFit(){
      </div>
      <p className="text-xs border-l-2 border-amber-400 pl-3 text-slate-600">{scoutingReport.limitations} Los percentiles son relativos a la muestra disponible, no equivalen a predicciones de éxito bajo el entrenador. Las descripciones sin métricas comprobables no se puntúan.</p>
    </section>}
-   {!loading&&!results.length&&<p className="p-5 text-center text-slate-500 text-sm">No hay jugadores que cumplan esos filtros y tengan datos suficientes.</p>}
+   {!loading&&!results.length&&!statsLoading&&<p className="p-5 text-center text-slate-500 text-sm">
+    No se encontraron jugadores compatibles con la posición y los filtros actuales. Prueba a quitar filtros de edad, valoración, CA o cobertura, o selecciona otro rol.
+   </p>}
   </section>
  </main>;
 }
