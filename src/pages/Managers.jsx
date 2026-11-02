@@ -507,6 +507,7 @@ export default function Managers(){
              <button type="button" className="rounded-lg border px-2 py-1 text-xs" onClick={()=>loadCareerModelIntoEditor(item)}>Abrir en editor</button>
            </div>
            <p className="text-xs text-slate-500">{profileScopeLabel(item.profile)} · {item.profile.formation} · {SUCCESS_TIERS[item.successTier]}</p>
+           <p className="text-[11px] font-medium text-slate-600">Posesión {item.profile.possession} · Presión {item.profile.pressing} · Ritmo {item.profile.tempo} · Línea {item.profile.defensive_line} · Amplitud {item.profile.attacking_width} · Riesgo {item.profile.risk_taking}</p>
            {careerDraft.bestId===item.id&&<p className="text-xs font-bold text-emerald-700">Modelo con mejores resultados respaldados por la investigación</p>}
            <p className="text-xs text-slate-700">{item.resultsSummary}</p>
            {item.changes&&<p className="text-xs text-slate-600"><strong>Evolución:</strong> {item.changes}</p>}
