@@ -3,6 +3,7 @@ import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {isCustomTeam} from "@/components/managers/managerModel.mjs";
 import {planSquad} from "@/components/managers/managerSquadPlanner.mjs";
+import {applyLineupOverrides,canChooseLineupPlayer} from "@/components/managers/managerLineupSandbox.mjs";
 import {analyzeTeamBalance,compareTeamBalance} from "@/components/managers/managerTeamBalance.mjs";
 import {analyzeTacticalPartnerships} from "@/components/managers/managerChemistry.mjs";
 import {suggestFormationXI} from "@/components/managers/managerFormationPlanner.mjs";
@@ -18,6 +19,7 @@ export default function ManagerSquadPlanner(){
  const [teams,setTeams]=useState([]),[players,setPlayers]=useState([]),[managers,setManagers]=useState([]),[profiles,setProfiles]=useState([]);
  const [members,setMembers]=useState([]),[assignments,setAssignments]=useState([]);
  const [loading,setLoading]=useState(true),[error,setError]=useState("");
+ const [overrides,setOverrides]=useState({});
  const season=params.get("season")||"2026/2027",teamId=params.get("team")||"";
  const customTeams=useMemo(()=>teams.filter(isCustomTeam),[teams]);
  const team=customTeams.find(t=>String(t.id)===teamId);
@@ -37,12 +39,14 @@ export default function ManagerSquadPlanner(){
  },[team?.id,season]);
  const plan=useMemo(()=>planSquad({team,season,players,memberships:members,assignments,managers,profiles}),[team,season,players,members,assignments,managers,profiles]);
  const formationPlan=useMemo(()=>suggestFormationXI(plan,plan.profile?.formation||""),[plan]);
- const chemistry=useMemo(()=>analyzeTacticalPartnerships(formationPlan),[formationPlan]);
- const balance=useMemo(()=>analyzeTeamBalance(formationPlan),[formationPlan]);
+ const lineupRoster=useMemo(()=>plan.valid?plan.roleSummary.flatMap(x=>x.roster):[],[plan]);
+ const draft=useMemo(()=>applyLineupOverrides(formationPlan,lineupRoster,plan.profile,overrides),[formationPlan,lineupRoster,plan.profile,overrides]);
+ const chemistry=useMemo(()=>analyzeTacticalPartnerships(draft),[draft]);
+ const balance=useMemo(()=>analyzeTeamBalance(draft),[draft]);
  const alternative=useMemo(()=>analyzeTeamBalance(suggestFormationXI(plan,"4-2-3-1")),[plan]);
  const differences=useMemo(()=>compareTeamBalance(balance,alternative),[balance,alternative]);
  return <main className="mx-auto max-w-[1550px] p-4 md:p-6 text-slate-900 space-y-4">
- <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V12</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
+ <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V13</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
  {error&&<p role="alert" className="p-3 border bg-red-50 rounded-lg text-red-800">{error}</p>}
  <div className="rounded-xl border p-4 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3">
  <label className="text-xs font-bold">Club personalizado<select className="block w-full border rounded-lg p-2 mt-1" aria-label="Club personalizado" value={teamId} onChange={e=>setParams({team:e.target.value,season})}><option value="">Selecciona equipo</option>{customTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
@@ -73,6 +77,17 @@ export default function ManagerSquadPlanner(){
  <p className="text-slate-600 mt-1">Alternativas disponibles: {slot.alternatives.map(a=>a.player.name).join(", ")||"Ninguna identificada"}</p>
  <Link className="text-blue-700 font-bold underline inline-block mt-2" to={`/manager-fit?${new URLSearchParams({...(plan.manager?{manager:String(plan.manager.id)}:{}),...(plan.profile?{profile:String(plan.profile.id)}:{}),role:slot.role,season})}`}>Buscar refuerzos</Link>
  </div>)}</div></>:<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">{formationPlan.reason||"Guarda un ADN con una formación válida para generar una propuesta."}</p>}
+ </section>
+ <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Laboratorio de cambios en el once">
+ <div className="flex items-center justify-between gap-2 flex-wrap"><h3 className="font-black">Laboratorio de sustituciones · V13</h3><button type="button" disabled={!Object.keys(overrides).length} onClick={()=>setOverrides({})} className="text-xs px-3 py-2 border rounded-lg">Restablecer once</button></div>
+ <p className="text-xs text-slate-600">Prueba diferentes jugadores de la plantilla. El equilibrio y las parejas se recalculan al instante; los cambios solo existen en esta pantalla.</p>
+ <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">{draft.assignments?.map(slot=><label key={slot.id} className="text-xs border rounded-lg p-3">
+ <span className="font-semibold">{ROLE_LABELS[slot.role]} · {slot.id}</span>
+ <select aria-label={"Jugador para "+slot.id} className="mt-2 block w-full border rounded-lg p-2" value={slot.primary?.player.id||""} onChange={e=>setOverrides(prev=>({...prev,[slot.id]:e.target.value}))}>
+ <option value="">Vacante</option>{lineupRoster.filter(x=>canChooseLineupPlayer(slot.id,x.player.id,overrides,formationPlan)).map(x=><option key={x.player.id} value={x.player.id}>{x.player.name}</option>)}
+ </select>
+ </label>)}</div>
+ <p className="text-xs text-slate-600">Plazas ocupadas: {draft.filled||0}/11. Ningún futbolista se puede asignar dos veces.</p>
  </section>
  <section className="rounded-xl border bg-white p-4 space-y-3">
  <h3 className="font-black">Equilibrio del once · V12</h3>

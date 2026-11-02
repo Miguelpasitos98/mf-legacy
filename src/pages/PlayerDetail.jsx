@@ -20,6 +20,7 @@ import { base44 } from "@/api/base44Client";
 import PlayerCareerHistoryModal from "@/components/career/PlayerCareerHistoryModal";
 import TransferChartMini from "@/components/players/TransferChartMini";
 import AdjustableRoles from "@/components/players/AdjustableRoles";
+import TacticalIdentityCard from "@/components/players/TacticalIdentityCard";
 import AdjustableRightModules from "@/components/players/AdjustableRightModules";
 import MarketBulkImport from "@/components/players/MarketBulkImport";
 import HistoricalMarketLookup from "@/components/players/HistoricalMarketLookup";
@@ -732,6 +733,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   const [isSaving, setIsSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [editablePlayer, setEditablePlayer] = useState(player);
+  const [selectedRoleIndex, setSelectedRoleIndex] = useState(0);
   const [form, setForm] = useState(initialForm);
   const [showCareerHistory, setShowCareerHistory] = useState(false);
   const [careerHistoryState, setCareerHistoryState] = useState({ status: "idle", data: null, message: "" });
@@ -775,6 +777,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
     setEditablePlayer(player);
     setForm(initialForm);
   }, [player, initialForm]);
+  // La tarjeta vuelve al rol principal al navegar a otro jugador.
+  useEffect(() => { setSelectedRoleIndex(0); }, [player?.id, player?.fm26_uid]);
 
   // Mapas de búsqueda O(1) para evitar recorrer teams/countries en cada render.
   const teamMap = useMemo(() => new Map(teams.map((t) => [String(t.id), t])), [teams]);
@@ -1043,12 +1047,14 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
     }
   };
 
-  const rolesModule = <AdjustableRoles adaptive={adaptiveLayout} ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} playerId={editablePlayer?.id} position={jerseyPosition||editablePlayer?.position||editablePlayer?.position_raw||editablePlayer?.fm_position} foot={{left:editablePlayer?.left_foot,right:editablePlayer?.right_foot}} storedRoles={editablePlayer?.tactical_roles} onSaved={(patch)=>{setEditablePlayer(current=>({...current,...patch}));setForm(current=>({...current,tacticalRoles:patch.tactical_roles}));onPlayerUpdated?.({...editablePlayer,...patch},patch);}} />;
+  const rolesModule = <AdjustableRoles adaptive={adaptiveLayout} ratings={{...(editablePlayer?.positionRatings||{}),...(editablePlayer?.position_ratings||{})}} playerId={editablePlayer?.id} position={jerseyPosition||editablePlayer?.position||editablePlayer?.position_raw||editablePlayer?.fm_position} foot={{left:editablePlayer?.left_foot,right:editablePlayer?.right_foot}} storedRoles={editablePlayer?.tactical_roles} selectedRoleIndex={selectedRoleIndex} onRoleSelect={setSelectedRoleIndex} onSaved={(patch)=>{setEditablePlayer(current=>({...current,...patch}));setForm(current=>({...current,tacticalRoles:patch.tactical_roles}));onPlayerUpdated?.({...editablePlayer,...patch},patch);}} />;
   const rightModules = <AdjustableRightModules adaptive={adaptiveLayout} playerId={editablePlayer?.id} color={statCardColors.primaryColor} />;
   const playerCards = <>
     {!adaptiveLayout && rolesModule}
     {!adaptiveLayout && rightModules}
-    <PlayerStatCard background={statCardColors.primaryColor} grow={1} />
+    <PlayerStatCard background="#FFFFFF" grow={1} className="mf-player-tactical-card pointer-events-auto !px-5 !py-4">
+      <TacticalIdentityCard player={editablePlayer} selectedRoleIndex={selectedRoleIndex} />
+    </PlayerStatCard>
     <PlayerStatCard background={statCardColors.middleColor} grow={2.1} className="mf-market-card">
       <TransferChartMini player={editablePlayer} clubs={teams} />
     </PlayerStatCard>
