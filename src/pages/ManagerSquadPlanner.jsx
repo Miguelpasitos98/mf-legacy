@@ -3,7 +3,7 @@ import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {isCustomTeam} from "@/components/managers/managerModel.mjs";
 import {planSquad} from "@/components/managers/managerSquadPlanner.mjs";
-import {formationSlots,suggestFormationXI} from "@/components/managers/managerFormationPlanner.mjs";
+import {suggestFormationXI} from "@/components/managers/managerFormationPlanner.mjs";
 import {ROLE_LABELS} from "@/components/managers/managerFit.mjs";
 const loadAll=async(entity,query={})=>{
  const out=[];for(let skip=0;skip<=100000;skip+=200){
