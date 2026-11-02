@@ -37,6 +37,8 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
   const [dirty,setDirty] = useState(false);
   useEffect(()=>{onDirtyChange?.(dirty)},[dirty,onDirtyChange]);
   const exportRef=useRef(null);
+  const [logoError,setLogoError]=useState(false);
+  useEffect(()=>setLogoError(false),[team.id,team.logo]);
   const [exporting,setExporting]=useState(false);
   const [pitchStyle,setPitchStyle]=useState("striped");
   const [pitchColor,setPitchColor]=useState("#164b35");
@@ -202,15 +204,15 @@ export default function TacticalBuilder({ team, season, roster, onDirtyChange })
     <div className="flex flex-wrap items-center gap-2 mb-2"><span className="font-bold text-sm">Formación</span>{Object.keys(FORMATIONS).map(f=><button type="button" key={f} aria-pressed={f===formation} onClick={()=>changeFormation(f)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${formation===f?"bg-lime-400 text-slate-900":"bg-slate-100 hover:bg-slate-200"}`}>{f}</button>)}
       <button type="button" disabled={busy||loadingSaved} onClick={saveLineup} className="ml-auto flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white"><Save size={15}/> Guardar once</button>
     </div>
-    <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_280px] gap-4">
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_220px] gap-3">
       <div className="min-w-0">
-        <div ref={exportRef} className="rounded-2xl overflow-hidden bg-[#071c17] p-2 sm:p-4 text-white min-w-0">
-          <div className="mb-3 flex items-center gap-3 px-2 pt-2 min-w-0">
-            {team.logo&&<img src={team.logo} crossOrigin="anonymous" alt="" className="w-10 h-10 sm:w-14 sm:h-14 object-contain flex-none"/>}
+        <div ref={exportRef} className="rounded-2xl overflow-hidden bg-[#071c17] p-2 sm:p-3 text-white min-w-0">
+          <div className="mb-2 flex items-center gap-2 px-2 pt-1 min-w-0">
+            {team.logo&&!logoError?<img src={team.logo} alt={team.name} onError={()=>setLogoError(true)} className="w-9 h-9 sm:w-11 sm:h-11 object-contain flex-none"/>:<div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-white">{team.short_name||team.name?.slice(0,3).toUpperCase()}</div>}
             <div className="min-w-0 flex-1"><p className="uppercase text-[10px] tracking-[.24em] text-lime-300 font-bold">MF LEGACY · TACTICAL XI</p><h4 className="font-black text-lg sm:text-2xl truncate">{team.name}</h4><p className="text-xs text-white/60">{lineupName} · {formation} · {season}</p></div>
             <span className="text-xs font-black text-lime-300 whitespace-nowrap">{Object.values(slots).filter(Boolean).length}/11</span>
           </div>
-        <div className="relative w-full overflow-hidden rounded-xl border-2 border-white/20 aspect-[.78] sm:aspect-[1.08] lg:aspect-[1.15]" style={{backgroundColor:pitchColor,backgroundImage:pitchStyle==="striped"?"repeating-linear-gradient(0deg,transparent 0%,transparent 10%,rgba(255,255,255,.055) 10%,rgba(255,255,255,.055) 20%)":pitchStyle==="diagonal"?"repeating-linear-gradient(135deg,transparent 0px,transparent 54px,rgba(255,255,255,.04) 54px,rgba(255,255,255,.04) 108px)":"none"}} aria-label="Campo de fútbol">
+        <div className="relative w-full overflow-hidden rounded-xl border-2 border-white/20 aspect-[1.02] sm:aspect-[1.2] lg:aspect-[1.38] xl:aspect-[1.48] 2xl:aspect-[1.58] max-h-[min(62vh,650px)]" style={{backgroundColor:pitchColor,backgroundImage:pitchStyle==="striped"?"repeating-linear-gradient(0deg,transparent 0%,transparent 10%,rgba(255,255,255,.055) 10%,rgba(255,255,255,.055) 20%)":pitchStyle==="diagonal"?"repeating-linear-gradient(135deg,transparent 0px,transparent 54px,rgba(255,255,255,.04) 54px,rgba(255,255,255,.04) 108px)":"none"}} aria-label="Campo de fútbol">
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" fill="none" stroke="#ffffff" strokeOpacity=".23" strokeWidth=".65"><rect x="4" y="3" width="92" height="94" rx="2"/><path d="M4 50H96"/><ellipse cx="50" cy="50" rx="12" ry="9"/><path d="M31 3V18H69V3M40 3V9H60V3M31 97V82H69V97M40 97V91H60V97"/></svg>
           {activeSlots.map(([x,y,code])=>{const id=slots[code];const entry=roster.find(r=>String(r.player_id)===id);return <button type="button" key={code} aria-label={`${code}: ${entry?.player?.name||"vacío"}`} aria-pressed={selected===code} draggable={Boolean(id)} onDragStart={e=>{if(!id){e.preventDefault();return;}setDragged(id);e.dataTransfer.setData("text/plain",id);}} onDragEnd={()=>setDragged(null)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();place(code,e.dataTransfer.getData("text/plain")||dragged);setDragged(null)}} onClick={()=>setSelected(code)} className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-[19%] sm:w-[16%] max-w-[110px] rounded-xl py-1 transition-all touch-manipulation ${selected===code?"bg-white/25 ring-2 ring-lime-400":"hover:bg-white/10"}`} style={{left:x+"%",top:y+"%"}}>
             <span className="relative flex w-9 h-9 sm:w-12 sm:h-12 rounded-full items-center justify-center border-2 border-lime-300 shadow-[0_5px_14px_rgba(0,0,0,.45)] bg-[#112c26] text-white font-bold text-xs overflow-hidden">{showPhotos&&(entry?.player?.card_photo_url||entry?.player?.photo_url)?<img crossOrigin="anonymous" src={entry.player.card_photo_url||entry.player.photo_url} alt="" className="w-full h-full object-cover"/>:showNumbers?(entry?.shirt_number??"+"):(id?"●":"+ ")}</span>
