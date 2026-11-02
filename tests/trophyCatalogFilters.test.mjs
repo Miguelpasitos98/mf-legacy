@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {countryTrophyIdsFromSections,verifiedTeamTrophyIds} from "../src/utils/trophyCatalogFilters.js";
+import {countryTrophyIdsFromSections,verifiedTeamTrophyIds,filterCountryOptions} from "../src/utils/trophyCatalogFilters.js";
 import {classifyTrophy} from "../src/utils/trophyGrouping.js";
 
 const sections=[
@@ -38,9 +38,32 @@ test("Team filtering requires exact verified champion ID and never imports indiv
  assert.deepEqual([...verifiedTeamTrophyIds(honours,"unknown")],[]);
  assert.deepEqual([...verifiedTeamTrophyIds(honours,"")],[]);
 });
+test("Country search handles accents, substrings and unclassified/international categories",()=>{
+ const options=[{value:"all",label:"Todos los países"},{value:"es",label:"España",count:12},
+  {value:"mx",label:"México",count:19},{value:"sc",label:"Escocia",count:9},
+  {value:"international",label:"Internacionales · FIFA y confederaciones"},
+  {value:"unclassified",label:"Sin país confirmado"}];
+ assert.deepEqual(filterCountryOptions(options,"espana").map(x=>x.value),["es"]);
+ assert.deepEqual(filterCountryOptions(options,"MEXICO").map(x=>x.value),["mx"]);
+ assert.deepEqual(filterCountryOptions(options,"esc").map(x=>x.value),["sc"]);
+ assert.deepEqual(filterCountryOptions(options,"internac").map(x=>x.value),["international"]);
+ assert.deepEqual(filterCountryOptions(options,"sin pais").map(x=>x.value),["unclassified"]);
+ assert.equal(filterCountryOptions(options,"no-existe").length,0);
+ assert.equal(filterCountryOptions(options,"").length,options.length);
+});
+test("The country picker is a searchable keyboard accessible combobox",()=>{
+ const picker=readFileSync(new URL("../src/components/trophies/CountrySearchPicker.jsx",import.meta.url),"utf8");
+ assert.match(picker,/role="combobox"/);
+ assert.match(picker,/onChange=\{e=>type\(e.target.value\)\}/);
+ assert.match(picker,/event.key==="Enter"/);
+ assert.match(picker,/event.key==="ArrowDown"/);
+ assert.match(picker,/event.key==="Escape"/);
+ assert.match(picker,/filterCountryOptions\(options,search\)/);
+});
 test("Trophies UI exposes both filters, an unclassified option and a full reset",()=>{
  const source=readFileSync(new URL("../src/pages/Trophies.jsx",import.meta.url),"utf8");
  assert.match(source,/País de la competición/);
+ assert.match(source,/CountrySearchPicker/);
  assert.match(source,/TeamSearchPicker teams=\{rows\(teamsQuery.data\)\}/);
  assert.match(source,/countryTrophyIdsFromSections/);
  assert.match(source,/verifiedTeamTrophyIds/);
