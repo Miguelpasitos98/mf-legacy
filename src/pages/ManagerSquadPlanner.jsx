@@ -2,7 +2,7 @@ import React,{useEffect,useMemo,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {isCustomTeam} from "@/components/managers/managerModel.mjs";
-import {planSquad,PLANNER_ROLES} from "@/components/managers/managerSquadPlanner.mjs";
+import {planSquad} from "@/components/managers/managerSquadPlanner.mjs";
 import {ROLE_LABELS} from "@/components/managers/managerFit.mjs";
 const loadAll=async(entity,query={})=>{
  const out=[];for(let skip=0;skip<=100000;skip+=200){
@@ -51,7 +51,7 @@ export default function ManagerSquadPlanner(){
  <div className="flex justify-between gap-2 items-center"><h3 className="font-bold">{ROLE_LABELS[item.role]}</h3><span className="text-xs rounded bg-slate-100 px-2 py-1">{item.count} jugadores</span></div>
  <p className="text-xs text-slate-600">{reason} · {item.evaluated} evaluados</p>
  <p className="text-sm">Mejor referencia: <strong>{item.best?.player.name||"—"}</strong> · Encaje FM26 + ADN <b>{item.best?.score??"—"}/100</b></p>
- <Link to={`/manager-fit?${new URLSearchParams({...(plan.manager?{manager:String(plan.manager.id)}:{}),...(plan.profile?{profile:String(plan.profile.id)}:{})})}`} state={undefined} className="inline-flex rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold text-blue-700">Abrir scouting de {ROLE_LABELS[item.role].toLowerCase()}</Link>
+ <Link to={`/manager-fit?${new URLSearchParams({...(plan.manager?{manager:String(plan.manager.id)}:{}),...(plan.profile?{profile:String(plan.profile.id)}:{}),role:item.role,season})}`} className="inline-flex rounded-lg border border-blue-300 px-3 py-2 text-xs font-bold text-blue-700">Abrir scouting de {ROLE_LABELS[item.role].toLowerCase()}</Link>
  </article>;
  })}</div>
  <p className="text-xs bg-amber-50 p-3 rounded-lg border border-amber-100">La detección de necesidades es una señal inicial, no una conclusión deportiva. Una plaza sin datos no equivale a un futbolista deficiente; tampoco se infieren titulares, contratos o presupuesto disponible. No se ha modificado ningún registro.</p>

@@ -27,12 +27,12 @@ export default function ManagerFit(){
  const [players,setPlayers]=useState([]);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
- const [role,setRole]=useState("FB");
+ const [role,setRole]=useState(()=>["GK","CB","FB","DM","AM","WG","ST"].includes(params.get("role"))?params.get("role"):"FB");
  const [search,setSearch]=useState("");
  const [minCA,setMinCA]=useState(0);
  const [showUnknown,setShowUnknown]=useState(false);
  const [scoreMode,setScoreMode]=useState("role");
- const [season,setSeason]=useState("2025/2026");
+ const [season,setSeason]=useState(()=>params.get("season")||"2025/2026");
  const [seasonStats,setSeasonStats]=useState([]);
  const [understatRows,setUnderstatRows]=useState([]);
  const [statsLoading,setStatsLoading]=useState(false);
