@@ -28,6 +28,8 @@ export default function ManagerSquadPlanner(){
  const [optimizerOpen,setOptimizerOpen]=useState(false);
  const [demoMode,setDemoMode]=useState(false);
  const [includeCandidates,setIncludeCandidates]=useState(false);
+ const [previewManagerId,setPreviewManagerId]=useState("");
+ const [previewProfileId,setPreviewProfileId]=useState("");
  const season=params.get("season")||"2026/2027",teamId=params.get("team")||"";
  const customTeams=useMemo(()=>teams.filter(isCustomTeam),[teams]);
  const team=customTeams.find(t=>String(t.id)===teamId);
@@ -45,10 +47,17 @@ export default function ManagerSquadPlanner(){
    .catch(e=>{if(live)setError(e.message||"Error al cargar plantilla")}).finally(()=>{if(live)setLoading(false)});
   return()=>{live=false};
  },[team?.id,season]);
- useEffect(()=>{setScenarios(emptyScenarios());setActiveScenario("A");setOptimizerOpen(false)},[teamId,season,demoMode,includeCandidates]);
+ useEffect(()=>{setPreviewManagerId("");setPreviewProfileId("")},[teamId,season]);
+ useEffect(()=>{setScenarios(emptyScenarios());setActiveScenario("A");setOptimizerOpen(false)},[teamId,season,demoMode,includeCandidates,previewManagerId,previewProfileId]);
  const plan=useMemo(()=>demoMode?makeManagerReadOnlyDemo({teams,players,managers,profiles,season}):
-  planSquad({team,season,players,memberships:members,assignments,managers,profiles}),
-  [demoMode,teams,team,season,players,members,assignments,managers,profiles]);
+  planSquad({team,season,players,memberships:members,assignments,managers,profiles,previewManagerId,previewProfileId}),
+  [demoMode,teams,team,season,players,members,assignments,managers,profiles,previewManagerId,previewProfileId]);
+ const chosenCoach=plan.manager;
+ const coachProfiles=useMemo(()=>profiles.filter(p=>chosenCoach&&String(p.manager_id)===String(chosenCoach.id))
+  .sort((a,b)=>Number(Boolean(b.is_default))-Number(Boolean(a.is_default))||
+  String(a.name||"").localeCompare(String(b.name||""),"es")),[profiles,chosenCoach?.id]);
+ const coachOptions=useMemo(()=>[...managers].filter(m=>m?.id&&m?.name)
+  .sort((a,b)=>String(a.display_name||a.name).localeCompare(String(b.display_name||b.name),"es")),[managers]);
  const teamRoster=useMemo(()=>plan.valid?plan.roleSummary.flatMap(x=>x.roster):[],[plan]);
  const externalRoster=useMemo(()=>selectedCandidatePool(players,teamRoster.map(x=>x.player.id),includeCandidates),[players,teamRoster,includeCandidates]);
  const lineupRoster=useMemo(()=>[...teamRoster,...externalRoster],[teamRoster,externalRoster]);
@@ -87,18 +96,52 @@ export default function ManagerSquadPlanner(){
  <CustomClubSearch teams={customTeams} selectedId={teamId} disabled={demoMode} onSelect={id=>setParams({team:id,season})}/>
  <label className="text-xs font-bold">Temporada<input aria-label="Temporada" className="block w-full border rounded-lg p-2 mt-1" value={season} onChange={e=>setParams({team:teamId,season:e.target.value})}/></label>
  </div>
- <section className="rounded-xl border bg-white p-3 md:p-4 space-y-2">
- <div className="flex flex-wrap items-center justify-between gap-3">
- <div><h2 className="font-bold text-sm">Prueba rápida V15 · Dortmund y Klopp</h2><p className="text-xs text-slate-600">Activa una plantilla temporal de lectura usando los jugadores FM26 asociados al Borussia Dortmund y el ADN histórico de Klopp.</p></div>
- <button type="button" aria-pressed={demoMode} onClick={()=>setDemoMode(v=>!v)} className={`rounded-lg border px-4 py-2 text-sm font-bold ${demoMode?"bg-emerald-800 text-white":"bg-blue-900 text-white"}`}>{demoMode?"Salir de la demostración":"Probar optimizador sin guardar datos"}</button>
+ <section className="rounded-xl border bg-white p-3 md:p-4 space-y-3" aria-label="Entrenador y ADN para el planificador">
+ <div>
+  <h2 className="font-bold text-sm">Entrenador y ADN táctico</h2>
+  <p className="text-xs text-slate-600 mt-1">Elige un entrenador para este análisis aunque todavía no esté vinculado al club. Los cambios son temporales: no se asigna ni se modifica el entrenador oficial.</p>
  </div>
- {demoMode&&<p className="text-xs rounded-lg border border-amber-200 bg-amber-50 text-amber-900 p-3">{plan.demoWarning||plan.reason||"Preparando registros…"} Los cambios desaparecen al salir o recargar. No se realizan escrituras en la base de datos.</p>}
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  <label className="text-xs font-bold">Seleccionar entrenador
+   <select aria-label="Entrenador para el planificador" value={previewManagerId} disabled={demoMode||loading}
+    onChange={e=>{setPreviewManagerId(e.target.value);setPreviewProfileId("")}}
+    className="block w-full border rounded-lg p-2.5 mt-1 bg-white disabled:opacity-50">
+    <option value="">{plan.assignment?.manager_id?"Usar entrenador principal asignado":"Selecciona un entrenador…"}</option>
+    {coachOptions.map(m=><option key={m.id} value={m.id}>{m.display_name||m.name}{m.is_active===false?" · archivado":""}</option>)}
+   </select>
+  </label>
+  <label className="text-xs font-bold">Seleccionar ADN táctico
+   <select aria-label="ADN táctico para el planificador" value={previewProfileId||plan.profile?.id||""}
+    onChange={e=>setPreviewProfileId(e.target.value)} disabled={demoMode||loading||!chosenCoach||coachProfiles.length===0}
+    className="block w-full border rounded-lg p-2.5 mt-1 bg-white disabled:opacity-50">
+    {!coachProfiles.length&&<option value="">Selecciona un entrenador con ADN</option>}
+    {coachProfiles.map(p=><option key={p.id} value={p.id}>{p.name}{p.is_default?" · Principal":""}{p.formation?" · "+p.formation:""}</option>)}
+   </select>
+  </label>
+ </div>
+ {!demoMode&&<p className="text-xs text-slate-600">
+  {chosenCoach?<>Análisis con <strong>{chosenCoach.display_name||chosenCoach.name}</strong>{plan.temporaryManager?" · selección temporal (sin guardar)":plan.assignment?" · asignación oficial del club":""}.</>:
+   <>No hay entrenador seleccionado. Puedes elegir cualquiera de MANAGERS para empezar.</>}
+  {!plan.profile&&<> Necesitas un ADN para calcular encajes: <Link to="/managers" className="underline font-semibold text-blue-700">crear o editar ADN en MANAGERS</Link>.</>}
+ </p>}
+ {demoMode&&<p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">Estás en modo demostración: los selectores corresponden al Dortmund y al ADN histórico de Klopp. Sal de la prueba para elegir otro entrenador.</p>}
  </section>
+ <details className="rounded-xl border bg-white p-3 md:p-4 text-sm">
+  <summary className="cursor-pointer font-bold">Demostración opcional · Dortmund FM26 y Klopp</summary>
+  <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
+   <p className="text-xs text-slate-600 max-w-3xl">Prueba técnica de solo lectura: jugadores FM26 asociados al Dortmund con un perfil histórico de Klopp. No representa una plantilla histórica real ni guarda fichajes.</p>
+   <button type="button" aria-pressed={demoMode} onClick={()=>setDemoMode(v=>!v)}
+    className={`rounded-lg border px-4 py-2 text-sm font-bold ${demoMode?"bg-emerald-800 text-white":"bg-blue-900 text-white"}`}>
+    {demoMode?"Salir de la demostración":"Activar demostración"}
+   </button>
+  </div>
+  {demoMode&&<p className="mt-2 text-xs rounded-lg border border-amber-200 bg-amber-50 text-amber-900 p-3">{plan.demoWarning||plan.reason||"Preparando registros…"} No se guardan cambios.</p>}
+ </details>
  {loading?<p role="status">Cargando plantilla…</p>:plan.valid&&<>
  <div className="rounded-xl border p-4 bg-white space-y-2"><h2 className="font-bold">{plan.team.name} · {season}</h2>
- <p className="text-sm">Entrenador: <strong>{plan.manager?.name||"Sin entrenador principal asignado"}</strong> · ADN: <strong>{plan.profile?.name||"Sin ADN asignado"}</strong></p>
+ <p className="text-sm">Entrenador para el análisis: <strong>{plan.manager?.name||"No seleccionado"}</strong> · ADN: <strong>{plan.profile?.name||"Sin ADN seleccionado"}</strong>{plan.temporaryManager&&<span className="text-xs text-amber-700"> · Simulación, sin guardar</span>}</p>
  <p className="text-xs text-slate-500">{plan.rosterCount} registros en la plantilla · {plan.linkedCount} jugadores clasificados por rol. Los roles se deducen de la posición principal registrada, no de la alineación titular.</p>
- {!plan.profile&&<p className="text-sm bg-amber-50 p-3 rounded-lg">Asigna un entrenador con ADN táctico en <Link to="/managers" className="underline font-semibold">MANAGERS</Link> para evaluar compatibilidad.</p>}</div>
+ {!plan.profile&&<p className="text-sm bg-amber-50 p-3 rounded-lg">Selecciona arriba un entrenador y su ADN táctico. No es necesario asignarlo al club para probarlo; la formación 4-3-3 se utiliza únicamente como punto de partida si aún no hay ADN.</p>}</div>
  <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Bolsa de candidatos externos">
  <div className="flex items-center justify-between gap-3 flex-wrap">
  <div><h3 className="font-black">Bolsa de candidatos · Manager Fit</h3>
@@ -108,8 +151,10 @@ export default function ManagerSquadPlanner(){
  Permitir candidatos externos
  </label>
  </div>
- <p className="text-xs text-slate-600">{manuallyMarked} jugadores marcados en PLAYERS · {externalRoster.length} externos distintos de tu plantilla disponibles {includeCandidates?"para probar":"al activar la opción"}.</p>
- {includeCandidates&&<p className="text-xs border-l-2 border-amber-500 bg-amber-50 p-3 text-amber-900">El optimizador y los cambios manuales pueden incorporar candidatos externos en un once hipotético. No los ficha ni les asigna club; se conserva su equipo real. La disponibilidad de fichaje, contrato o lesión no está verificada solo por pertenecer a la bolsa.</p>}
+ <p className="text-xs text-slate-600">{manuallyMarked} jugadores marcados en PLAYERS · {includeCandidates?externalRoster.length:Math.max(0,manuallyMarked-teamRoster.filter(x=>x.player.manager_fit_candidate===true).length)} candidatos externos seleccionables.</p>
+ {includeCandidates&&<p className="text-xs border-l-2 border-amber-500 bg-amber-50 p-3 text-amber-900">El generador del once, el optimizador y los cambios manuales pueden incorporar candidatos externos en un once hipotético. No los ficha ni les asigna club; se conserva su equipo real. La disponibilidad de fichaje, contrato o lesión no está verificada solo por pertenecer a la bolsa.</p>}
+ {plan.rosterCount<11&&!includeCandidates&&manuallyMarked>0&&!demoMode&&
+  <p className="text-xs rounded-lg bg-blue-50 p-3 border border-blue-100 text-blue-800">Tu club solo tiene {plan.rosterCount} jugadores registrados para esta temporada. Activa «Permitir candidatos externos» para completar un once provisional utilizando los jugadores marcados en PLAYERS.</p>}
  </section>
  <section className="rounded-xl border bg-white p-4 space-y-3">
  <h3 className="font-black">Once orientativo · Escenario {activeScenario} · {active.formation||"Sin formación"}</h3>
