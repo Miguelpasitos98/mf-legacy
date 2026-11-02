@@ -47,5 +47,6 @@ test("UI shows select league, select team, fold league and fold all; only in bul
  assert.match(code,/!isLeagueClosed&&/);
  assert.match(code,/!isTeamClosed&&/);
  assert.match(code,/\{bulkMode&&<button type="button" disabled=\{bulkBusy/);
- assert.match(code,/candidateView=\{bulkMode\}/);
+ assert.doesNotMatch(code,/candidateView=/);
+ assert.match(code,/selectionMode=\{bulkMode\}/);
 });
