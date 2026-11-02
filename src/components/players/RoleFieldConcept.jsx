@@ -38,7 +38,7 @@ const ALL_ROLES=PLAYER_DESCRIPTIONS.flatMap(group=>group.options);
 const comparableRole=value=>String(value||"").replace(/^[^\p{L}\p{N}]+/u,"").trim().toLocaleLowerCase("es");
 const canonicalRole=value=>ALL_ROLES.find(option=>option===value||comparableRole(option)===comparableRole(value))||String(value||"");
 const EMPTY=[{name:"",description:""},{name:"",description:""}];
-export default function RoleFieldConcept({ratings={},playerId,position,foot,storedRoles,onSaved,adaptive=false}){
+export default function RoleFieldConcept({ratings={},playerId,position,foot,storedRoles,onSaved,onRoleSelect,selectedRoleIndex=0,adaptive=false}){
  const key="mf-legacy-tactical-role-settings-v1:"+String(playerId||"preview");
  const [roles,setRoles]=useState(EMPTY);
  const [editing,setEditing]=useState(null);
@@ -60,7 +60,7 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
   setEditing(null);setActiveRole(null);setSaveError("");
  },[key,storedRoles]);
  const openEditor=i=>{setDraft({...roles[i]});setEditing(i);setSaveError("");};
- const toggleRole=i=>{if(!roles[i].name){openEditor(i);return;}setActiveRole(value=>value===i?null:i);};
+ const toggleRole=i=>{if(!roles[i].name){openEditor(i);return;}setActiveRole(i);onRoleSelect?.(i);};
  const save=async()=>{
   if(saving||!playerId)return;
   const next=roles.map((r,i)=>i===editing?{name:draft.name.trim(),description:draft.description.trim()}:r);
@@ -69,6 +69,8 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
    await base44.entities.Player.update(playerId,{tactical_roles:next,description:next[0]?.name||""});
    setRoles(next);
    setActiveRole(next[editing]?.name?editing:null);
+   if(next[editing]?.name)onRoleSelect?.(editing);
+   else onRoleSelect?.(0);
    onSaved?.({tactical_roles:next,description:next[0]?.name||""});
    // Stop using local browser state after a successful server save.
    try{window.localStorage.removeItem(key);}catch{}
@@ -82,7 +84,7 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
   {adaptive && <div className="mf-role-controls">
     <h2 className="text-base font-extrabold text-slate-900">Roles</h2>
     {roles.map((role,i)=><div key={i} className="mf-role-row">
-      <button type="button" onClick={()=>toggleRole(i)} aria-pressed={activeRole===i} aria-label={role.name?`Mostrar zona de ${role.name}`:`Añadir rol ${i+1}`} className={activeRole===i?"text-emerald-700":"text-slate-900"}>{role.name || `Añadir rol ${i+1}`}</button>
+      <button type="button" onClick={()=>toggleRole(i)} aria-pressed={Boolean(role.name)&&selectedRoleIndex===i} aria-label={role.name?`Ver identidad táctica de ${role.name}`:`Añadir rol ${i+1}`} className={role.name&&selectedRoleIndex===i?"text-emerald-700":"text-slate-900"}>{role.name || `Añadir rol ${i+1}`}</button>
       <button type="button" onClick={()=>openEditor(i)} aria-label={`Editar rol ${i+1}`} className="text-xl font-black text-emerald-500">+</button>
     </div>)}
     {activeRole!==null&&roles[activeRole]?.description&&<p className="text-xs leading-relaxed text-slate-600">{roles[activeRole].description}</p>}
@@ -105,13 +107,13 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
     className="pointer-events-none absolute z-30"
     style={{left:"16.4%",top:i===0?"13.4%":"calc(23.9% + 2px)",width:"56.7%",height:"8.8%"}}
   >
-    <button type="button" onClick={()=>toggleRole(i)} aria-pressed={activeRole===i}
-      aria-label={role.name?`Mostrar zona de ${role.name}`:`Añadir rol ${i+1}`}
+    <button type="button" onClick={()=>toggleRole(i)} aria-pressed={Boolean(role.name)&&selectedRoleIndex===i}
+      aria-label={role.name?`Ver identidad táctica de ${role.name}`:`Añadir rol ${i+1}`}
       title={role.description||(role.name?"Mostrar u ocultar zona táctica":"Seleccionar rol")}
       className="pointer-events-auto absolute inset-y-0 left-0 flex w-[82%] items-center rounded-md bg-transparent text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
       {role.name&&<span
         className="pointer-events-none flex h-full min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap pl-5 pr-1 font-bold"
-        style={{fontSize:role.name.length>30?"13px":role.name.length>25?"14px":"16px",lineHeight:"1.2",paddingTop:"11px",color:activeRole===i?"#057A49":"#0F172A"}}
+        style={{fontSize:role.name.length>30?"13px":role.name.length>25?"14px":"16px",lineHeight:"1.2",paddingTop:"11px",color:role.name&&selectedRoleIndex===i?"#057A49":"#0F172A"}}
       >{role.name}</span>}
     </button>
     <button type="button" onClick={()=>openEditor(i)}
