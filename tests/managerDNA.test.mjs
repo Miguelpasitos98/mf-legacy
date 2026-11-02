@@ -56,6 +56,12 @@ test("Managers page renders without data using a mocked Base44 client",async()=>
    entryPoints:["src/pages/Managers.jsx"],outfile,bundle:true,format:"cjs",platform:"node",packages:"external",
    alias:{"@":path.resolve("src")},
    plugins:[{name:"sdk-icons-test",setup(build){
+    // This SSR smoke test checks the Managers shell, not browser-only popovers.
+    // The nationality picker is verified separately in managerNationalitySearch.
+    build.onResolve({filter:/ManagerNationalityPicker/},()=>({path:"nationality-picker",namespace:"picker-test"}));
+    build.onLoad({filter:/.*/,namespace:"picker-test"},()=>({
+     contents:"import React from 'react';export default function Picker(){return React.createElement('button',{type:'button'},'Nacionalidad')}",loader:"js"
+    }));
     build.onResolve({filter:/base44Client/},()=>({path:"client",namespace:"sdk-test"}));
     build.onLoad({filter:/.*/,namespace:"sdk-test"},()=>({contents:"export const base44={entities:{},auth:{}};",loader:"js"}));
     build.onResolve({filter:/^lucide-react$/},()=>({path:"icons",namespace:"icons-test"}));
