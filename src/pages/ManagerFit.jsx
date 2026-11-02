@@ -6,6 +6,7 @@ import {ROLE_LABELS,rankPlayers} from "@/components/managers/managerFit.mjs";
 import {collectPlayerSeasonMetrics,seasonPercentiles,historicalRoleCandidates} from "@/components/managers/managerFitHistorical.mjs";
 import {evaluateRoleRequirements,deriveRoleRequirements} from "@/components/managers/managerRoleFit.mjs";
 import {buildScoutingReport,compareManagerProfiles,SCOUT_METRIC_NAMES} from "@/components/managers/managerScoutingReport.mjs";
+import {ageOnSeason,valuationForSeason,filterScoutingCandidates,formatTransferValue} from "@/components/managers/managerTransferScout.mjs";
 import {managerFitAttributes} from "@/components/managers/managerFitAttributes.mjs";
 import {profileScopeLabel} from "@/components/managers/managerModel.mjs";
 const all=async(entity,query={})=>{
@@ -36,6 +37,12 @@ export default function ManagerFit(){
  const [statsLoading,setStatsLoading]=useState(false);
  const [statsError,setStatsError]=useState("");
  const [scoutingPlayerId,setScoutingPlayerId]=useState("");
+ const [valuationRows,setValuationRows]=useState([]);
+ const [minAge,setMinAge]=useState("");
+ const [maxAge,setMaxAge]=useState("");
+ const [maxValueM,setMaxValueM]=useState("");
+ const [knownValueOnly,setKnownValueOnly]=useState(false);
+ const [minimumCoverage,setMinimumCoverage]=useState(0);
  const managerId=params.get("manager")||"";
  const profileId=params.get("profile")||"";
  const manager=managers.find(m=>String(m.id)===managerId);
@@ -59,11 +66,12 @@ export default function ManagerFit(){
    setParams({manager:String(selected.id),...(next?{profile:String(next.id)}:{})},{replace:true});
  },[loading,managers,profiles,managerId,profileId,setParams]);
  useEffect(()=>{
-  let active=true;setStatsLoading(true);setStatsError("");setSeasonStats([]);setUnderstatRows([]);
+  let active=true;setStatsLoading(true);setStatsError("");setSeasonStats([]);setUnderstatRows([]);setValuationRows([]);
   Promise.all([
    all(base44.entities.PlayerSeasonStats,{season}),
-   all(base44.entities.UnderstatSeasonRate,{season})
-  ]).then(([stats,under])=>{if(active){setSeasonStats(stats);setUnderstatRows(under)}})
+   all(base44.entities.UnderstatSeasonRate,{season}),
+   all(base44.entities.PlayerHistoricalValuation,{season})
+  ]).then(([stats,under,valuations])=>{if(active){setSeasonStats(stats);setUnderstatRows(under);setValuationRows(valuations)}})
   .catch(e=>{if(active)setStatsError(e.message||"No se cargaron los datos históricos")})
   .finally(()=>{if(active)setStatsLoading(false)});
   return ()=>{active=false};
@@ -79,13 +87,17 @@ export default function ManagerFit(){
  const results=useMemo(()=>{
   if(!profile)return [];
   const rows=rankPlayers(players,role,profile,{search,minCA,showUnknown:true})
-   .map(item=>({...item,advanced:managerFitAttributes(item.player,role,profile),
+   .map(item=>({...item,valuation:valuationForSeason(valuationRows,item.player.id,season),advanced:managerFitAttributes(item.player,role,profile),
      historical:seasonPercentiles(historicalIndex.get(String(item.player.id))||{},historicalPeerMetrics,role,profile),
      roleFit:evaluateRoleRequirements(historicalIndex.get(String(item.player.id))||{},historicalPeerMetrics,role,profile)}))
-   .filter(item=>showUnknown||(scoreMode==="role"?item.roleFit.score!==null:scoreMode==="historical"?item.historical.score!==null:scoreMode==="attributes"?item.advanced.score!==null:item.fit!==null))
+   .filter(item=>showUnknown||(scoreMode==="role"?item.roleFit.score!==null:scoreMode==="historical"?item.historical.score!==null:scoreMode==="attributes"?item.advanced.score!==null:item.fit!==null));
+  return filterScoutingCandidates(rows,{season,
+    minAge:minAge===""?null:Number(minAge),maxAge:maxAge===""?null:Number(maxAge),
+    maxValueM:maxValueM===""?null:Number(maxValueM),knownValueOnly,minimumCoverage})
    .sort((a,b)=>scoreMode==="role"?(b.roleFit.score??-1)-(a.roleFit.score??-1)||(b.roleFit.coverage-a.roleFit.coverage):scoreMode==="historical"?(b.historical.score??-1)-(a.historical.score??-1)||(b.historical.coverage-a.historical.coverage):scoreMode==="attributes"?(b.advanced.score??-1)-(a.advanced.score??-1)||(b.fit??-1)-(a.fit??-1):(b.fit??-1)-(a.fit??-1));
-  return rows.slice(0,100);
- },[players,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics]);
+  .slice(0,100);
+ },[players,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics,
+    valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage]);
  const scoutingPlayer=players.find(p=>String(p.id)===scoutingPlayerId)||null;
  const scoutingRow=scoutingPlayer&&profile?{
   player:scoutingPlayer,advanced:managerFitAttributes(scoutingPlayer,role,profile),
@@ -114,6 +126,14 @@ export default function ManagerFit(){
    </div>
    <div className="flex gap-2 flex-wrap text-sm"><label className="text-xs font-bold">Temporada histórica <input aria-label="Temporada histórica" className="block rounded-lg border p-2 mt-1" value={season} onChange={e=>setSeason(e.target.value)} placeholder="2025/2026"/></label></div>
    <div className="flex gap-2 flex-wrap text-sm"><button type="button" aria-pressed={scoreMode==="role"} className={`rounded-lg px-3 py-2 border ${scoreMode==="role"?"bg-blue-900 text-white":"bg-white"}`} onClick={()=>setScoreMode("role")}>Perfil deseado por entrenador (V4)</button><button type="button" aria-pressed={scoreMode==="historical"} className={`rounded-lg px-3 py-2 border ${scoreMode==="historical"?"bg-blue-900 text-white":"bg-white"}`} onClick={()=>setScoreMode("historical")}>Histórico FotMob + Understat (V3)</button><button type="button" aria-pressed={scoreMode==="attributes"} className={`rounded-lg px-3 py-2 border ${scoreMode==="attributes"?"bg-blue-900 text-white":"bg-white"}`} onClick={()=>setScoreMode("attributes")}>Encaje FM26 + ADN (experimental)</button><button type="button" aria-pressed={scoreMode==="position"} className={`rounded-lg px-3 py-2 border ${scoreMode==="position"?"bg-blue-900 text-white":"bg-white"}`} onClick={()=>setScoreMode("position")}>Solo posición (V1)</button></div>
+   <div className="grid grid-cols-2 md:grid-cols-5 gap-2 rounded-xl border bg-slate-50 p-3">
+    <label className="text-xs font-bold">Edad mínima<input aria-label="Edad mínima" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" max="60" value={minAge} onChange={e=>setMinAge(e.target.value)}/></label>
+    <label className="text-xs font-bold">Edad máxima<input aria-label="Edad máxima" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" max="60" value={maxAge} onChange={e=>setMaxAge(e.target.value)}/></label>
+    <label className="text-xs font-bold">Valor máximo (M€)<input aria-label="Valor máximo" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" step="0.5" value={maxValueM} onChange={e=>setMaxValueM(e.target.value)}/></label>
+    <label className="text-xs font-bold">Cobertura mínima<select aria-label="Cobertura mínima" className="block border bg-white rounded-lg p-2 w-full mt-1" value={minimumCoverage} onChange={e=>setMinimumCoverage(Number(e.target.value))}>{[0,25,50,75,100].map(x=><option key={x} value={x}>{x}%</option>)}</select></label>
+    <label className="text-xs font-bold flex flex-col justify-center gap-2"><span>Valor histórico</span><span className="flex gap-2 font-normal items-center"><input type="checkbox" checked={knownValueOnly} onChange={e=>setKnownValueOnly(e.target.checked)}/> Solo con valor</span></label>
+   </div>
+   <p className="text-[11px] text-slate-500">Edad calculada al cierre de la temporada indicada. Valor de mercado histórico de esa misma campaña, no precio de traspaso ni valor actual. Los registros sin fecha o importe verificable no se estiman.</p>
    <div className="flex flex-wrap gap-3 items-center"><input aria-label="Buscar jugador" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar futbolista por nombre…" className="border rounded-lg p-2 text-sm flex-1 min-w-[180px]"/><label className="text-sm flex items-center gap-2"><input type="checkbox" checked={showUnknown} onChange={e=>setShowUnknown(e.target.checked)}/> Incluir encaje no evaluable</label></div>
    {manager&&profile?<div className="text-xs rounded-lg bg-blue-50 p-3"><strong>{manager.name} · {profile.name}</strong><p className="mt-1"><strong>Lo que busca en {ROLE_LABELS[role].toLowerCase()}:</strong> {(()=>{try{return JSON.parse(profile.player_role_priorities||"{}")[role]||"Sin descripción específica"}catch{return "Sin descripción específica"}})()}</p></div>:!loading&&<p className="text-sm text-amber-700">Necesitas un entrenador con un ADN guardado antes de evaluar futbolistas. <Link className="underline" to="/managers">Abrir MANAGERS</Link>.</p>}
   </section>
@@ -129,6 +149,7 @@ export default function ManagerFit(){
      <div className="flex-1 min-w-0">
       <div className="flex justify-between gap-2"><strong className="truncate text-sm">{item.player.name}</strong><strong className="text-blue-700 tabular-nums">{scoreMode==="role"?(item.roleFit.score===null?"—":item.roleFit.score+"/100"):scoreMode==="historical"?(item.historical.score===null?"—":item.historical.score+"/100"):scoreMode==="attributes"?(item.advanced.score===null?"—":item.advanced.score+"/100"):(item.fit===null?"—":item.fit+"/100")}</strong></div>
       <p className="text-xs text-slate-500">Posición {item.player.position||"—"} · CA {item.quality??"—"}/200</p>
+      <p className="text-[11px] text-slate-600">Edad {ageOnSeason(item.player,season)??"—"} · Valor {formatTransferValue(item.valuation?.eur)}{item.valuation?.status==="verified"?" · verificado":""}</p>
       <p className="text-[11px] text-slate-500 mt-1">{scoreMode==="role"?"Indicadores del rol: "+item.roleFit.breakdown.length+"/"+item.roleFit.requested+" · Cobertura "+item.roleFit.coverage+"% · Confianza "+item.roleFit.confidence:scoreMode==="historical"?"Métricas comparables: "+item.historical.breakdown.length+" · Cobertura "+item.historical.coverage+"% · Confianza "+item.historical.confidence:scoreMode==="attributes"?"Posición "+(item.advanced.position??"—")+" · Atributos "+(item.advanced.attributes??"—")+" · ADN "+(item.advanced.style??"—"):item.evidence}</p>
       {scoreMode==="role"&&<p className="text-[11px] text-slate-600">{item.roleFit.breakdown.length?item.roleFit.breakdown.map(m=>m.key+" P"+m.percentile).join(" · "):item.roleFit.limitation}</p>}
       {scoreMode==="historical"&&item.historical.breakdown.length>0&&<p className="text-[11px] text-slate-600">{item.historical.breakdown.slice(0,3).map(m=>m.key+" P"+m.percentile).join(" · ")}</p>}
