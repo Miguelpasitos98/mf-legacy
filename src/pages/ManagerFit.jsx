@@ -5,6 +5,7 @@ import PlayerPortrait from "@/components/teams/PlayerPortrait";
 import {ROLE_LABELS,rankPlayers} from "@/components/managers/managerFit.mjs";
 import {collectPlayerSeasonMetrics,seasonPercentiles,historicalRoleCandidates} from "@/components/managers/managerFitHistorical.mjs";
 import {evaluateRoleRequirements,deriveRoleRequirements} from "@/components/managers/managerRoleFit.mjs";
+import {buildScoutingReport,compareManagerProfiles,SCOUT_METRIC_NAMES} from "@/components/managers/managerScoutingReport.mjs";
 import {managerFitAttributes} from "@/components/managers/managerFitAttributes.mjs";
 import {profileScopeLabel} from "@/components/managers/managerModel.mjs";
 const all=async(entity,query={})=>{
@@ -34,6 +35,7 @@ export default function ManagerFit(){
  const [understatRows,setUnderstatRows]=useState([]);
  const [statsLoading,setStatsLoading]=useState(false);
  const [statsError,setStatsError]=useState("");
+ const [scoutingPlayerId,setScoutingPlayerId]=useState("");
  const managerId=params.get("manager")||"";
  const profileId=params.get("profile")||"";
  const manager=managers.find(m=>String(m.id)===managerId);
@@ -84,7 +86,15 @@ export default function ManagerFit(){
    .sort((a,b)=>scoreMode==="role"?(b.roleFit.score??-1)-(a.roleFit.score??-1)||(b.roleFit.coverage-a.roleFit.coverage):scoreMode==="historical"?(b.historical.score??-1)-(a.historical.score??-1)||(b.historical.coverage-a.historical.coverage):scoreMode==="attributes"?(b.advanced.score??-1)-(a.advanced.score??-1)||(b.fit??-1)-(a.fit??-1):(b.fit??-1)-(a.fit??-1));
   return rows.slice(0,100);
  },[players,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics]);
- const chooseManager=id=>{
+ const scoutingPlayer=players.find(p=>String(p.id)===scoutingPlayerId)||null;
+ const scoutingRow=scoutingPlayer&&profile?{
+  player:scoutingPlayer,advanced:managerFitAttributes(scoutingPlayer,role,profile),
+  historical:seasonPercentiles(historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,role,profile),
+  roleFit:evaluateRoleRequirements(historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,role,profile)
+ }:null;
+ const scoutingReport=scoutingRow?buildScoutingReport(scoutingPlayer,role,profile,season,scoutingRow.roleFit,scoutingRow.historical,scoutingRow.advanced):null;
+ const scoutingComparison=scoutingRow?compareManagerProfiles(scoutingPlayer,role,season,profileOptions,historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,evaluateRoleRequirements):[];
+ const chooseManager=id=>{setScoutingPlayerId("");
   const first=profiles.find(p=>String(p.manager_id)===String(id)&&p.is_default)||profiles.find(p=>String(p.manager_id)===String(id));
   setParams({manager:id,...(first?{profile:String(first.id)}:{})});
  };
@@ -123,10 +133,37 @@ export default function ManagerFit(){
       {scoreMode==="role"&&<p className="text-[11px] text-slate-600">{item.roleFit.breakdown.length?item.roleFit.breakdown.map(m=>m.key+" P"+m.percentile).join(" · "):item.roleFit.limitation}</p>}
       {scoreMode==="historical"&&item.historical.breakdown.length>0&&<p className="text-[11px] text-slate-600">{item.historical.breakdown.slice(0,3).map(m=>m.key+" P"+m.percentile).join(" · ")}</p>}
       {scoreMode==="attributes"&&<p className="text-[11px] text-slate-500">Cobertura de atributos: {item.advanced.coverage}% · Confianza {item.advanced.confidence==="medium"?"media":item.advanced.confidence==="low"?"baja":"insuficiente"}</p>}
-      <p className="text-[11px] text-slate-500">Confianza {item.reliability==="medium"?"media":item.reliability==="low"?"baja":"insuficiente"}</p>
+      <p className="text-[11px] text-slate-500">Confianza posicional {item.reliability==="medium"?"media":item.reliability==="low"?"baja":"insuficiente"}</p>
+      <button type="button" className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100" onClick={()=>setScoutingPlayerId(String(item.player.id))}>Informe de scouting</button>
      </div>
     </div>)}
    </div>
+   {scoutingReport&&<section className="mt-5 rounded-2xl border-2 border-blue-200 bg-slate-50 p-4 space-y-4" aria-label="Informe individual de scouting">
+     <div className="flex flex-wrap justify-between gap-2 items-start">
+      <div><p className="text-[11px] uppercase font-bold text-blue-700">Informe individual · {season}</p>
+       <h3 className="font-black text-xl">{scoutingReport.playerName}</h3>
+       <p className="text-xs text-slate-600">{scoutingReport.profileName} · {ROLE_LABELS[role]}</p></div>
+      <button type="button" onClick={()=>setScoutingPlayerId("")} className="rounded-lg border px-3 py-2 text-xs font-bold bg-white">Cerrar informe</button>
+     </div>
+     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      {[["Encaje por requisitos",scoutingReport.fit===null?"—":scoutingReport.fit+"/100"],["Histórico general",scoutingReport.historicalScore===null?"—":scoutingReport.historicalScore+"/100"],["Atributos FM26",scoutingReport.attributeScore===null?"—":scoutingReport.attributeScore+"/100"],["CA independiente",scoutingReport.ca===null?"—":scoutingReport.ca+"/200"]].map(([k,v])=><div key={k} className="rounded-xl bg-white border p-3"><p className="text-[11px] text-slate-500">{k}</p><strong className="text-xl tabular-nums">{v}</strong></div>)}
+     </div>
+     <p className="text-sm font-medium">{scoutingReport.fitLabel}. {scoutingReport.summary}</p>
+     <p className="text-xs text-slate-600">Cobertura de requisitos {scoutingReport.coverage}% · Confianza {scoutingReport.confidence} · {scoutingReport.unmeasured} indicadores no evaluados</p>
+     <div className="grid md:grid-cols-2 gap-3">
+      <div className="rounded-xl border bg-white p-3"><h4 className="text-sm font-bold text-emerald-800">Fortalezas observadas (P70+)</h4>
+       {scoutingReport.strengths.length?<ul className="mt-2 space-y-1 text-xs">{scoutingReport.strengths.map(m=><li key={m.key}>{SCOUT_METRIC_NAMES[m.key]||m.key}: <b>P{m.percentile}</b> · {m.source||"Fuente no indicada"} · {m.peerCount} comparables</li>)}</ul>:<p className="text-xs text-slate-500 mt-2">Sin indicadores evaluados en P70 o superior.</p>}
+      </div>
+      <div className="rounded-xl border bg-white p-3"><h4 className="text-sm font-bold text-amber-800">Áreas de menor rendimiento relativo (P35 o menos)</h4>
+       {scoutingReport.weaknesses.length?<ul className="mt-2 space-y-1 text-xs">{scoutingReport.weaknesses.map(m=><li key={m.key}>{SCOUT_METRIC_NAMES[m.key]||m.key}: <b>P{m.percentile}</b> · {m.source||"Fuente no indicada"} · {m.peerCount} comparables</li>)}</ul>:<p className="text-xs text-slate-500 mt-2">Sin indicadores evaluados en P35 o inferior; no implica ausencia de debilidades.</p>}
+      </div>
+     </div>
+     <div className="rounded-xl border bg-white p-3"><h4 className="text-sm font-bold">Comparación del mismo jugador entre los ADN del entrenador</h4>
+      <p className="text-xs text-slate-500 mt-1">Misma temporada y rol; los requisitos cambian según el modelo. Un «—» significa evidencia insuficiente.</p>
+      <div className="mt-2 space-y-2">{scoutingComparison.map(m=><div key={m.id} className="flex gap-3 items-center justify-between border-b pb-2 text-xs"><div className="min-w-0"><strong>{m.name}</strong> {m.is_default?"· Principal":""}<p className="text-slate-500">Cobertura {m.coverage}% · {m.evaluated} métricas</p></div><strong className="text-sm tabular-nums">{m.fit===null?"—":m.fit+"/100"}</strong></div>)}</div>
+     </div>
+     <p className="text-xs border-l-2 border-amber-400 pl-3 text-slate-600">{scoutingReport.limitations} Los percentiles son relativos a la muestra disponible, no equivalen a predicciones de éxito bajo el entrenador. Las descripciones sin métricas comprobables no se puntúan.</p>
+   </section>}
    {!loading&&!results.length&&<p className="p-5 text-center text-slate-500 text-sm">No hay jugadores que cumplan esos filtros y tengan datos suficientes.</p>}
   </section>
  </main>;
