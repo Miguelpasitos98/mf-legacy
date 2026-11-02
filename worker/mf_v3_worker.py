@@ -50,7 +50,9 @@ def number(value: Any):
 
 def norm(value: Any) -> str:
     import unicodedata
-    value = "".join(c for c in unicodedata.normalize("NFKD", text(value)) if not unicodedata.combining(c))
+    folded = text(value).translate(str.maketrans({"Ø":"O","ø":"o","Ł":"L","ł":"l",
+        "Đ":"D","đ":"d","Ð":"D","ð":"d","Æ":"Ae","æ":"ae","Œ":"Oe","œ":"oe","ß":"ss"}))
+    value = "".join(c for c in unicodedata.normalize("NFKD", folded) if not unicodedata.combining(c))
     return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
 
 
@@ -485,7 +487,10 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
                     # Existing verified Studio caches remain usable if refresh fails.
                     candidates,state=studio_understat(root,pid,max_candidates=max_candidates,existing_scopes=existing_scopes)
                     state['note']+=' Preparación: '+str(prepare_error)[:160]
-                    if not candidates:raise
+                    # A missing archive must not prevent the other public-source fallback.
+                    state.setdefault('diagnostics',[]).append({'status':'error_temporal',
+                        'reason':'Archivo Understat: '+str(prepare_error)[:160]})
+                    state['status']='partial'
                 else:candidates,state=studio_understat(root,pid,max_candidates=max_candidates,existing_scopes=existing_scopes)
                 # Public per-player SSR supplements the fixed historical archive.
                 # Never treat Crafted's current ratings/model values as history.

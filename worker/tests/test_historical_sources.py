@@ -8,6 +8,34 @@ class HistoricalSourceTests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)
  def tearDown(self):self.tmp.cleanup()
+ def test_unicode_identity_understat_player(self):
+  self.assertEqual(norm('Martin Ødegaard'),norm('Martin Odegaard'))
+  self.assertEqual(norm('Sørloth'),norm('Sorloth'))
+  self.assertEqual(norm('Łukasz'),norm('Lukasz'))
+  self.assertNotEqual(norm('Martin Ødegaard'),norm('Martin Ødegaarden'))
+ def test_understat_search_accepts_ascii_provider_spelling(self):
+  from unittest.mock import Mock
+  app=types.ModuleType('app');app.__path__=[]
+  dataset=types.ModuleType('app.understat_dataset')
+  bridge=types.ModuleType('app.understat_bridge')
+  dataset.LEAGUES={'EPL':'47','La_Liga':'87'}
+  dataset.import_dataset=Mock()
+  dataset.search=lambda root,name:[{'understat_player_id':'2517'}] if 'odegaard' in norm(name) else []
+  def records(root,uid):
+   return [
+    {'name':'Martin Odegaard','season':'2019/2020','league':'La_Liga','team':'Real Sociedad','canonical':{}},
+    {'name':'Martin Odegaard','season':'2021/2022','league':'EPL','team':'Arsenal','canonical':{}}]
+  dataset.records=records
+  dataset.confirm_link=Mock()
+  bridge.contextual_team_match=lambda a,b,tid,teamid:norm(a)==norm(b)
+  bundle={'player':{'name':'Martin Ødegaard'},'career':[
+    {'season':'2019/2020','fotmob_tournament_id':'87','team_name':'Real Sociedad','fotmob_team_id':'999'},
+    {'season':'2021/2022','fotmob_tournament_id':'47','team_name':'Arsenal','fotmob_team_id':'777'}]}
+  with patch.dict('sys.modules',{'app':app,'app.understat_dataset':dataset,'app.understat_bridge':bridge}),patch.object(Catalogs,'asset',return_value=(self.root/'archive.csv','sha')):
+   result=Catalogs(self.root).understat('534670',bundle)
+  self.assertEqual(result['provider_id'],'2517')
+  self.assertEqual(len(result['rows']),2)
+  dataset.confirm_link.assert_called_once()
  def test_season_edition_is_explicit(self):
   self.assertEqual(edition_for('2022/2023'),(23,'FIFA 23'))
   self.assertEqual(edition_for('2023/2024'),(24,'FC 24'))

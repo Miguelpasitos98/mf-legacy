@@ -35,8 +35,11 @@ PINNED_SHA={
 # Actual release dates. Unknown editions stay pending rather than borrow data.
 RELEASES={15:'2014-09-26',16:'2015-09-25',17:'2016-09-29',18:'2017-09-29',19:'2018-09-28',20:'2019-09-27',21:'2020-10-09',22:'2021-10-01',23:'2022-09-30',24:'2023-09-29',26:'2025-09-26'}
 POSITIONS={'GK','CB','RB','LB','RWB','LWB','CDM','CM','CAM','RM','LM','RW','LW','CF','ST'}
+# NFKD does not decompose Ø, Ł, Đ, Æ or ß; transliterate symmetrically.
+TRANSLITERATION=str.maketrans({'Ø':'O','ø':'o','Ł':'L','ł':'l','Đ':'D','đ':'d',
+ 'Ð':'D','ð':'d','Þ':'Th','þ':'th','Æ':'Ae','æ':'ae','Œ':'Oe','œ':'oe','ß':'ss'})
 def norm(value):
- value=unicodedata.normalize('NFKD',str(value or ''))
+ value=unicodedata.normalize('NFKD',str(value or '').translate(TRANSLITERATION))
  return ' '.join(re.sub('[^a-z0-9]+',' ',''.join(c for c in value if not unicodedata.combining(c)).casefold()).split())
 def now():return datetime.now(timezone.utc).isoformat()
 def edition_for(season):
@@ -174,7 +177,14 @@ class Catalogs:
   from app.understat_bridge import contextual_team_match
   path,sha=self.asset('understat-2014-2025')
   dataset.import_dataset(self.root,path)
-  people=dataset.search(self.root,bundle['player']['name'])
+  name=bundle['player']['name']
+  # Query ASCII provider spelling too: Studio's older index drops Ø.
+  search_names={name,unicodedata.normalize('NFKD',name.translate(TRANSLITERATION))}
+  people_by_id={}
+  for search_name in search_names:
+   for person in dataset.search(self.root,search_name):
+    people_by_id[str(person['understat_player_id'])]=person
+  people=list(people_by_id.values())
   verified=[]
   for person in people:
    rows=dataset.records(self.root,person['understat_player_id']);matches=[]
