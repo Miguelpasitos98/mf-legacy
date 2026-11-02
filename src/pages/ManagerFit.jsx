@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import PlayerPortrait from "@/components/teams/PlayerPortrait";
+import {ManagerScoutingSummary,ScoutingCandidateCard,ManagerMethodsPanel} from "@/components/managers/ManagerScoutingVisual";
 import {ROLE_LABELS,rankPlayers} from "@/components/managers/managerFit.mjs";
 import {collectPlayerSeasonMetrics,seasonPercentiles,historicalRoleCandidates} from "@/components/managers/managerFitHistorical.mjs";
 import {evaluateRoleRequirements,deriveRoleRequirements} from "@/components/managers/managerRoleFit.mjs";
@@ -151,36 +152,28 @@ export default function ManagerFit(){
    <div className="flex flex-wrap gap-3 items-center"><input aria-label="Buscar jugador" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar futbolista por nombre…" className="border rounded-lg p-2 text-sm flex-1 min-w-[180px]"/><label className="text-sm flex items-center gap-2"><input type="checkbox" checked={showUnknown} onChange={e=>setShowUnknown(e.target.checked)}/> Incluir encaje no evaluable</label></div>
    {manager&&profile?<div className="text-xs rounded-lg bg-blue-50 p-3"><strong>{manager.name} · {profile.name}</strong><p className="mt-1"><strong>Lo que busca en {ROLE_LABELS[role].toLowerCase()}:</strong> {(()=>{try{return JSON.parse(profile.player_role_priorities||"{}")[role]||"Sin descripción específica"}catch{return "Sin descripción específica"}})()}</p></div>:!loading&&<p className="text-sm text-amber-700">Necesitas un entrenador con un ADN guardado antes de evaluar futbolistas. <Link className="underline" to="/managers">Abrir MANAGERS</Link>.</p>}
   </section>
-  <section className="border rounded-2xl bg-white p-3 md:p-4 space-y-3">
-   <div className="flex gap-2 items-center justify-between flex-wrap"><h2 className="font-bold">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}{!loading&&visibility.compatibleCount>0&&<span className="ml-2 font-normal text-xs text-slate-500">({visibility.compatibleCount} compatibles · {visibility.scoredCount} evaluables)</span>}</h2><span className="text-xs text-slate-500">Criterios auditables · No predice rendimiento</span></div>
-   {scoreMode==="role"&&<div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-xs"><strong>Criterios identificados:</strong> {roleRequirements.matched.length?roleRequirements.matched.map(x=>x.label).join(" · "):"Ninguno reconocido de forma fiable"}<p className="mt-1 text-slate-600">Solo se consideran indicadores vinculados explícitamente al rol; esta interpretación no utiliza IA en cada búsqueda ni altera el perfil guardado.</p></div>}
-   {visibility.fallback&&!loading&&!statsLoading&&<div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-    <strong>Hay {visibility.compatibleCount} jugadores compatibles con la posición seleccionada.</strong> No existe evidencia suficiente para asignarles una puntuación {scoreMode==="role"?"V4 de encaje con los requisitos de este ADN":scoreMode==="historical"?"histórica V3":"FM26 V2"}.
-    Se muestran los {visibility.shownCount} primeros ordenados por adecuación posicional, con el encaje sin evaluar marcado como «—». La puntuación de posición NO sustituye al encaje táctico.
-    {scoreMode==="role"&&roleRequirements.unmatched&&<> El texto del ADN no permite reconocer indicadores suficientes; prueba otro perfil o el modo <strong>«Encaje FM26 + ADN»</strong>.</>}
-    {scoreMode==="role"&&!roleRequirements.unmatched&&<> Para calcular percentiles V4 se requieren por lo menos diez compañeros comparables por indicador y dos métricas medidas por futbolista.</>}
-   </div>}
-   {!loading&&!statsLoading&&!visibility.fallback&&visibility.unscoredCount>0&&visibility.scoredCount>0&&!showUnknown&&<p className="text-xs text-slate-600">Se muestran {visibility.scoredCount} jugadores evaluables; hay {visibility.unscoredCount} compatibles con la posición cuyo encaje no puede puntuarse. Activa «Incluir encaje no evaluable» para verlos.</p>}
-   {statsError&&<p role="alert" className="text-sm bg-red-50 border rounded-lg p-3">{statsError}</p>}
-   {statsLoading&&<p role="status" className="text-xs text-blue-700">Cargando métricas de {season}…</p>}
-   <p className="text-xs bg-amber-50 border border-amber-100 rounded-lg p-3 text-amber-900"><strong>V4 experimental:</strong> vincula frases reconocibles de las preferencias por posición a proxies estadísticos por temporada; no infiere capacidades sin mediciones. <strong>V3 histórico:</strong> selecciona una campaña para comparar únicamente registros de esa misma temporada y rol, con al menos 10 observaciones por indicador. La nota se basa en percentiles de métricas disponibles; es una estimación, no una medida directa de la filosofía del entrenador. Sin suficientes indicadores aparece «—». <strong>V2 experimental:</strong> combina adecuación posicional, atributos técnicos/físicos/mentales disponibles en FM26 y preferencias generales del ADN (ej. presión o posesión). Se muestra la cobertura y la confianza. No mide todavía datos históricos por temporada ni comprende automáticamente las descripciones de roles. El CA se mantiene independiente del resultado.</p>
-   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-    {results.map(item=><div key={item.player.id} className="rounded-xl border p-3 flex gap-3 min-w-0">
-     <PlayerPortrait player={item.player} className="h-14 w-14 rounded-full object-cover shrink-0"/>
-     <div className="flex-1 min-w-0">
-      <div className="flex justify-between gap-2"><strong className="truncate text-sm">{item.player.name}</strong><strong className="text-blue-700 tabular-nums">{scoreMode==="role"?(item.roleFit.score===null?"—":item.roleFit.score+"/100"):scoreMode==="historical"?(item.historical.score===null?"—":item.historical.score+"/100"):scoreMode==="attributes"?(item.advanced.score===null?"—":item.advanced.score+"/100"):(item.fit===null?"—":item.fit+"/100")}</strong></div>
-      <p className="text-xs text-slate-500">Posición {item.player.position||"—"} · CA {item.quality??"—"}/200</p>
-      <p className="text-[11px] text-slate-600">Edad {ageOnSeason(item.player,season)??"—"} · Valor {formatTransferValue(item.valuation?.eur)}{item.valuation?.status==="verified"?" · verificado":""}</p>
-      <p className="text-[11px] text-slate-500 mt-1">{scoreMode==="role"?"Indicadores del rol: "+item.roleFit.breakdown.length+"/"+item.roleFit.requested+" · Cobertura "+item.roleFit.coverage+"% · Confianza "+item.roleFit.confidence:scoreMode==="historical"?"Métricas comparables: "+item.historical.breakdown.length+" · Cobertura "+item.historical.coverage+"% · Confianza "+item.historical.confidence:scoreMode==="attributes"?"Posición "+(item.advanced.position??"—")+" · Atributos "+(item.advanced.attributes??"—")+" · ADN "+(item.advanced.style??"—"):item.evidence}</p>
-      {scoreMode==="role"&&<p className="text-[11px] text-slate-600">{item.roleFit.breakdown.length?item.roleFit.breakdown.map(m=>m.key+" P"+m.percentile).join(" · "):item.roleFit.limitation}</p>}
-      {scoreMode==="historical"&&item.historical.breakdown.length>0&&<p className="text-[11px] text-slate-600">{item.historical.breakdown.slice(0,3).map(m=>m.key+" P"+m.percentile).join(" · ")}</p>}
-      {scoreMode==="attributes"&&<p className="text-[11px] text-slate-500">Cobertura de atributos: {item.advanced.coverage}% · Confianza {item.advanced.confidence==="medium"?"media":item.advanced.confidence==="low"?"baja":"insuficiente"}</p>}
-      <p className="text-[11px] text-slate-500">Confianza posicional {item.reliability==="medium"?"media":item.reliability==="low"?"baja":"insuficiente"}</p>
-      <button type="button" aria-pressed={comparedIds.includes(String(item.player.id))} disabled={!comparedIds.includes(String(item.player.id))&&comparedIds.length>=MAX_COMPARE} className={`mt-2 mr-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${comparedIds.includes(String(item.player.id))?"bg-emerald-50 border-emerald-300 text-emerald-900":"bg-white text-slate-700"}`} onClick={()=>setComparedIds(prev=>toggleCandidate(prev,item.player.id))}>{comparedIds.includes(String(item.player.id))?"Quitar de comparación":"Comparar +"}</button>
-      <button type="button" className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100" onClick={()=>setScoutingPlayerId(String(item.player.id))}>Informe de scouting</button>
-     </div>
-    </div>)}
+  <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 md:p-5 space-y-4">
+   <div className="flex flex-wrap items-center justify-between gap-2">
+    <div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#315fa7]">Manager Fit · Análisis comparativo</p>
+     <h2 className="mt-1 text-base font-black text-slate-900">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}</h2></div>
+    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold text-slate-600">Modelo auditable · No predice rendimiento</span>
    </div>
+   <ManagerScoutingSummary scoreMode={scoreMode} visibility={visibility} roleRequirements={roleRequirements} statsLoading={statsLoading} statsError={statsError} season={season}/>
+   {visibility.fallback&&!statsLoading&&<p role="status" className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-slate-700">
+    Los resultados se presentan por <strong>adecuación posicional</strong> porque este modo todavía no puede asignar puntuación con la evidencia disponible. No se ha inventado ninguna nota táctica.
+   </p>}
+   {!loading&&!statsLoading&&!visibility.fallback&&visibility.unscoredCount>0&&visibility.scoredCount>0&&!showUnknown&&<p className="text-xs text-slate-500">Hay {visibility.unscoredCount} jugadores compatibles sin evaluación. Activa «Incluir encaje no evaluable» para mostrarlos.</p>}
+   {statsLoading&&<p role="status" className="text-xs font-semibold text-blue-700">Cargando métricas históricas de {season}…</p>}
+   <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+    {results.map(item=><ScoutingCandidateCard key={item.player.id} item={item} scoreMode={scoreMode}
+     age={ageOnSeason(item.player,season)}
+     valueText={formatTransferValue(item.valuation?.eur)}
+     selected={comparedIds.includes(String(item.player.id))}
+     compareDisabled={!comparedIds.includes(String(item.player.id))&&comparedIds.length>=MAX_COMPARE}
+     onCompare={()=>setComparedIds(prev=>toggleCandidate(prev,item.player.id))}
+     onReport={()=>setScoutingPlayerId(String(item.player.id))}/>)}
+   </div>
+   <ManagerMethodsPanel/>
    <section className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-3 md:p-4 space-y-3" aria-label="Comparador de fichajes">
      <div className="flex flex-wrap justify-between items-start gap-2"><div><h3 className="font-black">Comparador de candidatos · V7</h3><p className="text-xs text-slate-600">{comparedIds.length}/{MAX_COMPARE} seleccionados · Misma temporada, rol y ADN del entrenador.</p></div><button type="button" className="text-xs font-bold rounded-lg border px-3 py-2 bg-white" onClick={()=>setComparedIds([])} disabled={!comparedIds.length}>Limpiar selección</button></div>
      <div className="flex flex-wrap items-center gap-3 text-xs">
