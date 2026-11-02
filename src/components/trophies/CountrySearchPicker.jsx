@@ -1,13 +1,6 @@
 import React,{useEffect,useId,useMemo,useRef,useState} from "react";
 import {Check,ChevronDown,Search,X} from "lucide-react";
-import {normaliseSearch} from "@/utils/trophyCatalog";
-
-// Filter by normalized country names, so "espana" finds "España" and "mexico" finds "México".
-export const filterCountryOptions=(options,search)=>{
- const q=normaliseSearch(search);
- if(!q)return options||[];
- return (options||[]).filter(option=>normaliseSearch(option.label).includes(q));
-};
+import {filterCountryOptions} from "@/utils/trophyCatalogFilters";
 
 export default function CountrySearchPicker({options=[],value="all",onChange}){
  const root=useRef(null);
