@@ -5,6 +5,7 @@ import {Search,Plus,Save,Sparkles,Copy,UserRoundCog,SlidersHorizontal,ShieldChec
 import ManagerPortrait from "@/components/managers/ManagerPortrait";
 import {resolveManagerCountry,buildManagerBiographyPrompt,parseBiographyResponse} from "@/components/managers/managerBiography.mjs";
 import {buildManagerTacticalPrompt,parseManagerTacticalResponse,previewManagerTacticalDraft,effectiveProfileContext} from "@/components/managers/managerTacticalAI.mjs";
+import {CAREER_FORMAT,SUCCESS_TIERS,buildManagerCareerPrompt,unwrapCareerJSON,parseManagerCareerResponse,careerToProfilePayload,profileIdentity} from "@/components/managers/managerCareerDNA.mjs";
 import {DNA_AXES,ROLES,MANAGER_BLANK,PROFILE_BLANK,PROFILE_SCOPES,profileScope,profileScopeLabel,cleanManager,cleanProfile,decodeRoleText,validSeason,chooseAssignment,isCustomTeam} from "@/components/managers/managerModel.mjs";
 
 const getRows = async (entity,query={})=>{
@@ -41,6 +42,10 @@ export default function Managers(){
  const [showBiographyPrompt,setShowBiographyPrompt]=useState(false);
  const [generatingDNA,setGeneratingDNA]=useState(false);
  const [dnaContext,setDnaContext]=useState("");
+ const [investigationMode,setInvestigationMode]=useState("career");
+ const [careerDraft,setCareerDraft]=useState(null);
+ const [careerSelected,setCareerSelected]=useState({});
+ const [careerMakeGeneralDefault,setCareerMakeGeneralDefault]=useState(false);
  const [showDNAPrompt,setShowDNAPrompt]=useState(false);
  const [dnaJsonInput,setDnaJsonInput]=useState("");
  const [dnaDraftReady,setDnaDraftReady]=useState(false);
@@ -94,7 +99,7 @@ export default function Managers(){
  useEffect(()=>{
   setManagerDraft(selected?{...MANAGER_BLANK,...selected}:{...MANAGER_BLANK});
   setProfileId("");setTab(newManagerTabRef.current===String(selected?.id)?"dna":"identity");
-  newManagerTabRef.current="";setDnaDraftReady(false);setScopeSuggestion(null);setShowDNAPrompt(false);setDnaJsonInput("");setDnaContext("");setNotice("");setError("");
+  newManagerTabRef.current="";setDnaDraftReady(false);setScopeSuggestion(null);setShowDNAPrompt(false);setDnaJsonInput("");setDnaContext("");setCareerDraft(null);setCareerSelected({});setNotice("");setError("");
  },[selected?.id]);
  useEffect(()=>{
   const profilesOfSelected=profiles.filter(p=>String(p.manager_id)===String(selected?.id||""));
@@ -124,12 +129,81 @@ export default function Managers(){
  const updateProfile=(key,value)=>setProfileDraft(prev=>({...prev,[key]:value}));
  const tacticalPrompt=useMemo(()=>{
    if(!selected)return "";
-   try{return buildManagerTacticalPrompt(selected,profileDraft,dnaContext);}
+   try{return investigationMode==="career"?
+     buildManagerCareerPrompt(selected,dnaContext):
+     buildManagerTacticalPrompt(selected,profileDraft,dnaContext);}
    catch{return "";}
- },[selected,profileDraft.season,profileDraft.profile_scope,profileDraft.period_start,profileDraft.period_end,profileDraft.reference_club,profileDraft.profile_notes,dnaContext]);
+ },[selected,investigationMode,profileDraft.season,profileDraft.profile_scope,profileDraft.period_start,profileDraft.period_end,profileDraft.reference_club,profileDraft.profile_notes,dnaContext]);
  useEffect(()=>{
    dnaIdentityRef.current=String(selected?.id||"")+":"+String(profileId);
  },[selected?.id,profileId]);
+ const applyResearchResponse=(raw,identity)=>{
+   const data=unwrapCareerJSON(raw);
+   if(data?.format===CAREER_FORMAT){
+     const parsed=parseManagerCareerResponse(data);
+     if(dnaIdentityRef.current!==identity)throw Error("El entrenador o perfil cambió durante el análisis. No se ha aplicado el resultado.");
+     if(careerDraft && !window.confirm("Se va a reemplazar el borrador de trayectoria anterior (no guardado). ¿Continuar?"))return false;
+     setCareerDraft(parsed);
+     const selection=Object.fromEntries([...parsed.models.map(m=>[m.id,true]),["general",true]]);
+     setCareerSelected(selection);setCareerMakeGeneralDefault(false);
+     setNotice("Investigación histórica cargada: "+parsed.models.length+" grandes evoluciones y una filosofía general. Revisa los modelos antes de importarlos. Nada se ha guardado.");
+     setError("");return true;
+   }
+   return applyTacticalProposal(data,identity);
+ };
+ const loadCareerModelIntoEditor=item=>{
+   if(!item)return;
+   if(profileId && profileId!=="__new__" &&
+     !window.confirm("Se abrirá esta propuesta como un NUEVO perfil en el editor, sin sobrescribir el guardado. ¿Continuar?"))return;
+   setProfileId("__new__");
+   const newDraft={...PROFILE_BLANK,...item.profile,is_default:false};
+   if(item.id==="general")newDraft.name="Filosofía general";
+   setProfileDraft(newDraft);setRoleText(item.roleText);setDnaDraftReady(true);
+   setScopeSuggestion({scope:newDraft.profile_scope,origin:"structured",period_start:newDraft.period_start,period_end:newDraft.period_end,season:newDraft.season});
+   setNotice("Modelo «"+newDraft.name+"» cargado como borrador NUEVO. Puedes editarlo y guardar solo este ADN desde abajo.");
+ };
+ const saveCareerProfiles=async()=>{
+   if(!canWrite||!selected||busy||generatingDNA||!careerDraft)return;
+   const selectedItems=[...careerDraft.models,careerDraft.general].filter(item=>careerSelected[item.id]);
+   if(!selectedItems.length){setError("Selecciona al menos un modelo para importar.");return;}
+   const existingIdentities=new Set(managerProfiles.map(profileIdentity));
+   const repeated=selectedItems.filter(item=>existingIdentities.has(profileIdentity(item.profile)));
+   if(repeated.length){
+     setError("Ya existen perfiles para esos periodos: "+repeated.map(x=>x.profile.name).join(", ")+". No se sobrescribirá ninguno. Desmárcalos antes de guardar.");
+     return;
+   }
+   if(!window.confirm("Se crearán "+selectedItems.length+" perfiles NUEVOS de "+selected.name+". No se modificarán los existentes, los equipos ni los jugadores. ¿Confirmar importación?"))return;
+   setBusy(true);setError("");setNotice("");
+   const created=[];
+   try{
+     // Refresh before writing to avoid duplicates from a second tab.
+     const latest=await getRows(base44.entities.ManagerTacticalProfile,{manager_id:String(selected.id)});
+     const ids=new Set(latest.map(profileIdentity));
+     if(selectedItems.some(item=>ids.has(profileIdentity(item.profile))))throw Error("Otra sesión ya creó un perfil para una de estas etapas. Actualiza antes de reintentar.");
+     const existingDefault=latest.some(p=>p.is_default===true);
+     for(const item of selectedItems){
+       const wantsDefault=item.id==="general" && careerMakeGeneralDefault && !existingDefault;
+       const payload=careerToProfilePayload(item,selected.id,{defaultProfile:wantsDefault});
+       const row=await base44.entities.ManagerTacticalProfile.create(payload);
+       created.push(row);
+     }
+     const refreshed=await refresh();
+     const first=created.find(row=>String(row.id))||null;
+     setCareerDraft(null);setCareerSelected({});setDnaDraftReady(false);
+     if(first){
+       setProfileId(String(first.id));
+       const stored=refreshed.profiles.find(x=>String(x.id)===String(first.id));
+       if(stored)setProfileDraft({...PROFILE_BLANK,...stored});
+     }
+     setNotice(created.length+" perfiles históricos creados correctamente. Se han conservado los registros anteriores.");
+   }catch(e){
+     if(created.length){
+       const results=await Promise.allSettled(created.map(row=>base44.entities.ManagerTacticalProfile.delete(row.id)));
+       if(results.some(r=>r.status==="rejected"))setError("La importación falló y no se pudieron deshacer todos los registros. Revisa posibles perfiles parciales antes de continuar. "+(e.message||""));
+       else setError("No se completó la importación; se han revertido los perfiles creados en este intento. "+(e.message||""));
+     }else setError(e.message||"No se pudieron importar los perfiles.");
+   }finally{setBusy(false)}
+ };
  const applyTacticalProposal = (raw,identity)=>{
    const parsed=parseManagerTacticalResponse(raw);
    if(dnaIdentityRef.current!==identity)throw Error("Has cambiado de entrenador o perfil durante el análisis; la propuesta anterior no se aplicó.");
@@ -153,7 +227,7 @@ export default function Managers(){
    try{
      if(!navigator.clipboard?.writeText)throw Error("Copia automática no permitida por el navegador.");
      await navigator.clipboard.writeText(tacticalPrompt);
-     setNotice("Prompt de ADN táctico copiado. Puedes enviarlo a ChatGPT y pegar aquí el JSON obtenido.");
+     setNotice("Prompt de "+(investigationMode==="career"?"trayectoria completa":"ADN individual")+" copiado. Puedes enviarlo a ChatGPT y pegar aquí el JSON obtenido.");
    }catch(e){
      setShowDNAPrompt(true);
      setError((e.message||"No se pudo copiar.")+" Selecciona el texto en el cuadro inferior.");
@@ -173,7 +247,7 @@ export default function Managers(){
        manager_kind:selected.manager_kind,prompt:tacticalPrompt
      });
      if(!result.data?.ok)throw Error(result.data?.error||"El servidor no devolvió un resultado.");
-     applyTacticalProposal(result.data.response,identity);
+     applyResearchResponse(result.data.response,identity);
    }catch(e){
      if(dnaIdentityRef.current===identity){
        setShowDNAPrompt(true);
@@ -186,7 +260,7 @@ export default function Managers(){
    setError("");setNotice("");
    try{
      const identity=String(selected.id)+":"+String(profileId);
-     if(applyTacticalProposal(dnaJsonInput,identity))setDnaJsonInput("");
+     if(applyResearchResponse(dnaJsonInput,identity))setDnaJsonInput("");
    }catch(e){setError("El JSON de ADN táctico no es válido: "+(e.message||"Error desconocido"));}
  };
  const biographyPrompt=useMemo(()=>{
@@ -393,21 +467,60 @@ export default function Managers(){
        <div className="flex flex-wrap gap-2 justify-between items-center">
          <div><h4 className="font-extrabold text-sm flex items-center gap-2"><Sparkles size={17} className="text-[#003399]"/> ADN táctico con IA</h4><p className="text-xs text-slate-600">Genera un borrador específico para {selected.name}, separado de su biografía.</p></div>
          <div className="flex gap-2 flex-wrap">
-           <button type="button" disabled={!canWrite||busy||generatingDNA} onClick={generateTacticalDNA} className="inline-flex items-center gap-2 bg-[#003399] text-white rounded-lg px-3 py-2 text-xs font-bold disabled:opacity-40"><Sparkles size={14}/>{generatingDNA?"Investigando modelo…":"Investigar y completar ADN"}</button>
+           <button type="button" disabled={!canWrite||busy||generatingDNA} onClick={generateTacticalDNA} className="inline-flex items-center gap-2 bg-[#003399] text-white rounded-lg px-3 py-2 text-xs font-bold disabled:opacity-40"><Sparkles size={14}/>{generatingDNA?"Investigando…":investigationMode==="career"?"Investigar trayectoria completa":"Investigar ADN individual"}</button>
            <button type="button" disabled={!tacticalPrompt} onClick={copyTacticalPrompt} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-white border text-xs font-bold"><Copy size={14}/> Copiar prompt para ChatGPT</button>
          </div>
+       </div>
+       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" aria-label="Modo de investigación">
+         <button type="button" onClick={()=>setInvestigationMode("career")} aria-pressed={investigationMode==="career"}
+           className={`text-left rounded-lg border p-3 ${investigationMode==="career"?"border-blue-700 ring-1 ring-blue-700 bg-white":"border-blue-100 bg-blue-50"}`}>
+           <strong className="block text-xs">Trayectoria completa + filosofía general</strong>
+           <span className="block text-[11px] text-slate-500 mt-1">Variaciones históricas, resultados y cuál funcionó mejor, con sus fuentes.</span>
+         </button>
+         <button type="button" onClick={()=>setInvestigationMode("single")} aria-pressed={investigationMode==="single"}
+           className={`text-left rounded-lg border p-3 ${investigationMode==="single"?"border-blue-700 ring-1 ring-blue-700 bg-white":"border-blue-100 bg-blue-50"}`}>
+           <strong className="block text-xs">Un modelo concreto</strong>
+           <span className="block text-[11px] text-slate-500 mt-1">Un solo club, etapa o temporada. Compatible con el JSON anterior.</span>
+         </button>
        </div>
        <label className="block text-xs font-semibold">Club / etapa de referencia (opcional)
          <input aria-label="Club o etapa táctica" value={dnaContext} onChange={e=>setDnaContext(e.target.value)} maxLength={160} className={input+" mt-1"} placeholder="Ej.: Liverpool 2018–2024, Borussia Dortmund 2011–2013"/>
        </label>
-       <p className="text-[11px] text-slate-600">La IA estimará los seis valores, formación, fases del juego y siete perfiles de jugador. Los números son criterios analíticos, no estadísticas oficiales. Ningún cambio se guardará hasta pulsar «Guardar ADN táctico». La generación puede consumir créditos de Base44.</p>
+       <p className="text-[11px] text-slate-600">La IA distinguirá modelos históricos y sintetizará la filosofía general, o investigará uno solo si eliges ese modo. Los valores son estimaciones analíticas, no estadísticas oficiales. Ningún cambio se guardará hasta pulsar «Guardar ADN táctico». La generación puede consumir créditos de Base44.</p>
        <details open={showDNAPrompt} onToggle={e=>setShowDNAPrompt(e.currentTarget.open)} className="border rounded-lg bg-white p-2">
          <summary className="text-xs cursor-pointer font-semibold">Ver prompt y pegar respuesta JSON de ChatGPT</summary>
          <textarea aria-label="Prompt táctico para ChatGPT" className={input+" mt-2 font-mono"} value={tacticalPrompt} readOnly rows={5} onFocus={e=>e.target.select()}/>
-         <label className="block mt-3 text-xs font-semibold">Pegar JSON táctico generado por ChatGPT</label>
+         <label className="block mt-3 text-xs font-semibold">Pegar JSON de trayectoria o de ADN individual generado por ChatGPT</label>
          <textarea aria-label="Respuesta JSON para ADN táctico" className={input+" mt-1 font-mono"} rows={5} value={dnaJsonInput} onChange={e=>setDnaJsonInput(e.target.value)} placeholder='{"identifiable":true,"confidence":"medium", ...}' disabled={!canWrite}/>
-         <button type="button" onClick={applyPastedDNA} disabled={!canWrite||busy||generatingDNA||!dnaJsonInput.trim()} className="mt-2 rounded-lg bg-slate-900 text-white text-xs font-bold px-3 py-2 disabled:opacity-40">Aplicar JSON al borrador</button>
+         <button type="button" onClick={applyPastedDNA} disabled={!canWrite||busy||generatingDNA||!dnaJsonInput.trim()} className="mt-2 rounded-lg bg-slate-900 text-white text-xs font-bold px-3 py-2 disabled:opacity-40">Interpretar JSON y mostrar borrador</button>
        </details>
+       {careerDraft&&<div className="rounded-xl border bg-white p-3 space-y-3" aria-label="Comparación de etapas tácticas">
+         <div className="flex flex-wrap justify-between items-start gap-2">
+           <div><h4 className="font-extrabold">Trayectoria táctica identificada</h4><p className="text-xs text-slate-600">{careerDraft.models.length} modelos históricos y una síntesis. Confianza de la investigación: {careerDraft.confidence}. Las valoraciones de éxito son cualitativas.</p></div>
+           <span className="text-xs font-bold border rounded-lg px-2 py-1">Revisión previa · Sin guardar</span>
+         </div>
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">{careerDraft.models.map(item=><div className="border rounded-xl p-3 space-y-2" key={item.id}>
+           <div className="flex gap-2 items-start">
+             <label className="flex items-center gap-2 flex-1 text-sm font-bold"><input type="checkbox" disabled={!canWrite||busy} checked={Boolean(careerSelected[item.id])} onChange={e=>setCareerSelected(prev=>({...prev,[item.id]:e.target.checked}))}/>{item.profile.name}</label>
+             <button type="button" className="rounded-lg border px-2 py-1 text-xs" onClick={()=>loadCareerModelIntoEditor(item)}>Abrir en editor</button>
+           </div>
+           <p className="text-xs text-slate-500">{profileScopeLabel(item.profile)} · {item.profile.formation} · {SUCCESS_TIERS[item.successTier]}</p>
+           {careerDraft.bestId===item.id&&<p className="text-xs font-bold text-emerald-700">Modelo con mejores resultados respaldados por la investigación</p>}
+           <p className="text-xs text-slate-700">{item.resultsSummary}</p>
+           {item.changes&&<p className="text-xs text-slate-600"><strong>Evolución:</strong> {item.changes}</p>}
+           {item.honours.length>0&&<p className="text-xs text-slate-600"><strong>Títulos documentados:</strong> {item.honours.map(h=>h.competition+" ("+h.season+")").join(", ")}</p>}
+           {item.sourceUrls.length>0&&<p className="text-xs text-slate-500">Fuentes propuestas: {item.sourceUrls.length}; pendientes de revisión.</p>}
+         </div>)}</div>
+         <div className="rounded-xl bg-slate-50 border p-3 space-y-2">
+           <div className="flex justify-between items-center gap-2"><label className="font-bold text-sm flex gap-2 items-center"><input type="checkbox" checked={Boolean(careerSelected.general)} disabled={!canWrite||busy} onChange={e=>setCareerSelected(prev=>({...prev,general:e.target.checked}))}/> Filosofía general del entrenador</label><button type="button" onClick={()=>loadCareerModelIntoEditor(careerDraft.general)} className="rounded-lg border px-2 py-1 text-xs">Abrir en editor</button></div>
+           <p className="text-xs text-slate-600">Síntesis de principios recurrentes, independiente de los resultados de una etapa concreta.</p>
+           <p className="text-xs"><strong>Comparación:</strong> {careerDraft.reason}</p>
+           <label className="text-xs flex gap-2 items-center"><input type="checkbox" checked={careerMakeGeneralDefault} onChange={e=>setCareerMakeGeneralDefault(e.target.checked)} disabled={!canWrite||busy||!careerSelected.general||managerProfiles.some(p=>p.is_default)}/> Marcar la filosofía general importada como ADN principal (solo si no existe uno)</label>
+           {managerProfiles.some(p=>p.is_default)&&<p className="text-xs text-amber-700">Ya hay un ADN principal guardado; no se sustituirá automáticamente.</p>}
+         </div>
+         <p className="text-xs text-slate-600">Los perfiles se crearán como nuevos registros solo después de confirmar. Si ya existe la misma etapa, no se sobrescribirá. Abrir un modelo en el editor no modifica el lote seleccionado.</p>
+         <button type="button" onClick={saveCareerProfiles} disabled={!canWrite||busy||generatingDNA||!Object.values(careerSelected).some(Boolean)} className={primary}>Guardar modelos seleccionados ({Object.values(careerSelected).filter(Boolean).length})</button>
+       </div>}
        {dnaDraftReady&&<div role="status" className="rounded-lg bg-emerald-50 p-3 border border-emerald-200 text-sm">
          <p className="font-bold text-emerald-800">Periodo interpretado: {profileScopeLabel(profileDraft)}</p>
          {scopeSuggestion?.origin==="explicit_notes"&&<p className="mt-1 text-xs text-emerald-700">Identificado a partir del apartado «ETAPA REPRESENTADA» del JSON anterior. Confirma el club y las fechas antes de guardar.</p>}
