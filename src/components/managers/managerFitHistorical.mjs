@@ -16,7 +16,16 @@ const LABELS={
  pressure:["Possession won final 3rd"],
  defense:["PAdj defensive actions","Possession adjusted defensive actions"],
  preventing:["Goals prevented"],
- shot:["Shots on target"]
+ shot:["Shots on target"],
+ // Extra V4-only observed activity proxies; do not silently change V3 rankings.
+ recoveries:["Recoveries"],
+ defensiveActions:["Defensive actions"],
+ tackles:["Tackles"],
+ interceptions:["Interceptions"],
+ aerialsWon:["Aerials won"],
+ touchesBox:["Touches in opposition box"],
+ chancesCreated:["Chances created"],
+ clearances:["Clearances"]
 };
 export const HIST_ROLE_METRICS={
  GK:["preventing","longPassing","passing"],
@@ -61,7 +70,7 @@ export function collectPlayerSeasonMetrics(rows,understatRows=[],season,playerId
  for(const [key,field] of [["chain","xg_chain_p90"],["buildup","xg_buildup_p90"]]){
   const values=under.map(r=>positive(r[field])).filter(v=>v!==null);
   // Multiple team rows cannot be correctly combined without aligned minutes.
-  if(values.length===1)result[key]={value:values[0],source:"Understat",minutes:null};
+  if(values.length===1)result[key]={value:values[0],source:"Understat",minutes:null,scope:under.find(r=>positive(r[field])!==null)?.team_key==="season-global"?"temporada global, ligas cubiertas":"alcance Understat declarado"};
  }
  return result;
 }
