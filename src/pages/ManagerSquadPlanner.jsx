@@ -146,19 +146,30 @@ export default function ManagerSquadPlanner(){
  <p className="text-sm">Entrenador para el análisis: <strong>{plan.manager?.name||"No seleccionado"}</strong> · ADN: <strong>{plan.profile?.name||"Sin ADN seleccionado"}</strong>{plan.temporaryManager&&<span className="text-xs text-amber-700"> · Simulación, sin guardar</span>}</p>
  <p className="text-xs text-slate-500">{plan.rosterCount} registros en la plantilla · {plan.linkedCount} jugadores clasificados por rol. Los roles se deducen de la posición principal registrada, no de la alineación titular.</p>
  {!plan.profile&&<p className="text-sm bg-amber-50 p-3 rounded-lg">Selecciona arriba un entrenador y su ADN táctico. No es necesario asignarlo al club para probarlo; la formación 4-3-3 se utiliza únicamente como punto de partida si aún no hay ADN.</p>}</div>
- <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Bolsa de candidatos externos">
- <div className="flex items-center justify-between gap-3 flex-wrap">
- <div><h3 className="font-black">Bolsa de candidatos · Manager Fit</h3>
- <p className="text-xs text-slate-600 mt-1">Selecciona los futbolistas que te interesen desde <Link className="font-bold underline text-blue-700" to="/players">PLAYERS</Link> → Selección múltiple → Bolsa de candidatos.</p></div>
- <label className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold">
- <input type="checkbox" checked={includeCandidates} onChange={e=>setIncludeCandidates(e.target.checked)} className="accent-blue-700 h-4 w-4"/>
- Permitir candidatos externos
- </label>
- </div>
- <p className="text-xs text-slate-600">{manuallyMarked} jugadores marcados en PLAYERS · {includeCandidates?externalRoster.length:Math.max(0,manuallyMarked-teamRoster.filter(x=>x.player.manager_fit_candidate===true).length)} candidatos externos seleccionables.</p>
- {includeCandidates&&<p className="text-xs border-l-2 border-amber-500 bg-amber-50 p-3 text-amber-900">El generador del once, el optimizador y los cambios manuales pueden incorporar candidatos externos en un once hipotético. No los ficha ni les asigna club; se conserva su equipo real. La disponibilidad de fichaje, contrato o lesión no está verificada solo por pertenecer a la bolsa.</p>}
- {plan.rosterCount<11&&!includeCandidates&&manuallyMarked>0&&!demoMode&&
-  <p className="text-xs rounded-lg bg-blue-50 p-3 border border-blue-100 text-blue-800">Tu club solo tiene {plan.rosterCount} jugadores registrados para esta temporada. Activa «Permitir candidatos externos» para completar un once provisional utilizando los jugadores marcados en PLAYERS.</p>}
+ <section className="rounded-2xl border border-slate-200 bg-white p-4 md:p-5 space-y-3" aria-label="Bolsa de candidatos externos">
+  <div className="flex flex-wrap items-center justify-between gap-3">
+   <div>
+    <p className="text-[10px] font-bold uppercase tracking-[.13em] text-[#315fa7]">Pool de scouting</p>
+    <h3 className="mt-1 text-sm font-black text-slate-900">Bolsa de candidatos · Manager Fit</h3>
+    <p className="mt-1 text-xs text-slate-500">Gestiona las incorporaciones desde <Link className="font-bold text-blue-700 hover:underline" to="/players">PLAYERS</Link> → Selección múltiple → Bolsa de candidatos.</p>
+   </div>
+   <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700">
+    <input type="checkbox" checked={includeCandidates} onChange={e=>setIncludeCandidates(e.target.checked)} className="h-4 w-4 accent-[#003399]"/>
+    Permitir candidatos externos
+   </label>
+  </div>
+  <div className="flex flex-wrap gap-2">
+   <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><strong className="text-lg font-black tabular-nums text-slate-900">{manuallyMarked}</strong><span className="ml-2 text-[11px] text-slate-500">marcados en PLAYERS</span></div>
+   <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><strong className="text-lg font-black tabular-nums text-slate-900">{includeCandidates?externalRoster.length:Math.max(0,manuallyMarked-teamRoster.filter(x=>x.player.manager_fit_candidate===true).length)}</strong><span className="ml-2 text-[11px] text-slate-500">externos disponibles en bolsa</span></div>
+   <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><strong className="text-sm font-black text-slate-800">{includeCandidates?"Incluidos":"Excluidos"}</strong><span className="ml-2 text-[11px] text-slate-500">del once hipotético</span></div>
+  </div>
+  <p className="text-[11px] text-slate-600">Los candidatos externos mantienen su club real. Esta selección <strong>no realiza fichajes</strong> ni verifica disponibilidad, contrato o lesiones.</p>
+  {includeCandidates&&<details className="rounded-lg border border-slate-200 px-3 py-2 text-[11px] text-slate-600">
+   <summary className="cursor-pointer font-semibold">Cómo utiliza el simulador estos candidatos</summary>
+   <p className="mt-2 leading-5">El generador del once, el optimizador y los cambios manuales pueden incorporar candidatos externos en un once hipotético sin cambiar sus equipos ni sus registros oficiales.</p>
+  </details>}
+  {plan.rosterCount<11&&!includeCandidates&&manuallyMarked>0&&!demoMode&&
+   <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">Hay {plan.rosterCount} futbolistas registrados en esta temporada. Puedes activar los externos para completar una propuesta provisional.</p>}
  </section>
  {formationPlan.valid?<ManagerLineupVisual draft={draft} plan={plan} season={season} activeScenario={activeScenario} includeCandidates={includeCandidates} externalCount={externalRoster.length}/>:<section className="rounded-xl border bg-white p-4 space-y-3"><h3 className="font-black">Once orientativo · Escenario {activeScenario}</h3><p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">{formationPlan.reason||"Guarda un ADN con una formación válida para generar una propuesta."}</p></section>}
  <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Laboratorio de cambios en el once">
