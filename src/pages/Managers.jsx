@@ -571,7 +571,7 @@ export default function Managers(){
       </button>)}</div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
        <div><label className={label}>Nombre del perfil *</label><input required value={profileDraft.name} onChange={e=>updateProfile("name",e.target.value)} className={input} disabled={!canWrite} placeholder="Ej.: Liverpool 2018–2020"/></div>
-       <div><label className={label}>Formación preferida</label><select className={input} value={profileDraft.formation} onChange={e=>updateProfile("formation",e.target.value)} disabled={!canWrite}>{["4-3-3","4-2-3-1","4-4-2","3-5-2","3-4-3","4-3-1-2","5-3-2","4-1-4-1"].map(v=><option key={v}>{v}</option>)}</select></div>
+       <div><label className={label}>Formación preferida</label><input className={input} value={profileDraft.formation||""} onChange={e=>updateProfile("formation",e.target.value)} list="manager-formations" disabled={!canWrite} placeholder="Ej.: 4-2-2-2"/><datalist id="manager-formations">{["4-3-3","4-2-3-1","4-4-2","3-5-2","3-4-3","4-3-1-2","5-3-2","4-1-4-1","4-2-2-2","3-4-2-1","4-1-2-1-2","3-4-1-2","4-2-4"].map(v=><option key={v} value={v}/>)}</datalist></div>
       </div>
       {profileScope(profileDraft)==="general"&&<p className="text-xs rounded-lg bg-white p-3 border text-slate-600">Representa los principios generales del entrenador. No se guarda ninguna fecha, aunque las observaciones pueden mencionar etapas de referencia.</p>}
       {profileScope(profileDraft)==="period"&&<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
