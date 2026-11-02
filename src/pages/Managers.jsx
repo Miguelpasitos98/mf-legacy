@@ -167,7 +167,8 @@ export default function Managers(){
    const selectedItems=[...careerDraft.models,careerDraft.general].filter(item=>careerSelected[item.id]);
    if(!selectedItems.length){setError("Selecciona al menos un modelo para importar.");return;}
    const existingIdentities=new Set(managerProfiles.map(profileIdentity));
-   const repeated=selectedItems.filter(item=>existingIdentities.has(profileIdentity(item.profile)));
+   const existingNames=new Set(managerProfiles.map(p=>normalize(p.name)));
+   const repeated=selectedItems.filter(item=>existingIdentities.has(profileIdentity(item.profile))||existingNames.has(normalize(item.profile.name)));
    if(repeated.length){
      setError("Ya existen perfiles para esos periodos: "+repeated.map(x=>x.profile.name).join(", ")+". No se sobrescribirá ninguno. Desmárcalos antes de guardar.");
      return;
@@ -179,7 +180,8 @@ export default function Managers(){
      // Refresh before writing to avoid duplicates from a second tab.
      const latest=await getRows(base44.entities.ManagerTacticalProfile,{manager_id:String(selected.id)});
      const ids=new Set(latest.map(profileIdentity));
-     if(selectedItems.some(item=>ids.has(profileIdentity(item.profile))))throw Error("Otra sesión ya creó un perfil para una de estas etapas. Actualiza antes de reintentar.");
+     const names=new Set(latest.map(p=>normalize(p.name)));
+     if(selectedItems.some(item=>ids.has(profileIdentity(item.profile))||names.has(normalize(item.profile.name))))throw Error("Ya existe un perfil con ese periodo o nombre. Actualiza antes de reintentar.");
      const existingDefault=latest.some(p=>p.is_default===true);
      for(const item of selectedItems){
        const wantsDefault=item.id==="general" && careerMakeGeneralDefault && !existingDefault;
@@ -509,7 +511,9 @@ export default function Managers(){
            <p className="text-xs text-slate-700">{item.resultsSummary}</p>
            {item.changes&&<p className="text-xs text-slate-600"><strong>Evolución:</strong> {item.changes}</p>}
            {item.honours.length>0&&<p className="text-xs text-slate-600"><strong>Títulos documentados:</strong> {item.honours.map(h=>h.competition+" ("+h.season+")").join(", ")}</p>}
-           {item.sourceUrls.length>0&&<p className="text-xs text-slate-500">Fuentes propuestas: {item.sourceUrls.length}; pendientes de revisión.</p>}
+           {item.sourceUrls.length>0&&<div className="text-xs text-slate-500">Fuentes propuestas (verificar):
+             <div className="flex gap-2 flex-wrap mt-1">{item.sourceUrls.slice(0,4).map((url,i)=><a key={url} href={url} target="_blank" rel="noopener noreferrer" className="underline text-blue-700">Fuente {i+1}</a>)}</div>
+           </div>}
          </div>)}</div>
          <div className="rounded-xl bg-slate-50 border p-3 space-y-2">
            <div className="flex justify-between items-center gap-2"><label className="font-bold text-sm flex gap-2 items-center"><input type="checkbox" checked={Boolean(careerSelected.general)} disabled={!canWrite||busy} onChange={e=>setCareerSelected(prev=>({...prev,general:e.target.checked}))}/> Filosofía general del entrenador</label><button type="button" onClick={()=>loadCareerModelIntoEditor(careerDraft.general)} className="rounded-lg border px-2 py-1 text-xs">Abrir en editor</button></div>

@@ -22,7 +22,7 @@ export const PROFILE_BLANK = {
  transition:"balanced",defensive_block:"medium",profile_notes:"",source_url:"",
  is_default:false,version:1
 };
-export const validSeason = s => /^20\d{2}\/20\d{2}$/.test(s) && Number(s.slice(5))===Number(s.slice(0,4))+1;
+export const validSeason = s => /^(?:19|20)\d{2}\/(?:19|20)\d{2}$/.test(s) && Number(s.slice(5))===Number(s.slice(0,4))+1;
 export const PROFILE_SCOPES = [
  {key:"general",title:"Filosofía general",description:"Identidad más representativa; sin fechas obligatorias"},
  {key:"period",title:"Etapa o periodo",description:"Varios años en un club o proyecto"},

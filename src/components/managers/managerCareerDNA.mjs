@@ -1,4 +1,4 @@
-import {PROFILE_BLANK,cleanProfile,profileScope} from "./managerModel.mjs";
+import {PROFILE_BLANK,cleanProfile,profileScope,validSeason} from "./managerModel.mjs";
 import {parseManagerTacticalResponse,previewManagerTacticalDraft} from "./managerTacticalAI.mjs";
 
 export const CAREER_FORMAT = "mf_legacy_manager_career_dna_v1";
@@ -108,10 +108,12 @@ export function parseManagerCareerResponse(input){
     const resultSummary=trim(model.results_summary,1600);
     if(resultSummary.length<20)throw Error("La etapa "+id+" necesita una explicación contextual de sus resultados.");
     const honours=Array.isArray(model.verified_honours)?model.verified_honours.slice(0,20).map(h=>{
-      if(!h || typeof h.competition!=="string" || !h.competition.trim() || !h.season || !/^(?:19|20)\d{2}\/20\d{2}$/.test(h.season) || !url(h.source_url))
+      if(!h || typeof h.competition!=="string" || !h.competition.trim() || !h.season || !validSeason(h.season) || !url(h.source_url))
         throw Error("Un título del periodo "+id+" carece de temporada o URL verificable; elimínalo o completa la evidencia.");
       return {competition:trim(h.competition,180),season:h.season,source_url:h.source_url.trim()};
     }):[];
+    if(model.success_tier!=="unknown" && !normalized.sourceUrls.length && !honours.length)
+      throw Error("Para evaluar resultados de "+id+" debes aportar al menos una fuente real propuesta o usar success_tier=unknown.");
     const changes=trim(model.main_changes,1200);
     return {id,index,profile:draft,roleText:normalized.roleText,sourceUrls:normalized.sourceUrls,
       successTier:model.success_tier,resultsSummary:resultSummary,honours,changes};
@@ -122,6 +124,8 @@ export function parseManagerCareerResponse(input){
   cleanProfile(general,"placeholder",generalParsed.roleText);
   const bestId=data.best_supported_model_id==null?null:trim(data.best_supported_model_id,100);
   if(bestId && !ids.has(bestId))throw Error("El modelo identificado como más exitoso no aparece en la lista de etapas.");
+  if(bestId && models.find(m=>m.id===bestId)?.successTier==="unknown")
+    throw Error("No se puede elegir como modelo más exitoso una etapa sin resultados evaluables.");
   const reason=trim(data.comparative_reason,2300);
   if(reason.length<30)throw Error("La comparación histórica necesita una justificación.");
   const modelList=models.sort((a,b)=>String(a.profile.period_start||a.profile.season).localeCompare(String(b.profile.period_start||b.profile.season)));

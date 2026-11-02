@@ -75,7 +75,7 @@ export function inferManagerProfileContext(data){
   const match=notes.match(/(?:^|\n)\s*ETAPA REPRESENTADA\s*:\s*([^\n]{0,350})/i);
   if(match){
     const header=match[1];
-    const seasons=[...new Set((header.match(/20\d{2}\/20\d{2}/g)||[]).filter(validSeason))].sort();
+    const seasons=[...new Set((header.match(/(?:19|20)\d{2}\/(?:19|20)\d{2}/g)||[]).filter(validSeason))].sort();
     const club=header.split(/[,.;]|(?:temporadas?|campañas?|periodo|período)/i)[0]
       .replace(/\b(?:FC|CF|F\.C\.)\b/gi,"").trim().slice(0,160);
     if(seasons.length>=2 && seasons[0]<seasons[seasons.length-1]){
