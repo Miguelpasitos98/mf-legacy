@@ -3,6 +3,7 @@ import {Link} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {UserRoundCog,ArrowUpRight} from "lucide-react";
 import ManagerPortrait from "./ManagerPortrait";
+import {profileScopeLabel} from "./managerModel.mjs";
 
 export default function SquadManagerBadge({teamId,season}){
  const [data,setData]=useState(null);
@@ -35,7 +36,7 @@ export default function SquadManagerBadge({teamId,season}){
   <div className="min-w-0 flex-1">
    <p className="text-[10px] text-blue-700 uppercase tracking-wide font-extrabold">Entrenador · {season}</p>
    <p className="font-bold text-sm">{manager?.display_name||manager?.name||"Entrenador no disponible"}</p>
-   <p className="text-xs text-slate-500">{profile?profile.name+" · "+profile.formation:"Sin ADN táctico asignado"}</p>
+   <p className="text-xs text-slate-500">{profile?profile.name+" · "+profile.formation+" · "+profileScopeLabel(profile):"Sin ADN táctico asignado"}</p>
   </div>
   <Link className="inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-2 text-xs font-bold text-[#003399]" to={`/managers?manager=${encodeURIComponent(manager?.id||data.assignment.manager_id)}`}>Editar ADN <ArrowUpRight size={14}/></Link>
  </div>;

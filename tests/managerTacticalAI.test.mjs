@@ -30,7 +30,7 @@ test("AI output JSON is parsed and mapped to editable profile without persistenc
  const result=previewManagerTacticalDraft(previous,parsed);
  assert.equal(previous.pressing,50);
  assert.equal(result.pressing,90);
- assert.equal(result.name,"Modelo principal");
+ assert.equal(result.name,"Filosofía general");
  assert.equal(result.season,"2019/2020");
  assert.equal(result.is_default,true);
  assert.match(result.profile_notes,/confianza media/);

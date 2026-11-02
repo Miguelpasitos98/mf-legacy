@@ -25,7 +25,7 @@ test("tactical profiles stay independent, validate values, and preserve preferen
  assert.equal(p.manager_id,"coach-123");
  assert.equal(p.possession,78);
  assert.deepEqual(decodeRoleText(p.player_role_priorities).FB,"Lateral invertido y pase progresivo");
- assert.throws(()=>cleanProfile({...PROFILE_BLANK,season:"2025/2025"},"coach-123"),/temporada/);
+ assert.throws(()=>cleanProfile({...PROFILE_BLANK,profile_scope:"season",season:"2025/2025"},"coach-123"),/temporada/);
 });
 test("only custom teams can be selected and primary assignment found by season",()=>{
  assert.equal(isCustomTeam({data_source:"Manual"}),false);
