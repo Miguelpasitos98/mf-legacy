@@ -93,7 +93,7 @@ export default function Sidebar({
   const handleViewChange = (view) => {
     navigate({
       pathname: "/players",
-      search: view === "all" ? "" : `?view=${view}`,
+      search: `?view=${view}`,
     });
 
     // Después de seleccionar una agrupación, cerramos automáticamente el sidebar.

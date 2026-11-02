@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
 import {candidatePoolValue} from "@/components/managers/managerCandidatePool.mjs";
+import {groupPlayersByLeague} from "@/components/players/playerLeagueGroups.mjs";
 import {updatePlayerCacheRows} from "@/utils/playerEditPatch";
 import {readPlayersViewState,savePlayersViewState} from "@/utils/playersViewState";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
@@ -763,6 +764,8 @@ const DESCRIPTION_GROUPS = PLAYER_DESCRIPTIONS.flatMap((group, groupIndex) =>
 const PLAYER_VIEW_MODES = [
   "all",
   "teams",
+  "leagues",
+  "candidates",
   "countries",
   "positions",
   "age",
@@ -1366,7 +1369,7 @@ export default function Players() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkFeedback, setBulkFeedback] = useState("");
   const [bulkDeleteIds, setBulkDeleteIds] = useState([]);
- const [onlyManagerCandidates,setOnlyManagerCandidates]=useState(false);
+
 
 
   const [importModalOpen, setImportModalOpen] =
@@ -1419,6 +1422,20 @@ export default function Players() {
   const viewMode = PLAYER_VIEW_MODES.includes(rawViewMode)
     ? rawViewMode
     : rememberedView.view;
+
+  // League catalogue is loaded on demand, only for its own grouping view.
+  // Team.league_id is the authoritative CURRENT competition of a club.
+  const leaguesViewQuery = useQuery({
+    queryKey:["mf-legacy","leagues","player-grouping"],
+    queryFn:async()=>{
+      const result=await base44.entities.League.list();
+      return Array.isArray(result)?result:result?.data||result?.items||[];
+    },
+    enabled:viewMode==="leagues",
+    staleTime:5*60_000,
+    refetchOnWindowFocus:false
+  });
+  const catalogLeagues=useMemo(()=>leaguesViewQuery.data||[],[leaguesViewQuery.data]);
 
   const fm26Clubs = useMemo(() => {
     const groups = new Map(); const norm = n => String(n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -1740,7 +1757,7 @@ export default function Players() {
 
     return players
       .filter((player) => {
-        if(onlyManagerCandidates&&!candidatePoolValue(player.manager_fit_candidate))return false;
+        if(viewMode==="candidates"&&!candidatePoolValue(player.manager_fit_candidate))return false;
         const team = teamById[player.teamId];
         const country = countryById[player.countryId];
 
@@ -1782,7 +1799,7 @@ export default function Players() {
         }
         return cmp(a, b);
       });
-  }, [players, search, teamById, countryById, sortBy, teamFilterId, positionFilter, onlyManagerCandidates]);
+  }, [players, search, teamById, countryById, sortBy, teamFilterId, positionFilter, viewMode]);
 
   // A deliberately small local cache: list choices + the last visible position.
   // Never store players, photos, private details or imported data in this cache.
@@ -1973,6 +1990,11 @@ export default function Players() {
       });
     });
   }, [filteredPlayers, teamById, viewMode]);
+
+  const groupedByLeague = useMemo(
+    ()=>viewMode==="leagues"?groupPlayersByLeague(filteredPlayers,teamById,catalogLeagues):[],
+    [filteredPlayers,teamById,catalogLeagues,viewMode]
+  );
 
   const groupedByCountry = useMemo(() => { if (viewMode !== "countries") return [];
     const groups = {};
@@ -3291,7 +3313,7 @@ export default function Players() {
 
             <button type="button" onClick={() => setSortBy(c => c === "age_youngest" ? "age_oldest" : "age_youngest")} className={`flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition ${sortBy === "age_youngest" || sortBy === "age_oldest" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Order by age" title="Order by age"><Cake size={14} /> {sortBy === "age_oldest" ? "Oldest" : "Youngest"}</button>
 
-            <button type="button" aria-pressed={onlyManagerCandidates} onClick={()=>setOnlyManagerCandidates(v=>!v)} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${onlyManagerCandidates?"border-emerald-700 bg-emerald-50 text-emerald-800":"border-slate-200 bg-white text-slate-600"}`} title="Filtrar únicamente futbolistas marcados manualmente para el Manager Fit">Candidatos Manager Fit ({players.filter(p=>candidatePoolValue(p.manager_fit_candidate)).length})</button>
+            <button type="button" aria-pressed={viewMode==="candidates"} onClick={()=>navigateFromStats(viewMode==="candidates"?"/players?view=all":"/players?view=candidates")} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${viewMode==="candidates"?"border-emerald-400 bg-emerald-50/70 text-emerald-800":"border-slate-200 bg-white text-slate-600"}`} title="Abrir o cerrar la vista exclusiva de candidatos Manager Fit">Candidatos Manager Fit ({players.filter(p=>candidatePoolValue(p.manager_fit_candidate)).length})</button>
             <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkDeleteIds([]); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
             <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Import(null); setFm26FileName(""); setFm26Message(""); setFm26Error(""); setFm26ProgressCurrent(0); setFm26ProgressTotal(0); setFm26ProgressLabel(""); setFm26NationJustSaved(new Set()); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
               <Upload size={16} /><span>Import FM26 JSON</span>
@@ -3406,6 +3428,64 @@ export default function Players() {
                       country={countryById[player.countryId]}
                       onSelect={handleSelectPlayer}
                     />
+                ))}
+              </div>
+            )}
+
+            {/* CANDIDATES — emerald outlines are deliberately exclusive to this view */}
+            {viewMode === "candidates" && (
+              <section className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                  <h2 className="text-sm font-extrabold text-slate-800">Bolsa de candidatos · Manager Fit</h2>
+                  <span className="text-xs font-semibold text-slate-500">{filteredPlayers.length} jugadores</span>
+                </div>
+                <p className="text-xs text-slate-600">El contorno verde suave identifica exclusivamente a los futbolistas que has añadido a tu bolsa. En la vista general las tarjetas mantienen su diseño habitual.</p>
+                <div className="mf-player-grid gap-x-4 gap-y-4">
+                  {filteredPlayers.map((player,index)=>(
+                    <PlayerCard key={player.id || `${player.name}-${player.dateOfBirth}`}
+                      player={player} team={teamById[player.teamId]}
+                      country={countryById[player.countryId]}
+                      selectionMode={bulkMode} selected={bulkIds.includes(String(player.id))}
+                      onToggleSelection={toggleBulkPlayer} onSelect={handleSelectPlayer}
+                      candidateView hasStats={playersWithStats.has(String(player.id))}
+                      priority={index<6}/>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* BY LEAGUES — current club association; no historical inference */}
+            {viewMode === "leagues" && (
+              <div className="space-y-8">
+                {leaguesViewQuery.isLoading&&<p role="status" className="text-xs text-slate-500">Cargando competiciones…</p>}
+                {leaguesViewQuery.isError&&<p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">No se ha podido consultar el catálogo de ligas. Se muestran los equipos en sus grupos de competición pendientes de identificar, sin perder jugadores.</p>}
+                <p className="text-xs text-slate-500">Los jugadores se agrupan por la liga que figura actualmente en su equipo de MF LEGACY. Esta vista no reconstruye las ligas de temporadas históricas.</p>
+                {groupedByLeague.map(league=>(
+                  <section key={league.id} className="space-y-3">
+                    <GroupHeader type="league" name={league.name} logo={league.logo}
+                      count={league.count} />
+                    {league.unresolved&&<p className="text-xs text-amber-800">La liga de estos equipos todavía no tiene una ficha identificada en el catálogo.</p>}
+                    <div className="space-y-5">
+                      {league.teams.map(group=>(
+                        <div key={group.id} className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600">
+                            {normalizeImageUrl(group.team?.logo)&&<img alt="" loading="lazy" src={normalizeImageUrl(group.team.logo)} className="h-6 w-6 object-contain"/>}
+                            <span>{group.name}</span><span className="font-normal text-slate-400">· {group.players.length} jugadores</span>
+                          </div>
+                          <div className="mf-player-grid gap-x-4 gap-y-4">
+                            {group.players.map(player=>(
+                              <PlayerCard key={player.id || `${player.name}-${player.dateOfBirth}`}
+                                player={player} team={group.team} country={countryById[player.countryId]}
+                                selectionMode={bulkMode} selected={bulkIds.includes(String(player.id))}
+                                onToggleSelection={toggleBulkPlayer} onSelect={handleSelectPlayer}
+                                hasStats={playersWithStats.has(String(player.id))}
+                                compact hideTeam/>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
             )}
