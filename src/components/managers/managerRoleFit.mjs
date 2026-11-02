@@ -3,6 +3,8 @@ import {HIST_ROLE_METRICS} from "./managerFitHistorical.mjs";
 // Conservative dictionary of explicitly observable proxies. A term is matched
 // as a whole phrase, never as arbitrary substrings, and only within its role.
 const RULES=[
+ // A sweeper-keeper can only be partially proxied by recorded distribution (not by sweeping movements).
+ {id:"sweeper_keeper_distribution",label:"Distribución del portero-líbero (proxy parcial)",terms:["sweeper keeper","portero libero","portero adelantado"],metrics:["passing","longPassing"],roles:["GK"]},
  {id:"regista",label:"Organización desde la base (regista)",terms:["regista","deep lying playmaker","organizador retrasado","pivote organizador"],metrics:["buildup","passing","longPassing"],roles:["DM","CB"]},
  {id:"shield",label:"Protección defensiva (shield)",terms:["shield","ball winner","ball winning midfielder","holding midfielder","pivote defensivo","ancla defensiva"],metrics:["defense"],roles:["DM","CB"]},
  {id:"high_pressure",label:"Presión y recuperación alta",terms:["presion alta","presion tras perdida","presionar","presionante","recuperacion alta","recuperar arriba","gegenpressing"],metrics:["pressure","defense"],roles:["ST","WG","AM","DM","FB","CB"]},
