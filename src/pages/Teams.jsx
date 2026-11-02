@@ -5,7 +5,9 @@ import React, {
   useState,
 } from "react";
 import { useOutletContext, useNavigate, useSearchParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { recordQueryOptions } from "@/api/recordQueries";
+import { countCurrentPlayersByTeam, coveredTeamsCount } from "@/components/teams/teamPlayerCoverage.mjs";
 import {
   useCountriesQuery,
   useLeaguesQuery,
@@ -84,6 +86,12 @@ export default function Teams() {
   const [unattachedTab, setUnattachedTab] = useState("free_agent");
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("countries");
+  const [countriesView, setCountriesView] = useState("normal");
+  const showPlayerCoverage = activeFilter === "countries" && countriesView === "coverage";
+  // Solo leer Players cuando el usuario abre esta vista; compartir su caché con PLAYERS.
+  const coveragePlayersQuery = useQuery({ ...recordQueryOptions("Player"), enabled: showPlayerCoverage });
+  const coverageReady = showPlayerCoverage && Array.isArray(coveragePlayersQuery.data);
+  const playerCountsByTeam = useMemo(() => countCurrentPlayersByTeam(coveragePlayersQuery.data), [coveragePlayersQuery.data]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [importJsonModalOpen, setImportJsonModalOpen] = useState(false);
@@ -263,6 +271,11 @@ export default function Teams() {
         return String(a?.name || "").localeCompare(String(b?.name || ""), "es", { sensitivity: "base" });
       });
   }, [teams, search, activeFilter]);
+
+  const visibleCoverageCount = useMemo(
+    () => coveredTeamsCount(filteredTeams, playerCountsByTeam),
+    [filteredTeams, playerCountsByTeam]
+  );
 
   const leagueByIdMap = useMemo(
     () => new Map(leagues.map((league) => [String(league?.id || ""), league])),
@@ -750,6 +763,36 @@ export default function Teams() {
         </div>
       </div>
 
+      {activeFilter === "countries" && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label="Vista de equipos por países">
+            <button type="button" aria-pressed={countriesView === "normal"} onClick={() => setCountriesView("normal")}
+              className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${countriesView === "normal" ? "bg-[#003399] text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+              Normal
+            </button>
+            <button type="button" aria-pressed={countriesView === "coverage"} onClick={() => setCountriesView("coverage")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${countriesView === "coverage" ? "bg-[#003399] text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+              <Users size={14} /> Cobertura de jugadores
+            </button>
+          </div>
+          {showPlayerCoverage && (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500" role="status" aria-live="polite">
+              {coverageReady ? (
+                <>
+                  <span className="inline-block h-3 w-3 rounded-[4px] border-2 border-[#2C8069]" aria-hidden="true" />
+                  <span>Borde verde: 5 o más jugadores en Players</span>
+                  <span className="ml-1 font-bold text-slate-700">{visibleCoverageCount} / {filteredTeams.length} equipos</span>
+                </>
+              ) : coveragePlayersQuery.isError ? (
+                <span className="text-rose-700">No se pudo comprobar Players. No se mostrarán bordes sin datos.</span>
+              ) : (
+                <span>Comprobando jugadores vinculados en Players…</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {bulkTeamsMode && (
         <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -827,7 +870,7 @@ export default function Teams() {
               <section key={groupName} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,0.02)] md:p-4">
                 <div className="mb-5 flex items-center justify-between gap-4">
                   <h2 className="text-base font-extrabold text-slate-900">{groupName}</h2>
-                  <span className="text-xs font-medium text-slate-400">{groupTeams.length} {groupTeams.length === 1 ? "team" : "teams"}</span>
+                  <span className="text-xs font-medium text-slate-400">{coverageReady ? `${coveredTeamsCount(groupTeams, playerCountsByTeam)} / ${groupTeams.length} con 5+ jugadores` : `${groupTeams.length} ${groupTeams.length === 1 ? "team" : "teams"}`}</span>
                 </div>
                 <div className="space-y-4">
                   {Object.entries(competitions)
@@ -857,7 +900,7 @@ export default function Teams() {
                           <CompetitionHeader competitionName={competitionName} teams={sortedTeams} league={leagueByIdMap.get(String(sortedTeams[0]?.leagueId||""))} onEdit={openLeagueEditor} />
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6 2xl:grid-cols-6">
                             {sortedTeams.map((team) => (
-                              <TeamCard key={team.id} team={team} selectionMode={bulkTeamsMode} isSelected={bulkTeamIdSet.has(String(team.id))} disabled={bulkTeamsBusy} onOpen={handleTeamOpen} />
+                              <TeamCard key={team.id} team={team} selectionMode={bulkTeamsMode} isSelected={bulkTeamIdSet.has(String(team.id))} disabled={bulkTeamsBusy} onOpen={handleTeamOpen} coverageMode={coverageReady} playerCoverageCount={coverageReady ? playerCountsByTeam.get(String(team.id)) || 0 : null} />
                             ))}
                           </div>
                         </div>
