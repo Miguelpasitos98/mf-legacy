@@ -42,7 +42,7 @@ export const TACTICAL_REQUIREMENT_RULES=[
  {id:"wing_dribbling",label:"Desborde y creación por banda",roles:["WG","AM","FB"],metrics:["dribbles","xa","chancesCreated"],terms:["desborde","regate","uno contra uno","desequilibrio","desequilibrantes","wide winger","extremos abiertos","amplitud"]},
  {id:"inside_forward",label:"Llegada y remate desde banda (proxy)",roles:["WG"],metrics:["xg","shot","touchesBox"],terms:["inside forward","inside-forward","wide forward","wide-forward","extremos hacia adentro","extremo interior","diagonales","hacia adentro"]},
  {id:"wing_tracking",label:"Retorno defensivo del extremo (acciones)",roles:["WG"],metrics:["recoveries","pressure","tackles"],terms:["repliegue","extremos de sacrificio","defensa por banda"]},
- {id:"wing_direct",label:"Acciones verticales (no mide velocidad)",roles:["WG"],metrics:["dribbles","touchesBox"],terms:["direct","pacy","verticalidad"]},
+ {id:"wing_direct",label:"Acciones verticales (no mide velocidad)",roles:["WG"],metrics:["dribbles","touchesBox"],terms:["direct","verticalidad"]},
  {id:"false_nine",label:"Participación creadora del falso nueve (proxy)",roles:["ST"],metrics:["xa","chancesCreated","chain"],terms:["false nine","false-nine","false 9","falso nueve","delantero de apoyo"]},
  {id:"target_man",label:"Presencia en área y juego aéreo (volumen)",roles:["ST"],metrics:["aerialsWon","touchesBox"],terms:["target man","target-man","referencia","delantero de referencia","delantero referencia","referencia solitaria"]},
  {id:"complete_forward",label:"Producción ofensiva del delantero completo (proxy)",roles:["ST"],metrics:["xg","shot","xa","chancesCreated"],terms:["complete forward","complete-forward","delantero completo"]},
