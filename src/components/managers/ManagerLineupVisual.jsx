@@ -1,6 +1,6 @@
 import React,{useState} from "react";
 import {Link} from "react-router-dom";
-import {ArrowUpRight,ChevronDown,ChevronUp,Info,Layers,ShieldCheck,Users} from "lucide-react";
+import {ArrowUpRight,ChevronDown,ChevronUp,Info} from "lucide-react";
 import PlayerPortrait from "@/components/teams/PlayerPortrait";
 import {ROLE_LABELS} from "@/components/managers/managerFit.mjs";
 import {isExternalCandidate} from "@/components/managers/managerCandidatePool.mjs";
