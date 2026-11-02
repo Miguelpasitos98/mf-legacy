@@ -3,6 +3,7 @@ import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {isCustomTeam} from "@/components/managers/managerModel.mjs";
 import {planSquad} from "@/components/managers/managerSquadPlanner.mjs";
+import {analyzeTacticalPartnerships} from "@/components/managers/managerChemistry.mjs";
 import {suggestFormationXI} from "@/components/managers/managerFormationPlanner.mjs";
 import {ROLE_LABELS} from "@/components/managers/managerFit.mjs";
 const loadAll=async(entity,query={})=>{
@@ -35,8 +36,9 @@ export default function ManagerSquadPlanner(){
  },[team?.id,season]);
  const plan=useMemo(()=>planSquad({team,season,players,memberships:members,assignments,managers,profiles}),[team,season,players,members,assignments,managers,profiles]);
  const formationPlan=useMemo(()=>suggestFormationXI(plan,plan.profile?.formation||""),[plan]);
+ const chemistry=useMemo(()=>analyzeTacticalPartnerships(formationPlan),[formationPlan]);
  return <main className="mx-auto max-w-[1550px] p-4 md:p-6 text-slate-900 space-y-4">
- <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V10</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
+ <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V11</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
  {error&&<p role="alert" className="p-3 border bg-red-50 rounded-lg text-red-800">{error}</p>}
  <div className="rounded-xl border p-4 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3">
  <label className="text-xs font-bold">Club personalizado<select className="block w-full border rounded-lg p-2 mt-1" aria-label="Club personalizado" value={teamId} onChange={e=>setParams({team:e.target.value,season})}><option value="">Selecciona equipo</option>{customTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
@@ -67,6 +69,18 @@ export default function ManagerSquadPlanner(){
  <p className="text-slate-600 mt-1">Alternativas disponibles: {slot.alternatives.map(a=>a.player.name).join(", ")||"Ninguna identificada"}</p>
  <Link className="text-blue-700 font-bold underline inline-block mt-2" to={`/manager-fit?${new URLSearchParams({...(plan.manager?{manager:String(plan.manager.id)}:{}),...(plan.profile?{profile:String(plan.profile.id)}:{}),role:slot.role,season})}`}>Buscar refuerzos</Link>
  </div>)}</div></>:<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">{formationPlan.reason||"Guarda un ADN con una formación válida para generar una propuesta."}</p>}
+ </section>
+ <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Compatibilidad entre compañeros">
+ <h3 className="font-black">Conexiones y complementariedad táctica · V11</h3>
+ <p className="text-xs text-slate-600">Analiza combinaciones de funciones entre centrales, pivotes, laterales-extremos y mediocentros-mediapuntas. Son hipótesis sobre atributos FM26, no estadísticas de química real entre jugadores.</p>
+ <p className="text-sm font-semibold">{chemistry.evaluated} parejas evaluadas · {chemistry.unavailable} sin datos suficientes</p>
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{chemistry.pairs.map((pair,i)=><article key={pair.type+"-"+pair.ids.join("-")+i} className="rounded-xl border p-3 space-y-1">
+ <p className="font-bold text-sm">{pair.type}</p>
+ <p className="text-xs">{pair.players.join(" + ")}</p>
+ <p className="text-xs">Compatibilidad funcional orientativa: <strong>{pair.score===null?"—":pair.score+"/100"}</strong> · Cobertura {pair.coverage}%</p>
+ <p className="text-xs text-slate-600">{pair.functions.length?pair.functions.join(" + "):"No hay evidencia suficiente para valorar esta combinación."}</p>
+ </article>)}</div>
+ {!chemistry.pairs.length&&<p className="text-xs text-slate-500">No hay parejas tácticas reconocibles en esta formación o no se ha podido construir el once.</p>}
  </section>
  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{plan.roleSummary.map(item=>{
  const reason=item.needsReview==="empty"?"Sin jugadores registrados":item.needsReview==="missing_data"?"Faltan atributos evaluables":item.needsReview==="low_fit"?"Mejor encaje estimado inferior a 60": "Cobertura básica";
