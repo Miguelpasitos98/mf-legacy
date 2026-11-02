@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {countryTrophyIdsFromSections,verifiedTeamTrophyIds} from "../src/utils/trophyCatalogFilters.js";
+import {classifyTrophy} from "../src/utils/trophyGrouping.js";
 
 const sections=[
  {kind:"country",key:"country:espana",items:[{source_id:"67"},{source_id:"1301422"}]},
@@ -10,6 +11,13 @@ const sections=[
  {kind:"confederation",key:"confed:UEFA",items:[{source_id:"1301394"}]},
  {kind:"unclassified",key:"unclassified",items:[{source_id:"3"}]}
 ];
+test("Country classification handles explicit new names, while continental and unknown trophies remain separate",()=>{
+ assert.equal(classifyTrophy({name:"Copa de Turquía"}).title,"Turquía");
+ assert.equal(classifyTrophy({name:"Brazilian U20 Bahia State Championship"}).title,"Brasil");
+ assert.equal(classifyTrophy({name:"Supercopa de Croacia"}).title,"Croacia");
+ assert.equal(classifyTrophy({name:"UEFA Champions League"}).kind,"confederation");
+ assert.equal(classifyTrophy({name:"Trofeo sin identificar · 3"}).kind,"unclassified");
+});
 test("Country filtering is by competition group, not the nationality of its winning club",()=>{
  assert.equal(countryTrophyIdsFromSections(sections,"all"),null);
  assert.deepEqual([...countryTrophyIdsFromSections(sections,"country:espana")],["67","1301422"]);

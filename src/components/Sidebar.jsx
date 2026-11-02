@@ -127,10 +127,10 @@ export default function Sidebar({
     >
       {open && isPlayersPage && (
         <nav
-          className="absolute inset-0 flex min-h-0 flex-col items-center overflow-y-auto py-3"
+          className="absolute left-1/2 top-1/2 flex max-h-[calc(100%-24px)] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 overflow-y-auto py-1"
           aria-label="Player views"
         >
-          <div className="flex min-h-[220px] w-full flex-1 flex-col items-center justify-evenly">
+          <div className="flex shrink-0 flex-col items-center gap-3">
             {VIEW_OPTIONS.slice(0, 4).map((option) => {
               const isActive = activeView === option.id;
 
@@ -161,14 +161,14 @@ export default function Sidebar({
           <button
             type="button"
             onClick={onToggle}
-            className="my-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200"
             style={{ color: accentColor }}
             aria-label="Cerrar menú"
           >
             <X size={20} />
           </button>
 
-          <div className="flex min-h-[220px] w-full flex-1 flex-col items-center justify-evenly">
+          <div className="flex shrink-0 flex-col items-center gap-3">
             {VIEW_OPTIONS.slice(4).map((option) => {
               const isActive = activeView === option.id;
 
