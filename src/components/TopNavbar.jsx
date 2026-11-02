@@ -13,6 +13,7 @@ const footballNav = [
     { label: "POSESIÓN", path: "/possession" },
     { label: "PLAYERS", path: "/players" },
     { label: "TEAMS", path: "/teams" },
+    { label: "PLANTILLAS", path: "/squads" },
     { label: "TROPHIES", path: "/trophies" },
     { label: "COUNTRIES", path: "/countries" },
   ];
