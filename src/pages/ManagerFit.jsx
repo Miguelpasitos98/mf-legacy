@@ -1,7 +1,6 @@
 import React,{useEffect,useMemo,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
-import PlayerPortrait from "@/components/teams/PlayerPortrait";
 import {ManagerScoutingSummary,ScoutingCandidateCard,ManagerMethodsPanel} from "@/components/managers/ManagerScoutingVisual";
 import {ROLE_LABELS,rankPlayers} from "@/components/managers/managerFit.mjs";
 import {collectPlayerSeasonMetrics,seasonPercentiles,historicalRoleCandidates} from "@/components/managers/managerFitHistorical.mjs";
