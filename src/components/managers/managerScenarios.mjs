@@ -19,11 +19,11 @@ export function updateScenario(scenarios,id,patch){
  return {...scenarios,[id]:{...scenarios[id],...patch,
   overrides:patch.overrides?{...patch.overrides}:{...scenarios[id].overrides}}};
 }
-export function duplicateScenario(scenarios,fromId){
+export function duplicateScenario(scenarios,fromId,resolvedFormation){
  if(!SCENARIO_IDS.includes(fromId))return scenarios;
  const toId=fromId==="A"?"B":"A";
  // Copy the effective formation in the calling view if different defaults exist.
- return {...scenarios,[toId]:{formation:scenarios[fromId].formation,overrides:{...scenarios[fromId].overrides}}};
+ return {...scenarios,[toId]:{formation:resolvedFormation||scenarios[fromId].formation,overrides:{...scenarios[fromId].overrides}}};
 }
 export function resetScenario(scenarios,id){
  return updateScenario(scenarios,id,{formation:"",overrides:{}});

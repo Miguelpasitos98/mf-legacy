@@ -3,10 +3,8 @@ import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {isCustomTeam} from "@/components/managers/managerModel.mjs";
 import {planSquad} from "@/components/managers/managerSquadPlanner.mjs";
-import {applyLineupOverrides,canChooseLineupPlayer} from "@/components/managers/managerLineupSandbox.mjs";
-import {analyzeTeamBalance,compareTeamBalance} from "@/components/managers/managerTeamBalance.mjs";
-import {analyzeTacticalPartnerships} from "@/components/managers/managerChemistry.mjs";
-import {suggestFormationXI} from "@/components/managers/managerFormationPlanner.mjs";
+import {canChooseLineupPlayer} from "@/components/managers/managerLineupSandbox.mjs";
+import {SCENARIO_IDS,FORMATION_CHOICES,emptyScenarios,updateScenario,resetScenario,duplicateScenario,evaluateScenario,compareScenarios} from "@/components/managers/managerScenarios.mjs";
 import {ROLE_LABELS} from "@/components/managers/managerFit.mjs";
 const loadAll=async(entity,query={})=>{
  const out=[];for(let skip=0;skip<=100000;skip+=200){
@@ -19,7 +17,8 @@ export default function ManagerSquadPlanner(){
  const [teams,setTeams]=useState([]),[players,setPlayers]=useState([]),[managers,setManagers]=useState([]),[profiles,setProfiles]=useState([]);
  const [members,setMembers]=useState([]),[assignments,setAssignments]=useState([]);
  const [loading,setLoading]=useState(true),[error,setError]=useState("");
- const [overrides,setOverrides]=useState({});
+ const [scenarios,setScenarios]=useState(emptyScenarios);
+ const [activeScenario,setActiveScenario]=useState("A");
  const season=params.get("season")||"2026/2027",teamId=params.get("team")||"";
  const customTeams=useMemo(()=>teams.filter(isCustomTeam),[teams]);
  const team=customTeams.find(t=>String(t.id)===teamId);
@@ -37,17 +36,24 @@ export default function ManagerSquadPlanner(){
    .catch(e=>{if(live)setError(e.message||"Error al cargar plantilla")}).finally(()=>{if(live)setLoading(false)});
   return()=>{live=false};
  },[team?.id,season]);
- useEffect(()=>{setOverrides({})},[teamId,season]);
+ useEffect(()=>{setScenarios(emptyScenarios());setActiveScenario("A")},[teamId,season]);
  const plan=useMemo(()=>planSquad({team,season,players,memberships:members,assignments,managers,profiles}),[team,season,players,members,assignments,managers,profiles]);
- const formationPlan=useMemo(()=>suggestFormationXI(plan,plan.profile?.formation||""),[plan]);
  const lineupRoster=useMemo(()=>plan.valid?plan.roleSummary.flatMap(x=>x.roster):[],[plan]);
- const draft=useMemo(()=>applyLineupOverrides(formationPlan,lineupRoster,plan.profile,overrides),[formationPlan,lineupRoster,plan.profile,overrides]);
- const chemistry=useMemo(()=>analyzeTacticalPartnerships(draft),[draft]);
- const balance=useMemo(()=>analyzeTeamBalance(draft),[draft]);
- const alternative=useMemo(()=>analyzeTeamBalance(suggestFormationXI(plan,"4-2-3-1")),[plan]);
- const differences=useMemo(()=>compareTeamBalance(balance,alternative),[balance,alternative]);
+ const evaluated=useMemo(()=>Object.fromEntries(SCENARIO_IDS.map(id=>[id,evaluateScenario(plan,lineupRoster,scenarios[id],id)])),[plan,lineupRoster,scenarios]);
+ const active=evaluated[activeScenario];
+ const formationPlan=active.draft;
+ const draft=active.draft;
+ const balance=active.balance;
+ const chemistry=active.chemistry;
+ const scenarioComparison=useMemo(()=>compareScenarios(evaluated.A,evaluated.B),[evaluated]);
+ const setActiveFormation=formation=>setScenarios(prev=>updateScenario(prev,activeScenario,{formation,overrides:{}}));
+ const setSlot=(slotId,playerId)=>setScenarios(prev=>updateScenario(prev,activeScenario,{
+  overrides:{...prev[activeScenario].overrides,[slotId]:playerId}
+ }));
+ const copyToOther=()=>setScenarios(prev=>duplicateScenario(prev,activeScenario,evaluated[activeScenario].formation));
+ const clearActive=()=>setScenarios(prev=>resetScenario(prev,activeScenario));
  return <main className="mx-auto max-w-[1550px] p-4 md:p-6 text-slate-900 space-y-4">
- <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V13</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
+ <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V14</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
  {error&&<p role="alert" className="p-3 border bg-red-50 rounded-lg text-red-800">{error}</p>}
  <div className="rounded-xl border p-4 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3">
  <label className="text-xs font-bold">Club personalizado<select className="block w-full border rounded-lg p-2 mt-1" aria-label="Club personalizado" value={teamId} onChange={e=>setParams({team:e.target.value,season})}><option value="">Selecciona equipo</option>{customTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
@@ -59,7 +65,7 @@ export default function ManagerSquadPlanner(){
  <p className="text-xs text-slate-500">{plan.rosterCount} registros en la plantilla · {plan.linkedCount} jugadores clasificados por rol. Los roles se deducen de la posición principal registrada, no de la alineación titular.</p>
  {!plan.profile&&<p className="text-sm bg-amber-50 p-3 rounded-lg">Asigna un entrenador con ADN táctico en <Link to="/managers" className="underline font-semibold">MANAGERS</Link> para evaluar compatibilidad.</p>}</div>
  <section className="rounded-xl border bg-white p-4 space-y-3">
- <h3 className="font-black">Once orientativo por formación · {plan.profile?.formation||"Sin formación"}</h3>
+ <h3 className="font-black">Once orientativo · Escenario {activeScenario} · {active.formation||"Sin formación"}</h3>
  <p className="text-xs text-slate-600">Propuesta automática sin modificar la alineación guardada. Un jugador solo puede ocupar una plaza; las alternativas no están asignadas. La selección utiliza posición y, cuando existen, atributos FM26.</p>
  {formationPlan.valid?<><p className="text-sm font-semibold">{draft.filled}/11 plazas con candidatos · {draft.vacancies} sin candidato posicional</p>
  <div className="space-y-2 rounded-xl bg-[#e8f3ed] border border-emerald-200 p-3">{Array.from(new Set(draft.assignments.map(s=>s.line))).sort((a,b)=>b-a).map(line=>
@@ -80,25 +86,46 @@ export default function ManagerSquadPlanner(){
  </div>)}</div></>:<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">{formationPlan.reason||"Guarda un ADN con una formación válida para generar una propuesta."}</p>}
  </section>
  <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Laboratorio de cambios en el once">
- <div className="flex items-center justify-between gap-2 flex-wrap"><h3 className="font-black">Laboratorio de sustituciones · V13</h3><button type="button" disabled={!Object.keys(overrides).length} onClick={()=>setOverrides({})} className="text-xs px-3 py-2 border rounded-lg">Restablecer once</button></div>
- <p className="text-xs text-slate-600">Prueba diferentes jugadores de la plantilla. El equilibrio y las parejas se recalculan al instante; los cambios solo existen en esta pantalla.</p>
+ <div className="flex items-center justify-between gap-2 flex-wrap"><h3 className="font-black">Laboratorio de escenarios · V14</h3><button type="button" onClick={clearActive} className="text-xs px-3 py-2 border rounded-lg">Restablecer escenario {activeScenario}</button></div>
+ <div className="flex items-center gap-2 flex-wrap">
+ {SCENARIO_IDS.map(id=><button key={id} type="button" aria-pressed={activeScenario===id} className={`rounded-lg border px-4 py-2 text-sm font-bold ${activeScenario===id?"bg-blue-900 text-white":"bg-slate-50"}`} onClick={()=>setActiveScenario(id)}>Escenario {id}</button>)}
+ <button type="button" className="rounded-lg border px-3 py-2 text-xs font-semibold" onClick={copyToOther}>Copiar {activeScenario} a {activeScenario==="A"?"B":"A"}</button>
+ <label className="text-xs font-bold ml-auto">Formación del escenario
+ <select aria-label="Formación del escenario" value={active.formation} className="ml-2 p-2 rounded-lg border bg-white" onChange={e=>setActiveFormation(e.target.value)}>
+ {[...new Set([active.formation,...FORMATION_CHOICES].filter(Boolean))].map(f=><option key={f} value={f}>{f}</option>)}
+ </select></label>
+ </div>
+ <p className="text-xs text-slate-600">Cada escenario conserva su formación y sus sustituciones mientras permanezcas en esta pantalla. Cambiar de club o temporada, o recargar, descarta los escenarios. Copiar reemplaza el escenario de destino. Ningún cambio se guarda en tus alineaciones.</p>
  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">{draft.assignments?.map(slot=><label key={slot.id} className="text-xs border rounded-lg p-3">
  <span className="font-semibold">{ROLE_LABELS[slot.role]} · {slot.id}</span>
- <select aria-label={"Jugador para "+slot.id} className="mt-2 block w-full border rounded-lg p-2" value={slot.primary?.player.id||""} onChange={e=>setOverrides(prev=>({...prev,[slot.id]:e.target.value}))}>
- <option value="">Vacante</option>{lineupRoster.filter(x=>canChooseLineupPlayer(slot.id,x.player.id,overrides,formationPlan)).map(x=><option key={x.player.id} value={x.player.id}>{x.player.name}</option>)}
+ <select aria-label={"Jugador para "+slot.id} className="mt-2 block w-full border rounded-lg p-2" value={slot.primary?.player.id||""} onChange={e=>setSlot(slot.id,e.target.value)}>
+ <option value="">Vacante</option>{lineupRoster.filter(x=>canChooseLineupPlayer(slot.id,x.player.id,scenarios[activeScenario].overrides,active.draft)).map(x=><option key={x.player.id} value={x.player.id}>{x.player.name}</option>)}
  </select>
  </label>)}</div>
  <p className="text-xs text-slate-600">Plazas ocupadas: {draft.filled||0}/11. Ningún futbolista se puede asignar dos veces.</p>
  </section>
- <section className="rounded-xl border bg-white p-4 space-y-3">
- <h3 className="font-black">Equilibrio del once · V12</h3>
- <p className="text-xs text-slate-600">Comparación experimental de funciones FM26 con el sistema 4-2-3-1; no mide rendimiento colectivo observado.</p>
- <p className="text-xs">Dimensiones evaluables: {balance.assessed}/6 frente a {alternative.assessed}/6.</p>
- <div className="grid grid-cols-1 md:grid-cols-2 gap-2">{differences.map(d=><div key={d.key} className="border rounded-lg p-3">
- <strong className="text-xs">{d.key}</strong>
- <p className="text-xs">Actual: {d.first===null?"—":d.first+"/100"} · 4-2-3-1: {d.second===null?"—":d.second+"/100"}</p>
- <p className="text-xs text-slate-500">Diferencia: {d.delta===null?"Sin datos":d.delta}</p>
+ <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Comparación de escenarios tácticos">
+ <h3 className="font-black">Comparativa de escenarios A y B · V14</h3>
+ <p className="text-xs text-slate-600">Dos propuestas temporales distintas, evaluadas con el mismo entrenador y los mismos jugadores disponibles. Las puntuaciones son indicadores experimentales de funciones FM26, no rendimiento colectivo observado.</p>
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{SCENARIO_IDS.map(id=>{
+ const snapshot=evaluated[id];
+ return <div key={id} className="rounded-xl border bg-slate-50 p-3 space-y-2">
+ <div className="flex items-center justify-between"><h4 className="font-black text-sm">Escenario {id} · {snapshot.formation}</h4><button type="button" className="text-xs font-semibold text-blue-700 underline" onClick={()=>setActiveScenario(id)}>Editar {id}</button></div>
+ <p className="text-xs text-slate-500">{snapshot.draft.filled||0}/11 jugadores · {snapshot.balance.assessed}/6 dimensiones evaluables · {snapshot.chemistry.evaluated} parejas evaluadas</p>
+ <div className="space-y-1">{snapshot.draft.assignments?.map(slot=><div key={slot.id} className="flex gap-2 justify-between border-b py-1 text-xs">
+ <span className="text-slate-500">{ROLE_LABELS[slot.role]}</span><div className="text-right"><strong>{slot.primary?.player.name||"Vacante"}</strong><p className="text-[10px] text-slate-500">{slot.advanced?.recommendation?.name||"Función no evaluable"}</p></div>
  </div>)}</div>
+ </div>;
+ })}</div>
+ <div className="overflow-x-auto"><table className="text-xs w-full min-w-[460px] border-collapse">
+ <thead className="bg-slate-100"><tr><th className="text-left p-2">Dimensión</th><th className="p-2 text-right">A</th><th className="p-2 text-right">B</th><th className="p-2 text-right">B − A</th></tr></thead>
+ <tbody>{scenarioComparison.metrics.map(d=><tr key={d.key} className="border-b"><th className="text-left p-2 font-semibold">{({pressure:"Presión",buildup:"Construcción",creation:"Creatividad",width:"Amplitud",protection:"Cobertura",finishing:"Finalización"})[d.key]}</th>
+ <td className="text-right p-2 tabular-nums">{d.first===null?"—":d.first+"/100"}</td><td className="text-right p-2 tabular-nums">{d.second===null?"—":d.second+"/100"}</td><td className="text-right p-2 tabular-nums">{d.delta===null?"—":(d.delta>0?"+":"")+d.delta}</td></tr>)}</tbody></table></div>
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+ <div className="rounded-lg border p-3"><p className="font-bold">Cambios de futbolistas</p><p className="mt-1">{scenarioComparison.retained} jugadores presentes en ambos onces</p><p className="mt-1">Solo en A: {scenarioComparison.onlyA.join(", ")||"Ninguno"}</p><p>Solo en B: {scenarioComparison.onlyB.join(", ")||"Ninguno"}</p></div>
+ <div className="rounded-lg border p-3"><p className="font-bold">Conexiones tácticas</p><p className="mt-1">A: {scenarioComparison.pairA.evaluated} parejas evaluadas · {scenarioComparison.pairA.unavailable} sin evidencia</p><p>B: {scenarioComparison.pairB.evaluated} parejas evaluadas · {scenarioComparison.pairB.unavailable} sin evidencia</p><p className="mt-1 text-slate-500">No se comparan como química real de partidos.</p></div>
+ </div>
+ <p className="text-xs text-amber-800">«—» significa que faltan datos; no equivale a cero. La comparación no elige un ganador automáticamente ni afecta a las plantillas guardadas.</p>
  </section>
  <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Compatibilidad entre compañeros">
  <h3 className="font-black">Conexiones y complementariedad táctica · V11</h3>
