@@ -1,6 +1,7 @@
 import {normaliseSearch} from "./trophyCatalog.js";
 
 // Only explicit federation / competition signals; ambiguous historical names remain unclassified.
+/** @type {Array<[string, RegExp]>} */
 const CONTINENTAL=[
  ["UEFA",/\b(uefa|champions league|liga de campeones de europa|europa league|conference league|eurocopa|european championship|supercopa de europa|supercopa europea|nations league de europa|recopa de europa|copa intertoto)\b/],
  ["CONMEBOL",/\b(conmebol|libertadores|sudamericana|recopa sudamericana|copa america|copa mercosur|copa merconorte)\b/],
@@ -50,6 +51,7 @@ const EXPLICIT_COUNTRIES=[
  ["Uruguay",/\b(uruguay|uruguayan|uruguayo)\b/],
  ["Perú",/\b(peru|peruvian|peruano)\b/]
 ];
+/** @type {Array<[string, RegExp]>} */
 const COUNTRY_RULES=[
  ["Inglaterra",/\b(premier league de inglaterra|efl |fa cup|carabao cup|community shield|national league de inglaterra)\b/],
  ["España",/\b(laliga|la liga|copa del rey|supercopa de espana|primera federacion|segunda federacion|primera division de espana|segunda division de espana)\b/],
