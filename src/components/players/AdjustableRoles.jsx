@@ -3,8 +3,8 @@ import RoleFieldConcept from "./RoleFieldConcept";
 
 // Coordenadas definitivas fijadas en código, compartidas entre todos los navegadores.
 const LAYOUT={left:-117,bottom:355,width:527.0001220703125,zIndex:24};
-export default function AdjustableRoles({ratings,playerId,position,foot,storedRoles,onSaved,adaptive=false}){
+export default function AdjustableRoles({ratings,playerId,position,foot,storedRoles,onSaved,onRoleSelect,selectedRoleIndex=0,adaptive=false}){
  return <div className={adaptive ? "mf-player-roles" : "pointer-events-none absolute hidden lg:block"} style={adaptive ? undefined : LAYOUT}>
-  <RoleFieldConcept adaptive={adaptive} ratings={ratings} playerId={playerId} position={position} foot={foot} storedRoles={storedRoles} onSaved={onSaved}/>
+  <RoleFieldConcept adaptive={adaptive} ratings={ratings} playerId={playerId} position={position} foot={foot} storedRoles={storedRoles} onSaved={onSaved} onRoleSelect={onRoleSelect} selectedRoleIndex={selectedRoleIndex}/>
  </div>;
 }
