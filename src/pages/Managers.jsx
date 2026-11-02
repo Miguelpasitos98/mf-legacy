@@ -5,7 +5,7 @@ import {Search,Plus,Save,Sparkles,Copy,UserRoundCog,SlidersHorizontal,ShieldChec
 import ManagerPortrait from "@/components/managers/ManagerPortrait";
 import {resolveManagerCountry,buildManagerBiographyPrompt,parseBiographyResponse} from "@/components/managers/managerBiography.mjs";
 import {buildManagerTacticalPrompt,parseManagerTacticalResponse,previewManagerTacticalDraft} from "@/components/managers/managerTacticalAI.mjs";
-import {DNA_AXES,ROLES,MANAGER_BLANK,PROFILE_BLANK,cleanManager,cleanProfile,decodeRoleText,validSeason,chooseAssignment,isCustomTeam} from "@/components/managers/managerModel.mjs";
+import {DNA_AXES,ROLES,MANAGER_BLANK,PROFILE_BLANK,PROFILE_SCOPES,profileScope,profileScopeLabel,cleanManager,cleanProfile,decodeRoleText,validSeason,chooseAssignment,isCustomTeam} from "@/components/managers/managerModel.mjs";
 
 const getRows = async (entity,query={})=>{
  const all=[];
@@ -44,6 +44,7 @@ export default function Managers(){
  const [showDNAPrompt,setShowDNAPrompt]=useState(false);
  const [dnaJsonInput,setDnaJsonInput]=useState("");
  const [dnaDraftReady,setDnaDraftReady]=useState(false);
+ const [scopeSuggestion,setScopeSuggestion]=useState(null);
  const dnaIdentityRef=useRef("");
  const [tab,setTab]=useState("identity");
  const [managerDraft,setManagerDraft]=useState({...MANAGER_BLANK});
@@ -60,7 +61,7 @@ export default function Managers(){
  const sortedCountries=useMemo(()=>countries.filter(c=>c?.id&&c?.name).sort((a,b)=>String(a.name).localeCompare(String(b.name),"es")),[countries]);
  const filteredCountries=useMemo(()=>sortedCountries.filter(c=>!countrySearch||normalize(c.name+" "+(c.code||"")).includes(normalize(countrySearch))||String(c.id)===String(chosenCountry?.id)),[sortedCountries,countrySearch,chosenCountry?.id]);
  const customTeams=useMemo(()=>teams.filter(isCustomTeam).sort((a,b)=>String(a.name).localeCompare(String(b.name))),[teams]);
- const managerProfiles=useMemo(()=>profiles.filter(p=>String(p.manager_id)===String(selected?.id||"")).sort((a,b)=>Number(Boolean(b.is_default))-Number(Boolean(a.is_default))||String(b.season||"").localeCompare(String(a.season||""))),[profiles,selected?.id]);
+ const managerProfiles=useMemo(()=>profiles.filter(p=>String(p.manager_id)===String(selected?.id||"")).sort((a,b)=>Number(Boolean(b.is_default))-Number(Boolean(a.is_default))||String(b.season||b.period_start||"").localeCompare(String(a.season||a.period_start||""))),[profiles,selected?.id]);
  const managerAssignments=assignments.filter(a=>String(a.manager_id)===String(selected?.id)&&a.team_type==="club"&&customTeams.some(t=>String(t.id)===String(a.team_id)));
  const visible=useMemo(()=>managers.filter(m=>normalize([m.name,m.display_name,m.nationality,m.manager_kind].join(" ")).includes(normalize(search))).sort((a,b)=>Number(Boolean(b.is_active))-Number(Boolean(a.is_active))||String(a.name).localeCompare(String(b.name))),[managers,search]);
 
@@ -93,7 +94,7 @@ export default function Managers(){
  useEffect(()=>{
   setManagerDraft(selected?{...MANAGER_BLANK,...selected}:{...MANAGER_BLANK});
   setProfileId("");setTab(newManagerTabRef.current===String(selected?.id)?"dna":"identity");
-  newManagerTabRef.current="";setDnaDraftReady(false);setShowDNAPrompt(false);setDnaJsonInput("");setDnaContext("");setNotice("");setError("");
+  newManagerTabRef.current="";setDnaDraftReady(false);setScopeSuggestion(null);setShowDNAPrompt(false);setDnaJsonInput("");setDnaContext("");setNotice("");setError("");
  },[selected?.id]);
  useEffect(()=>{
   const profilesOfSelected=profiles.filter(p=>String(p.manager_id)===String(selected?.id||""));
@@ -125,7 +126,7 @@ export default function Managers(){
    if(!selected)return "";
    try{return buildManagerTacticalPrompt(selected,profileDraft,dnaContext);}
    catch{return "";}
- },[selected,profileDraft.season,profileDraft.profile_notes,dnaContext]);
+ },[selected,profileDraft.season,profileDraft.profile_scope,profileDraft.period_start,profileDraft.period_end,profileDraft.reference_club,profileDraft.profile_notes,dnaContext]);
  useEffect(()=>{
    dnaIdentityRef.current=String(selected?.id||"")+":"+String(profileId);
  },[selected?.id,profileId]);
@@ -136,9 +137,12 @@ export default function Managers(){
      if(!window.confirm("La propuesta reemplazará los parámetros y los perfiles por posición del borrador abierto. El registro guardado no se modificará hasta pulsar Guardar ADN táctico. ¿Continuar?"))return false;
    }
    setProfileDraft(prev=>previewManagerTacticalDraft(prev,parsed));
+   setScopeSuggestion(parsed.context);
    setRoleText(parsed.roleText);
    setDnaDraftReady(true);
-   setNotice("ADN táctico propuesto (confianza "+parsed.confidence+"). Revisa las estimaciones y fuentes; NO se ha guardado en Base44.");
+   const label=parsed.context?.scope==="period"?"Etapa "+parsed.context.period_start+"–"+parsed.context.period_end:
+     parsed.context?.scope==="season"?"Temporada "+parsed.context.season:"Filosofía general";
+   setNotice("ADN táctico propuesto (confianza "+parsed.confidence+"). Alcance detectado: "+label+". Revisa fechas, nombre y fuentes; NO se ha guardado en Base44.");
    setError("");
    return true;
  };
@@ -257,7 +261,7 @@ export default function Managers(){
   const found=managerProfiles.find(p=>String(p.id)===String(id));
   setProfileId(found?.id||"__new__");setProfileDraft(found?{...PROFILE_BLANK,...found}:{...PROFILE_BLANK});
   setRoleText(found?decodeRoleText(found.player_role_priorities):{});
-  setDnaDraftReady(false);setError("");setNotice("");
+  setDnaDraftReady(false);setScopeSuggestion(null);setError("");setNotice("");
  };
  const saveProfile=async event=>{
   event.preventDefault();if(!selected||isAdmin!==true||busy)return;
@@ -270,7 +274,7 @@ export default function Managers(){
     if(!existing)throw Error("El perfil no pertenece a este entrenador.");
     await base44.entities.ManagerTacticalProfile.update(profileId,payload);
    }else{
-    const created=await base44.entities.ManagerTacticalProfile.create({...payload,is_default:managerProfiles.length===0||payload.is_default});
+    const created=await base44.entities.ManagerTacticalProfile.create(payload);
     savedId=String(created.id);
    }
    if(payload.is_default){
@@ -281,7 +285,7 @@ export default function Managers(){
    const refreshed=await refresh();
    const current=refreshed.profiles.find(p=>String(p.id)===String(savedId));
    setProfileId(String(savedId));if(current){setProfileDraft({...PROFILE_BLANK,...current});setRoleText(decodeRoleText(current.player_role_priorities));}
-   setDnaDraftReady(false);setNotice("ADN táctico guardado. No se han recalculado ni modificado jugadores.");
+   setDnaDraftReady(false);setScopeSuggestion(null);setNotice("ADN táctico guardado. No se han recalculado ni modificado jugadores.");
   }catch(e){setError(e.message||"No se pudo guardar el perfil táctico.")}
   finally{setBusy(false)}
  };
@@ -383,7 +387,7 @@ export default function Managers(){
      <button className={primary} disabled={!canWrite||busy} type="submit"><Save size={16}/>{busy?"Guardando...":selected?"Guardar ficha":"Crear entrenador"}</button>
     </form>}
     {tab==="dna"&&(!selected?<div className="rounded-xl border border-dashed p-8 text-center text-slate-600">Primero guarda una ficha de entrenador para crear su ADN táctico.</div>:<form onSubmit={saveProfile} className="space-y-4">
-     <div className="flex flex-wrap items-end gap-2 justify-between"><div><h3 className="font-extrabold">Modelos de juego</h3><p className="text-xs text-slate-500">Un entrenador puede tener varios perfiles según temporada o proyecto.</p></div><div className="flex items-center gap-2"><select className={input+" max-w-[200px]"} aria-label="Seleccionar perfil táctico" value={profileId} onChange={e=>chooseProfile(e.target.value)}><option value="__new__">Nuevo perfil</option>{managerProfiles.map(p=><option key={p.id} value={p.id}>{p.name} {p.season?"· "+p.season:""} {p.is_default?"★":""}</option>)}</select><button type="button" className="border rounded-lg px-2 py-2" onClick={()=>chooseProfile("")} disabled={!canWrite} title="Crear otro perfil"><Plus size={18}/></button></div></div>
+     <div className="flex flex-wrap items-end gap-2 justify-between"><div><h3 className="font-extrabold">Modelos de juego</h3><p className="text-xs text-slate-500">Un entrenador puede tener varios perfiles según temporada o proyecto.</p></div><div className="flex items-center gap-2"><select className={input+" max-w-[200px]"} aria-label="Seleccionar perfil táctico" value={profileId} onChange={e=>chooseProfile(e.target.value)}><option value="__new__">Nuevo perfil</option>{managerProfiles.map(p=><option key={p.id} value={p.id}>{p.name} · {profileScopeLabel(p)} {p.is_default?"★":""}</option>)}</select><button type="button" className="border rounded-lg px-2 py-2" onClick={()=>chooseProfile("")} disabled={!canWrite} title="Crear otro perfil"><Plus size={18}/></button></div></div>
      <div className="border rounded-xl bg-blue-50/60 border-blue-100 p-3 space-y-3" aria-label="Asistente de ADN táctico">
        <div className="flex flex-wrap gap-2 justify-between items-center">
          <div><h4 className="font-extrabold text-sm flex items-center gap-2"><Sparkles size={17} className="text-[#003399]"/> ADN táctico con IA</h4><p className="text-xs text-slate-600">Genera un borrador específico para {selected.name}, separado de su biografía.</p></div>
@@ -403,13 +407,36 @@ export default function Managers(){
          <textarea aria-label="Respuesta JSON para ADN táctico" className={input+" mt-1 font-mono"} rows={5} value={dnaJsonInput} onChange={e=>setDnaJsonInput(e.target.value)} placeholder='{"identifiable":true,"confidence":"medium", ...}' disabled={!canWrite}/>
          <button type="button" onClick={applyPastedDNA} disabled={!canWrite||busy||generatingDNA||!dnaJsonInput.trim()} className="mt-2 rounded-lg bg-slate-900 text-white text-xs font-bold px-3 py-2 disabled:opacity-40">Aplicar JSON al borrador</button>
        </details>
-       {dnaDraftReady&&<p role="status" className="text-xs text-emerald-700 font-semibold">Borrador de IA aplicado. Verifica valores, posiciones, análisis y fuentes antes de guardar.</p>}
+       {dnaDraftReady&&<div role="status" className="rounded-lg bg-emerald-50 p-3 border border-emerald-200 text-sm">
+         <p className="font-bold text-emerald-800">Periodo interpretado: {profileScopeLabel(profileDraft)}</p>
+         {scopeSuggestion?.origin==="explicit_notes"&&<p className="mt-1 text-xs text-emerald-700">Identificado a partir del apartado «ETAPA REPRESENTADA» del JSON anterior. Confirma el club y las fechas antes de guardar.</p>}
+         {scopeSuggestion?.origin==="not_specified"&&<p className="mt-1 text-xs text-amber-700">El JSON no identifica una etapa concreta. Se ha propuesto «Filosofía general»; revisa el análisis antes de aceptarlo.</p>}
+         <p className="text-xs text-emerald-700 mt-1">Nombre propuesto: <strong>{profileDraft.name}</strong>. Todos los campos son editables; todavía no se ha guardado.</p>
+       </div>}
      </div>
      {managerProfiles.length===0&&<p className="text-xs rounded-lg p-3 bg-amber-50 text-amber-900"><BookOpen size={14} className="inline mr-1"/>Los seis parámetros empiezan en 50 como plantilla neutra. No representan hechos tácticos contrastados hasta que los edites.</p>}
-     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      <div><label className={label}>Nombre del perfil *</label><input required value={profileDraft.name} onChange={e=>updateProfile("name",e.target.value)} className={input} disabled={!canWrite}/></div>
-      <div><label className={label}>Formación preferida</label><select className={input} value={profileDraft.formation} onChange={e=>updateProfile("formation",e.target.value)} disabled={!canWrite}>{["4-3-3","4-2-3-1","4-4-2","3-5-2","3-4-3","4-3-1-2","5-3-2","4-1-4-1"].map(v=><option key={v}>{v}</option>)}</select></div>
-      <div><label className={label}>Temporada (opcional)</label><input className={input} placeholder="2026/2027" value={profileDraft.season||""} onChange={e=>updateProfile("season",e.target.value)} disabled={!canWrite}/></div>
+     <div className="rounded-xl border border-blue-100 p-3 bg-slate-50/60 space-y-3" aria-label="Identificación histórica del perfil">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+       <div><h4 className="font-extrabold text-sm">Identificación del modelo táctico</h4><p className="text-xs text-slate-500">Selecciona si representa toda su filosofía, una etapa o una campaña. «ADN principal» se marca por separado.</p></div>
+       <span className="rounded-full bg-white border border-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">{profileScopeLabel(profileDraft)}</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">{PROFILE_SCOPES.map(scope=><button key={scope.key} type="button" onClick={()=>updateProfile("profile_scope",scope.key)} aria-pressed={profileScope(profileDraft)===scope.key} disabled={!canWrite} className={`text-left rounded-lg border p-3 disabled:opacity-60 ${profileScope(profileDraft)===scope.key?"border-blue-700 bg-blue-50 ring-1 ring-blue-600":"bg-white border-slate-200 hover:border-blue-300"}`}>
+       <strong className="block text-sm">{scope.title}</strong><span className="block mt-1 text-[11px] text-slate-500">{scope.description}</span>
+      </button>)}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+       <div><label className={label}>Nombre del perfil *</label><input required value={profileDraft.name} onChange={e=>updateProfile("name",e.target.value)} className={input} disabled={!canWrite} placeholder="Ej.: Liverpool 2018–2020"/></div>
+       <div><label className={label}>Formación preferida</label><select className={input} value={profileDraft.formation} onChange={e=>updateProfile("formation",e.target.value)} disabled={!canWrite}>{["4-3-3","4-2-3-1","4-4-2","3-5-2","3-4-3","4-3-1-2","5-3-2","4-1-4-1"].map(v=><option key={v}>{v}</option>)}</select></div>
+      </div>
+      {profileScope(profileDraft)==="general"&&<p className="text-xs rounded-lg bg-white p-3 border text-slate-600">Representa los principios generales del entrenador. No se guarda ninguna fecha, aunque las observaciones pueden mencionar etapas de referencia.</p>}
+      {profileScope(profileDraft)==="period"&&<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+       <div><label className={label}>Club / proyecto de referencia</label><input value={profileDraft.reference_club||""} onChange={e=>updateProfile("reference_club",e.target.value)} className={input} disabled={!canWrite} placeholder="Ej.: Liverpool"/></div>
+       <div><label className={label}>Desde temporada *</label><input required value={profileDraft.period_start||""} onChange={e=>updateProfile("period_start",e.target.value)} className={input} disabled={!canWrite} placeholder="2018/2019" aria-label="Temporada inicial del periodo"/></div>
+       <div><label className={label}>Hasta temporada *</label><input required value={profileDraft.period_end||""} onChange={e=>updateProfile("period_end",e.target.value)} className={input} disabled={!canWrite} placeholder="2019/2020" aria-label="Temporada final del periodo"/></div>
+      </div>}
+      {profileScope(profileDraft)==="season"&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+       <div><label className={label}>Club / proyecto de referencia</label><input value={profileDraft.reference_club||""} onChange={e=>updateProfile("reference_club",e.target.value)} className={input} disabled={!canWrite} placeholder="Ej.: Liverpool"/></div>
+       <div><label className={label}>Temporada específica *</label><input required value={profileDraft.season||""} onChange={e=>updateProfile("season",e.target.value)} className={input} disabled={!canWrite} placeholder="2019/2020" aria-label="Temporada del modelo"/></div>
+      </div>}
      </div>
      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{DNA_AXES.map(axis=><div key={axis.key} className="rounded-xl border border-slate-200 p-3">
       <div className="flex items-center justify-between mb-2"><span className="text-sm font-semibold">{axis.label}</span><strong className="tabular-nums">{profileDraft[axis.key]??50}<span className="text-xs text-slate-500">/100</span></strong></div>
@@ -424,7 +451,7 @@ export default function Managers(){
      <details className="border rounded-xl p-3"><summary className="text-sm font-semibold cursor-pointer">Perfiles deseados por posición (7 roles)</summary><p className="mt-2 text-xs text-slate-500">Describe las características que busca este entrenador. Son preferencias manuales, no conclusiones automáticas.</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">{ROLES.map(r=><label key={r.key} className="block"><span className={label}>{r.label}</span><textarea disabled={!canWrite} className={input} rows={2} value={roleText[r.key]||""} onChange={e=>setRoleText(prev=>({...prev,[r.key]:e.target.value}))} placeholder="Ej.: velocidad, juego interior, pase progresivo..."/></label>)}</div></details>
      <div><label className={label}>Observaciones sobre el modelo</label><textarea rows={3} className={input} value={profileDraft.profile_notes||""} onChange={e=>updateProfile("profile_notes",e.target.value)} disabled={!canWrite}/></div>
      <div><label className={label}>Fuente del análisis táctico (si es real)</label><input type="url" className={input} value={profileDraft.source_url||""} onChange={e=>updateProfile("source_url",e.target.value)} disabled={!canWrite}/></div>
-     <label className="text-sm flex items-center gap-2"><input type="checkbox" checked={Boolean(profileDraft.is_default)} onChange={e=>updateProfile("is_default",e.target.checked)} disabled={!canWrite}/> Usar como perfil táctico principal</label>
+     <label className="text-sm flex items-center gap-2"><input type="checkbox" checked={Boolean(profileDraft.is_default)} onChange={e=>updateProfile("is_default",e.target.checked)} disabled={!canWrite}/> Usar como ADN principal (independiente del periodo)</label>
      <button type="submit" className={primary} disabled={!canWrite||busy}><Save size={16}/> Guardar ADN táctico</button>
     </form>)}
     {tab==="club"&&(!selected?<div className="rounded-xl border border-dashed p-8 text-center text-slate-600">Crea un entrenador antes de asignarlo a un equipo.</div>:<div className="space-y-5">
