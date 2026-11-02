@@ -3,6 +3,7 @@ import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {Search,Plus,Save,Sparkles,Copy,UserRoundCog,SlidersHorizontal,ShieldCheck,ArrowUpRight,BookOpen} from "lucide-react";
 import ManagerPortrait from "@/components/managers/ManagerPortrait";
+import ManagerNationalityPicker from "@/components/managers/ManagerNationalityPicker";
 import {resolveManagerCountry,buildManagerBiographyPrompt,parseBiographyResponse} from "@/components/managers/managerBiography.mjs";
 import {buildManagerTacticalPrompt,parseManagerTacticalResponse,previewManagerTacticalDraft,effectiveProfileContext} from "@/components/managers/managerTacticalAI.mjs";
 import {CAREER_FORMAT,SUCCESS_TIERS,buildManagerCareerPrompt,unwrapCareerJSON,parseManagerCareerResponse,careerToProfilePayload,profileIdentity} from "@/components/managers/managerCareerDNA.mjs";
@@ -37,7 +38,6 @@ export default function Managers(){
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const [search,setSearch]=useState("");
- const [countrySearch,setCountrySearch]=useState("");
  const [generatingBiography,setGeneratingBiography]=useState(false);
  const [showBiographyPrompt,setShowBiographyPrompt]=useState(false);
  const [generatingDNA,setGeneratingDNA]=useState(false);
@@ -64,8 +64,6 @@ export default function Managers(){
 
  const selected=managers.find(m=>String(m.id)===managerParam)||null;
  const chosenCountry=useMemo(()=>resolveManagerCountry(managerDraft,countries),[managerDraft.country_id,managerDraft.nationality,countries]);
- const sortedCountries=useMemo(()=>countries.filter(c=>c?.id&&c?.name).sort((a,b)=>String(a.name).localeCompare(String(b.name),"es")),[countries]);
- const filteredCountries=useMemo(()=>sortedCountries.filter(c=>!countrySearch||normalize(c.name+" "+(c.code||"")).includes(normalize(countrySearch))||String(c.id)===String(chosenCountry?.id)),[sortedCountries,countrySearch,chosenCountry?.id]);
  const customTeams=useMemo(()=>teams.filter(isCustomTeam).sort((a,b)=>String(a.name).localeCompare(String(b.name))),[teams]);
  const managerProfiles=useMemo(()=>profiles.filter(p=>String(p.manager_id)===String(selected?.id||"")).sort((a,b)=>Number(Boolean(b.is_default))-Number(Boolean(a.is_default))||String(b.season||b.period_start||"").localeCompare(String(a.season||a.period_start||""))),[profiles,selected?.id]);
  const managerAssignments=assignments.filter(a=>String(a.manager_id)===String(selected?.id)&&a.team_type==="club"&&customTeams.some(t=>String(t.id)===String(a.team_id)));
@@ -400,17 +398,13 @@ export default function Managers(){
   finally{setBusy(false)}
  };
 
- return <main className="mx-auto max-w-[1650px] px-3 py-4 md:px-6 text-slate-900">
-  <div className="rounded-2xl bg-[#091e1b] text-white px-5 py-5 mb-4 flex flex-wrap justify-between items-center gap-3">
-   <div><p className="text-xs font-bold uppercase tracking-[.2em] text-lime-300">MF LEGACY · MANAGER DNA</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Base de datos de entrenadores</h1><p className="text-sm text-slate-300 mt-1">Identidad, filosofía y proyectos deportivos de tus clubes personalizados.</p></div>
-   <div className="flex gap-3 items-center"><div className="text-center"><strong className="block text-2xl tabular-nums">{managers.length}</strong><span className="text-xs text-slate-300">Entrenadores</span></div><div className="text-center"><strong className="block text-2xl tabular-nums">{profiles.length}</strong><span className="text-xs text-slate-300">ADN tácticos</span></div></div>
-  </div>
+ return <main className="mx-auto max-w-[1650px] px-3 py-2 md:px-6 text-slate-900">
   {error&&<div role="alert" className="mb-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">{error}</div>}
   {notice&&<div role="status" className="mb-3 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">{notice}</div>}
   {isAdmin===false&&<p className="rounded-lg border p-3 mb-3 text-sm">La base de entrenadores es visible en modo consulta. Las ediciones están reservadas a administradores.</p>}
   <div className="grid grid-cols-1 lg:grid-cols-[270px_minmax(0,1fr)] gap-4 min-w-0">
    <aside className="border rounded-2xl bg-white p-3 lg:self-start min-w-0">
-    <div className="flex items-center justify-between mb-3"><h2 className="font-extrabold">Entrenadores</h2><button type="button" onClick={openNew} disabled={!canWrite||busy} className="rounded-lg bg-lime-400 p-2 text-slate-900 disabled:opacity-50" aria-label="Crear entrenador"><Plus size={18}/></button></div>
+    <div className="flex items-center justify-between mb-3"><h2 className="font-extrabold">Entrenadores <span className="text-xs font-medium text-slate-500">({managers.length})</span></h2><button type="button" onClick={openNew} disabled={!canWrite||busy} className="rounded-lg bg-lime-400 p-2 text-slate-900 disabled:opacity-50" aria-label="Crear entrenador"><Plus size={18}/></button></div>
     <div className="relative"><Search size={17} className="absolute top-2.5 left-3 text-slate-400"/><input className={input+" pl-9"} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar entrenador..." aria-label="Buscar entrenadores"/></div>
     <div className="mt-3 max-h-[min(70vh,740px)] overflow-y-auto space-y-1">
      {loading?<p className="text-sm text-slate-500 p-3">Cargando catálogo…</p>:visible.length===0?<p className="text-sm text-slate-500 p-3">No hay entrenadores. Crea el primero desde el botón +.</p>:visible.map(m=><button key={m.id} type="button" onClick={()=>openManager(m.id)} className={`w-full flex items-center gap-3 text-left p-2 rounded-xl hover:bg-slate-100 ${selected?.id===m.id?"bg-blue-50 ring-1 ring-blue-200":""}`}>
@@ -435,17 +429,9 @@ export default function Managers(){
      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div><label className={label} htmlFor="manager-name">Nombre completo *</label><input id="manager-name" required maxLength={160} className={input} value={managerDraft.name} onChange={e=>updateManager("name",e.target.value)} placeholder="Nombre del entrenador" disabled={!canWrite}/></div>
       <div><label className={label}>Nombre de presentación</label><input className={input} maxLength={100} value={managerDraft.display_name} onChange={e=>updateManager("display_name",e.target.value)} placeholder="Nombre abreviado" disabled={!canWrite}/></div>
-      <div><label className={label}>Nacionalidad · Countries</label>
-       <div className="flex gap-2 items-center">
-        {chosenCountry?.flag&&<img src={chosenCountry.flag} alt="" className="h-7 w-10 rounded object-contain shrink-0" onError={e=>{e.currentTarget.style.display="none"}}/>}
-        <select aria-label="País de nacionalidad" className={input} value={chosenCountry?.id||""} onChange={e=>changeCountry(e.target.value)} disabled={!canWrite}>
-          <option value="">Seleccionar país de Countries…</option>
-          {filteredCountries.map(country=><option key={country.id} value={country.id}>{country.name}{country.code?" · "+country.code:""}</option>)}
-        </select>
-       </div>
-       <input aria-label="Buscar países de Countries" className={input+" mt-2"} value={countrySearch} onChange={e=>setCountrySearch(e.target.value)} placeholder="Filtrar países por nombre o código…" disabled={!canWrite}/>
-       {!chosenCountry&&managerDraft.nationality&&<p className="text-xs text-amber-700 mt-1">Nombre anterior: {managerDraft.nationality}. Selecciona su ficha de Countries para vincularlo.</p>}
-       <p className="text-[11px] text-slate-500 mt-1">Se guardará el ID de Country; no se creará ningún país nuevo.</p>
+      <div><label className={label}>Nacionalidad</label>
+       <ManagerNationalityPicker countries={countries} country={chosenCountry} onChange={changeCountry} disabled={!canWrite}/>
+       {!chosenCountry&&managerDraft.nationality&&<p className="text-xs text-amber-700 mt-1">Nombre anterior: {managerDraft.nationality}. Selecciona el país para vincularlo.</p>}
       </div>
       <div><label className={label}>Nacimiento</label><input type="date" className={input} value={managerDraft.date_of_birth||""} onChange={e=>updateManager("date_of_birth",e.target.value)} disabled={!canWrite}/></div>
       <div><label className={label}>Tipo de entrenador</label><select className={input} value={managerDraft.manager_kind} onChange={e=>updateManager("manager_kind",e.target.value)} disabled={!canWrite}><option value="real">Real</option><option value="fictional">Ficticio / creado por mí</option></select></div>
