@@ -41,6 +41,12 @@ const EXPLICIT_COUNTRIES=[
  ["Escocia",/\b(escocia|scotland|scottish)\b/],
  ["Gales",/\b(gales|wales|welsh)\b/],
  ["Ecuador",/\b(ecuador|ecuadorian|ecuatoriana|ecuatoriano)\b/],
+ ["Fiyi",/\b(fiyi|fiji|fijian)\b/],
+ ["Singapur",/\b(singapur|singapore|singaporean)\b/],
+ ["Tailandia",/\b(tailandia|thailand|thai)\b/],
+ ["Argelia",/\b(argelia|algeria|algerian)\b/],
+ ["Benín",/\b(benin|beninese)\b/],
+ ["Malí",/\b(mali|malian)\b/],
  ["Irlanda",/\b(irlanda|ireland|irish)\b/],
  ["Japón",/\b(japon|japan|japanese)\b/],
  ["Corea del Sur",/\b(corea del sur|south korea|south korean)\b/],
@@ -55,11 +61,11 @@ const EXPLICIT_COUNTRIES=[
 ];
 /** @type {Array<[string, RegExp]>} */
 const COUNTRY_RULES=[
- ["Inglaterra",/\b(premier league de inglaterra|efl |fa cup|carabao cup|community shield|national league de inglaterra)\b/],
+ ["Inglaterra",/\b(premier league de inglaterra|efl |carabao cup|national league de inglaterra)\b|^fa cup(?: femenina)?$|^community shield$/],
  ["España",/\b(laliga|copa del rey|supercopa de espana|primera federacion|segunda federacion|primera division de espana|segunda division de espana)\b|^la liga$/],
  ["Alemania",/\b(bundesliga|dfb.pokal|supercopa de alemania|oberliga)\b|^3\. liga$|^regionalliga (?:nord|sud|west|sudwest|bayern|nordost)(?:-|$)/],
  ["Italia",/\b(coppa italia|copa de italia|supercoppa italiana)\b|^serie (?:a|b|c(?:\/[abc])?)$/],
- ["Francia",/\b(ligue 1|ligue 2|copa de francia|coupe de france|trofeo de campeones de francia|championnat national)\b/],
+ ["Francia",/\b(copa de francia|coupe de france|trofeo de campeones de francia)\b|^ligue 1(?: mcdonalds?)?$|^ligue 2$/],
  ["Portugal",/\b(primeira liga|liga portugal|taca de portugal|supertaca de portugal|liga portugal 2)\b/],
  ["Países Bajos",/\b(eredivisie|eerste divisie|knvb|copa de los paises bajos)\b/],
  ["Brasil",/\b(brasileirao|copa de brasil|campeonato carioca|campeonato paulista|serie a de brasil|serie b de brasil)\b/],
