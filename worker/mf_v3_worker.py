@@ -373,6 +373,12 @@ def studio_understat(root: Path, pid: str, max_candidates=300, existing_scopes=N
         minutes=number((fields.get('time') or {}).get('normalized_value',(fields.get('time') or {}).get('value')))
         if minutes is None or minutes<=0:continue
         dataset=observation.get('dataset_source') or {};uid=text(observation.get('player',{}).get('understat_player_id'))
+        # The immutable Sep 2025 archive contains ONLY a partial 2025/26.
+        # Current seasons must come from a fresh, season-scoped source.
+        if observation.get('dataset_import') and not observation.get('manual_import') and season[:4].isdigit() and int(season[:4])>2024:
+            diagnostics.append({'season':season,'competition':comp,'team_name':team_name,
+                'status':'consulta_pendiente','reason':'Archivo Understat 2025: temporada parcial; consultar fuente actualizada.'})
+            continue
         batch=[]
         for original,label in [('xGChain','xG Chain'),('xGBuildup','xG Buildup')]:
             d=fields.get(original) or {};total=number(d.get('normalized_value',d.get('value')))

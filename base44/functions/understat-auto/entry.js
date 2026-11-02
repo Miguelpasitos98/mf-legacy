@@ -21,8 +21,10 @@ export default async function(req){
  if(req.method!=='POST')return reply({ok:false,error:'Solo POST'},405);
  try{
   const sdk=createClientFromRequest(req);
-  const user=await sdk.auth.me();
-  if(!user||user.role!=='admin')return reply({ok:false,error:'Solo administradores'},403);
+  let user;
+  try{user=await sdk.auth.me();}catch{return reply({ok:false,error:'Debes iniciar sesión'},401);}
+  if(!user)return reply({ok:false,error:'Debes iniciar sesión'},401);
+  if(user.role!=='admin')return reply({ok:false,error:'Solo administradores'},403);
   const body=await req.json();
   if(body?.action==='health')return reply({ok:true,source:'Understat · archivo histórico verificado',last_full_season:'2024/2025'});
   if(body?.action!=='enrich')return reply({ok:false,error:'Operación desconocida'},400);

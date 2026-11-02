@@ -93,6 +93,10 @@ export function deriveRates(players,stats){
     continue;
    }
    const selected=sourceRows.filter(r=>matched.includes(r));
+   const sourceKeys=sourceRows.map(r=>[r.season,r.league,teamKey(r.team)].join('|'));
+   if(new Set(sourceKeys).size!==sourceKeys.length){
+    skipped.push({season,reason:'El archivo contiene filas duplicadas del mismo club y liga'});continue;
+   }
    if(selected.length!==sourceRows.length||!selected.length){
     skipped.push({season,reason:'Cobertura incompleta de clubes o competiciones; se conserva como pendiente'});
     continue;
