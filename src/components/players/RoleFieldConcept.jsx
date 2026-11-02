@@ -47,8 +47,8 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
  const [saveError,setSaveError]=useState("");
  const svgId=useId().replace(/:/g,"");
  const [draft,setDraft]=useState({name:"",description:""});
- const normalizedRoles=value=>Array.isArray(value)&&value.length===2?
-  value.map(x=>({name:canonicalRole(x?.name),description:String(x?.description||"")})):null;
+ const normalizedRoles=value=>Array.isArray(value)&&value.length>0?
+  [0,1].map(i=>({name:canonicalRole(value[i]?.name),description:String(value[i]?.description||"")})):null;
  useEffect(()=>{
   // Canonical Base44 data wins over the old browser-only draft.
   const persisted=normalizedRoles(storedRoles);
