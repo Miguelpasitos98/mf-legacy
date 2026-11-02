@@ -11,7 +11,7 @@ export function emptyScenarios(){
 }
 export function effectiveFormation(scenario,profileFormation,scenarioId){
  if(scenario?.formation)return scenario.formation;
- if(scenarioId==="A")return String(profileFormation||"");
+ if(scenarioId==="A")return String(profileFormation||"4-3-3");
  return profileFormation==="4-2-3-1"?"4-3-3":"4-2-3-1";
 }
 export function updateScenario(scenarios,id,patch){
@@ -30,7 +30,7 @@ export function resetScenario(scenarios,id){
 }
 export function evaluateScenario(plan,roster,scenario,id){
  const formation=effectiveFormation(scenario,plan?.profile?.formation,id);
- const auto=suggestFormationXI(plan,formation);
+ const auto=suggestFormationXI(plan,formation,roster);
  const draft=applyLineupOverrides(auto,roster,plan?.profile,scenario?.overrides||{});
  return {id,formation,draft,balance:analyzeTeamBalance(draft),chemistry:analyzeTacticalPartnerships(draft)};
 }

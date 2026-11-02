@@ -3,15 +3,20 @@ import {isCustomTeam} from "./managerModel.mjs";
 export const PLANNER_ROLES=["GK","CB","FB","DM","AM","WG","ST"];
 const map={GK:"GK",DFC:"CB",CB:"CB",LD:"FB",LI:"FB",CRD:"FB",CRI:"FB",CDM:"DM",CM:"DM",CAM:"AM",EI:"WG",ED:"WG",DC:"ST",ST:"ST",CF:"ST"};
 export const squadPlannerRole=position=>map[String(position||"").trim().toUpperCase()]||null;
-export function planSquad({team,season,players=[],memberships=[],assignments=[],managers=[],profiles=[]}){
+export function planSquad({team,season,players=[],memberships=[],assignments=[],managers=[],profiles=[],previewManagerId="",previewProfileId=""}){
  if(!team||!isCustomTeam(team))return {valid:false,reason:"Solo se admiten clubes personalizados."};
  const rows=memberships.filter(m=>String(m.team_id)===String(team.id)&&m.team_type==="club"&&m.season===season);
  const available=assignments.filter(a=>String(a.team_id)===String(team.id)&&a.team_type==="club"&&a.season===season&&a.is_primary!==false);
  const assignment=available[0]||null;
- const manager=managers.find(m=>String(m.id)===String(assignment?.manager_id))||null;
- const availableProfiles=profiles.filter(p=>String(p.manager_id)===String(manager?.id));
- const profile=availableProfiles.find(p=>String(p.id)===String(assignment?.tactical_profile_id))||
- availableProfiles.find(p=>p.is_default)||null;
+ // A temporary scouting selection is independent of the club's official
+ // manager assignment. Never persist it from the planner.
+ const managerId=previewManagerId||assignment?.manager_id||"";
+ const manager=managers.find(m=>String(m.id)===String(managerId))||null;
+ const availableProfiles=manager?profiles.filter(p=>String(p.manager_id)===String(manager.id)):[];
+ const requestedProfileId=previewManagerId?previewProfileId:
+   previewProfileId||assignment?.tactical_profile_id;
+ const profile=availableProfiles.find(p=>String(p.id)===String(requestedProfileId))||
+   availableProfiles.find(p=>p.is_default)||availableProfiles[0]||null;
  const index=new Map(players.map(p=>[String(p.id),p]));
  const byRole=Object.fromEntries(PLANNER_ROLES.map(role=>[role,[]]));
  const unknown=[];
@@ -30,5 +35,6 @@ export function planSquad({team,season,players=[],memberships=[],assignments=[],
   const needsReview=!roster.length?"empty":!scored.length?"missing_data":best.score<60?"low_fit":"covered";
   return {role,count:roster.length,evaluated:scored.length,best,needsReview,roster};
  });
- return {valid:true,team,season,assignment,manager,profile,roleSummary,unknown,rosterCount:rows.length,linkedCount:roleSummary.reduce((n,r)=>n+r.count,0)};
+ return {valid:true,team,season,assignment,manager,profile,temporaryManager:Boolean(previewManagerId),
+  roleSummary,unknown,rosterCount:rows.length,linkedCount:roleSummary.reduce((n,r)=>n+r.count,0)};
 }

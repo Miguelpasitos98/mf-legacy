@@ -25,11 +25,11 @@ export function formationSlots(formation){
  });
  return {valid:true,formation,slots,lines:parts.length+1};
 }
-export function suggestFormationXI(plan,formation){
+export function suggestFormationXI(plan,formation,availableRoster){
  const shape=formationSlots(formation);
  if(!shape.valid||!plan?.valid)return {...shape,assignments:[]};
  const assigned=new Set();
- const members=plan.roleSummary.flatMap(x=>x.roster);
+ const members=Array.isArray(availableRoster)?availableRoster:plan.roleSummary.flatMap(x=>x.roster);
  const output=shape.slots.map(slot=>{
   const ranked=members.filter(x=>!assigned.has(String(x.player.id))).map(x=>{
    const position=roleCompatibility(x.player,slot.role);
