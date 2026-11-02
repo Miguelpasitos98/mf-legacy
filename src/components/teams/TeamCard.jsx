@@ -39,9 +39,13 @@ export const TeamCard = React.memo(function TeamCard({
   selectionMode = false,
   isSelected = false,
   disabled = false,
+  coverageMode = false,
+  playerCoverageCount = null,
 }) {
   const reputationValue = Number(team?.reputation);
   const normalizedReputation = Number.isFinite(reputationValue) ? reputationValue : 0;
+  const coverageReady = coverageMode && Number.isInteger(playerCoverageCount);
+  const meetsThreshold = coverageReady && playerCoverageCount >= 5;
 
   return (
     <button
@@ -49,11 +53,17 @@ export const TeamCard = React.memo(function TeamCard({
       onClick={() => onOpen(team)}
       disabled={disabled}
       aria-pressed={selectionMode ? isSelected : undefined}
-      aria-label={selectionMode ? `${isSelected ? "Deseleccionar" : "Seleccionar"} ${team.name}` : undefined}
-      className={`group relative flex min-h-[100px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2.5 text-center transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-wait disabled:opacity-60 ${selectionMode && isSelected ? "border-blue-500 bg-blue-50 ring-2 ring-blue-300" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"}`}
+      aria-label={selectionMode ? `${isSelected ? "Deseleccionar" : "Seleccionar"} ${team.name}` : coverageReady ? `${team.name}: ${playerCoverageCount} jugadores vinculados${meetsThreshold ? ", 5 o más" : ", menos de 5"}` : undefined}
+      title={coverageReady ? `${playerCoverageCount} jugadores actuales en Players` : undefined}
+      className={`group relative flex min-h-[100px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2.5 text-center transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-wait disabled:opacity-60 ${selectionMode && isSelected ? "border-blue-500 bg-blue-50 ring-2 ring-blue-300" : meetsThreshold ? "border-2 border-[#2C8069] bg-white ring-1 ring-[#2C8069]/10 hover:bg-slate-50" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"}`}
     >
       {selectionMode && (
         <span className={`absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-md border text-[11px] font-black ${isSelected ? "border-[#003399] bg-[#003399] text-white" : "border-slate-300 bg-white text-transparent"}`} aria-hidden="true">✓</span>
+      )}
+      {coverageReady && (
+        <span className={`pointer-events-none absolute ${selectionMode ? "left-2" : "right-2"} top-2 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold leading-none ${meetsThreshold ? "border-[#B7DDCF] bg-[#EAF5F1] text-[#286C58]" : "border-slate-200 bg-slate-50 text-slate-400"}`} aria-hidden="true">
+          {playerCoverageCount} jug.
+        </span>
       )}
       <TeamLogo team={team} />
       <span className="w-full truncate text-[11px] font-bold text-slate-800 transition group-hover:text-[#003399]">
