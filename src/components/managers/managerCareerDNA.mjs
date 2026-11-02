@@ -1,11 +1,26 @@
 import {PROFILE_BLANK,cleanProfile,profileScope,validSeason} from "./managerModel.mjs";
-import {parseManagerTacticalResponse,previewManagerTacticalDraft} from "./managerTacticalAI.mjs";
+import {parseManagerTacticalResponse,previewManagerTacticalDraft,normalizeResearchConfidence,normalizeResearchScope,formatTacticalWarnings} from "./managerTacticalAI.mjs";
 
 export const CAREER_FORMAT = "mf_legacy_manager_career_dna_v1";
 export const SUCCESS_TIERS = {
   very_successful:"Muy exitosa",successful:"Exitosa",mixed:"Resultados mixtos",
   limited:"Éxito limitado",unknown:"No evaluable"
 };
+export function normalizeResearchSuccessTier(value,{onWarning}={}){
+ const normalized=String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+  .toLowerCase().trim().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+ const equivalent={
+  very_successful:["very_successful","highly_successful","muy_exitoso","muy_exitosa","very_successful_period"],
+  successful:["successful","success","exitoso","exitosa","successful_period"],
+  mixed:["mixed","mixed_results","resultados_mixtos","uneven","irregular"],
+  limited:["limited","limited_success","poco_exitoso","poco_exitosa","limited_results"],
+  unknown:["unknown","unverified","uncertain","not_evaluable","no_evaluable","insufficient_evidence"]
+ };
+ for(const [canonical,aliases] of Object.entries(equivalent))if(aliases.includes(normalized))return canonical;
+ onWarning?.({field:"success_tier",original:String(value??"ausente").slice(0,120),
+  fallback:"unknown",reason:"no se reconoció el juicio cualitativo, se deja sin evaluar para no inventar éxitos"});
+ return "unknown";
+}
 const trim = (x,n=1200)=>String(x??"").trim().slice(0,n);
 const url = x=>typeof x==="string" && /^https?:\/\/[^\s]+$/i.test(x.trim());
 const norm=x=>trim(x,200).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -26,7 +41,7 @@ BIOGRAFÍA ORIENTATIVA (NO LA TOMES POR PRUEBA): ${trim(manager?.biography,1400)
 
 OBJETIVO: producir un único JSON con varios MODELOS TÁCTICOS HISTÓRICOS y, DESPUÉS de compararlos, una FILOSOFÍA GENERAL SINTETIZADA. Identifica SOLO los cambios de sistema y comportamiento más importantes, no una entrada por cada año ni por cada trofeo. Ordena cronológicamente. Crea entre 2 y 6 periodos cuando haya evidencia suficiente; menos si la carrera es corta. Puedes diferenciar dos periodos del mismo club cuando exista un cambio estructural demostrado. Para cada uno:
 - Club, primera y última temporada exacta (YYYY/YYYY). Una sola campaña usa profile_scope=season; varias usan profile_scope=period.
-- Formación predominante, salida de balón, presión tras pérdida, altura del bloque, seis estimaciones de estilo en escala 0–100 (NO estadísticas oficiales), los siete perfiles de futbolista GK, CB, FB, DM, AM, WG, ST, y matices.
+- Formación predominante, salida de balón, presión tras pérdida, altura del bloque, seis estimaciones de estilo en escala 0–100 (NO estadísticas oficiales), los siete perfiles de futbolista GK, CB, FB, DM, AM, WG, ST, y matices. Usa EXCLUSIVAMENTE build_up=short/mixed/direct, transition=counter_press/regroup/balanced y defensive_block=low/medium/high en TODOS los modelos y en general_philosophy. transition significa reacción DEFENSIVA tras pérdida; fast_break y counter_attack son transiciones OFENSIVAS: explícalas en tempo o notas, NO las uses como valor de transition. Si no se sabe la reacción tras pérdida, indica transition=balanced con advertencia expresa en las notas.
 - Principales diferencias respecto al periodo anterior, adaptaciones observables y por qué el modelo funcionó o no.
 - Evidencia de RESULTADOS del periodo: títulos o hitos CONTRASTADOS con temporada y fuente, y limitaciones contextuales (calidad plantilla, rivales, recursos, duración). Nunca atribuyas una temporada a un título que no hayas confirmado; si no hay evidencia, dejar listas vacías y success_tier="unknown".
 - success_tier SOLO una de very_successful, successful, mixed, limited, unknown. Es un juicio contextual QUALITATIVO, NO una métrica matemática. Explica su criterio en results_summary. No inventes porcentajes de victorias o puntos, ni números de trofeos.
@@ -85,26 +100,38 @@ export function parseManagerCareerResponse(input){
   const data=unwrapCareerJSON(input);
   if(data.format!==CAREER_FORMAT)throw Error("El JSON no utiliza el formato de trayectoria Manager DNA. Usa el importador de perfil individual para el JSON antiguo.");
   if(data.identifiable!==true)throw Error(trim(data.reason||"No se pudo identificar el entrenador.",250));
-  if(!["high","medium","low"].includes(data.confidence))throw Error("La investigación no indica un nivel de confianza válido.");
+  const warnings=[];
+  const onWarning=warning=>warnings.push(warning);
+  const confidence=normalizeResearchConfidence(data.confidence,{onWarning});
   if(!Array.isArray(data.models)||data.models.length<1||data.models.length>6)
     throw Error("Se necesitan entre 1 y 6 evoluciones tácticas verificables.");
-  if(!data.general_philosophy||data.general_philosophy.profile_scope!=="general")
+  if(!data.general_philosophy)
     throw Error("Falta la filosofía general independiente de los periodos.");
+  const generalScope=normalizeResearchScope(data.general_philosophy,{onWarning});
+  if(generalScope!=="general"&&generalScope!==null)
+    throw Error("La síntesis final debe representar la filosofía general, no una temporada o periodo.");
   const ids=new Set(), identities=new Set();
   const models=data.models.map((model,index)=>{
     const id=trim(model?.model_id,100);
     if(!/^[\w-]{2,100}$/.test(id)||ids.has(id))throw Error("Identificador repetido o inválido en un periodo.");
     ids.add(id);
-    if(!["period","season"].includes(model.profile_scope))throw Error("Cada evolución requiere periodo o temporada específicos.");
-    const normalized=parseManagerTacticalResponse({...model,identifiable:true,confidence:data.confidence});
+    const scopeWarnings=[];
+    const profileScope=normalizeResearchScope(model,{onWarning:warning=>scopeWarnings.push(warning)});
+    if(!["period","season"].includes(profileScope))
+      throw Error("Cada evolución requiere periodo o temporada específicos y fechas válidas: "+id+".");
+    const normalized=parseManagerTacticalResponse({...model,profile_scope:profileScope,identifiable:true,confidence});
     // Also check compatible dates with the canonical saved entity schema.
     const draft=previewManagerTacticalDraft({...PROFILE_BLANK,name:"Modelo principal"},normalized);
     draft.name=trim(model.suggested_name||draft.name,140);
+    if(scopeWarnings.length)draft.profile_notes=[formatTacticalWarnings(scopeWarnings),draft.profile_notes].join("\n\n");
     cleanProfile(draft,"placeholder",normalized.roleText);
     const identity=profileIdentity(draft);
     if(identities.has(identity))throw Error("Dos evoluciones representan el mismo club y periodo.");
     identities.add(identity);
-    if(!Object.hasOwn(SUCCESS_TIERS,model.success_tier))throw Error("Falta la clasificación cualitativa de resultados del periodo "+id+".");
+    const successTier=normalizeResearchSuccessTier(model.success_tier,{onWarning:warning=>{
+      warnings.push({...warning,modelId:id});
+      draft.profile_notes=[formatTacticalWarnings([warning]),draft.profile_notes].join("\n\n");
+    }});
     const resultSummary=trim(model.results_summary,1600);
     if(resultSummary.length<20)throw Error("La etapa "+id+" necesita una explicación contextual de sus resultados.");
     const honours=Array.isArray(model.verified_honours)?model.verified_honours.slice(0,20).map(h=>{
@@ -112,26 +139,29 @@ export function parseManagerCareerResponse(input){
         throw Error("Un título del periodo "+id+" carece de temporada o URL verificable; elimínalo o completa la evidencia.");
       return {competition:trim(h.competition,180),season:h.season,source_url:h.source_url.trim()};
     }):[];
-    if(model.success_tier!=="unknown" && !normalized.sourceUrls.length && !honours.length)
+    if(successTier!=="unknown" && !normalized.sourceUrls.length && !honours.length)
       throw Error("Para evaluar resultados de "+id+" debes aportar al menos una fuente real propuesta o usar success_tier=unknown.");
     const changes=trim(model.main_changes,1200);
     return {id,index,profile:draft,roleText:normalized.roleText,sourceUrls:normalized.sourceUrls,
-      successTier:model.success_tier,resultsSummary:resultSummary,honours,changes};
+      successTier,resultsSummary:resultSummary,honours,changes};
   });
-  const generalParsed=parseManagerTacticalResponse({...data.general_philosophy,identifiable:true,confidence:data.confidence});
+  const generalParsed=parseManagerTacticalResponse({...data.general_philosophy,profile_scope:"general",identifiable:true,confidence});
   const general=previewManagerTacticalDraft({...PROFILE_BLANK,name:"Filosofía general"},generalParsed);
   general.name="Filosofía general"; general.profile_scope="general";
   cleanProfile(general,"placeholder",generalParsed.roleText);
   const bestId=data.best_supported_model_id==null?null:trim(data.best_supported_model_id,100);
   if(bestId && !ids.has(bestId))throw Error("El modelo identificado como más exitoso no aparece en la lista de etapas.");
-  if(bestId && models.find(m=>m.id===bestId)?.successTier==="unknown")
-    throw Error("No se puede elegir como modelo más exitoso una etapa sin resultados evaluables.");
+  if(bestId && models.find(m=>m.id===bestId)?.successTier==="unknown"){
+    warnings.push({field:"best_supported_model_id",original:bestId,fallback:"null",
+      reason:"no se puede identificar un modelo ganador cuando sus resultados no se han podido evaluar"});
+  }
   const reason=trim(data.comparative_reason,2300);
   if(reason.length<30)throw Error("La comparación histórica necesita una justificación.");
   const modelList=models.sort((a,b)=>String(a.profile.period_start||a.profile.season).localeCompare(String(b.profile.period_start||b.profile.season)));
-  return {format:CAREER_FORMAT,confidence:data.confidence,models:modelList,
+  return {format:CAREER_FORMAT,confidence,models:modelList,
     general:{id:"general",profile:general,roleText:generalParsed.roleText,sourceUrls:generalParsed.sourceUrls},
-    bestId,reason};
+    bestId:bestId&&models.find(m=>m.id===bestId)?.successTier!=="unknown"?bestId:null,
+    reason,warnings};
 }
 
 export function careerToProfilePayload(item,managerId,{defaultProfile=false}={}){
