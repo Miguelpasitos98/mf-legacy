@@ -3,6 +3,7 @@ import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {isCustomTeam} from "@/components/managers/managerModel.mjs";
 import CustomClubSearch from "@/components/managers/CustomClubSearch";
+import {ManagerLineupVisual} from "@/components/managers/ManagerLineupVisual";
 import {planSquad} from "@/components/managers/managerSquadPlanner.mjs";
 import {canChooseLineupPlayer} from "@/components/managers/managerLineupSandbox.mjs";
 import {SCENARIO_IDS,FORMATION_CHOICES,emptyScenarios,updateScenario,resetScenario,duplicateScenario,evaluateScenario,compareScenarios} from "@/components/managers/managerScenarios.mjs";
@@ -159,28 +160,7 @@ export default function ManagerSquadPlanner(){
  {plan.rosterCount<11&&!includeCandidates&&manuallyMarked>0&&!demoMode&&
   <p className="text-xs rounded-lg bg-blue-50 p-3 border border-blue-100 text-blue-800">Tu club solo tiene {plan.rosterCount} jugadores registrados para esta temporada. Activa «Permitir candidatos externos» para completar un once provisional utilizando los jugadores marcados en PLAYERS.</p>}
  </section>
- <section className="rounded-xl border bg-white p-4 space-y-3">
- <h3 className="font-black">Once orientativo · Escenario {activeScenario} · {active.formation||"Sin formación"}</h3>
- <p className="text-xs text-slate-600">Propuesta automática sin modificar la alineación guardada. Un jugador solo puede ocupar una plaza; las alternativas no están asignadas. La selección utiliza posición y, cuando existen, atributos FM26.</p>
- {formationPlan.valid?<><p className="text-sm font-semibold">{draft.filled}/11 plazas con candidatos · {draft.vacancies} sin candidato posicional</p>
- <div className="space-y-2 rounded-xl bg-[#e8f3ed] border border-emerald-200 p-3">{Array.from(new Set(draft.assignments.map(s=>s.line))).sort((a,b)=>b-a).map(line=>
- <div key={line} className="flex justify-around gap-1 flex-wrap">{draft.assignments.filter(s=>s.line===line).map(slot=>
- <div key={slot.id} className="rounded-lg bg-white/95 border border-emerald-100 p-2 text-center w-[min(160px,46%)] min-w-[95px]">
- <p className="text-[10px] font-bold text-emerald-800">{ROLE_LABELS[slot.role]}</p>
- <p className="text-xs font-bold truncate" title={slot.primary?.player.name||"Vacante"}>{slot.primary?.player.name||"Vacante"}</p>
- {slot.primary&&isExternalCandidate(slot.primary)&&<p className="text-[10px] font-semibold text-amber-800">Candidato externo</p>}
- <p className="text-[10px] text-slate-500">Encaje {slot.primary?.estimatedFit??"—"}/100</p>
- <p className="text-[10px] text-blue-700 truncate" title={slot.advanced?.recommendation?.name||"Sin función evaluable"}>{slot.advanced?.recommendation?.name||"Función no evaluable"}</p>
- </div>)}</div>)}</div>
- <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">{draft.assignments.map(slot=><div key={slot.id} className="border rounded-lg p-3 text-xs">
- <strong>{ROLE_LABELS[slot.role]} · {slot.primary?.player.name||"Vacante"}</strong>
- {slot.advanced&&<div className="mt-1 rounded bg-slate-50 p-2"><p className="font-semibold">Función orientativa: {slot.advanced.recommendation?.name||"No evaluable"} · {slot.advanced.recommendation?.score??"—"}/100</p>
- <p className="text-slate-600">Preferencias reconocidas: {slot.advanced.preferred.join(", ")||"Ninguna explícita; se muestran alternativas genéricas"}</p>
- <p className="text-slate-500">Cobertura {slot.advanced.recommendation?.coverage??0}% · Basado únicamente en atributos FM26 disponibles, no en rendimiento observado</p></div>}
- <p className="text-slate-600 mt-1">Alternativas disponibles: {slot.alternatives.map(a=>a.player.name).join(", ")||"Ninguna identificada"}</p>
- <Link className="text-blue-700 font-bold underline inline-block mt-2" to={`/manager-fit?${new URLSearchParams({...(plan.manager?{manager:String(plan.manager.id)}:{}),...(plan.profile?{profile:String(plan.profile.id)}:{}),role:slot.role,season})}`}>Buscar refuerzos</Link>
- </div>)}</div></>:<p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">{formationPlan.reason||"Guarda un ADN con una formación válida para generar una propuesta."}</p>}
- </section>
+ {formationPlan.valid?<ManagerLineupVisual draft={draft} plan={plan} season={season} activeScenario={activeScenario} includeCandidates={includeCandidates} externalCount={externalRoster.length}/>:<section className="rounded-xl border bg-white p-4 space-y-3"><h3 className="font-black">Once orientativo · Escenario {activeScenario}</h3><p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">{formationPlan.reason||"Guarda un ADN con una formación válida para generar una propuesta."}</p></section>}
  <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Laboratorio de cambios en el once">
  <div className="flex items-center justify-between gap-2 flex-wrap"><h3 className="font-black">Laboratorio de escenarios · V14</h3><button type="button" onClick={clearActive} className="text-xs px-3 py-2 border rounded-lg">Restablecer escenario {activeScenario}</button></div>
  <div className="flex items-center gap-2 flex-wrap">
