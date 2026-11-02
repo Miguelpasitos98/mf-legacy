@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Users, Building2 } from "lucide-react";
 import SmartImage from "./SmartImage";
+import {candidateOutlineClass} from "./playerCandidateOutline.mjs";
 
 // ============================================================
 // Helpers extraídos de Players.jsx para mantener PlayerCard
@@ -279,8 +280,9 @@ function PlayerCardInner({
       tabIndex={0}
       onClick={handleCardAction}
       onKeyDown={handleCardKeyDown}
-      aria-label={`Abrir ficha de ${player.name || "jugador"}`}
-      className={`group w-full cursor-pointer overflow-hidden rounded-2xl border ${selected ? "border-blue-700 ring-2 ring-blue-300" : "border-slate-200"} bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${compact ? "" : ""}`}
+      aria-label={`Abrir ficha de ${player.name || "jugador"}${player.manager_fit_candidate===true ? ", en bolsa de candidatos Manager Fit" : ""}`}
+      title={player.manager_fit_candidate===true ? "En bolsa de candidatos · Manager Fit" : undefined}
+      className={`group w-full cursor-pointer overflow-hidden rounded-2xl border ${candidateOutlineClass(player,selected)} bg-white text-left shadow-[0_2px_8px_rgba(15,23,42,0.02)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400`}
     >
       {selectionMode && (
         <div className="flex items-center gap-2 border-b border-slate-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-900">
