@@ -202,6 +202,10 @@ export default async function(req) {
       return reply({ok:true,id:next.id,status:"cancelled"});
     }
     return bad("Acción desconocida.");
-  } catch(e) {console.error("import-control error",e);return bad(e?.message || "Error interno.",500);}
+  } catch(e) {
+    const status=Number(e?.status||e?.response?.status);
+    if(status===401||status===403||/authentication required/i.test(e?.message||""))return bad("Inicia sesión con una cuenta de administrador.",status===403?403:401);
+    console.error("import-control error",e);return bad(e?.message || "Error interno.",500);
+  }
 }
 
