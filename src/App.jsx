@@ -24,6 +24,7 @@ import ImportCenter from "@/pages/ImportCenter";
 import NativeImport from "@/pages/NativeImport";
 import TeamPossession from "@/pages/TeamPossession";
 import Squads from "@/pages/Squads";
+import Managers from "@/pages/Managers";
 
 const AuthenticatedApp = () => {
   const {
@@ -60,6 +61,7 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Home />} />
         <Route path="/teams" element={<Teams />} />
         <Route path="/squads" element={<Squads />} />
+        <Route path="/managers" element={<Managers />} />
         <Route path="/trophies" element={<Trophies />} />
         <Route path="/news" element={<Kits />} />
         <Route path="/schedule" element={<Stadiums />} />
