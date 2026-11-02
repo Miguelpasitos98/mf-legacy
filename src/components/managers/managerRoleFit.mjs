@@ -1,49 +1,53 @@
-import {HIST_ROLE_METRICS} from "./managerFitHistorical.mjs";
+import {TACTICAL_REQUIREMENT_RULES,V4_ROLE_METRICS,V4_METRIC_LABELS,UNMEASURED_ROLE_TRAITS} from "./managerRoleRules.mjs";
 
-// Conservative dictionary of explicitly observable proxies. A term is matched
-// as a whole phrase, never as arbitrary substrings, and only within its role.
-const RULES=[
- // A sweeper-keeper can only be partially proxied by recorded distribution (not by sweeping movements).
- {id:"sweeper_keeper_distribution",label:"Distribución del portero-líbero (proxy parcial)",terms:["sweeper keeper","portero libero","portero adelantado"],metrics:["passing","longPassing"],roles:["GK"]},
- {id:"regista",label:"Organización desde la base (regista)",terms:["regista","deep lying playmaker","organizador retrasado","pivote organizador"],metrics:["buildup","passing","longPassing"],roles:["DM","CB"]},
- {id:"shield",label:"Protección defensiva (shield)",terms:["shield","ball winner","ball winning midfielder","holding midfielder","pivote defensivo","ancla defensiva"],metrics:["defense"],roles:["DM","CB"]},
- {id:"high_pressure",label:"Presión y recuperación alta",terms:["presion alta","presion tras perdida","presionar","presionante","recuperacion alta","recuperar arriba","gegenpressing"],metrics:["pressure","defense"],roles:["ST","WG","AM","DM","FB","CB"]},
- {id:"build_up",label:"Participación en construcción",terms:["construccion","salida de balon","juego asociativo","juego de pies","circulacion","combinativo","iniciar juego"],metrics:["buildup","passing","chain"],roles:["GK","CB","FB","DM","AM"]},
- {id:"progressive",label:"Contribución a la progresión",terms:["progresivo","progresion","superar lineas","romper lineas","pases verticales"],metrics:["chain","longPassing","buildup"],roles:["CB","FB","DM","AM","WG"]},
- {id:"wing_attack",label:"Producción ofensiva por banda",terms:["lateral profundo","profundidad","incorporaciones","proyectarse","subidas","ataque por banda","centros","carril ofensivo"],metrics:["xa","chain","dribbles"],roles:["FB","WG"]},
- {id:"creation",label:"Creación de oportunidades",terms:["creatividad","creativo","vision","ultimo pase","asistencias","crear ocasiones","generador de juego"],metrics:["xa","creation","chain"],roles:["AM","WG","DM","FB"]},
- {id:"dribbling",label:"Desborde",terms:["desborde","regate","uno contra uno","desequilibrio"],metrics:["dribbles","xa"],roles:["WG","AM","FB"]},
- {id:"finishing",label:"Finalización y amenaza",terms:["rematador","finalizacion","goleador","atacar el area","desmarque","definicion"],metrics:["xg","shot"],roles:["ST","WG","AM"]},
- {id:"long_distribution",label:"Distribución larga",terms:["desplazamiento largo","pase largo","juego directo","cambio de orientacion"],metrics:["longPassing","passing"],roles:["GK","CB","DM"]},
- {id:"defensive",label:"Acciones defensivas",terms:["solidez defensiva","anticipacion","recuperaciones","defender","marcaje","duelos defensivos"],metrics:["defense","pressure"],roles:["CB","FB","DM"]}
-];
+// Conservative: only explicit role instructions, complete phrases, and metrics
+// measured in the selected historical season. No hidden AI or score imputation.
 const normalize=text=>String(text||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 const contains=(text,term)=>(" "+text+" ").includes(" "+normalize(term)+" ");
 export function deriveRoleRequirements(profile,role){
  let raw="";
- try{const parsed=typeof profile?.player_role_priorities==="string"?JSON.parse(profile.player_role_priorities):profile?.player_role_priorities;raw=typeof parsed?.[role]==="string"?parsed[role]:"";}catch{return {text:"",matched:[],unmatched:true};}
+ try{
+  const parsed=typeof profile?.player_role_priorities==="string"?JSON.parse(profile.player_role_priorities):profile?.player_role_priorities;
+  raw=typeof parsed?.[role]==="string"?parsed[role]:"";
+ }catch{return {text:"",matched:[],unmatched:true,unmeasuredTraits:[],metricKeys:[]};}
  const value=normalize(raw);
- const matched=RULES.filter(rule=>rule.roles.includes(role)&&rule.terms.some(term=>contains(value,term)));
- return {text:raw,matched,unmatched:matched.length===0};
+ const supported=new Set(V4_ROLE_METRICS[role]||[]);
+ const matched=TACTICAL_REQUIREMENT_RULES.filter(rule=>rule.roles.includes(role)&&rule.terms.some(term=>contains(value,term))
+  &&rule.metrics.some(metric=>supported.has(metric)));
+ const unmeasuredTraits=UNMEASURED_ROLE_TRAITS.filter(rule=>rule.roles.includes(role)&&rule.terms.some(term=>contains(value,term))).map(r=>r.label);
+ const metricKeys=[...new Set(matched.flatMap(rule=>rule.metrics))].filter(metric=>supported.has(metric));
+ return {text:raw,matched,unmatched:matched.length===0,unmeasuredTraits,metricKeys};
 }
 export function evaluateRoleRequirements(metrics,peers,role,profile){
  const requirements=deriveRoleRequirements(profile,role);
- const candidates=[...new Set(requirements.matched.flatMap(x=>x.metrics))].filter(k=>(HIST_ROLE_METRICS[role]||[]).includes(k));
- const breakdown=[];
+ const candidates=requirements.metricKeys;
+ const breakdown=[],metricDiagnostics=[];
  for(const key of candidates){
   const observation=metrics?.[key]?.value;
-  if(observation===null||observation===undefined||!Number.isFinite(observation))continue;
-  const values=peers.map(x=>x?.[key]?.value).filter(x=>typeof x==="number"&&Number.isFinite(x)).sort((a,b)=>a-b);
-  if(values.length<10)continue;
-  const below=values.filter(x=>x<observation).length;
-  const equal=values.filter(x=>x===observation).length;
-  breakdown.push({key,percentile:Math.round(100*(below+equal/2)/values.length),value:observation,source:metrics[key]?.source,peerCount:values.length});
+  const population=(Array.isArray(peers)?peers:[]).map(x=>x?.[key]?.value)
+   .filter(v=>typeof v==="number"&&Number.isFinite(v)&&v>=0).sort((a,b)=>a-b);
+  const observed=typeof observation==="number"&&Number.isFinite(observation)&&observation>=0;
+  const item={key,label:V4_METRIC_LABELS[key]||key,peerCount:population.length,
+   status:!observed?"missing_player":population.length<10?"insufficient_peers":"measured",
+   source:observed?metrics[key]?.source||null:null,scope:observed?metrics[key]?.scope||null:null};
+  metricDiagnostics.push(item);
+  if(item.status!=="measured")continue;
+  const below=population.filter(v=>v<observation).length;
+  const equal=population.filter(v=>v===observation).length;
+  breakdown.push({...item,percentile:Math.round(100*(below+equal/2)/population.length),value:observation});
  }
  const coverage=candidates.length?Math.round(breakdown.length/candidates.length*100):0;
- // Do not calculate a score for insufficient evidence, unknown instructions
- // or a single indicator; never turn unknowns into neutral values.
- const score=breakdown.length>=2?Math.round(breakdown.reduce((s,x)=>s+x.percentile,0)/breakdown.length):null;
- return {score,coverage,breakdown,requested:candidates.length,requirements:requirements.matched.map(r=>r.label),unmatched:requirements.unmatched,
-  confidence:score===null?"insufficient":coverage>=75&&breakdown.length>=3?"medium":"low",
-  limitation:requirements.unmatched?"El texto del rol no contiene criterios inequívocos que podamos vincular a métricas históricas.":"Proxies estadísticos orientativos: no observan directamente todas las decisiones tácticas del futbolista."};
+ // V4 is unavailable until >=2 DISTINCT audited historical indicators are measured.
+ const score=breakdown.length>=2?Math.round(breakdown.reduce((sum,item)=>sum+item.percentile,0)/breakdown.length):null;
+ const mixedGlobal=breakdown.some(x=>x.scope?.includes("temporada global"))&&breakdown.some(x=>!x.scope?.includes("temporada global"));
+ const limitation=requirements.unmatched
+  ?"El rol no expresa requisitos vinculables con seguridad a los indicadores históricos disponibles."
+  :score===null?"No hay al menos dos indicadores medidos con diez futbolistas comparables para esta temporada y posición."
+  :"Los indicadores son proxies de actividad, no observan directamente las decisiones tácticas ni garantizan adaptación.";
+ return {score,coverage,breakdown,requested:candidates.length,requirements:requirements.matched.map(r=>r.label),
+  unmatched:requirements.unmatched,unmeasuredTraits:requirements.unmeasuredTraits,
+  metricDiagnostics,missing:metricDiagnostics.filter(item=>item.status!=="measured"),
+  confidence:score===null?"insufficient":mixedGlobal?"low":coverage>=75&&breakdown.length>=3?"medium":"low",
+  limitation:mixedGlobal?limitation+" Incluye una fuente Understat de alcance global distinto de las métricas FotMob; interpretar con cautela.":limitation};
 }
+
