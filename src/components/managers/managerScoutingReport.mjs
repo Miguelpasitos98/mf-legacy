@@ -5,6 +5,9 @@
 export const SCOUT_METRIC_NAMES={
  xa:"Asistencias esperadas /90",chain:"Participación xG Chain /90",buildup:"Construcción xG Buildup /90",
  pressure:"Recuperaciones en último tercio /90",defense:"Acciones defensivas ajustadas /90",
+ defensiveActions:"Acciones defensivas /90 (sin ajustar)",tackles:"Entradas /90",interceptions:"Intercepciones /90",
+ recoveries:"Recuperaciones /90",clearances:"Despejes /90",aerialsWon:"Duelos aéreos ganados /90 (volumen)",
+ touchesBox:"Toques en área rival /90",chancesCreated:"Ocasiones creadas /90",
  dribbles:"Regates completados /90",xg:"xG sin penaltis /90",shot:"Tiros a puerta /90",
  passing:"Pases precisos /90",longPassing:"Pases largos precisos /90",creation:"Ocasiones claras creadas /90",preventing:"Goles evitados /90"
 };
@@ -22,6 +25,9 @@ export function buildScoutingReport(player,role,profile,season,roleResult,histor
   strengths,weaknesses,neutral,
   unmeasured:Math.max(0,unmeasured),coverage:roleResult?.coverage||0,
   identifiedRequirements:roleResult?.requirements||[],
+  metricDiagnostics:roleResult?.metricDiagnostics||[],
+  unmeasuredTraits:roleResult?.unmeasuredTraits||[],
+  missingMetricReasons:roleResult?.missing||[],
   historicalScore:historical?.score??null,attributeScore:attributeResult?.score??null,
   positionScore:attributeResult?.position??null,
   ca:attributeResult?.quality??null,
