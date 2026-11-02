@@ -18,8 +18,12 @@ export function parseTacticalRoleImport(document, allowedRoles) {
   if (!Array.isArray(document.players) || !document.players.length || document.players.length > 10000) {
     throw Error("El JSON debe contener entre 1 y 10.000 jugadores dentro de players.");
   }
+  const exact = new Set(allowedRoles);
   const canonical = new Map();
-  for (const original of allowedRoles) canonical.set(roleWithoutIcon(original), original);
+  for (const original of allowedRoles) {
+    const key = roleWithoutIcon(original);
+    canonical.set(key, [...(canonical.get(key) || []), original]);
+  }
   const entries = document.players.map((row, index) => {
     const id = uid(row?.fm26_uid);
     const name = asText(row?.name);
@@ -29,8 +33,10 @@ export function parseTacticalRoleImport(document, allowedRoles) {
     if (!name) errors.push("Nombre ausente");
     if (!Array.isArray(rawRoles) || rawRoles.length !== 2) errors.push("Se requieren exactamente dos roles");
     const roles = Array.isArray(rawRoles) ? rawRoles.slice(0, 2).map((role, i) => {
-      const matched = canonical.get(roleWithoutIcon(role?.name));
-      if (!matched) errors.push("Rol " + (i + 1) + " no existe en MF LEGACY");
+      const supplied = asText(role?.name);
+      const alternatives = canonical.get(roleWithoutIcon(supplied)) || [];
+      const matched = exact.has(supplied) ? supplied : alternatives.length === 1 ? alternatives[0] : "";
+      if (!matched) errors.push("Rol " + (i + 1) + " desconocido o ambiguo: " + supplied);
       if (typeof role?.description !== "string") errors.push("Descripción " + (i + 1) + " inválida");
       return { name: matched || "", description: asText(role?.description) };
     }) : [];
