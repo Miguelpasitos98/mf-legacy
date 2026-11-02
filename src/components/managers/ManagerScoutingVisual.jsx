@@ -1,5 +1,5 @@
 import React,{useState} from "react";
-import {Activity,BarChart3,CheckCircle2,ChevronDown,ChevronUp,ClipboardList,Eye,Info,Layers3,Users} from "lucide-react";
+import {Activity,BarChart3,ChevronDown,ChevronUp,ClipboardList,Info,Layers3,Users} from "lucide-react";
 import PlayerPortrait from "@/components/teams/PlayerPortrait";
 
 const CONFIDENCE={medium:"Media",low:"Baja",insufficient:"Sin datos suficientes"};
