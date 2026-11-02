@@ -4,7 +4,7 @@ import {base44} from "@/api/base44Client";
 import {Search,Plus,Save,Sparkles,Copy,UserRoundCog,SlidersHorizontal,ShieldCheck,ArrowUpRight,BookOpen} from "lucide-react";
 import ManagerPortrait from "@/components/managers/ManagerPortrait";
 import {resolveManagerCountry,buildManagerBiographyPrompt,parseBiographyResponse} from "@/components/managers/managerBiography.mjs";
-import {buildManagerTacticalPrompt,parseManagerTacticalResponse,previewManagerTacticalDraft} from "@/components/managers/managerTacticalAI.mjs";
+import {buildManagerTacticalPrompt,parseManagerTacticalResponse,previewManagerTacticalDraft,effectiveProfileContext} from "@/components/managers/managerTacticalAI.mjs";
 import {DNA_AXES,ROLES,MANAGER_BLANK,PROFILE_BLANK,PROFILE_SCOPES,profileScope,profileScopeLabel,cleanManager,cleanProfile,decodeRoleText,validSeason,chooseAssignment,isCustomTeam} from "@/components/managers/managerModel.mjs";
 
 const getRows = async (entity,query={})=>{
@@ -137,11 +137,12 @@ export default function Managers(){
      if(!window.confirm("La propuesta reemplazará los parámetros y los perfiles por posición del borrador abierto. El registro guardado no se modificará hasta pulsar Guardar ADN táctico. ¿Continuar?"))return false;
    }
    setProfileDraft(prev=>previewManagerTacticalDraft(prev,parsed));
-   setScopeSuggestion(parsed.context);
+   const context=effectiveProfileContext(profileDraft,parsed);
+   setScopeSuggestion(context);
    setRoleText(parsed.roleText);
    setDnaDraftReady(true);
-   const label=parsed.context?.scope==="period"?"Etapa "+parsed.context.period_start+"–"+parsed.context.period_end:
-     parsed.context?.scope==="season"?"Temporada "+parsed.context.season:"Filosofía general";
+   const label=context?.scope==="period"?"Etapa "+context.period_start+"–"+context.period_end:
+     context?.scope==="season"?"Temporada "+context.season:"Filosofía general";
    setNotice("ADN táctico propuesto (confianza "+parsed.confidence+"). Alcance detectado: "+label+". Revisa fechas, nombre y fuentes; NO se ha guardado en Base44.");
    setError("");
    return true;
@@ -410,6 +411,7 @@ export default function Managers(){
        {dnaDraftReady&&<div role="status" className="rounded-lg bg-emerald-50 p-3 border border-emerald-200 text-sm">
          <p className="font-bold text-emerald-800">Periodo interpretado: {profileScopeLabel(profileDraft)}</p>
          {scopeSuggestion?.origin==="explicit_notes"&&<p className="mt-1 text-xs text-emerald-700">Identificado a partir del apartado «ETAPA REPRESENTADA» del JSON anterior. Confirma el club y las fechas antes de guardar.</p>}
+         {scopeSuggestion?.origin==="existing_preserved"&&<p className="mt-1 text-xs text-blue-700">El JSON no aportaba fechas fiables, así que se han conservado las fechas que ya habías indicado.</p>}
          {scopeSuggestion?.origin==="not_specified"&&<p className="mt-1 text-xs text-amber-700">El JSON no identifica una etapa concreta. Se ha propuesto «Filosofía general»; revisa el análisis antes de aceptarlo.</p>}
          <p className="text-xs text-emerald-700 mt-1">Nombre propuesto: <strong>{profileDraft.name}</strong>. Todos los campos son editables; todavía no se ha guardado.</p>
        </div>}

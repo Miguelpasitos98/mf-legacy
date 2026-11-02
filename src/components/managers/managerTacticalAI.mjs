@@ -125,12 +125,24 @@ export function parseManagerTacticalResponse(input) {
     sourceUrls,confidence:data.confidence};
 }
 
+// Avoid silently erasing an existing, deliberately selected season or period
+// when an older JSON contains no reliable identification of its own period.
+export function effectiveProfileContext(current,parsed){
+  const suggested=parsed.context||inferManagerProfileContext({});
+  const existingScope=profileScope(current);
+  if(suggested.origin==="not_specified" && (
+    existingScope==="season" || existingScope==="period" ||
+    Boolean(current?.period_start||current?.period_end||current?.season)
+  ))return {scope:existingScope,reference_club:current.reference_club||"",
+    season:current.season||"",period_start:current.period_start||"",period_end:current.period_end||"",
+    suggested_name:"",origin:"existing_preserved"};
+  return suggested;
+}
 export function previewManagerTacticalDraft(current,parsed) {
   const confidence={high:"alta",medium:"media",low:"baja"}[parsed.confidence];
   const caveat="ADN propuesto por IA (confianza "+confidence+"). Valores 0–100 estimados, no métricas oficiales. Revisar la evidencia antes de confirmar.";
   const sources=parsed.sourceUrls.length?"Fuentes sugeridas (pendientes de revisión):\n"+parsed.sourceUrls.join("\n"):"Fuentes no aportadas; pendiente de investigación documental.";
-  const context=parsed.context || {scope:profileScope(current),reference_club:current.reference_club||"",season:current.season||"",
-    period_start:current.period_start||"",period_end:current.period_end||"",suggested_name:"",origin:"not_specified"};
+  const context=effectiveProfileContext(current,parsed);
   const genericName = ["Modelo principal","Nuevo perfil","Filosofía general"].includes(String(current.name||"").trim());
   return {
     ...PROFILE_BLANK,...current,...parsed.values,
