@@ -9,6 +9,7 @@ import {SCENARIO_IDS,FORMATION_CHOICES,emptyScenarios,updateScenario,resetScenar
 import {ROLE_LABELS} from "@/components/managers/managerFit.mjs";
 import {OPTIMIZER_GOALS,MAX_OPTIMIZER_CHANGES,optimizeTacticalXI} from "@/components/managers/managerLineupOptimizer.mjs";
 import {makeManagerReadOnlyDemo} from "@/components/managers/managerReadOnlyDemo.mjs";
+import {selectedCandidatePool,isExternalCandidate} from "@/components/managers/managerCandidatePool.mjs";
 const loadAll=async(entity,query={})=>{
  const out=[];for(let skip=0;skip<=100000;skip+=200){
   const raw=await entity.filter(query,undefined,200,skip),part=Array.isArray(raw)?raw:raw?.data||raw?.items||[];
@@ -26,6 +27,7 @@ export default function ManagerSquadPlanner(){
  const [optimizerMaxChanges,setOptimizerMaxChanges]=useState(2);
  const [optimizerOpen,setOptimizerOpen]=useState(false);
  const [demoMode,setDemoMode]=useState(false);
+ const [includeCandidates,setIncludeCandidates]=useState(false);
  const season=params.get("season")||"2026/2027",teamId=params.get("team")||"";
  const customTeams=useMemo(()=>teams.filter(isCustomTeam),[teams]);
  const team=customTeams.find(t=>String(t.id)===teamId);
@@ -43,11 +45,14 @@ export default function ManagerSquadPlanner(){
    .catch(e=>{if(live)setError(e.message||"Error al cargar plantilla")}).finally(()=>{if(live)setLoading(false)});
   return()=>{live=false};
  },[team?.id,season]);
- useEffect(()=>{setScenarios(emptyScenarios());setActiveScenario("A");setOptimizerOpen(false)},[teamId,season,demoMode]);
+ useEffect(()=>{setScenarios(emptyScenarios());setActiveScenario("A");setOptimizerOpen(false)},[teamId,season,demoMode,includeCandidates]);
  const plan=useMemo(()=>demoMode?makeManagerReadOnlyDemo({teams,players,managers,profiles,season}):
   planSquad({team,season,players,memberships:members,assignments,managers,profiles}),
   [demoMode,teams,team,season,players,members,assignments,managers,profiles]);
- const lineupRoster=useMemo(()=>plan.valid?plan.roleSummary.flatMap(x=>x.roster):[],[plan]);
+ const teamRoster=useMemo(()=>plan.valid?plan.roleSummary.flatMap(x=>x.roster):[],[plan]);
+ const externalRoster=useMemo(()=>selectedCandidatePool(players,teamRoster.map(x=>x.player.id),includeCandidates),[players,teamRoster,includeCandidates]);
+ const lineupRoster=useMemo(()=>[...teamRoster,...externalRoster],[teamRoster,externalRoster]);
+ const manuallyMarked=useMemo(()=>players.filter(p=>p.manager_fit_candidate===true).length,[players]);
  const evaluated=useMemo(()=>Object.fromEntries(SCENARIO_IDS.map(id=>[id,evaluateScenario(plan,lineupRoster,scenarios[id],id)])),[plan,lineupRoster,scenarios]);
  const active=evaluated[activeScenario];
  const formationPlan=active.draft;
@@ -94,6 +99,18 @@ export default function ManagerSquadPlanner(){
  <p className="text-sm">Entrenador: <strong>{plan.manager?.name||"Sin entrenador principal asignado"}</strong> · ADN: <strong>{plan.profile?.name||"Sin ADN asignado"}</strong></p>
  <p className="text-xs text-slate-500">{plan.rosterCount} registros en la plantilla · {plan.linkedCount} jugadores clasificados por rol. Los roles se deducen de la posición principal registrada, no de la alineación titular.</p>
  {!plan.profile&&<p className="text-sm bg-amber-50 p-3 rounded-lg">Asigna un entrenador con ADN táctico en <Link to="/managers" className="underline font-semibold">MANAGERS</Link> para evaluar compatibilidad.</p>}</div>
+ <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Bolsa de candidatos externos">
+ <div className="flex items-center justify-between gap-3 flex-wrap">
+ <div><h3 className="font-black">Bolsa de candidatos · Manager Fit</h3>
+ <p className="text-xs text-slate-600 mt-1">Selecciona los futbolistas que te interesen desde <Link className="font-bold underline text-blue-700" to="/players">PLAYERS</Link> → Selección múltiple → Bolsa de candidatos.</p></div>
+ <label className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold">
+ <input type="checkbox" checked={includeCandidates} onChange={e=>setIncludeCandidates(e.target.checked)} className="accent-blue-700 h-4 w-4"/>
+ Permitir candidatos externos
+ </label>
+ </div>
+ <p className="text-xs text-slate-600">{manuallyMarked} jugadores marcados en PLAYERS · {externalRoster.length} externos distintos de tu plantilla disponibles {includeCandidates?"para probar":"al activar la opción"}.</p>
+ {includeCandidates&&<p className="text-xs border-l-2 border-amber-500 bg-amber-50 p-3 text-amber-900">El optimizador y los cambios manuales pueden incorporar candidatos externos en un once hipotético. No los ficha ni les asigna club; se conserva su equipo real. La disponibilidad de fichaje, contrato o lesión no está verificada solo por pertenecer a la bolsa.</p>}
+ </section>
  <section className="rounded-xl border bg-white p-4 space-y-3">
  <h3 className="font-black">Once orientativo · Escenario {activeScenario} · {active.formation||"Sin formación"}</h3>
  <p className="text-xs text-slate-600">Propuesta automática sin modificar la alineación guardada. Un jugador solo puede ocupar una plaza; las alternativas no están asignadas. La selección utiliza posición y, cuando existen, atributos FM26.</p>
@@ -103,6 +120,7 @@ export default function ManagerSquadPlanner(){
  <div key={slot.id} className="rounded-lg bg-white/95 border border-emerald-100 p-2 text-center w-[min(160px,46%)] min-w-[95px]">
  <p className="text-[10px] font-bold text-emerald-800">{ROLE_LABELS[slot.role]}</p>
  <p className="text-xs font-bold truncate" title={slot.primary?.player.name||"Vacante"}>{slot.primary?.player.name||"Vacante"}</p>
+ {slot.primary&&isExternalCandidate(slot.primary)&&<p className="text-[10px] font-semibold text-amber-800">Candidato externo</p>}
  <p className="text-[10px] text-slate-500">Encaje {slot.primary?.estimatedFit??"—"}/100</p>
  <p className="text-[10px] text-blue-700 truncate" title={slot.advanced?.recommendation?.name||"Sin función evaluable"}>{slot.advanced?.recommendation?.name||"Función no evaluable"}</p>
  </div>)}</div>)}</div>
@@ -129,14 +147,14 @@ export default function ManagerSquadPlanner(){
  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">{draft.assignments?.map(slot=><label key={slot.id} className="text-xs border rounded-lg p-3">
  <span className="font-semibold">{ROLE_LABELS[slot.role]} · {slot.id}</span>
  <select aria-label={"Jugador para "+slot.id} className="mt-2 block w-full border rounded-lg p-2" value={slot.primary?.player.id||""} onChange={e=>setSlot(slot.id,e.target.value)}>
- <option value="">Vacante</option>{lineupRoster.filter(x=>canChooseLineupPlayer(slot.id,x.player.id,scenarios[activeScenario].overrides,active.draft)).map(x=><option key={x.player.id} value={x.player.id}>{x.player.name}</option>)}
+ <option value="">Vacante</option>{lineupRoster.filter(x=>canChooseLineupPlayer(slot.id,x.player.id,scenarios[activeScenario].overrides,active.draft)).map(x=><option key={x.player.id} value={x.player.id}>{x.player.name}{isExternalCandidate(x)?" · candidato externo":""}</option>)}
  </select>
  </label>)}</div>
- <p className="text-xs text-slate-600">Plazas ocupadas: {draft.filled||0}/11. Ningún futbolista se puede asignar dos veces.</p>
+ <p className="text-xs text-slate-600">Plazas ocupadas: {draft.filled||0}/11 · candidatos externos en el once: {draft.assignments?.filter(s=>s.primary&&isExternalCandidate(s.primary)).length||0}. Ningún futbolista se puede asignar dos veces.</p>
  </section>
  <section className="rounded-xl border bg-white p-4 space-y-4" aria-label="Optimizador de once táctico">
  <div><h3 className="font-black text-lg">Optimizador de once · V15</h3>
- <p className="text-xs text-slate-600 mt-1">Explora sustituciones dentro de la plantilla de {plan.team?.name||"este club"}. Cada propuesta debe mejorar un indicador evaluable sin perjudicar de forma marcada los demás. No se incluyen fichajes ni se modifican alineaciones reales.</p></div>
+ <p className="text-xs text-slate-600 mt-1">Explora sustituciones de {plan.team?.name||"este club"}{includeCandidates?" y futbolistas que hayas marcado en PLAYERS":" usando solo tu plantilla"}. Cada propuesta debe mejorar un indicador evaluable sin perjudicar de forma marcada los demás. No se realizan fichajes ni se modifican alineaciones reales.</p></div>
  <div className="flex flex-wrap items-end gap-3">
  <label className="text-xs font-bold">Objetivo táctico
  <select aria-label="Objetivo de optimización" value={optimizerGoal} onChange={e=>setOptimizerGoal(e.target.value)} className="mt-1 block border rounded-lg p-2 bg-white">
@@ -148,13 +166,14 @@ export default function ManagerSquadPlanner(){
  </select></label>
  <button type="button" disabled={!plan.profile||!active.draft.valid||loading} className="bg-blue-900 text-white text-sm font-bold rounded-lg px-4 py-2 disabled:opacity-40" onClick={()=>setOptimizerOpen(true)}>Buscar mejoras para {activeScenario}</button>
  </div>
- <p className="text-[11px] text-slate-600">El optimizador no añade un jugador si está cedido fuera de la plantilla, lesionado, sancionado o marcado como no disponible. Requiere adecuación posicional de al menos 65/100, limita la pérdida de encaje individual a 15 puntos y tolera como máximo una caída de 12 puntos en otros ejes comparables.</p>
+ <p className="text-[11px] text-slate-600">Para los jugadores de tu plantilla se respetan los estados de disponibilidad registrados; para los externos, esa disponibilidad es desconocida y debes comprobarla manualmente. Requiere adecuación posicional de al menos 65/100, limita la pérdida de encaje individual a 15 puntos y tolera como máximo una caída de 12 puntos en otros ejes comparables.</p>
  {optimizerPreview&&<div className="rounded-xl border bg-slate-50 p-3 space-y-3" role="status">
  <div className="flex justify-between gap-2 flex-wrap"><p className="font-bold text-sm">Resultado · {OPTIMIZER_GOALS[optimizerGoal]}</p><p className="text-xs text-slate-500">{optimizerPreview.evaluations} alternativas comprobadas · Fuente: escenario {activeScenario}</p></div>
  {optimizerPreview.status==="suggested"?<>
  <p className="text-sm">Objetivo: <strong>{optimizerPreview.before.axes.find(x=>x.key===optimizerGoal)?.score}/100</strong> → <strong>{optimizerPreview.after.axes.find(x=>x.key===optimizerGoal)?.score}/100</strong>. {optimizerPreview.changes.length} sustituciones propuestas.</p>
  <div className="space-y-2">{optimizerPreview.changes.map((change,i)=><div key={i} className="rounded-lg bg-white border p-3">
  <p className="text-sm font-bold">{i+1}. {ROLE_LABELS[change.role]} · {change.outgoing} → {change.incoming}</p>
+ {externalRoster.some(x=>String(x.player.id)===change.incomingId)&&<p className="text-[11px] font-semibold text-amber-800">Candidato externo seleccionado desde PLAYERS. No implica un fichaje.</p>}
  <p className="text-xs text-slate-700 mt-1">{change.rationale}</p>
  <p className="text-xs text-slate-500 mt-1">Encaje individual: {change.individualBefore??"—"} → {change.individualAfter??"—"}/100 · Objetivo {change.goalBefore} → {change.goalAfter}/100</p>
  </div>)}</div>
