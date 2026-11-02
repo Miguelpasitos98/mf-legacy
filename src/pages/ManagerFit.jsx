@@ -71,7 +71,7 @@ export default function ManagerFit(){
   </section>
   <section className="border rounded-2xl bg-white p-3 md:p-4 space-y-3">
    <div className="flex gap-2 items-center justify-between flex-wrap"><h2 className="font-bold">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}</h2><span className="text-xs text-slate-500">Criterios auditables · No predice rendimiento</span></div>
-   <p className="text-xs bg-amber-50 border border-amber-100 rounded-lg p-3 text-amber-900">**V1:** la puntuación procede de la valoración de posición de FM26 (1–20) o de una aproximación según posición principal/secundaria. <strong>No es aún el Manager Fit táctico completo</strong>: no hemos medido presión, calidad de pases ni acciones por temporada. El CA se enseña aparte y solo sirve como desempate.</p>
+   <p className="text-xs bg-amber-50 border border-amber-100 rounded-lg p-3 text-amber-900"><strong>V1:</strong> la puntuación procede de la valoración de posición de FM26 (1–20) o de una aproximación según posición principal/secundaria. <strong>No es aún el Manager Fit táctico completo</strong>: no hemos medido presión, calidad de pases ni acciones por temporada. El CA se enseña aparte y solo sirve como desempate.</p>
    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
     {results.map(item=><div key={item.player.id} className="rounded-xl border p-3 flex gap-3 min-w-0">
      <PlayerPortrait player={item.player} className="h-14 w-14 rounded-full object-cover shrink-0"/>
