@@ -125,6 +125,14 @@ export default function ManagerSquadPlanner(){
  <div className="rounded-lg border p-3"><p className="font-bold">Cambios de futbolistas</p><p className="mt-1">{scenarioComparison.retained} jugadores presentes en ambos onces</p><p className="mt-1">Solo en A: {scenarioComparison.onlyA.join(", ")||"Ninguno"}</p><p>Solo en B: {scenarioComparison.onlyB.join(", ")||"Ninguno"}</p></div>
  <div className="rounded-lg border p-3"><p className="font-bold">Conexiones tácticas</p><p className="mt-1">A: {scenarioComparison.pairA.evaluated} parejas evaluadas · {scenarioComparison.pairA.unavailable} sin evidencia</p><p>B: {scenarioComparison.pairB.evaluated} parejas evaluadas · {scenarioComparison.pairB.unavailable} sin evidencia</p><p className="mt-1 text-slate-500">No se comparan como química real de partidos.</p></div>
  </div>
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{SCENARIO_IDS.map(id=><div key={id} className="rounded-lg border p-3">
+ <h4 className="text-xs font-bold mb-2">Parejas y funciones · escenario {id}</h4>
+ {evaluated[id].chemistry.pairs.length?<div className="space-y-2">{evaluated[id].chemistry.pairs.map((pair,i)=><div key={pair.type+"-"+i} className="text-xs border-b pb-2">
+ <p className="font-semibold">{pair.type}: {pair.players.join(" + ")}</p>
+ <p className="text-slate-600">{pair.functions.length?pair.functions.join(" + "):"Sin evidencia funcional suficiente"}</p>
+ <p className="text-slate-500">Complementariedad orientativa: {pair.score===null?"—":pair.score+"/100"} · cobertura {pair.coverage}%</p>
+ </div>)}</div>:<p className="text-xs text-slate-500">Sin parejas identificables.</p>}
+ </div>)}</div>
  <p className="text-xs text-amber-800">«—» significa que faltan datos; no equivale a cero. La comparación no elige un ganador automáticamente ni afecta a las plantillas guardadas.</p>
  </section>
  <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Compatibilidad entre compañeros">
