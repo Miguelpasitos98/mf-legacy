@@ -71,7 +71,10 @@ test("profile identity prevents duplicate periods but preserves different season
 test("reject bad identifiers, false honours, unsupported results and missing general synthesis",()=>{
  assert.throws(()=>parseManagerCareerResponse({...bundle,models:[{...early,model_id:"same"},{...later,model_id:"same"}]}),/repetido/);
  assert.throws(()=>parseManagerCareerResponse({...bundle,models:[{...early,verified_honours:[{competition:"Bundesliga",season:"2010/2011",source_url:"fake"}]}]}),/carece de temporada o URL/);
- assert.throws(()=>parseManagerCareerResponse({...bundle,models:[{...early,success_tier:"almost perfect"}]}),/clasificación cualitativa/);
+ const noncanonical=parseManagerCareerResponse({...bundle,models:[{...early,success_tier:"almost perfect"},later]});
+ assert.equal(noncanonical.models.find(x=>x.id===early.model_id).successTier,"unknown");
+ assert.match(noncanonical.models.find(x=>x.id===early.model_id).profile.profile_notes,/almost perfect/);
+ assert.equal(noncanonical.bestId,later.model_id);
  assert.throws(()=>parseManagerCareerResponse({...bundle,general_philosophy:null}),/filosofía general/);
  assert.throws(()=>parseManagerCareerResponse({...bundle,best_supported_model_id:"nonexistent"}),/no aparece/);
  assert.throws(()=>parseManagerCareerResponse({...bundle,models:[]}),/entre 1 y 6/);

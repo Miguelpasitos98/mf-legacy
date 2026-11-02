@@ -12,10 +12,16 @@ test("variants of transition and defensive block normalize",()=>{
  assert.equal(normalizeTacticalEnum("defensive_block","Bloque alto"),"high");
  assert.equal(normalizeTacticalEnum("defensive_block","mid block"),"medium");
 });
-test("ambiguous and missing values produce specific editable error",()=>{
- assert.throws(()=>normalizeTacticalEnum("build_up","quick and slow"),/quick and slow/);
- assert.throws(()=>normalizeTacticalEnum("build_up",null),/null/);
- assert.throws(()=>normalizeTacticalEnum("transition","attack"),/transition/);
+test("ambiguous and missing values become explicitly flagged neutral placeholders",()=>{
+ const warnings=[];
+ const onWarning=x=>warnings.push(x);
+ assert.equal(normalizeTacticalEnum("build_up","quick and slow",{onWarning}),"mixed");
+ assert.equal(normalizeTacticalEnum("build_up",null,{onWarning}),"mixed");
+ assert.equal(normalizeTacticalEnum("transition","attack",{onWarning}),"balanced");
+ assert.deepEqual(warnings.map(w=>w.field),["build_up","build_up","transition"]);
+ assert.equal(warnings[0].original,"quick and slow");
+ assert.match(warnings[0].reason,/inequívoca/);
+ assert.throws(()=>normalizeTacticalEnum("not_supported","x"),/Parámetro táctico desconocido/);
 });
 test("parser consistently normalizes all three tactical enums",()=>{
  const row={identifiable:true,confidence:"high",formation:"4-3-3",possession:70,pressing:85,tempo:79,defensive_line:80,attacking_width:72,risk_taking:68,
