@@ -89,8 +89,11 @@ export default function ManagerSquadPlanner(){
   setActiveScenario(optimizerDestination);
   setOptimizerOpen(false);
  };
- return <main className="mx-auto max-w-[1550px] p-4 md:p-6 text-slate-900 space-y-4">
- <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V15</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
+ return <main className="mx-auto max-w-[1550px] px-3 md:px-6 py-2 text-slate-900 space-y-3">
+ <div className="flex flex-wrap items-center justify-between gap-2">
+  <h1 className="text-sm font-black tracking-wide text-slate-800">Planificador · Manager Fit</h1>
+  <Link to="/manager-fit" className="text-xs font-bold text-blue-700 hover:underline">Abrir scouting táctico</Link>
+ </div>
  {error&&<p role="alert" className="p-3 border bg-red-50 rounded-lg text-red-800">{error}</p>}
  <div className="rounded-xl border p-4 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3">
  <CustomClubSearch teams={customTeams} selectedId={teamId} disabled={demoMode} onSelect={id=>setParams({team:id,season})}/>

@@ -124,13 +124,11 @@ export default function ManagerFit(){
   const first=profiles.find(p=>String(p.manager_id)===String(id)&&p.is_default)||profiles.find(p=>String(p.manager_id)===String(id));
   setParams({manager:id,...(first?{profile:String(first.id)}:{})});
  };
- return <main className="mx-auto max-w-[1550px] px-3 md:px-6 py-4 text-slate-900 space-y-4">
-  <header className="rounded-2xl bg-[#091e1b] text-white p-5">
-   <p className="text-xs font-bold tracking-widest text-lime-300">MF LEGACY · MANAGER FIT</p>
-   <h1 className="text-2xl md:text-3xl font-black mt-1">Scouting según el entrenador</h1>
-   <Link to="/squad-planner" className="inline-block mt-2 text-xs font-bold underline text-lime-300">Planificar plantilla por entrenador</Link>
-   <p className="text-sm text-slate-300 mt-1">Dos lecturas separadas: adecuación posicional y encaje estimado con atributos FM26 y el ADN del entrenador.</p>
-  </header>
+ return <main className="mx-auto max-w-[1550px] px-3 md:px-6 py-2 text-slate-900 space-y-3">
+  <div className="flex flex-wrap items-center justify-between gap-2">
+   <h1 className="text-sm font-black tracking-wide text-slate-800">Manager Fit · Scouting táctico</h1>
+   <Link to="/squad-planner" className="text-xs font-bold text-blue-700 hover:underline">Abrir planificador de plantilla</Link>
+  </div>
   {error&&<p role="alert" className="p-3 border border-red-200 bg-red-50 rounded-lg text-sm text-red-800">{error}</p>}
   <section className="rounded-xl border bg-white p-3 md:p-4 space-y-3">
    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
