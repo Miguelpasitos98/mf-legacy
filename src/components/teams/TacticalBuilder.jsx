@@ -88,7 +88,7 @@ export default function TacticalBuilder({ team, season, roster }) {
         listRecords(base44.entities.TeamLineupSlot,{lineup_id:id}),
         listRecords(base44.entities.TeamLineupBench,{lineup_id:id})
       ]);
-      const chosen=lineups.find(l=>l.id===id);
+      const chosen=lineups.find(l=>l.id===id && l.season===season && String(l.team_id)===String(team.id));
       if(!chosen) throw new Error("No se encontró el once seleccionado");
       const newSlots={};
       for(const s of savedSlots) if(availableIds.has(String(s.player_id))) newSlots[s.slot_code]=String(s.player_id);
@@ -118,7 +118,7 @@ export default function TacticalBuilder({ team, season, roster }) {
     let id=activeId;let created=false;
     try{
       if(!id){
-        const entity=await base44.entities.TeamLineup.create({team_type:"club",team_id:String(team.id),season,name,formation,type:"custom",is_default:false});
+        const entity=await base44.entities.TeamLineup.create({team_type:"club",team_id:String(team.id),season,name,formation,type:season==="2026/2027"?"custom":"historical",is_default:false});
         id=entity.id;created=true;
       }
       const oldSlots=created?[]:await listRecords(base44.entities.TeamLineupSlot,{lineup_id:id});
