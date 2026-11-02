@@ -87,7 +87,6 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
       <button type="button" onClick={()=>toggleRole(i)} aria-pressed={Boolean(role.name)&&selectedRoleIndex===i} aria-label={role.name?`Ver identidad táctica de ${role.name}`:`Añadir rol ${i+1}`} className={role.name&&selectedRoleIndex===i?"text-emerald-700":"text-slate-900"}>{role.name || `Añadir rol ${i+1}`}</button>
       <button type="button" onClick={()=>openEditor(i)} aria-label={`Editar rol ${i+1}`} className="text-xl font-black text-emerald-500">+</button>
     </div>)}
-    {activeRole!==null&&roles[activeRole]?.description&&<p className="text-xs leading-relaxed text-slate-600">{roles[activeRole].description}</p>}
   </div>}
   <div className={adaptive ? "mf-role-field-pitch" : undefined}><div className={adaptive ? "mf-role-field-art" : undefined}>
   <img className="pointer-events-none absolute inset-0 h-full w-full object-contain" src={IMAGE} alt="Roles y campo de fútbol en perspectiva"/>
@@ -109,7 +108,7 @@ export default function RoleFieldConcept({ratings={},playerId,position,foot,stor
   >
     <button type="button" onClick={()=>toggleRole(i)} aria-pressed={Boolean(role.name)&&selectedRoleIndex===i}
       aria-label={role.name?`Ver identidad táctica de ${role.name}`:`Añadir rol ${i+1}`}
-      title={role.description||(role.name?"Mostrar u ocultar zona táctica":"Seleccionar rol")}
+      title={role.description||(role.name?"Mostrar identidad y zona táctica":"Seleccionar rol")}
       className="pointer-events-auto absolute inset-y-0 left-0 flex w-[82%] items-center rounded-md bg-transparent text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
       {role.name&&<span
         className="pointer-events-none flex h-full min-w-0 flex-1 items-center overflow-hidden text-ellipsis whitespace-nowrap pl-5 pr-1 font-bold"
