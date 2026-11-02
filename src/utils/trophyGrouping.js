@@ -39,6 +39,8 @@ const EXPLICIT_COUNTRIES=[
  ["República Checa",/\b(republica checa|czechia|czech)\b/],
  ["Rumanía",/\b(rumania|romania|romanian)\b/],
  ["Escocia",/\b(escocia|scotland|scottish)\b/],
+ ["Gales",/\b(gales|wales|welsh)\b/],
+ ["Ecuador",/\b(ecuador|ecuadorian|ecuatoriana|ecuatoriano)\b/],
  ["Irlanda",/\b(irlanda|ireland|irish)\b/],
  ["Japón",/\b(japon|japan|japanese)\b/],
  ["Corea del Sur",/\b(corea del sur|south korea|south korean)\b/],
@@ -54,9 +56,9 @@ const EXPLICIT_COUNTRIES=[
 /** @type {Array<[string, RegExp]>} */
 const COUNTRY_RULES=[
  ["Inglaterra",/\b(premier league de inglaterra|efl |fa cup|carabao cup|community shield|national league de inglaterra)\b/],
- ["España",/\b(laliga|la liga|copa del rey|supercopa de espana|primera federacion|segunda federacion|primera division de espana|segunda division de espana)\b/],
- ["Alemania",/\b(bundesliga|dfb.pokal|supercopa de alemania|regionalliga|oberliga|3\. liga)\b/],
- ["Italia",/\b(serie a|serie b|serie c|coppa italia|copa de italia|supercoppa italiana)\b/],
+ ["España",/\b(laliga|copa del rey|supercopa de espana|primera federacion|segunda federacion|primera division de espana|segunda division de espana)\b|^la liga$/],
+ ["Alemania",/\b(bundesliga|dfb.pokal|supercopa de alemania|oberliga)\b|^3\. liga$|^regionalliga (?:nord|sud|west|sudwest|bayern|nordost)(?:-|$)/],
+ ["Italia",/\b(coppa italia|copa de italia|supercoppa italiana)\b|^serie (?:a|b|c(?:\/[abc])?)$/],
  ["Francia",/\b(ligue 1|ligue 2|copa de francia|coupe de france|trofeo de campeones de francia|championnat national)\b/],
  ["Portugal",/\b(primeira liga|liga portugal|taca de portugal|supertaca de portugal|liga portugal 2)\b/],
  ["Países Bajos",/\b(eredivisie|eerste divisie|knvb|copa de los paises bajos)\b/],
@@ -83,12 +85,13 @@ export const classifyTrophy=(trophy,leagues=[],countries=[])=>{
  const league=leagues.find(l=>String(l.id)===String(trophy.competition_id||""))||
    leagues.find(l=>normaliseSearch(l.name)===name && name.length>3);
  if(!country&&league)country=countryById.get(String(league.country_id))||"";
+ // A named country outranks generic words like "liga", "serie" or "bundesliga".
  if(!country){
-   const m=COUNTRY_RULES.find(([,re])=>re.test(key));if(m)country=m[0];
+   const m=EXPLICIT_COUNTRIES.find(([,re])=>re.test(name));
+   if(m)country=countries.find(c=>normaliseSearch(c.name)===normaliseSearch(m[0]))?.name||m[0];
  }
  if(!country){
-   const m=EXPLICIT_COUNTRIES.find(([,re])=>re.test(key));
-   if(m)country=countries.find(c=>normaliseSearch(c.name)===normaliseSearch(m[0]))?.name||m[0];
+   const m=COUNTRY_RULES.find(([,re])=>re.test(name));if(m)country=m[0];
  }
  if(country)return {key:"country:"+normaliseSearch(country),title:country,kind:"country",rank:100};
  return {key:"unclassified",title:"Sin federación o país confirmado",kind:"unclassified",rank:999};
