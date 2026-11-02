@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Search, Plus, Trash2, Users, Copy, CalendarDays } from "lucide-react";
 import TacticalBuilder from "@/components/teams/TacticalBuilder";
 import { referenceTeams, analyzeLineup } from "@/components/teams/lineupAnalysis.mjs";
+import { isCustomSquadTeam, filterCustomTeamRecords } from "@/components/teams/customTeamScope.mjs";
 
 const SEASON = "2026/2027";
 const validSeason = value => /^20\d{2}\/20\d{2}$/.test(value) && Number(value.slice(5)) === Number(value.slice(0,4)) + 1;
@@ -19,8 +20,6 @@ const loadAll = async (entity, filter = {}) => {
   return results;
 };
 const playerImage = p => p?.card_photo_url || p?.photo_url || "";
-// Solo clubes marcados explícitamente como personalizados en la ficha de Equipos.
-export const isCustomSquadTeam = team => team?.is_custom_club === true || team?.isCustomClub === true;
 export default function Squads() {
   const [params, setParams] = useSearchParams();
   const [teams, setTeams] = useState([]);
@@ -92,7 +91,7 @@ export default function Squads() {
           loadAll(base44.entities.TeamLineup,{team_type:"club",season})
         ]);
         if(!active)return;
-        setComparison(referenceTeams(membershipRows.filter(m=>allowedTeamIds.has(String(m.team_id))),players,teamId));
+        setComparison(referenceTeams(filterCustomTeamRecords(membershipRows,allowedTeamIds),players,teamId));
         const distinct=new Set();
         const otherLineups=lineupRows.filter(l=>{
           const id=String(l.team_id);
