@@ -6,6 +6,7 @@ import {planSquad} from "@/components/managers/managerSquadPlanner.mjs";
 import {canChooseLineupPlayer} from "@/components/managers/managerLineupSandbox.mjs";
 import {SCENARIO_IDS,FORMATION_CHOICES,emptyScenarios,updateScenario,resetScenario,duplicateScenario,evaluateScenario,compareScenarios} from "@/components/managers/managerScenarios.mjs";
 import {ROLE_LABELS} from "@/components/managers/managerFit.mjs";
+import {OPTIMIZER_GOALS,MAX_OPTIMIZER_CHANGES,optimizeTacticalXI} from "@/components/managers/managerLineupOptimizer.mjs";
 const loadAll=async(entity,query={})=>{
  const out=[];for(let skip=0;skip<=100000;skip+=200){
   const raw=await entity.filter(query,undefined,200,skip),part=Array.isArray(raw)?raw:raw?.data||raw?.items||[];
@@ -19,6 +20,9 @@ export default function ManagerSquadPlanner(){
  const [loading,setLoading]=useState(true),[error,setError]=useState("");
  const [scenarios,setScenarios]=useState(emptyScenarios);
  const [activeScenario,setActiveScenario]=useState("A");
+ const [optimizerGoal,setOptimizerGoal]=useState("pressure");
+ const [optimizerMaxChanges,setOptimizerMaxChanges]=useState(2);
+ const [optimizerOpen,setOptimizerOpen]=useState(false);
  const season=params.get("season")||"2026/2027",teamId=params.get("team")||"";
  const customTeams=useMemo(()=>teams.filter(isCustomTeam),[teams]);
  const team=customTeams.find(t=>String(t.id)===teamId);
@@ -36,7 +40,7 @@ export default function ManagerSquadPlanner(){
    .catch(e=>{if(live)setError(e.message||"Error al cargar plantilla")}).finally(()=>{if(live)setLoading(false)});
   return()=>{live=false};
  },[team?.id,season]);
- useEffect(()=>{setScenarios(emptyScenarios());setActiveScenario("A")},[teamId,season]);
+ useEffect(()=>{setScenarios(emptyScenarios());setActiveScenario("A");setOptimizerOpen(false)},[teamId,season]);
  const plan=useMemo(()=>planSquad({team,season,players,memberships:members,assignments,managers,profiles}),[team,season,players,members,assignments,managers,profiles]);
  const lineupRoster=useMemo(()=>plan.valid?plan.roleSummary.flatMap(x=>x.roster):[],[plan]);
  const evaluated=useMemo(()=>Object.fromEntries(SCENARIO_IDS.map(id=>[id,evaluateScenario(plan,lineupRoster,scenarios[id],id)])),[plan,lineupRoster,scenarios]);
@@ -52,8 +56,22 @@ export default function ManagerSquadPlanner(){
  }));
  const copyToOther=()=>setScenarios(prev=>duplicateScenario(prev,activeScenario,evaluated[activeScenario].formation));
  const clearActive=()=>setScenarios(prev=>resetScenario(prev,activeScenario));
+ useEffect(()=>{setOptimizerOpen(false)},[scenarios,activeScenario,optimizerGoal,optimizerMaxChanges,plan]);
+ const optimizerPreview=useMemo(()=>optimizerOpen?optimizeTacticalXI({
+  draft:active.draft,roster:lineupRoster,profile:plan.profile,
+  goal:optimizerGoal,maxChanges:optimizerMaxChanges
+ }):null,[optimizerOpen,active.draft,lineupRoster,plan.profile,optimizerGoal,optimizerMaxChanges]);
+ const optimizerDestination=activeScenario==="A"?"B":"A";
+ const applyOptimizer=()=>{
+  if(optimizerPreview?.status!=="suggested"||!active.draft?.valid)return;
+  setScenarios(prev=>updateScenario(prev,optimizerDestination,{
+   formation:active.formation,overrides:optimizerPreview.overrides
+  }));
+  setActiveScenario(optimizerDestination);
+  setOptimizerOpen(false);
+ };
  return <main className="mx-auto max-w-[1550px] p-4 md:p-6 text-slate-900 space-y-4">
- <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V14</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
+ <header className="bg-[#091e1b] text-white rounded-2xl p-5"><p className="text-xs text-lime-300 font-bold tracking-widest">MF LEGACY · MANAGER FIT</p><h1 className="text-2xl font-black">Planificador de plantilla · V15</h1><p className="text-sm text-slate-300 mt-1">Diagnóstico orientativo de la plantilla por rol y acceso directo a scouting histórico de refuerzos.</p></header>
  {error&&<p role="alert" className="p-3 border bg-red-50 rounded-lg text-red-800">{error}</p>}
  <div className="rounded-xl border p-4 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3">
  <label className="text-xs font-bold">Club personalizado<select className="block w-full border rounded-lg p-2 mt-1" aria-label="Club personalizado" value={teamId} onChange={e=>setParams({team:e.target.value,season})}><option value="">Selecciona equipo</option>{customTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
@@ -103,6 +121,35 @@ export default function ManagerSquadPlanner(){
  </select>
  </label>)}</div>
  <p className="text-xs text-slate-600">Plazas ocupadas: {draft.filled||0}/11. Ningún futbolista se puede asignar dos veces.</p>
+ </section>
+ <section className="rounded-xl border bg-white p-4 space-y-4" aria-label="Optimizador de once táctico">
+ <div><h3 className="font-black text-lg">Optimizador de once · V15</h3>
+ <p className="text-xs text-slate-600 mt-1">Explora sustituciones dentro de la plantilla de {team.name}. Cada propuesta debe mejorar un indicador evaluable sin perjudicar de forma marcada los demás. No se incluyen fichajes ni se modifican alineaciones reales.</p></div>
+ <div className="flex flex-wrap items-end gap-3">
+ <label className="text-xs font-bold">Objetivo táctico
+ <select aria-label="Objetivo de optimización" value={optimizerGoal} onChange={e=>setOptimizerGoal(e.target.value)} className="mt-1 block border rounded-lg p-2 bg-white">
+ {Object.entries(OPTIMIZER_GOALS).map(([key,label])=><option key={key} value={key}>{label}</option>)}
+ </select></label>
+ <label className="text-xs font-bold">Máximo de sustituciones
+ <select aria-label="Máximo de sustituciones" value={optimizerMaxChanges} onChange={e=>setOptimizerMaxChanges(Number(e.target.value))} className="mt-1 block border rounded-lg p-2 bg-white">
+ {Array.from({length:MAX_OPTIMIZER_CHANGES},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}</option>)}
+ </select></label>
+ <button type="button" disabled={!plan.profile||!active.draft.valid||loading} className="bg-blue-900 text-white text-sm font-bold rounded-lg px-4 py-2 disabled:opacity-40" onClick={()=>setOptimizerOpen(true)}>Buscar mejoras para {activeScenario}</button>
+ </div>
+ <p className="text-[11px] text-slate-600">El optimizador no añade un jugador si está cedido fuera de la plantilla, lesionado, sancionado o marcado como no disponible. Requiere adecuación posicional de al menos 65/100, limita la pérdida de encaje individual a 15 puntos y tolera como máximo una caída de 12 puntos en otros ejes comparables.</p>
+ {optimizerPreview&&<div className="rounded-xl border bg-slate-50 p-3 space-y-3" role="status">
+ <div className="flex justify-between gap-2 flex-wrap"><p className="font-bold text-sm">Resultado · {OPTIMIZER_GOALS[optimizerGoal]}</p><p className="text-xs text-slate-500">{optimizerPreview.evaluations} alternativas comprobadas · Fuente: escenario {activeScenario}</p></div>
+ {optimizerPreview.status==="suggested"?<>
+ <p className="text-sm">Objetivo: <strong>{optimizerPreview.before.axes.find(x=>x.key===optimizerGoal)?.score}/100</strong> → <strong>{optimizerPreview.after.axes.find(x=>x.key===optimizerGoal)?.score}/100</strong>. {optimizerPreview.changes.length} sustituciones propuestas.</p>
+ <div className="space-y-2">{optimizerPreview.changes.map((change,i)=><div key={i} className="rounded-lg bg-white border p-3">
+ <p className="text-sm font-bold">{i+1}. {ROLE_LABELS[change.role]} · {change.outgoing} → {change.incoming}</p>
+ <p className="text-xs text-slate-700 mt-1">{change.rationale}</p>
+ <p className="text-xs text-slate-500 mt-1">Encaje individual: {change.individualBefore??"—"} → {change.individualAfter??"—"}/100 · Objetivo {change.goalBefore} → {change.goalAfter}/100</p>
+ </div>)}</div>
+ <button type="button" onClick={applyOptimizer} className="rounded-lg bg-emerald-800 text-white font-bold text-xs px-4 py-3">Aplicar propuesta al escenario {optimizerDestination} (sustituye su contenido)</button>
+ </>:<p className="text-sm text-amber-900">{optimizerPreview.reason}</p>}
+ <p className="text-[11px] text-slate-600">Búsqueda heurística y local; no garantiza el mejor once global. Todos los resultados derivan de atributos FM26 disponibles. «—» no se interpreta como cero.</p>
+ </div>}
  </section>
  <section className="rounded-xl border bg-white p-4 space-y-3" aria-label="Comparación de escenarios tácticos">
  <h3 className="font-black">Comparativa de escenarios A y B · V14</h3>
