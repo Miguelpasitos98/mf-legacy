@@ -1,4 +1,11 @@
+import {normaliseSearch} from "./trophyCatalog.js";
 // Data-only filters used by the Trophies catalog. Never infer team trophies from its current league.
+export function filterCountryOptions(options,search){
+ const q=normaliseSearch(search);
+ if(!q)return options||[];
+ return (options||[]).filter(option=>normaliseSearch(option.label).includes(q));
+}
+
 export function countryTrophyIdsFromSections(sections, selectedCountry="all"){
  if(selectedCountry==="all")return null;
  const groups=(sections||[]).filter(group=>selectedCountry==="international"
