@@ -4,7 +4,7 @@ import { AlertTriangle, CheckCircle2, FileJson, Loader2, Upload, X } from "lucid
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { RECORD_KEYS } from "@/api/recordQueries";
-import { readCompleteRecords } from "@/utils/entityRecords";
+import { fetchTacticalRolePlayers } from "@/utils/fetchTacticalRolePlayers.mjs";
 import { PLAYER_DESCRIPTIONS } from "@/components/players/playerFormShared";
 import { buildTacticalRoleImportPlan, parseTacticalRoleImport, tacticalRolePatch } from "@/utils/tacticalRoleImport.mjs";
 
@@ -29,6 +29,7 @@ const count = (rows, status) => rows.filter(row => row.status === status).length
 export default function TacticalRoleImportModal({ open, onClose }) {
   const cache = useQueryClient();
   const activeRef = useRef(false);
+  const readSequence = useRef(0);
   const [parsed, setParsed] = useState(null);
   const [filename, setFilename] = useState("");
   const [allPlayers, setAllPlayers] = useState(null);
@@ -46,16 +47,15 @@ export default function TacticalRoleImportModal({ open, onClose }) {
     activeRef.current = true;
     setFilename(""); setParsed(null); setError(""); setNotice("");
     setResult(null); setProgress({ current: 0, total: 0 }); setOverwrite(false);
-    setAllPlayers(null); setLoading(true);
-    // Consultar TODAS las páginas; no limitar la búsqueda a los primeros 500.
-    readCompleteRecords(base44.entities.Player, { maxRecords: 20000 })
-      .then(records => { if (valid) setAllPlayers(records); })
-      .catch(err => { if (valid) setError("No se pudo leer el catálogo completo de jugadores: " + problem(err)); })
-      .finally(() => { if (valid) setLoading(false); });
+    setAllPlayers(null); setLoading(false);
+    // Solo consultamos los FM26 UID incluidos cuando el usuario carga un JSON.
+    // Descargar todos los jugadores al abrir el modal puede agotar la API.
+    ++readSequence.current;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       valid = false;
+      ++readSequence.current;
       activeRef.current = false;
       document.body.style.overflow = previousOverflow;
     };
@@ -66,16 +66,32 @@ export default function TacticalRoleImportModal({ open, onClose }) {
     : [], [parsed, allPlayers, overwrite]);
   const actionable = useMemo(() => rows.filter(x => x.status === "ready"), [rows]);
 
+  const lookup = async entries => {
+    const sequence = ++readSequence.current;
+    setAllPlayers(null); setLoading(true);
+    try {
+      const matched = await fetchTacticalRolePlayers(base44.entities.Player, entries);
+      if (activeRef.current && sequence === readSequence.current) setAllPlayers(matched);
+    } catch (err) {
+      if (activeRef.current && sequence === readSequence.current) setError("Error al vincular los IDs FM26: " + problem(err));
+    } finally {
+      if (activeRef.current && sequence === readSequence.current) setLoading(false);
+    }
+  };
+
   const load = async event => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    setFilename(file.name); setParsed(null); setError(""); setNotice(""); setResult(null);
+    ++readSequence.current;
+    setFilename(file.name); setParsed(null); setAllPlayers(null);
+    setError(""); setNotice(""); setResult(null);
     try {
       if (file.size > 8 * 1024 * 1024) throw Error("El archivo supera el límite de 8 MB.");
       const text = (await file.text()).replace(/^\uFEFF/, "").trim();
       const imported = parseTacticalRoleImport(JSON.parse(text), allowedRoles);
       setParsed(imported);
+      await lookup(imported.entries);
     } catch (err) {
       setError("No se pudo validar el JSON: " + problem(err));
     }
@@ -87,7 +103,7 @@ export default function TacticalRoleImportModal({ open, onClose }) {
     let done = 0; const failures = [];
     try {
       // La base puede cambiar entre la previsualización y el clic. Revalidar.
-      const latest = await readCompleteRecords(base44.entities.Player, { maxRecords: 20000 });
+      const latest = await fetchTacticalRolePlayers(base44.entities.Player, parsed.entries);
       const freshPlan = buildTacticalRoleImportPlan(parsed.entries, latest, { overwrite });
       setAllPlayers(latest);
       if (snapshotSignature(freshPlan) !== snapshotSignature(rows)) {
@@ -108,7 +124,7 @@ export default function TacticalRoleImportModal({ open, onClose }) {
       if (done) {
         // Solo invalidar la caché de jugadores: las estadísticas históricas no cambian.
         await cache.invalidateQueries({ queryKey: RECORD_KEYS.Player, exact: true });
-        const latestAfter = await readCompleteRecords(base44.entities.Player, { maxRecords: 20000 });
+        const latestAfter = await fetchTacticalRolePlayers(base44.entities.Player, parsed.entries);
         if (activeRef.current) setAllPlayers(latestAfter);
       }
       if (activeRef.current) setNotice(done
@@ -143,8 +159,8 @@ export default function TacticalRoleImportModal({ open, onClose }) {
             <input type="file" accept=".json,application/json" onChange={load} disabled={saving}
               className="min-w-0 w-full text-xs sm:w-auto" />
           </label>
-          {loading && <p role="status" className="flex items-center gap-2 text-sm text-slate-600"><Loader2 size={16} className="animate-spin" />Comprobando IDs de todos los jugadores registrados…</p>}
-          {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+          {loading && <p role="status" className="flex items-center gap-2 text-sm text-slate-600"><Loader2 size={16} className="animate-spin" />Buscando solo los jugadores incluidos en este JSON…</p>}
+          {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"><span>{error}</span>{parsed && !loading && !allPlayers && <button type="button" className="rounded-lg border border-rose-300 px-3 py-1.5 font-bold hover:bg-rose-100" onClick={() => { setError(""); lookup(parsed.entries); }}>Reintentar vinculación</button>}</div>}
           {notice && <p role="status" className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"><CheckCircle2 size={16} />{notice}</p>}
           {result && <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
             <strong>Resultado: {result.done} guardados · {result.failed} errores.</strong>
