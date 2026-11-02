@@ -4,6 +4,7 @@ import {base44} from "@/api/base44Client";
 import {Search,Plus,Save,Sparkles,Copy,UserRoundCog,SlidersHorizontal,ShieldCheck,ArrowUpRight,BookOpen} from "lucide-react";
 import ManagerPortrait from "@/components/managers/ManagerPortrait";
 import {resolveManagerCountry,buildManagerBiographyPrompt,parseBiographyResponse} from "@/components/managers/managerBiography.mjs";
+import {buildManagerTacticalPrompt,parseManagerTacticalResponse,previewManagerTacticalDraft} from "@/components/managers/managerTacticalAI.mjs";
 import {DNA_AXES,ROLES,MANAGER_BLANK,PROFILE_BLANK,cleanManager,cleanProfile,decodeRoleText,validSeason,chooseAssignment,isCustomTeam} from "@/components/managers/managerModel.mjs";
 
 const getRows = async (entity,query={})=>{
@@ -38,6 +39,12 @@ export default function Managers(){
  const [countrySearch,setCountrySearch]=useState("");
  const [generatingBiography,setGeneratingBiography]=useState(false);
  const [showBiographyPrompt,setShowBiographyPrompt]=useState(false);
+ const [generatingDNA,setGeneratingDNA]=useState(false);
+ const [dnaContext,setDnaContext]=useState("");
+ const [showDNAPrompt,setShowDNAPrompt]=useState(false);
+ const [dnaJsonInput,setDnaJsonInput]=useState("");
+ const [dnaDraftReady,setDnaDraftReady]=useState(false);
+ const dnaIdentityRef=useRef("");
  const [tab,setTab]=useState("identity");
  const [managerDraft,setManagerDraft]=useState({...MANAGER_BLANK});
  const [profileId,setProfileId]=useState("");
@@ -86,7 +93,7 @@ export default function Managers(){
  useEffect(()=>{
   setManagerDraft(selected?{...MANAGER_BLANK,...selected}:{...MANAGER_BLANK});
   setProfileId("");setTab(newManagerTabRef.current===String(selected?.id)?"dna":"identity");
-  newManagerTabRef.current="";setNotice("");setError("");
+  newManagerTabRef.current="";setDnaDraftReady(false);setShowDNAPrompt(false);setDnaJsonInput("");setDnaContext("");setNotice("");setError("");
  },[selected?.id]);
  useEffect(()=>{
   const profilesOfSelected=profiles.filter(p=>String(p.manager_id)===String(selected?.id||""));
@@ -114,6 +121,68 @@ export default function Managers(){
  const openManager=id=>{setParams({manager:String(id)});setError("");setNotice("");};
  const updateManager=(key,value)=>setManagerDraft(prev=>({...prev,[key]:value}));
  const updateProfile=(key,value)=>setProfileDraft(prev=>({...prev,[key]:value}));
+ const tacticalPrompt=useMemo(()=>{
+   if(!selected)return "";
+   try{return buildManagerTacticalPrompt(selected,profileDraft,dnaContext);}
+   catch{return "";}
+ },[selected,profileDraft.season,profileDraft.profile_notes,dnaContext]);
+ useEffect(()=>{
+   dnaIdentityRef.current=String(selected?.id||"")+":"+String(profileId);
+ },[selected?.id,profileId]);
+ const applyTacticalProposal = (raw,identity)=>{
+   const parsed=parseManagerTacticalResponse(raw);
+   if(dnaIdentityRef.current!==identity)throw Error("Has cambiado de entrenador o perfil durante el análisis; la propuesta anterior no se aplicó.");
+   if((profileId&&profileId!=="__new__")||dnaDraftReady){
+     if(!window.confirm("La propuesta reemplazará los parámetros y los perfiles por posición del borrador abierto. El registro guardado no se modificará hasta pulsar Guardar ADN táctico. ¿Continuar?"))return false;
+   }
+   setProfileDraft(prev=>previewManagerTacticalDraft(prev,parsed));
+   setRoleText(parsed.roleText);
+   setDnaDraftReady(true);
+   setNotice("ADN táctico propuesto (confianza "+parsed.confidence+"). Revisa las estimaciones y fuentes; NO se ha guardado en Base44.");
+   setError("");
+   return true;
+ };
+ const copyTacticalPrompt=async()=>{
+   setError("");setNotice("");
+   if(!tacticalPrompt){setError("Selecciona un entrenador antes de generar el prompt.");return;}
+   try{
+     if(!navigator.clipboard?.writeText)throw Error("Copia automática no permitida por el navegador.");
+     await navigator.clipboard.writeText(tacticalPrompt);
+     setNotice("Prompt de ADN táctico copiado. Puedes enviarlo a ChatGPT y pegar aquí el JSON obtenido.");
+   }catch(e){
+     setShowDNAPrompt(true);
+     setError((e.message||"No se pudo copiar.")+" Selecciona el texto en el cuadro inferior.");
+   }
+ };
+ const generateTacticalDNA=async()=>{
+   if(generatingDNA||busy||!canWrite||!selected)return;
+   setError("");setNotice("");
+   const identity=String(selected.id)+":"+String(profileId);
+   if((profileId&&profileId!=="__new__")||dnaDraftReady){
+     if(!window.confirm("Se va a preparar un nuevo ADN táctico; al aplicar los resultados reemplazará los controles del borrador actual. ¿Investigar este perfil?"))return;
+   }
+   setGeneratingDNA(true);
+   try{
+     const result=await base44.integrations.Core.InvokeLLM({
+       prompt:tacticalPrompt,
+       add_context_from_internet:selected.manager_kind!=="fictional"
+     });
+     applyTacticalProposal(result,identity);
+   }catch(e){
+     if(dnaIdentityRef.current===identity){
+       setShowDNAPrompt(true);
+       setError("No se pudo completar la investigación táctica: "+(e.message||"error de la integración")+". Puedes copiar el prompt y pegar aquí el JSON de ChatGPT.");
+     }
+   }finally{setGeneratingDNA(false)}
+ };
+ const applyPastedDNA=()=>{
+   if(busy||generatingDNA||!canWrite||!selected)return;
+   setError("");setNotice("");
+   try{
+     const identity=String(selected.id)+":"+String(profileId);
+     if(applyTacticalProposal(dnaJsonInput,identity))setDnaJsonInput("");
+   }catch(e){setError("El JSON de ADN táctico no es válido: "+(e.message||"Error desconocido"));}
+ };
  const biographyPrompt=useMemo(()=>{
    try{return buildManagerBiographyPrompt(managerDraft.name,chosenCountry?.name||managerDraft.nationality);}
    catch{return "";}
@@ -186,7 +255,7 @@ export default function Managers(){
   const found=managerProfiles.find(p=>String(p.id)===String(id));
   setProfileId(found?.id||"__new__");setProfileDraft(found?{...PROFILE_BLANK,...found}:{...PROFILE_BLANK});
   setRoleText(found?decodeRoleText(found.player_role_priorities):{});
-  setError("");setNotice("");
+  setDnaDraftReady(false);setError("");setNotice("");
  };
  const saveProfile=async event=>{
   event.preventDefault();if(!selected||isAdmin!==true||busy)return;
@@ -210,7 +279,7 @@ export default function Managers(){
    const refreshed=await refresh();
    const current=refreshed.profiles.find(p=>String(p.id)===String(savedId));
    setProfileId(String(savedId));if(current){setProfileDraft({...PROFILE_BLANK,...current});setRoleText(decodeRoleText(current.player_role_priorities));}
-   setNotice("ADN táctico guardado. No se han recalculado ni modificado jugadores.");
+   setDnaDraftReady(false);setNotice("ADN táctico guardado. No se han recalculado ni modificado jugadores.");
   }catch(e){setError(e.message||"No se pudo guardar el perfil táctico.")}
   finally{setBusy(false)}
  };
@@ -313,6 +382,27 @@ export default function Managers(){
     </form>}
     {tab==="dna"&&(!selected?<div className="rounded-xl border border-dashed p-8 text-center text-slate-600">Primero guarda una ficha de entrenador para crear su ADN táctico.</div>:<form onSubmit={saveProfile} className="space-y-4">
      <div className="flex flex-wrap items-end gap-2 justify-between"><div><h3 className="font-extrabold">Modelos de juego</h3><p className="text-xs text-slate-500">Un entrenador puede tener varios perfiles según temporada o proyecto.</p></div><div className="flex items-center gap-2"><select className={input+" max-w-[200px]"} aria-label="Seleccionar perfil táctico" value={profileId} onChange={e=>chooseProfile(e.target.value)}><option value="__new__">Nuevo perfil</option>{managerProfiles.map(p=><option key={p.id} value={p.id}>{p.name} {p.season?"· "+p.season:""} {p.is_default?"★":""}</option>)}</select><button type="button" className="border rounded-lg px-2 py-2" onClick={()=>chooseProfile("")} disabled={!canWrite} title="Crear otro perfil"><Plus size={18}/></button></div></div>
+     <div className="border rounded-xl bg-blue-50/60 border-blue-100 p-3 space-y-3" aria-label="Asistente de ADN táctico">
+       <div className="flex flex-wrap gap-2 justify-between items-center">
+         <div><h4 className="font-extrabold text-sm flex items-center gap-2"><Sparkles size={17} className="text-[#003399]"/> ADN táctico con IA</h4><p className="text-xs text-slate-600">Genera un borrador específico para {selected.name}, separado de su biografía.</p></div>
+         <div className="flex gap-2 flex-wrap">
+           <button type="button" disabled={!canWrite||busy||generatingDNA} onClick={generateTacticalDNA} className="inline-flex items-center gap-2 bg-[#003399] text-white rounded-lg px-3 py-2 text-xs font-bold disabled:opacity-40"><Sparkles size={14}/>{generatingDNA?"Investigando modelo…":"Investigar y completar ADN"}</button>
+           <button type="button" disabled={!tacticalPrompt} onClick={copyTacticalPrompt} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-white border text-xs font-bold"><Copy size={14}/> Copiar prompt para ChatGPT</button>
+         </div>
+       </div>
+       <label className="block text-xs font-semibold">Club / etapa de referencia (opcional)
+         <input aria-label="Club o etapa táctica" value={dnaContext} onChange={e=>setDnaContext(e.target.value)} maxLength={160} className={input+" mt-1"} placeholder="Ej.: Liverpool 2018–2024, Borussia Dortmund 2011–2013"/>
+       </label>
+       <p className="text-[11px] text-slate-600">La IA estimará los seis valores, formación, fases del juego y siete perfiles de jugador. Los números son criterios analíticos, no estadísticas oficiales. Ningún cambio se guardará hasta pulsar «Guardar ADN táctico». La generación puede consumir créditos de Base44.</p>
+       <details open={showDNAPrompt} onToggle={e=>setShowDNAPrompt(e.currentTarget.open)} className="border rounded-lg bg-white p-2">
+         <summary className="text-xs cursor-pointer font-semibold">Ver prompt y pegar respuesta JSON de ChatGPT</summary>
+         <textarea aria-label="Prompt táctico para ChatGPT" className={input+" mt-2 font-mono"} value={tacticalPrompt} readOnly rows={5} onFocus={e=>e.target.select()}/>
+         <label className="block mt-3 text-xs font-semibold">Pegar JSON táctico generado por ChatGPT</label>
+         <textarea aria-label="Respuesta JSON para ADN táctico" className={input+" mt-1 font-mono"} rows={5} value={dnaJsonInput} onChange={e=>setDnaJsonInput(e.target.value)} placeholder='{"identifiable":true,"confidence":"medium", ...}' disabled={!canWrite}/>
+         <button type="button" onClick={applyPastedDNA} disabled={!canWrite||busy||generatingDNA||!dnaJsonInput.trim()} className="mt-2 rounded-lg bg-slate-900 text-white text-xs font-bold px-3 py-2 disabled:opacity-40">Aplicar JSON al borrador</button>
+       </details>
+       {dnaDraftReady&&<p role="status" className="text-xs text-emerald-700 font-semibold">Borrador de IA aplicado. Verifica valores, posiciones, análisis y fuentes antes de guardar.</p>}
+     </div>
      {managerProfiles.length===0&&<p className="text-xs rounded-lg p-3 bg-amber-50 text-amber-900"><BookOpen size={14} className="inline mr-1"/>Los seis parámetros empiezan en 50 como plantilla neutra. No representan hechos tácticos contrastados hasta que los edites.</p>}
      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div><label className={label}>Nombre del perfil *</label><input required value={profileDraft.name} onChange={e=>updateProfile("name",e.target.value)} className={input} disabled={!canWrite}/></div>

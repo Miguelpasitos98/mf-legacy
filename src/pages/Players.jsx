@@ -15,6 +15,7 @@ import { base44 } from "@/api/base44Client";import { useQuery, useQueryClient } 
 
 import PlayerFormModal from "@/components/players/PlayerFormModal";
 import Fm26ImportModal from "@/components/players/Fm26ImportModal";
+import TacticalRoleImportModal from "@/components/players/TacticalRoleImportModal";
 
 
 // A runtime error inside PlayerDetail must not reset the entire Players page.
@@ -1338,6 +1339,7 @@ export default function Players() {
   const [fm26Error, setFm26Error] = useState("");
   const [fm26CreateMissing, setFm26CreateMissing] = useState(true);
   const [fm26ImportOpen, setFm26ImportOpen] = useState(false);
+  const [tacticalRoleImportOpen, setTacticalRoleImportOpen] = useState(false);
   const [fm26NationMapping, setFm26NationMapping] = useState({});
   const [fm26NationSearch, setFm26NationSearch] = useState({});
   const [fm26CreatingNation, setFm26CreatingNation] = useState("");
@@ -3290,6 +3292,12 @@ export default function Players() {
               <Upload size={16} /><span>Import FM26 JSON</span>
             </button>
 
+            <button type="button" onClick={() => setTacticalRoleImportOpen(true)}
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50"
+              title="Importar dos roles tácticos y sus descripciones desde JSON">
+              <FileText size={16} /><span>Importar roles JSON</span>
+            </button>
+
             {/* ADD PLAYER */}
             <button
               type="button"
@@ -3702,6 +3710,9 @@ export default function Players() {
 
           </div>
         )}
+
+        {/* IMPORTADOR DE ROLES POR ID FM26; independiente del importador de atributos */}
+        <TacticalRoleImportModal open={tacticalRoleImportOpen} onClose={() => setTacticalRoleImportOpen(false)} />
 
         {/* FM26 IMPORT MODAL */}
         <Fm26ImportModal

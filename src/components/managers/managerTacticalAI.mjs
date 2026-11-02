@@ -11,7 +11,7 @@ export const TACTICAL_JSON_EXAMPLE = {
 };
 const validHttp = value => typeof value==="string" && /^https?:\/\/[^\s]+$/i.test(value.trim());
 
-export function buildManagerTacticalPrompt(manager,profile={}) {
+export function buildManagerTacticalPrompt(manager,profile={},referenceContext="") {
   const name=String(manager?.name||"").trim();
   if(name.length<2)throw Error("Selecciona primero un entrenador con nombre válido.");
   const fictional=manager.manager_kind==="fictional";
@@ -22,6 +22,7 @@ export function buildManagerTacticalPrompt(manager,profile={}) {
 ENTRENADOR: ${name}
 TIPO: ${fictional?"Entrenador ficticio":"Entrenador real"}
 TEMPORADA DEL PERFIL: ${era||"No especificada, describe su filosofía más representativa y aclara la etapa elegida"}
+CLUB O ETAPA SOLICITADOS: ${String(referenceContext||"").trim().slice(0,160)||"No especificados"}
 INFORMACIÓN DE LA FICHA (orientativa, no contrastada): ${clues||"Sin biografía"}
 INSTRUCCIONES DEL USUARIO (orientativas): ${userNotes||"No hay"}
 
