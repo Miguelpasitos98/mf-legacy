@@ -5,8 +5,10 @@ export default async function(req){
  if(req.method!=="POST")return reply({ok:false,error:"Solo POST."},405);
  try{
    const sdk=createClientFromRequest(req);
-   const me=await sdk.auth.me();
-   if(!me || me.role!=="admin")return reply({ok:false,error:"Solo administradores pueden generar contenido con IA."},403);
+   let me;
+   try {me=await sdk.auth.me();}catch {return reply({ok:false,error:"Es necesario iniciar sesión para utilizar la investigación con IA."},401);}
+   if(!me)return reply({ok:false,error:"Es necesario iniciar sesión para utilizar la investigación con IA."},401);
+   if(me.role!=="admin")return reply({ok:false,error:"Solo administradores pueden generar contenido con IA."},403);
    let body;
    try {body=await req.json();}catch{return reply({ok:false,error:"JSON inválido."},400);}
    if(body?.action==="health")return reply({ok:true,service:"manager-ai",status:"ready",writes:false});
