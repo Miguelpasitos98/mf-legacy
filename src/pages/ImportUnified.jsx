@@ -488,8 +488,16 @@ export default function ImportUnified({onImported}) {
       return {...row,resolvedTeamId:teamId||""};
     });
     await importBatch(safePlan,true);
-    // Import the immutable historical Understat archive on the server. The
-    // independent league-season rates never overwrite FotMob rows.
+    // First consolidate any fresh, confirmed provider-specific data from the
+    // uploaded Studio JSON. The archived reference only fills remaining gaps.
+    let understatReport=null;
+    if(sourceReport){
+      understatReport=await enrichImportedUnderstat(base44,linkedId,pid,
+        (_phase,done,total)=>setProgress({done,total}));
+      if(understatReport.updated)onImported?.();
+    }
+    // Auto-enrich after the Studio source: never overwrite a verified existing
+    // season rate, and never alter FotMob competition rows.
     let automaticUnderstat=null;
     try{
       const response=await base44.functions.invoke("understat-auto",{
@@ -499,13 +507,6 @@ export default function ImportUnified({onImported}) {
       if(automaticUnderstat?.saved||automaticUnderstat?.updated)onImported?.();
     }catch(e){
       automaticUnderstat={status:"error_temporal",reason:String(e?.response?.data?.error||e?.message||e).slice(0,220)};
-      // A temporary public-source failure must not roll back an imported JSON.
-    }
-    let understatReport=null;
-    if(sourceReport){
-      understatReport=await enrichImportedUnderstat(base44,linkedId,pid,
-        (_phase,done,total)=>setProgress({done,total}));
-      if(understatReport.updated)onImported?.();
     }
     if(sourceReport||automaticUnderstat)setReport(old=>old?{...old,...(sourceReport?{full_source_import:sourceReport,understat_import:understatReport}:{}),automatic_understat:automaticUnderstat}:old);
   };
