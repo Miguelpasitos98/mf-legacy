@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Search, Plus, Trash2, Users, Copy, CalendarDays } from "lucide-react";
 import TacticalBuilder from "@/components/teams/TacticalBuilder";
+import SquadManagerBadge from "@/components/managers/SquadManagerBadge";
 import { referenceTeams, analyzeLineup } from "@/components/teams/lineupAnalysis.mjs";
 import { isCustomSquadTeam, filterCustomTeamRecords } from "@/components/teams/customTeamScope.mjs";
 
@@ -210,6 +211,7 @@ export default function Squads() {
           <p className="text-sm text-slate-500">{teamId && !allowedTeamIds.has(teamId) ? "Este equipo no está marcado como club personalizado, por lo que no se puede editar aquí." : "Puedes marcar un club como personalizado desde su ficha en Equipos."}</p>
         </div> : <>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><div className="flex gap-3 items-center">{team.logo&&<img src={team.logo} alt="" className="w-12 h-12 object-contain"/>}<div><h2 className="text-2xl font-extrabold">{team.name}</h2><p className="text-sm text-slate-500">{roster.length} jugadores asignados</p></div></div><label className="text-sm font-medium">Temporada <select aria-label="Temporada histórica" value={season} onChange={e=>navigateSeason(e.target.value)} className="block mt-1 w-40 rounded-lg border px-3 py-2">{sortSeasons([...seasonOptions,season]).map(s=><option key={s} value={s}>{s}</option>)}</select></label></div>
+          <SquadManagerBadge teamId={teamId} season={season} />
           <TacticalBuilder key={`${teamId}:${season}`} team={team} season={season} roster={roster} allPlayers={players} comparison={comparison} balanceComparison={balanceComparison} onEnsurePlayer={ensurePlayerForSquad} onDirtyChange={setLineupDirty} />
           <details className="mb-2 rounded-xl border border-blue-100 bg-blue-50/60 p-3"><summary className="cursor-pointer font-semibold text-sm">Temporadas históricas · Crear campaña o copiar plantilla</summary><div className="mt-3">
             <div className="flex flex-wrap gap-3 items-center justify-between">
