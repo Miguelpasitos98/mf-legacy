@@ -26,7 +26,7 @@ const snapshotSignature = rows => JSON.stringify(rows.map(item => [
 const problem = error => error?.response?.data?.message || error?.message || "Error desconocido";
 const count = (rows, status) => rows.filter(row => row.status === status).length;
 
-export default function TacticalRoleImportModal({ open, onClose, onCompleted }) {
+export default function TacticalRoleImportModal({ open, initialFile=null, onClose, onCompleted }) {
   const cache = useQueryClient();
   const activeRef = useRef(false);
   const readSequence = useRef(0);
@@ -79,9 +79,7 @@ export default function TacticalRoleImportModal({ open, onClose, onCompleted }) 
     }
   };
 
-  const load = async event => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  const loadFile = async file => {
     if (!file) return;
     ++readSequence.current;
     setFilename(file.name); setParsed(null); setAllPlayers(null);
@@ -90,12 +88,23 @@ export default function TacticalRoleImportModal({ open, onClose, onCompleted }) 
       if (file.size > 8 * 1024 * 1024) throw Error("El archivo supera el límite de 8 MB.");
       const text = (await file.text()).replace(/^\uFEFF/, "").trim();
       const imported = parseTacticalRoleImport(JSON.parse(text), allowedRoles);
+      if (!activeRef.current) return;
       setParsed(imported);
       await lookup(imported.entries);
     } catch (err) {
-      setError("No se pudo validar el JSON: " + problem(err));
+      if (activeRef.current) setError("No se pudo validar el JSON: " + problem(err));
     }
   };
+  const load = event => {
+    const file=event.currentTarget.files?.[0];
+    event.currentTarget.value="";
+    if (file) void loadFile(file);
+  };
+  // Runs after the open/reset effect above: the selection made from the
+  // toolbar is analysed immediately without showing the empty picker modal.
+  useEffect(()=>{
+    if (open && initialFile) void loadFile(initialFile);
+  },[open,initialFile]);
 
   const run = async () => {
     if (saving || loading || !parsed || !allPlayers || !actionable.length) return;

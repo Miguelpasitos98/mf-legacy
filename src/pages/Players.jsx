@@ -1345,6 +1345,11 @@ export default function Players() {
   const [fm26CreateMissing, setFm26CreateMissing] = useState(true);
   const [fm26ImportOpen, setFm26ImportOpen] = useState(false);
   const [tacticalRoleImportOpen, setTacticalRoleImportOpen] = useState(false);
+  // Keep the native pickers mounted outside the modals: browser file selection
+  // opens synchronously from the user's toolbar click, not in a later effect.
+  const fm26QuickFileRef = useRef(null);
+  const tacticalRoleQuickFileRef = useRef(null);
+  const [tacticalRoleInitialFile,setTacticalRoleInitialFile]=useState(null);
   const [tacticalRoleImportNotice,setTacticalRoleImportNotice]=useState("");
   const [fm26NationMapping, setFm26NationMapping] = useState({});
   const [fm26NationSearch, setFm26NationSearch] = useState({});
@@ -1574,9 +1579,9 @@ export default function Players() {
     finally{setFm26Busy(false);}
   };
 
-  const handleFm26File = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  const handleFm26File = async (eventOrFile) => {
+    const file = eventOrFile?.target ? eventOrFile.target.files?.[0] : eventOrFile;
+    if (eventOrFile?.target) eventOrFile.target.value = "";
     if (!file) return;
     setFm26Error(""); setFm26Message(""); setFm26Import(null); setFm26NationJustSaved(new Set());
     setFm26FileName(file.name);
@@ -1608,6 +1613,29 @@ export default function Players() {
       setFm26Import(payload);
       try {const result=await base44.entities.League.list();setFm26Leagues(Array.isArray(result)?result:(result?.data||[]));} catch(error) {console.warn("No se pudieron cargar las ligas disponibles",error);}
     } catch (err) { setFm26Error(err.message || "No se ha podido abrir el JSON"); }
+  };
+
+  const chooseFm26File = (event) => {
+    const file=event.currentTarget.files?.[0];
+    event.currentTarget.value="";
+    if(!file)return; // Native picker cancelled: never open an empty modal.
+    setFm26Import(null);setFm26FileName("");setFm26Message("");setFm26Error("");
+    setFm26ProgressCurrent(0);setFm26ProgressTotal(0);setFm26ProgressLabel("");
+    setFm26NationJustSaved(new Set());
+    setFm26ImportOpen(true);
+    void handleFm26File(file);
+  };
+  const chooseTacticalRoleFile = (event) => {
+    const file=event.currentTarget.files?.[0];
+    event.currentTarget.value="";
+    if(!file)return; // Keep PLAYERS untouched on cancellation.
+    setTacticalRoleImportNotice("");
+    setTacticalRoleInitialFile(file);
+    setTacticalRoleImportOpen(true);
+  };
+  const closeTacticalRoleImport = () => {
+    setTacticalRoleImportOpen(false);
+    setTacticalRoleInitialFile(null);
   };
 
   const handleFm26Import = async () => {
@@ -3323,13 +3351,19 @@ export default function Players() {
 
             <button type="button" aria-pressed={viewMode==="candidates"} onClick={()=>navigateFromStats(viewMode==="candidates"?"/players?view=all":"/players?view=candidates")} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${viewMode==="candidates"?"border-emerald-400 bg-emerald-50/70 text-emerald-800":"border-slate-200 bg-white text-slate-600"}`} title="Abrir o cerrar la vista exclusiva de candidatos Manager Fit">Candidatos Manager Fit ({players.filter(p=>candidatePoolValue(p.manager_fit_candidate)).length})</button>
             <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkDeleteIds([]); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
-            <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Import(null); setFm26FileName(""); setFm26Message(""); setFm26Error(""); setFm26ProgressCurrent(0); setFm26ProgressTotal(0); setFm26ProgressLabel(""); setFm26NationJustSaved(new Set()); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
+            <input ref={fm26QuickFileRef} type="file" accept=".json,application/json"
+              className="hidden" tabIndex={-1} aria-label="Archivo JSON FM26" onChange={chooseFm26File}/>
+            <button type="button" onClick={() => fm26QuickFileRef.current?.click()}
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50"
+              title="Elegir directamente un archivo de jugadores FM26">
               <Upload size={16} /><span>Import FM26 JSON</span>
             </button>
 
-            <button type="button" onClick={() => {setTacticalRoleImportNotice("");setTacticalRoleImportOpen(true)}}
+            <input ref={tacticalRoleQuickFileRef} type="file" accept=".json,application/json"
+              className="hidden" tabIndex={-1} aria-label="Archivo JSON de roles tácticos" onChange={chooseTacticalRoleFile}/>
+            <button type="button" onClick={() => tacticalRoleQuickFileRef.current?.click()}
               className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50"
-              title="Importar dos roles tácticos y sus descripciones desde JSON">
+              title="Elegir directamente un archivo JSON de roles tácticos">
               <FileText size={16} /><span>Importar roles JSON</span>
             </button>
 
@@ -3864,8 +3898,8 @@ export default function Players() {
         )}
 
         {/* IMPORTADOR DE ROLES POR ID FM26; independiente del importador de atributos */}
-        <TacticalRoleImportModal open={tacticalRoleImportOpen}
-          onClose={() => setTacticalRoleImportOpen(false)}
+        <TacticalRoleImportModal open={tacticalRoleImportOpen} initialFile={tacticalRoleInitialFile}
+          onClose={closeTacticalRoleImport}
           onCompleted={count=>setTacticalRoleImportNotice(`Roles tácticos importados y verificados: ${count} jugadores. Ventana cerrada automáticamente.`)} />
 
         {/* FM26 IMPORT MODAL */}
