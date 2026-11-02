@@ -5,6 +5,7 @@ import {
   ArrowDownAZ, ArrowUpAZ, Cake, Goal,
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
+import {candidatePoolValue} from "@/components/managers/managerCandidatePool.mjs";
 import {updatePlayerCacheRows} from "@/utils/playerEditPatch";
 import {readPlayersViewState,savePlayersViewState} from "@/utils/playersViewState";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
@@ -1365,6 +1366,7 @@ export default function Players() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkFeedback, setBulkFeedback] = useState("");
   const [bulkDeleteIds, setBulkDeleteIds] = useState([]);
+ const [onlyManagerCandidates,setOnlyManagerCandidates]=useState(false);
 
 
   const [importModalOpen, setImportModalOpen] =
@@ -1660,7 +1662,7 @@ export default function Players() {
     const selected = players.filter(p => bulkIds.includes(String(p.id)));
     if (!selected.length || bulkBusy) return;
     if (deleting && (!bulkDeleteIds.length || selected.length !== bulkDeleteIds.length || selected.some(p => !bulkDeleteIds.includes(String(p.id))))) { setBulkFeedback("La selección ha cambiado. Vuelve a confirmar la eliminación."); setBulkDeleteIds([]); return; }
-    if (!deleting && (!bulkValue || (bulkAction !== "team_id" && (!Number.isFinite(Number(bulkValue)) || Number(bulkValue) < (bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? 1 : 0) || Number(bulkValue) > (bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? 20 : 200))))) { setBulkFeedback("Introduce un equipo o un valor numérico válido."); return; }
+    if (!deleting && (!bulkValue || (bulkAction !== "team_id" && bulkAction !== "manager_fit_candidate" && (!Number.isFinite(Number(bulkValue)) || Number(bulkValue) < (bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? 1 : 0) || Number(bulkValue) > (bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? 20 : 200))))) { setBulkFeedback("Introduce un equipo o un valor numérico válido."); return; }
     setBulkBusy(true); setBulkFeedback("");
     let succeeded = 0; const errors = [];
     for (const player of selected) {
@@ -1668,7 +1670,8 @@ export default function Players() {
         if (deleting) await base44.entities.Player.delete(player.id);
         else {
           let payload;
-          if (bulkAction === "team_id") payload = ["__free_agent__","__retired__"].includes(bulkValue) ? { team_id: "", career_status: bulkValue === "__retired__" ? "retired" : "free_agent", last_team_id: player.teamId || player.last_team_id || "" } : { team_id: bulkValue, career_status: "active", last_team_id: player.teamId || player.last_team_id || "" };
+          if (bulkAction === "manager_fit_candidate") payload = {manager_fit_candidate:bulkValue==="true"};
+          else if (bulkAction === "team_id") payload = ["__free_agent__","__retired__"].includes(bulkValue) ? { team_id: "", career_status: bulkValue === "__retired__" ? "retired" : "free_agent", last_team_id: player.teamId || player.last_team_id || "" } : { team_id: bulkValue, career_status: "active", last_team_id: player.teamId || player.last_team_id || "" };
           else if (bulkAction.startsWith("stat:")) {
             const [,group,field] = bulkAction.split(":");
             payload = { stats: { ...(player.stats || {}), [group]: { ...(player.stats?.[group] || {}), [field]: Number(bulkValue) } } };
@@ -1737,6 +1740,7 @@ export default function Players() {
 
     return players
       .filter((player) => {
+        if(onlyManagerCandidates&&!candidatePoolValue(player.manager_fit_candidate))return false;
         const team = teamById[player.teamId];
         const country = countryById[player.countryId];
 
@@ -1778,7 +1782,7 @@ export default function Players() {
         }
         return cmp(a, b);
       });
-  }, [players, search, teamById, countryById, sortBy, teamFilterId, positionFilter]);
+  }, [players, search, teamById, countryById, sortBy, teamFilterId, positionFilter, onlyManagerCandidates]);
 
   // A deliberately small local cache: list choices + the last visible position.
   // Never store players, photos, private details or imported data in this cache.
@@ -3287,6 +3291,7 @@ export default function Players() {
 
             <button type="button" onClick={() => setSortBy(c => c === "age_youngest" ? "age_oldest" : "age_youngest")} className={`flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition ${sortBy === "age_youngest" || sortBy === "age_oldest" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Order by age" title="Order by age"><Cake size={14} /> {sortBy === "age_oldest" ? "Oldest" : "Youngest"}</button>
 
+            <button type="button" aria-pressed={onlyManagerCandidates} onClick={()=>setOnlyManagerCandidates(v=>!v)} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${onlyManagerCandidates?"border-emerald-700 bg-emerald-50 text-emerald-800":"border-slate-200 bg-white text-slate-600"}`} title="Filtrar únicamente futbolistas marcados manualmente para el Manager Fit">Candidatos Manager Fit ({players.filter(p=>candidatePoolValue(p.manager_fit_candidate)).length})</button>
             <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkDeleteIds([]); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
             <button type="button" onClick={() => { setFm26ImportOpen(true); setFm26Import(null); setFm26FileName(""); setFm26Message(""); setFm26Error(""); setFm26ProgressCurrent(0); setFm26ProgressTotal(0); setFm26ProgressLabel(""); setFm26NationJustSaved(new Set()); }} className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50" title="Importar jugadores desde fmsave FM26 JSON">
               <Upload size={16} /><span>Import FM26 JSON</span>
@@ -3326,9 +3331,14 @@ export default function Players() {
 
         {bulkMode && <div className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-blue-900">{bulkIds.length} jugadores seleccionados</strong><div className="flex gap-2"><button type="button" className="rounded-lg border bg-white px-3 py-1.5 text-xs" onClick={() => setBulkIds(old => [...new Set([...old,...filteredPlayers.map(p => String(p.id)).filter(Boolean)])])}>Seleccionar visibles ({filteredPlayers.length})</button><button type="button" className="rounded-lg border bg-white px-3 py-1.5 text-xs" onClick={() => setBulkIds([])}>Deseleccionar</button></div></div>
-          <div className="flex flex-wrap items-center gap-2"><select className="rounded-lg border p-2 text-sm" value={bulkAction} onChange={e=>{setBulkAction(e.target.value);setBulkValue("");}}><option value="team_id">Cambiar club</option><option value="ca">Cambiar CA</option><option value="cp">Cambiar PA / CP</option><option value="height">Cambiar altura (cm)</option><optgroup label="Atributos 1–20">{Object.entries(FM26_ATTRIBUTE_MAP).flatMap(([group, fields]) => Object.keys(fields).map(field => <option key={group+field} value={`stat:${group}:${field}`}>{group} · {field.replaceAll("_", " ")}</option>))}</optgroup><optgroup label="Posiciones 1–20">{Object.keys(FM26_POSITION_MAP).map(field => <option key={field} value={`position:${field}`}>{field.replaceAll("_", " ")}</option>)}</optgroup></select>
-          {bulkAction === "team_id" ? <select value={bulkValue} onChange={e=>setBulkValue(e.target.value)} className="min-w-[190px] rounded-lg border p-2 text-sm"><option value="">Selecciona club destino</option><option value="__free_agent__">Agente libre</option><option value="__retired__">Retirado</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select> : <input className="w-32 rounded-lg border p-2 text-sm" type="number" min={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "1" : "0"} max={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "20" : "200"} value={bulkValue} onChange={e=>setBulkValue(e.target.value)} placeholder="Nuevo valor" />}
-          <button type="button" disabled={bulkBusy || !bulkIds.length} onClick={()=>applyBulkAction(false)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Aplicar a seleccionados</button></div>
+          <div className="flex flex-wrap items-center gap-2"><select className="rounded-lg border p-2 text-sm" value={bulkAction} onChange={e=>{setBulkAction(e.target.value);setBulkValue("");}}><option value="team_id">Cambiar club</option><option value="manager_fit_candidate">Bolsa de candidatos · Manager Fit</option><option value="ca">Cambiar CA</option><option value="cp">Cambiar PA / CP</option><option value="height">Cambiar altura (cm)</option><optgroup label="Atributos 1–20">{Object.entries(FM26_ATTRIBUTE_MAP).flatMap(([group, fields]) => Object.keys(fields).map(field => <option key={group+field} value={`stat:${group}:${field}`}>{group} · {field.replaceAll("_", " ")}</option>))}</optgroup><optgroup label="Posiciones 1–20">{Object.keys(FM26_POSITION_MAP).map(field => <option key={field} value={`position:${field}`}>{field.replaceAll("_", " ")}</option>)}</optgroup></select>
+          {bulkAction === "manager_fit_candidate" ? <select aria-label="Acción bolsa Manager Fit" value={bulkValue} onChange={e=>setBulkValue(e.target.value)} className="min-w-[220px] rounded-lg border p-2 text-sm">
+            <option value="">Seleccionar acción</option>
+            <option value="true">Añadir a la bolsa de candidatos</option>
+            <option value="false">Quitar de la bolsa de candidatos</option>
+           </select> : bulkAction === "team_id" ? <select value={bulkValue} onChange={e=>setBulkValue(e.target.value)} className="min-w-[190px] rounded-lg border p-2 text-sm"><option value="">Selecciona club destino</option><option value="__free_agent__">Agente libre</option><option value="__retired__">Retirado</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select> : <input className="w-32 rounded-lg border p-2 text-sm" type="number" min={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "1" : "0"} max={bulkAction.startsWith("stat:") || bulkAction.startsWith("position:") ? "20" : "200"} value={bulkValue} onChange={e=>setBulkValue(e.target.value)} placeholder="Nuevo valor" />}
+          <button type="button" disabled={bulkBusy || !bulkIds.length || (bulkAction==="manager_fit_candidate"&&!bulkValue)} onClick={()=>applyBulkAction(false)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Aplicar a seleccionados</button></div>
+          {bulkAction==="manager_fit_candidate"&&<p className="text-xs text-blue-900">Esta acción solo marca o desmarca jugadores elegibles para probar fichajes en Manager Fit. No cambia su club, su plantilla, sus estadísticas ni sus contratos. Solo se incluirán automáticamente los que marques tú.</p>}
           <div className="flex justify-end border-t border-blue-200 pt-3">
             <button type="button" disabled={bulkBusy || !bulkIds.length} onClick={() => setBulkDeleteIds([...bulkIds])} className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40">Eliminar seleccionados ({bulkIds.length})</button>
           </div>
