@@ -33,7 +33,7 @@ INSTRUCCIONES DEL USUARIO (orientativas): ${userNotes||"No hay"}
 Objetivo: elaborar un borrador de ADN táctico explicable para el editor Manager DNA. Investiga y contrasta, si es real, la filosofía de juego y el periodo solicitado, con fuentes de clubes, federaciones, competiciones y análisis tácticos reputados. Distingue periodos/clubes del entrenador y no atribuyas un estilo constante a toda su trayectoria. Si el nombre es ambiguo o no hay evidencia suficiente, devuelve identificable=false, sin inventar valores.
 ${fictional?"Este técnico es FICTICIO: plantea una interpretación creativa coherente con las indicaciones del usuario. No atribuyas fuentes reales ni afirmes que es evidencia histórica.":""}
 Evalúa y estima seis parámetros de 0 a 100: possession (0 juego directo, 100 posesión), pressing (0 repliegue pasivo, 100 presión intensa), tempo (0 pausado, 100 transiciones muy verticales), defensive_line (0 bloque bajo, 100 línea alta), attacking_width (0 juego interior, 100 bandas), risk_taking (0 conservador, 100 creativo). IMPORTANTE: los números son una estimación analítica subjetiva para un editor, NO estadísticas observadas ni cifras oficiales. Evita extremos sin pruebas.
-Prioriza formation entre ${FORMATIONS.join(", ")}, pero si la formación histórica contrastada es otra (por ejemplo 4-2-2-2, 3-4-2-1 o 4-1-2-1-2), consérvala exactamente como sistema de diez jugadores de campo separado por guiones; NO la sustituyas por otra; build_up: short/mixed/direct; transition: counter_press/regroup/balanced; defensive_block: low/medium/high. Describe qué busca en un GK, CB, FB, DM, AM, WG y ST, adaptado al periodo. Si un rol no tiene evidencia, escribe "Sin información suficiente"; no inventes atributos verificados. Identifica también el ALCANCE exacto del perfil. Escribe profile_scope: "general" si realmente describes filosofía transversal de varias etapas sin fechas; "period" si analizas una etapa de VARIAS temporadas; "season" si analizas una campaña concreta. Para "period": indica reference_club, period_start y period_end con formato YYYY/YYYY (inclusive). Para "season": indica season con formato YYYY/YYYY. Para "general": deja vacíos los campos temporales y reference_club. suggested_name debe ser un título breve, por ejemplo "Liverpool 2018–2020", "Liverpool 2019/2020" o "Filosofía general". Si tienes dudas sobre las fechas, no inventes: usa "general" e indica incertidumbre. En profile_notes incluye explicación breve por líneas, argumentos sobre los valores y advertencias de incertidumbre; en source_urls solo URLs verdaderamente comprobadas, nunca inventadas.
+Prioriza formation entre ${FORMATIONS.join(", ")}, pero si la formación histórica contrastada es otra (por ejemplo 4-2-2-2, 3-4-2-1 o 4-1-2-1-2), consérvala exactamente como sistema de diez jugadores de campo separado por guiones; NO la sustituyas por otra. CAMPOS ENUMERADOS: build_up SOLO short/mixed/direct (tipo de salida con balón); transition SOLO counter_press/regroup/balanced (reacción DEFENSIVA tras perder la posesión); defensive_block SOLO low/medium/high (altura de bloque). IMPORTANTE: fast_break, counter_attack, quick_transition y transiciones rápidas describen fases OFENSIVAS, NO son valores válidos para transition. Expresa esa velocidad con tempo y profile_notes. Si falta evidencia sobre la reacción tras pérdida, utiliza transition=balanced como marcador neutral y EXPLICA EN LAS NOTAS la incertidumbre; no atribuyas presión tras pérdida sin prueba. Describe qué busca en un GK, CB, FB, DM, AM, WG y ST, adaptado al periodo. Si un rol no tiene evidencia, escribe "Sin información suficiente"; no inventes atributos verificados. Identifica también el ALCANCE exacto del perfil. Escribe profile_scope: "general" si realmente describes filosofía transversal de varias etapas sin fechas; "period" si analizas una etapa de VARIAS temporadas; "season" si analizas una campaña concreta. Para "period": indica reference_club, period_start y period_end con formato YYYY/YYYY (inclusive). Para "season": indica season con formato YYYY/YYYY. Para "general": deja vacíos los campos temporales y reference_club. suggested_name debe ser un título breve, por ejemplo "Liverpool 2018–2020", "Liverpool 2019/2020" o "Filosofía general". Si tienes dudas sobre las fechas, no inventes: usa "general" e indica incertidumbre. En profile_notes incluye explicación breve por líneas, argumentos sobre los valores y advertencias de incertidumbre; en source_urls solo URLs verdaderamente comprobadas, nunca inventadas.
 
 RESPONDE SOLO JSON VÁLIDO con exactamente estas claves y tipos:
 {"identifiable":true,"confidence":"high|medium|low","profile_scope":"general|period|season","reference_club":"club si procede","period_start":"YYYY/YYYY o vacío","period_end":"YYYY/YYYY o vacío","season":"YYYY/YYYY o vacío","suggested_name":"Nombre breve","formation":"4-3-3","possession":0,"pressing":0,"tempo":0,"defensive_line":0,"attacking_width":0,"risk_taking":0,"build_up":"short|mixed|direct","transition":"counter_press|regroup|balanced","defensive_block":"low|medium|high","player_role_priorities":{"GK":"texto","CB":"texto","FB":"texto","DM":"texto","AM":"texto","WG":"texto","ST":"texto"},"profile_notes":"explicación española con periodo y matices","source_urls":["https://fuente-real"]}.
@@ -92,36 +92,89 @@ export function inferManagerProfileContext(data){
     suggested_name:"Filosofía general",origin:"not_specified"};
 }
 
-// Interpret only unambiguous synonyms; do not guess when the AI describes
-// a different tactic or returns an unsupported composite value.
+// IA responses sometimes use synonyms or concepts from a different tactical
+// dimension. These can never crash an otherwise complete investigation. When
+// a meaning is uncertain, use a neutral EDITABLE placeholder and an explicit
+// warning retaining the original; never invent tactical evidence.
+export const TACTICAL_ENUM_DEFAULTS=Object.freeze({
+ build_up:"mixed",transition:"balanced",defensive_block:"medium"
+});
 const tacticalAliases={
  build_up:{
-   short:["short","short_passing","short_passes","short_build_up","possession","elaborate","elaborated","build_from_back","salida_corta","corta","pases_cortos","combinativo"],
-   mixed:["mixed","balanced","hybrid","flexible","variable","mixto","mixta","equilibrado","equilibrada","combinada"],
-   direct:["direct","direct_play","long","long_ball","long_balls","long_passing","vertical","directo","directa","juego_directo","balon_largo"]
+   short:["short","short_passing","short_passes","short_build_up","possession","elaborate","elaborated","build_from_back","salida_corta","corta","pases_cortos","combinativo","patient_build_up","positional_play","juego_de_posicion"],
+   mixed:["mixed","balanced","hybrid","flexible","variable","mixto","mixta","equilibrado","equilibrada","combinada","combined","versatile"],
+   direct:["direct","direct_play","long","long_ball","long_balls","long_passing","vertical","directo","directa","juego_directo","balon_largo","direct_build_up","long_passes"]
  },
  transition:{
-   counter_press:["counter_press","counterpress","counter_pressing","counterpressing","gegenpressing","press_after_loss","press_after_possession_loss","presion_tras_perdida","contrapresion"],
-   regroup:["regroup","regrouping","fall_back","reorganize","reorganise","repliegue","replegar","reorganizarse"],
-   balanced:["balanced","mixed","neutral","equilibrada","equilibrado","mixta","mixto"]
+   counter_press:["counter_press","counterpress","counter_pressing","counterpressing","gegenpressing","press_after_loss","press_after_possession_loss","presion_tras_perdida","contrapresion","counter_pressure","counterpress_after_loss","immediate_press_after_loss","pressing_after_loss","press_immediately"],
+   regroup:["regroup","regrouping","fall_back","reorganize","reorganise","repliegue","replegar","reorganizarse","drop_back","drop_into_shape","recover_shape","fall_into_shape","reorganizacion"],
+   balanced:["balanced","mixed","neutral","equilibrada","equilibrado","mixta","mixto","standard","adaptive","situational"]
  },
  defensive_block:{
-   low:["low","low_block","deep","deep_block","bajo","bloque_bajo"],
-   medium:["medium","mid","mid_block","medium_block","middle","medio","bloque_medio"],
-   high:["high","high_block","advanced","alto","bloque_alto"]
+   low:["low","low_block","deep","deep_block","bajo","bloque_bajo","deep_defensive_block"],
+   medium:["medium","mid","mid_block","medium_block","middle","medio","bloque_medio","midfield_block"],
+   high:["high","high_block","advanced","alto","bloque_alto","high_defensive_block","high_line"]
  }
 };
-export function normalizeTacticalEnum(field,value){
+const cleanEnumToken=value=>typeof value==="string"?value.trim()
+ .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+ .replace(/([a-z])([A-Z])/g,"$1_$2").toLowerCase()
+ .replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,""):"";
+const rawEnumLabel=value=>{
+ const label=typeof value==="string"?value:JSON.stringify(value);
+ return String(label??"ausente").trim().slice(0,130)||"vacío";
+};
+export function normalizeTacticalEnum(field,value,{onWarning}={}){
  const choices=tacticalAliases[field];
  if(!choices)throw Error("Parámetro táctico desconocido: "+field);
- const normalized=typeof value==="string"?value.trim().toLocaleLowerCase().normalize("NFD")
-   .replace(/[\u0300-\u036f]/g,"").replace(/[\s-]+/g,"_"):"";
+ const normalized=cleanEnumToken(value);
  for(const [canonical,aliases] of Object.entries(choices)){
    if(aliases.includes(normalized))return canonical;
  }
- throw Error("La IA devolvió un valor desconocido para "+field+": "+JSON.stringify(value)+
-   ". Valores admitidos: "+Object.keys(choices).join(", ")+". Puedes corregirlo en el JSON sin repetir la investigación.");
+ const fallback=TACTICAL_ENUM_DEFAULTS[field];
+ const offensiveTransition=field==="transition"&&
+  ["fast_break","fast_breaks","counter_attack","counter_attacks","counter_attacking",
+   "quick_transition","rapid_transition","fast_transition","quick_counter",
+   "counterattack","counterattacks","ataque_rapido","transicion_rapida",
+   "transiciones_rapidas","contraataque","contraataques"].includes(normalized);
+ const reason=offensiveTransition?
+  "describe una transición ofensiva y no permite identificar la reacción defensiva tras pérdida":
+  "no corresponde de forma inequívoca a ningún valor admitido";
+ onWarning?.({field,original:rawEnumLabel(value),fallback,reason});
+ return fallback;
 }
+export function normalizeResearchConfidence(value,{onWarning}={}){
+ const aliases={
+  high:["high","alta","alto","very_high","muy_alta","strong"],
+  medium:["medium","media","medio","moderate","moderada","moderado","mid"],
+  low:["low","baja","bajo","very_low","muy_baja","uncertain"]
+ };
+ const normalized=cleanEnumToken(value);
+ for(const [canonical,items] of Object.entries(aliases))if(items.includes(normalized))return canonical;
+ onWarning?.({field:"confidence",original:rawEnumLabel(value),fallback:"low",
+  reason:"no se reconoció el nivel de confianza; se aplica el mínimo por prudencia"});
+ return "low";
+}
+export function normalizeResearchScope(data,{onWarning}={}){
+ const aliases={
+  general:["general","overall","career","career_wide","general_philosophy","filosofia_general","global","transversal"],
+  period:["period","periodo","era","stage","etapa","multi_season","multi_year"],
+  season:["season","single_season","temporada","campaign","campana"]
+ };
+ const normalized=cleanEnumToken(data?.profile_scope);
+ for(const [canonical,items] of Object.entries(aliases))if(items.includes(normalized))return canonical;
+ // Explicit valid dates can recover a period or a single season without
+ // inventing calendar boundaries.
+ const fallback=validSeason(data?.season)?"season":
+   validSeason(data?.period_start)&&validSeason(data?.period_end)&&data.period_start<data.period_end?"period":"general";
+ onWarning?.({field:"profile_scope",original:rawEnumLabel(data?.profile_scope),fallback,
+   reason:"alcance desconocido; se ha usado únicamente la información temporal explícita disponible"});
+ return fallback;
+}
+export const formatTacticalWarnings=warnings=>(warnings||[]).length?
+ "VALORES DE IA QUE REQUIEREN REVISIÓN (sin inferencia táctica):\n"+
+ warnings.map(w=>"- "+w.field+": la IA devolvió "+JSON.stringify(w.original)+
+ " → valor provisional "+JSON.stringify(w.fallback)+". Motivo: "+w.reason+".").join("\n"):"";
 
 // Coach histories may contain formations not available as editable pitch presets.
 // Retain a valid eleven-player outfield formation rather than silently replacing it
@@ -141,10 +194,13 @@ export function normalizeManagerFormation(raw){
 export function parseManagerTacticalResponse(input) {
   const data=unwrapJSON(input);
   if(data.identifiable!==true)throw Error(String(data.reason||"La identidad o el estilo del entrenador no se han podido verificar.").slice(0,250));
-  if(!["high","medium","low"].includes(data.confidence))throw Error("La IA no ha indicado un nivel de confianza válido.");
+  const warnings=[];
+  const onWarning=warning=>warnings.push(warning);
+  const confidence=normalizeResearchConfidence(data.confidence,{onWarning});
+  const scope=normalizeResearchScope(data,{onWarning});
   const formation=normalizeManagerFormation(data.formation);
   const tacticalValues=Object.fromEntries(["build_up","transition","defensive_block"]
-    .map(key=>[key,normalizeTacticalEnum(key,data[key])]));
+    .map(key=>[key,normalizeTacticalEnum(key,data[key],{onWarning})]));
   const numeric={};
   for(const {key} of DNA_AXES){
     if(typeof data[key]!=="number"||!Number.isFinite(data[key])||data[key]<0||data[key]>100)
@@ -163,9 +219,9 @@ export function parseManagerTacticalResponse(input) {
     throw Error("Falta la justificación del análisis táctico.");
   const sourceUrls=Array.isArray(data.source_urls)
     ? [...new Set(data.source_urls.filter(validHttp).map(x=>x.trim()))].slice(0,8):[];
-  const context=inferManagerProfileContext(data);
+  const context=inferManagerProfileContext({...data,profile_scope:scope});
   return {context,values:{...numeric,formation,...tacticalValues},roleText,notes:data.profile_notes.trim().slice(0,3500),
-    sourceUrls,confidence:data.confidence};
+    sourceUrls,confidence,warnings};
 }
 
 // Avoid silently erasing an existing, deliberately selected season or period
@@ -195,7 +251,7 @@ export function previewManagerTacticalDraft(current,parsed) {
     period_start:context.scope==="period"?context.period_start:"",
     period_end:context.scope==="period"?context.period_end:"",
     name:genericName&&context.suggested_name?context.suggested_name:current.name,
-    profile_notes:[caveat,parsed.notes,sources].join("\n\n"),
+    profile_notes:[caveat,formatTacticalWarnings(parsed.warnings),parsed.notes,sources].filter(Boolean).join("\n\n"),
     source_url:parsed.sourceUrls[0]||current.source_url||""
   };
 }
