@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from "react";
+import React,{useEffect,useMemo,useRef,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {Search,Plus,Save,UserRoundCog,SlidersHorizontal,ShieldCheck,ArrowUpRight,BookOpen} from "lucide-react";
@@ -41,11 +41,11 @@ export default function Managers(){
  const [assignTeamId,setAssignTeamId]=useState("");
  const [assignSeason,setAssignSeason]=useState("2026/2027");
  const [assignProfile,setAssignProfile]=useState("");
+ const newManagerTabRef=useRef("");
 
  const selected=managers.find(m=>String(m.id)===managerParam)||null;
  const customTeams=useMemo(()=>teams.filter(isCustomTeam).sort((a,b)=>String(a.name).localeCompare(String(b.name))),[teams]);
  const managerProfiles=useMemo(()=>profiles.filter(p=>String(p.manager_id)===String(selected?.id||"")).sort((a,b)=>Number(Boolean(b.is_default))-Number(Boolean(a.is_default))||String(b.season||"").localeCompare(String(a.season||""))),[profiles,selected?.id]);
- const currentProfile=managerProfiles.find(p=>String(p.id)===profileId)||null;
  const managerAssignments=assignments.filter(a=>String(a.manager_id)===String(selected?.id)&&a.team_type==="club"&&customTeams.some(t=>String(t.id)===String(a.team_id)));
  const visible=useMemo(()=>managers.filter(m=>normalize([m.name,m.display_name,m.nationality,m.manager_kind].join(" ")).includes(normalize(search))).sort((a,b)=>Number(Boolean(b.is_active))-Number(Boolean(a.is_active))||String(a.name).localeCompare(String(b.name))),[managers,search]);
 
@@ -77,7 +77,8 @@ export default function Managers(){
  },[]);
  useEffect(()=>{
   setManagerDraft(selected?{...MANAGER_BLANK,...selected}:{...MANAGER_BLANK});
-  setProfileId("");setTab("identity");setNotice("");setError("");
+  setProfileId("");setTab(newManagerTabRef.current===String(selected?.id)?"dna":"identity");
+  newManagerTabRef.current="";setNotice("");setError("");
  },[selected?.id]);
  useEffect(()=>{
   const profilesOfSelected=profiles.filter(p=>String(p.manager_id)===String(selected?.id||""));
@@ -119,8 +120,8 @@ export default function Managers(){
     const saved=await base44.entities.Manager.create(payload);
     const result=await refresh();
     if(!result.managers.some(m=>String(m.id)===String(saved.id)))setManagers(prev=>[...prev,saved]);
-    setParams({manager:String(saved.id)});
-    setTab("dna");setNotice("Entrenador creado. Ya puedes configurar su ADN táctico.");
+    newManagerTabRef.current=String(saved.id);
+    setParams({manager:String(saved.id)});setNotice("Entrenador creado. Ya puedes configurar su ADN táctico.");
    }
   }catch(e){setError(e.message||"No se pudo guardar el entrenador.")}
   finally{setBusy(false)}
