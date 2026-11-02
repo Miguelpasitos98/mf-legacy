@@ -44,7 +44,7 @@ export function ManagerScoutingSummary({scoreMode,visibility,roleRequirements,st
      <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">{modeName[scoreMode]}</span>
     </div>
     <p className="mt-1 text-xs leading-5 text-slate-600">{statusText}</p>
-    {scoreMode==="role"&&<p className="mt-1.5 text-[11px] text-slate-600"><strong>Indicadores reconocidos:</strong> {roleRequirements?.matched?.length?roleRequirements.matched.map(x=>x.label).join(" · "):"Ninguno para este rol"}</p>}
+    {scoreMode==="role"&&<><p className="mt-1.5 text-[11px] text-slate-600"><strong>Requisitos reconocidos:</strong> {roleRequirements?.matched?.length?roleRequirements.matched.map(x=>x.label).join(" · "):"Ninguno para este rol"}</p><p className="mt-1 text-[11px] text-slate-500"><strong>Indicadores solicitados:</strong> {roleRequirements?.metricKeys?.length||0} · Solo se puntúan si hay observaciones y al menos diez comparables por métrica.</p>{roleRequirements?.unmeasuredTraits?.length>0&&<p className="mt-1 text-[11px] text-slate-600"><strong>No medible con estas estadísticas:</strong> {roleRequirements.unmeasuredTraits.join(" · ")}</p>}</>}
     {statsError&&<p role="alert" className="mt-2 text-xs text-red-700">{statsError}</p>}
    </div>
   </div>
@@ -86,7 +86,20 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
   </div>
   {more&&<div className="space-y-1 border-t border-slate-100 pt-2 text-[11px] leading-5 text-slate-600">
    <p><strong>Confianza:</strong> {CONFIDENCE[evidence?.confidence||item.reliability]||"No determinada"}</p>
-   {scoreMode==="role"&&<><p><strong>Métricas:</strong> {item.roleFit.breakdown.length}/{item.roleFit.requested} observadas y comparables</p><p>{item.roleFit.breakdown.length?item.roleFit.breakdown.map(m=>m.key+" P"+m.percentile).join(" · "):item.roleFit.limitation}</p></>}
+   {scoreMode==="role"&&<div className="space-y-2">
+    <p><strong>Métricas V4:</strong> {item.roleFit.breakdown.length}/{item.roleFit.requested} observadas con comparables. {item.roleFit.limitation}</p>
+    {!!item.roleFit.metricDiagnostics?.length&&<div className="overflow-hidden rounded-lg border border-slate-200">
+     {item.roleFit.metricDiagnostics.map(metric=><div key={metric.key} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 border-b border-slate-100 px-2.5 py-2 last:border-b-0">
+      <span className="min-w-0 flex-1 font-medium text-slate-700">{metric.label}</span>
+      <span className={"shrink-0 font-bold tabular-nums "+(metric.status==="measured"?"text-[#225baa]":"text-slate-500")}>
+       {metric.status==="measured"?"P"+item.roleFit.breakdown.find(row=>row.key===metric.key)?.percentile:metric.status==="missing_player"?"Sin dato del jugador":"Muestra insuficiente"}
+      </span>
+      <span className="w-full text-[10px] text-slate-500">{metric.peerCount} jugadores comparables · {metric.source||"Fuente pendiente"}{metric.scope?" · "+metric.scope:""}</span>
+     </div>)}
+    </div>}
+    {!item.roleFit.metricDiagnostics?.length&&<p>El ADN no contiene requisitos asociados con seguridad a métricas observadas.</p>}
+    {!!item.roleFit.unmeasuredTraits?.length&&<p><strong>Sin medida histórica directa:</strong> {item.roleFit.unmeasuredTraits.join(" · ")}</p>}
+   </div>}
    {scoreMode==="historical"&&<p><strong>Histórico:</strong> {item.historical.breakdown.length?item.historical.breakdown.map(m=>m.key+" P"+m.percentile).join(" · "):"Sin indicadores históricos evaluables"}</p>}
    {scoreMode==="attributes"&&<p>Posición {item.advanced.position??"—"} · Atributos {item.advanced.attributes??"—"} · ADN {item.advanced.style??"—"}</p>}
    {scoreMode==="position"&&<p>{item.evidence}</p>}
