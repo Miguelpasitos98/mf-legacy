@@ -9,6 +9,7 @@ export default async function(req){
    if(!me || me.role!=="admin")return reply({ok:false,error:"Solo administradores pueden generar contenido con IA."},403);
    let body;
    try {body=await req.json();}catch{return reply({ok:false,error:"JSON inválido."},400);}
+   if(body?.action==="health")return reply({ok:true,service:"manager-ai",status:"ready",writes:false});
    let input;
    try {input=validateManagerAIRequest(body);}catch(e){return reply({ok:false,error:e.message},400);}
    if(input.mode==="tactical"){

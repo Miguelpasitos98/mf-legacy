@@ -30,7 +30,7 @@ test("Manager entity schema contains canonical Country foreign key",()=>{
 test("Managers form offers name-driven AI drafting and countries selection",()=>{
  const page=fs.readFileSync("src/pages/Managers.jsx","utf8");
  assert.match(page,/base44\.entities\.Country/);
- assert.match(page,/base44\.integrations\.Core\.InvokeLLM/);
+ assert.match(page,/base44\.functions\.invoke\("manager-ai"/);
  assert.match(page,/Copiar prompt para ChatGPT/);
  assert.match(page,/País de nacionalidad/);
  assert.match(page,/Selecciona la nacionalidad desde Countries/);

@@ -51,6 +51,6 @@ test("Manager DNA UI supports independent AI, copy and paste without auto save",
  assert.match(s,/Copiar prompt para ChatGPT/);
  assert.match(s,/Aplicar JSON al borrador/);
  assert.match(s,/previewManagerTacticalDraft/);
- assert.match(s,/base44\.integrations\.Core\.InvokeLLM/);
+ assert.match(s,/base44\.functions\.invoke\("manager-ai"/);
  assert.match(s,/setProfileDraft\(prev=>previewManagerTacticalDraft/);
 });
