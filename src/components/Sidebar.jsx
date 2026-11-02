@@ -127,10 +127,10 @@ export default function Sidebar({
     >
       {open && isPlayersPage && (
         <nav
-          className="absolute left-1/2 top-1/2 flex w-[188px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2"
+          className="absolute inset-0 flex min-h-0 flex-col items-center overflow-y-auto py-3"
           aria-label="Player views"
         >
-          <div className="flex w-full flex-col items-center gap-1">
+          <div className="flex min-h-[220px] w-full flex-1 flex-col items-center justify-evenly">
             {VIEW_OPTIONS.slice(0, 4).map((option) => {
               const isActive = activeView === option.id;
 
@@ -139,7 +139,7 @@ export default function Sidebar({
                   key={option.id}
                   type="button"
                   onClick={() => handleViewChange(option.id)}
-                  className={`flex h-10 w-full items-center justify-start gap-3 rounded-xl px-3 text-left transition-all duration-200 ${
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${
                     isActive
                       ? "bg-white/[0.14] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
                       : "bg-transparent hover:bg-white/[0.08]"
@@ -151,9 +151,8 @@ export default function Sidebar({
                   <img
                     src={option.icon}
                     alt=""
-                    className="h-5 w-5 shrink-0 object-contain"
+                    className="h-6 w-6 object-contain"
                   />
-                  <span className="truncate text-xs font-semibold" style={{color:accentColor}}>{option.label}</span>
                 </button>
               );
             })}
@@ -162,14 +161,14 @@ export default function Sidebar({
           <button
             type="button"
             onClick={onToggle}
-            className="flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200"
+            className="my-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200"
             style={{ color: accentColor }}
             aria-label="Cerrar menú"
           >
             <X size={20} />
           </button>
 
-          <div className="flex w-full flex-col items-center gap-1">
+          <div className="flex min-h-[220px] w-full flex-1 flex-col items-center justify-evenly">
             {VIEW_OPTIONS.slice(4).map((option) => {
               const isActive = activeView === option.id;
 
@@ -178,7 +177,7 @@ export default function Sidebar({
                   key={option.id}
                   type="button"
                   onClick={() => handleViewChange(option.id)}
-                  className={`flex h-10 w-full items-center justify-start gap-3 rounded-xl px-3 text-left transition-all duration-200 ${
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${
                     isActive
                       ? "bg-white/[0.14] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
                       : "bg-transparent hover:bg-white/[0.08]"
@@ -190,9 +189,8 @@ export default function Sidebar({
                   <img
                     src={option.icon}
                     alt=""
-                    className="h-5 w-5 shrink-0 object-contain"
+                    className="h-6 w-6 object-contain"
                   />
-                  <span className="truncate text-xs font-semibold" style={{color:accentColor}}>{option.label}</span>
                 </button>
               );
             })}
