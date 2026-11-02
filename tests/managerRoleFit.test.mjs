@@ -9,6 +9,18 @@ test("translates distinct preferred roles into different historical metric requi
  assert.ok(striker.matched.some(x=>x.id==="high_pressure"));
  assert.equal(striker.matched.some(x=>x.id==="wing_attack"),false);
 });
+test("Sweeper-keeper is recognized only as a partial distribution proxy; insufficient evidence keeps V4 unavailable",()=>{
+ const profile={player_role_priorities:JSON.stringify({GK:"Sweeper-keeper"})};
+ const req=deriveRoleRequirements(profile,"GK");
+ assert.equal(req.unmatched,false);
+ assert.ok(req.matched.some(x=>x.id==="sweeper_keeper_distribution"));
+ assert.equal(evaluateRoleRequirements({},[], "GK",profile).score,null);
+ assert.equal(evaluateRoleRequirements({passing:{value:30}},Array.from({length:12},(_,i)=>({passing:{value:i+20},longPassing:{value:i*.2}})),"GK",profile).score,null);
+ const peers=Array.from({length:12},(_,i)=>({passing:{value:i+20},longPassing:{value:i*.2}}));
+ const evaluated=evaluateRoleRequirements({passing:{value:25,source:"FotMob"},longPassing:{value:1.5,source:"FotMob"}},peers,"GK",profile);
+ assert.ok(evaluated.score!==null&&evaluated.breakdown.length===2);
+ assert.ok(evaluated.requirements.some(label=>label.includes("proxy parcial")));
+});
 test("uncertain role descriptions are not assigned phantom scores",()=>{
  const p={player_role_priorities:JSON.stringify({FB:"Jugador inteligente, simpático y completo"})};
  const result=evaluateRoleRequirements({},[],"FB",p);
