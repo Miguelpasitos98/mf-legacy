@@ -1,6 +1,6 @@
-// Catalog imported from the user's original 2,181-row semicolon CSV.
+// Catalog synchronized with the published My-Legacy trophy library (2,180 IDs).
 // Identity is always source_id, never translated names or image filenames.
-export const TROPHY_CSV_URL="https://media.base44.com/files/public/6a88359fd43f2af862874b12/7f131ea8b_relacion_trofeos.csv";
+export const TROPHY_CSV_URL="https://raw.githubusercontent.com/Miguelpasitos98/My-Legacy/main/Trofeos%20identificados/catalogo.csv";
 export const TROPHY_TYPES=["Team Trophy","Individual Trophy"];
 export const TROPHY_CATEGORIES=["League","Cup","Supercup","International","Individual Award","Other"];
 const safe=v=>String(v??"").trim();
