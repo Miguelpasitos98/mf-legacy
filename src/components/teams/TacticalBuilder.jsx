@@ -227,8 +227,6 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     place(selected,String(player.id),!alreadyInRoster);
   };
   const restoreShape=()=>{setSlotPositions({});markDirty();setNotice("Posiciones originales restauradas. Los jugadores se mantienen.");};
-  const used = new Set([...Object.values(slots).filter(Boolean),...bench]);
-  const available = roster.filter(r => !used.has(String(r.player_id)) && r.player?.name?.toLowerCase().includes(search.toLowerCase()));
   const place = (target,playerId,allowPending=false) => {
     if (busy || !target || !playerId || (!allowPending && !availableIds.has(String(playerId)))) return;
     const displaced = slots[target];
