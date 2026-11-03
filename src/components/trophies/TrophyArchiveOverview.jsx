@@ -116,7 +116,7 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
      onOpenTrophy={openCompetition} onOpenArchive={openClub}
      onOpenProfile={id=>navigate("/teams?stats_team="+encodeURIComponent(id))}
    />)}
-  </div>
+  </div>}
   {!isError&&!isLoading&&mode==="jugadores"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
    {rendered.map((item,index)=><TrophyRankingCard
      key={item.id} item={item} rank={rankById.get(String(item.id))||index+1} entity={playerMap.get(item.id)}
