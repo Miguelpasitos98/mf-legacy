@@ -34,6 +34,18 @@ async function retryRead(read){
     }
   }
 }
+export async function retryMutation(write){
+  for(let attempt=0;attempt<4;attempt++){
+    try{return await write();}catch(e){
+      const message=String(e.message||e),status=e.status||e.response?.status;
+      // Only a rejected 429 is safe to retry; transport/5xx writes can have
+      // committed and must be reconciled from persisted identity instead.
+      if(attempt===3||!(status===429||/rate limit exceeded/i.test(message)))throw e;
+      const seconds=Number(message.match(/retry after\s+(\d+)/i)?.[1]);
+      await new Promise(resolve=>setTimeout(resolve,Math.max(seconds||0,2**attempt)*1000+100));
+    }
+  }
+}
 export function metricPlan(item,player,existing,teamLink={}) {
   if(!/^\d{1,15}$/.test(str(item.fotmob_team_id))||!str(item.competition)||!str(item.metric_name))throw Error("Falta identidad de competición/equipo/métrica.");
   const signedMetric=["goals prevented","goles evitados"].includes(norm(item.metric_name));
@@ -242,10 +254,10 @@ export async function persistImportPlan(entity,plan,before){
   if(plan.operation==="create"){
     // Never replay a create after a lost response: the next invocation reads
     // destinations again, and reconciles the existing row before writing.
-    const saved=await entity.create(plan.record);id=saved?.id;
+    const saved=await retryMutation(()=>entity.create(plan.record));id=saved?.id;
   }else if(plan.operation==="update"){
     if(!before?.updated_date)throw Error("Destino sin versión; no se escribe sin control de concurrencia.");
-    await entity.updateMany({id,updated_date:before.updated_date},{$set:plan.record});
+    await retryMutation(()=>entity.updateMany({id,updated_date:before.updated_date},{$set:plan.record}));
   }
   if(!id)throw Error("Persistencia no confirmada; volver a leer antes de repetir.");
   const saved=await entity.get(id);
@@ -265,7 +277,7 @@ export async function applyVerifiedHistoricals(db,job,{dryRun=false,maxScopes=In
   const pending=records.filter(c=>c.review_status==="pending");
   const mark=async ids=>{
     if(dryRun)return;
-    for(let i=0;i<ids.length;i+=150)await db.ImportCandidate.updateMany({id:{$in:ids.slice(i,i+150)},job_id:job.id,review_status:"pending"},{$set:{review_status:"applied",review_note:"Persistencia comprobada; campos existentes y conflictos conservados"}});
+    for(let i=0;i<ids.length;i+=150)await retryMutation(()=>db.ImportCandidate.updateMany({id:{$in:ids.slice(i,i+150)},job_id:job.id,review_status:"pending"},{$set:{review_status:"applied",review_note:"Persistencia comprobada; campos existentes y conflictos conservados"}}));
   };
   const byScope=new Map();
   for(const c of pending){
@@ -339,4 +351,3 @@ export async function applyVerifiedHistoricals(db,job,{dryRun=false,maxScopes=In
   result.pending=Math.max(0,pending.length-result.applied);
   return result;
 }
-

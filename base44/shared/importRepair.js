@@ -1,4 +1,4 @@
-import {allRows,applyVerifiedHistoricals,completionPatch,verifiedIdentity} from "./importReview.js";
+import {allRows,applyVerifiedHistoricals,completionPatch,verifiedIdentity,retryMutation} from "./importReview.js";
 const str=x=>String(x??"").trim();
 const now=()=>new Date().toISOString();
 const publicRun=r=>({id:r.id,mode:r.mode,status:r.status,cursor:r.cursor,total:r.targets.length,counts:r.counts,last_error:r.last_error||""});
@@ -12,8 +12,10 @@ export async function repairRequest(db,data,actor){
     const players=new Set(stats.map(r=>str(r.player_id)).filter(Boolean));
     const targets=jobs.filter(j=>(!ids||ids.has(str(j.player_id)))&&["review","completed"].includes(j.status))
       .sort((a,b)=>str(a.id).localeCompare(str(b.id))).map(j=>({job_id:j.id,player_id:j.player_id}));
+    const missing=[...players].filter(id=>(!ids||ids.has(id))&&!targets.some(t=>t.player_id===id));
+    targets.push(...missing.map(player_id=>({player_id})));
     const run=await db.ImportRepairRun.create({mode:"simulation",status:"ready",targets,cursor:0,counts:{jobs:0,compatible:0,added:0,unchanged:0,conflicts:0,errors:0},created_by_actor:actor,started_at:now(),players_scanned:players.size});
-    return {ok:true,run:publicRun(run),players_without_jobs:[...players].filter(id=>(!ids||ids.has(id))&&!targets.some(t=>t.player_id===id))};
+    return {ok:true,run:publicRun(run),players_without_jobs:missing};
   }
   if(!/^[a-f0-9]{24}$/i.test(str(data.run_id)))throw Error("ID de reparación inválido.");
   let run=await db.ImportRepairRun.get(data.run_id);
@@ -49,15 +51,22 @@ export async function repairRequest(db,data,actor){
   if(action!=="repair-step")throw Error("Operación de reparación desconocida.");
   if(["paused","completed"].includes(run.status))return {ok:true,run:publicRun(run)};
   const lock=crypto.randomUUID(),until=new Date(Date.now()+240000).toISOString();
-  await db.ImportRepairRun.updateMany({id:run.id,$or:[{lock_until:{$exists:false}},{lock_until:null},{lock_until:""},{lock_until:{$lt:now()}}]},{$set:{lock_id:lock,lock_until:until}});
+  await retryMutation(()=>db.ImportRepairRun.updateMany({id:run.id,$or:[{lock_until:{$exists:false}},{lock_until:null},{lock_until:""},{lock_until:{$lt:now()}}]},{$set:{lock_id:lock,lock_until:until}}));
   if((await db.ImportRepairRun.get(run.id)).lock_id!==lock)throw Error("Otra reparación está procesando este lote.");
   try{
     const target=run.targets[run.cursor];
     if(!target){run=await db.ImportRepairRun.update(run.id,{status:"completed",finished_at:now()});return {ok:true,run:publicRun(run)};}
+    if(!target.job_id){
+      const report={applied:0,pending:null,added_values:0,unchanged_values:0,conflicts:[],errors:[{reason:"Sin trabajos previos: requiere recuperación de fuente y vinculación verificada"}],scopes:[]};
+      const key=run.id+":"+target.player_id,existing=await allRows(db.ImportRepairItem,{item_key:key});
+      if(!existing.length)await db.ImportRepairItem.create({run_id:run.id,item_key:key,player_id:target.player_id,report,checked_at:now()});
+      run=await db.ImportRepairRun.update(run.id,{cursor:run.cursor+1,counts:{...run.counts,jobs:run.counts.jobs+1,errors:run.counts.errors+1},status:run.cursor+1===run.targets.length?"completed":"ready"});
+      return {ok:true,run:publicRun(run),report};
+    }
     const job=await db.ImportJob.get(target.job_id);
     if(job.review_lock_until&&job.review_lock_until>now())throw Error("El trabajo tiene una revisión en curso; reintentar después.");
     // Same job lease is used by manual/automatic review and global repair.
-    await db.ImportJob.updateMany({id:job.id,$or:[{review_lock_until:{$exists:false}},{review_lock_until:null},{review_lock_until:""},{review_lock_until:{$lt:now()}}]},{$set:{review_lock_id:lock,review_lock_until:until}});
+    await retryMutation(()=>db.ImportJob.updateMany({id:job.id,$or:[{review_lock_until:{$exists:false}},{review_lock_until:null},{review_lock_until:""},{review_lock_until:{$lt:now()}}]},{$set:{review_lock_id:lock,review_lock_until:until}}));
     if((await db.ImportJob.get(job.id)).review_lock_id!==lock)throw Error("No se adquirió la revisión del trabajo.");
     let report;
     try{
