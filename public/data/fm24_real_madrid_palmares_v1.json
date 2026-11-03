@@ -51,7 +51,8 @@
             1981
           ]
         }
-      ]
+      ],
+      "source_note": "formerly the European Cup; winners under both historical and modern headings refer to the same competition"
     },
     {
       "raw_name": "Mundialito de clubes",
@@ -68,7 +69,8 @@
             2022
           ]
         }
-      ]
+      ],
+      "source_note": "FIFA Club World Cup era represented by years 2014–2022; distinguish from historic Intercontinental Cup and from new 2025 format"
     },
     {
       "raw_name": "LaLiga EA Sports",
@@ -160,7 +162,13 @@
             2019
           ]
         }
-      ]
+      ],
+      "source_note": "Historic club labels in screenshot: Madrid CF / Real Madrid. Calendar year as displayed, not a season start year.",
+      "year_annotations": {
+        "winner:1933": "como Madrid CF",
+        "runner_up:1929": "como Real Madrid",
+        "runner_up:1936": "como Madrid CF"
+      }
     },
     {
       "raw_name": "Recopa de Europa",
@@ -174,7 +182,8 @@
             1983
           ]
         }
-      ]
+      ],
+      "source_note": "a once-prestigious European club competition contested annually by winners of domestic cup competitions; discontinued in 1999"
     },
     {
       "raw_name": "UEFA Super Cup",
@@ -199,7 +208,8 @@
             2018
           ]
         }
-      ]
+      ],
+      "source_note": ""
     },
     {
       "raw_name": "UEFA Europa League",
@@ -213,7 +223,8 @@
             1986
           ]
         }
-      ]
+      ],
+      "source_note": "formerly the UEFA Cup"
     },
     {
       "raw_name": "Copa Intercontinental",
@@ -235,7 +246,8 @@
             2000
           ]
         }
-      ]
+      ],
+      "source_note": "a prestigious intercontinental competition usually contested by the winners of the UEFA Champions League and the CONMEBOL Libertadores; succeeded by the FIFA Club World Cup in 2005"
     },
     {
       "raw_name": "Copa del Rey",
@@ -313,7 +325,17 @@
             1933
           ]
         }
-      ]
+      ],
+      "source_note": "formerly the Copa del Generalísimo / Copa del Presidente de la República; original calendar years and historical Madrid CF notes must be preserved",
+      "year_annotations": {
+        "winner:1907": "como Madrid FC",
+        "winner:1917": "como Madrid CF",
+        "runner_up:1903": "como Madrid FC",
+        "runner_up:1918": "como Madrid CF",
+        "runner_up:1940": "como Madrid CF",
+        "winner:1936": "como Madrid CF",
+        "runner_up:1933": "como Madrid CF"
+      }
     },
     {
       "raw_name": "Latin Cup",
@@ -327,7 +349,8 @@
             1957
           ]
         }
-      ]
+      ],
+      "source_note": "a continental club tournament for sides from France, Italy, Spain and Portugal, considered a predecessor to European club tournaments"
     },
     {
       "raw_name": "Supercopa de España",
@@ -362,7 +385,8 @@
             2023
           ]
         }
-      ]
+      ],
+      "source_note": ""
     },
     {
       "raw_name": "Pequeña Copa del Mundo",
@@ -376,7 +400,8 @@
             1956
           ]
         }
-      ]
+      ],
+      "source_note": "a tournament held in Venezuela between 1952 and 1976, considered a spiritual predecessor to the Intercontinental Cup"
     },
     {
       "raw_name": "Copa Iberoamericana",
@@ -389,7 +414,8 @@
             1994
           ]
         }
-      ]
+      ],
+      "source_note": "a one-off international between the winners of the Spanish Copa del Rey and CONMEBOL Copa de Oro"
     },
     {
       "raw_name": "Copa Eva Duarte",
@@ -402,7 +428,8 @@
             1947
           ]
         }
-      ]
+      ],
+      "source_note": "a tournament contested between winners of Spanish Primera División and Copa del Rey"
     },
     {
       "raw_name": "Campeonato Regional Centro",
@@ -451,7 +478,17 @@
             1909
           ]
         }
-      ]
+      ],
+      "source_note": "a pre-Spanish Primera División regional league which also doubled as a qualifier for Copa del Rey until 1929",
+      "year_annotations": {
+        "winner:1907": "como Madrid CF",
+        "winner:1908": "como Real Madrid",
+        "winner:1913": "como Madrid CF",
+        "winner:1916": "como Real Madrid",
+        "winner:1920": "como Madrid CF",
+        "runner_up:1904": "como Madrid CF",
+        "third:1909": "como Madrid CF"
+      }
     },
     {
       "raw_name": "UEFA Youth League",
@@ -464,7 +501,8 @@
             2020
           ]
         }
-      ]
+      ],
+      "source_note": ""
     },
     {
       "raw_name": "MLS All-Star Game",
@@ -477,7 +515,8 @@
             2017
           ]
         }
-      ]
+      ],
+      "source_note": "a game featuring an MLS All-Star XI against an invited foreign club, hosted in the United States"
     },
     {
       "raw_name": "Copa de la Liga española",
@@ -496,7 +535,8 @@
             1983
           ]
         }
-      ]
+      ],
+      "source_note": "a Spanish league tournament which only lasted four years due to fixture congestion"
     },
     {
       "raw_name": "Trofeo Santiago Bernabéu",
@@ -550,7 +590,8 @@
             2004
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Real Madrid CF"
     },
     {
       "raw_name": "Trofeo Festa d'Elx",
@@ -571,7 +612,8 @@
             1981
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Elche CF"
     },
     {
       "raw_name": "Trofeo Ciudad de Zaragoza",
@@ -584,7 +626,8 @@
             2005
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Real Zaragoza"
     },
     {
       "raw_name": "Trofeo Colombino",
@@ -611,7 +654,8 @@
             1971
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Recreativo de Huelva"
     },
     {
       "raw_name": "Trofeo Cidade de Vigo",
@@ -631,7 +675,8 @@
             1992
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Celta Vigo"
     },
     {
       "raw_name": "Trofeo Naranja",
@@ -645,7 +690,8 @@
             2003
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Valencia CF"
     },
     {
       "raw_name": "Trofeo Costa del Sol",
@@ -664,7 +710,8 @@
             1963
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Málaga CF"
     },
     {
       "raw_name": "Trofeo Euskadi Asergace",
@@ -679,7 +726,8 @@
             1996
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Bilbao and organised by sports company Asergace"
     },
     {
       "raw_name": "Ciutat de Barcelona Trophy",
@@ -703,7 +751,8 @@
             1996
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by RCD Espanyol"
     },
     {
       "raw_name": "Trofeo Teresa Herrera",
@@ -742,7 +791,8 @@
             1998
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Deportivo La Coruña"
     },
     {
       "raw_name": "Trofeo Conde de Fenosa",
@@ -755,7 +805,8 @@
             1973
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Deportivo La Coruña"
     },
     {
       "raw_name": "Memorial Jesús Gil y Gil",
@@ -774,7 +825,8 @@
             2006
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match in honour of the former president of Atlético Madrid who died in May 2004"
     },
     {
       "raw_name": "Trofeo Concepción Arenal",
@@ -788,7 +840,8 @@
             1984
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in the Spanish city of Ferrol in honour of writer Concepción Arenal"
     },
     {
       "raw_name": "Trofeo Ciudad de Santander",
@@ -803,7 +856,8 @@
             1993
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Racing Santander"
     },
     {
       "raw_name": "Trofeo Ciudad de Palma",
@@ -825,7 +879,8 @@
             1978
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in Spain by Real Mallorca"
     },
     {
       "raw_name": "Trofeo Ciudad de La Línea",
@@ -848,7 +903,8 @@
             1990
           ]
         }
-      ]
+      ],
+      "source_note": "a Spanish exhibition match hosted by the city of La Línea de la Concepción"
     },
     {
       "raw_name": "Trofeo Ramón de Carranza",
@@ -884,7 +940,8 @@
             2007
           ]
         }
-      ]
+      ],
+      "source_note": "a pre-season football tournament organised by Cádiz City Hall, in memory of its former mayor, Ramón de Carranza"
     },
     {
       "raw_name": "Emirates Cup",
@@ -897,7 +954,8 @@
             2008
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in England by Arsenal"
     },
     {
       "raw_name": "Tournoi de Paris",
@@ -910,7 +968,8 @@
             1957
           ]
         }
-      ]
+      ],
+      "source_note": "an exhibition match hosted in France by Racing Paris, Paris FC and Paris SG"
     },
     {
       "raw_name": "Russian Railways Cup",
@@ -923,7 +982,8 @@
             2007
           ]
         }
-      ]
+      ],
+      "source_note": "a pre-season tournament hosted by Lokomotiv Moscow"
     },
     {
       "raw_name": "World Football Challenge",
@@ -937,7 +997,8 @@
             2012
           ]
         }
-      ]
+      ],
+      "source_note": "an international friendly competition hosted in North America"
     },
     {
       "raw_name": "Taça Ibérica",
@@ -950,7 +1011,8 @@
             2000
           ]
         }
-      ]
+      ],
+      "source_note": "a sporadically held friendly competition between teams from Portugal and Spain"
     },
     {
       "raw_name": "Trofeo Luigi Berlusconi",
@@ -963,7 +1025,8 @@
             1993
           ]
         }
-      ]
+      ],
+      "source_note": "an annual friendly match mainly organised by AC Milan and later Monza"
     },
     {
       "raw_name": "Coupe Mohammed V",
@@ -982,7 +1045,8 @@
             1964
           ]
         }
-      ]
+      ],
+      "source_note": "an international friendly competition held in Morocco"
     },
     {
       "raw_name": "Eusébio Cup",
@@ -995,7 +1059,8 @@
             2012
           ]
         }
-      ]
+      ],
+      "source_note": "a pre-season friendly match hosted by SL Benfica, named in honour of former Benfica player Eusébio"
     },
     {
       "raw_name": "Audi Cup",
@@ -1014,7 +1079,8 @@
             2019
           ]
         }
-      ]
+      ],
+      "source_note": "a pre-season friendly hosted by FC Bayern"
     },
     {
       "raw_name": "Franz Beckenbauer Cup",
@@ -1027,7 +1093,8 @@
             2010
           ]
         }
-      ]
+      ],
+      "source_note": "a pre-season friendly hosted by FC Bayern"
     }
   ]
 }
