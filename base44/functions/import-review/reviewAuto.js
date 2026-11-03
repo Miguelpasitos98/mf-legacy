@@ -18,12 +18,11 @@ export function reviewedCurrentTeamLink(player,team,item){
 }
 const competitionKey=x=>({"super lig":"super lig","super league turkey":"super lig","ligue 1 uber eats":"ligue 1","english premier league":"premier league"}[norm(x)]||norm(x));
 async function allRows(entity,query) {
-  // Do not fetch thousands of candidates through dozens of strictly serial
-  // HTTP calls. Stable ID ordering and five small parallel pages keep the
-  // same 10,000-row safety cap while bounding import completion time.
+  // Read two stable pages at a time to avoid throttling (429) while also
+  // limiting sequential round-trips over large candidate sets.
   const out=[];
-  for(let skip=0;skip<10000;skip+=500){
-    const pages=await Promise.all([0,100,200,300,400].map(n=>entity.filter(query,"id",100,skip+n)));
+  for(let skip=0;skip<10000;skip+=200){
+    const pages=await Promise.all([0,100].map(n=>entity.filter(query,"id",100,skip+n)));
     for(const response of pages){
       const page=rows(response);out.push(...page);
       if(page.length<100)return out;
