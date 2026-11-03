@@ -48,6 +48,19 @@ export const COMPUTED=[
 ];
 export const RAW_IDS=new Set(RAW_METRICS.map(x=>x[0]));
 export const COMPUTED_IDS=new Set(COMPUTED.map(x=>x.id));
+
+// Only the total G+A count (including a user's renamed/custom "(goals + assists)")
+// gets a display-only zero when its source data is absent. Per-90 formulas,
+// other metrics and stored records must retain the distinction from null.
+export function isGoalsAssistsCountColumn(id,config){
+ const definition=config?.computed?.find(d=>d.id===id);
+ if(!definition)return false;
+ const compact=String(definition.formula||"").replace(/\s+/g,"").toLowerCase();
+ const unwrapped=compact.startsWith("(")&&compact.endsWith(")")?compact.slice(1,-1):compact;
+ return unwrapped==="goals+assists"||unwrapped==="assists+goals";
+}
+export const statsDisplayColumnValue=(value,id,config)=>
+ (value===null||value===undefined)&&isGoalsAssistsCountColumn(id,config)?0:value;
 export const DEFAULT_COLS={
  season:{
  Resumen:["goals","assists","xg","xa","gaper90","xgaper90","playpct"],
