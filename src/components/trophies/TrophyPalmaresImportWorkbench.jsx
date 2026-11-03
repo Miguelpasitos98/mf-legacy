@@ -1,4 +1,4 @@
-import React,{useMemo,useState} from "react";
+import React,{useMemo,useState,useEffect} from "react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {BookOpenCheck,ChevronDown,FileJson,Link2,Search,ShieldAlert,Upload,Download,RefreshCcw,Unlink2} from "lucide-react";
 import {base44} from "@/api/base44Client";
@@ -40,8 +40,17 @@ export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[]}){
  const [batch,setBatch]=useState(null),[groups,setGroups]=useState([]);
  const [error,setError]=useState(""),[notice,setNotice]=useState(""),[saving,setSaving]=useState(false);
  const [showAll,setShowAll]=useState(false),[filter,setFilter]=useState("");
+ const [onlyReview,setOnlyReview]=useState(true);
  const [savedFilter,setSavedFilter]=useState("pending");
  const [openSaved,setOpenSaved]=useState(false);
+ useEffect(()=>{
+  setGroups(old=>old.map(g=>{
+   if(["manual_linked","ignored"].includes(g.status)||!batch)return g;
+   try{const found=previewPalmaresBatch(batch,catalog,teams).groups[g.index];return found||g;}catch{return g;}
+  }));
+ // Deliberately recompute proposals only when catalog/team records change, preserving manual choices.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[catalog,teams]);
  const loaded=useMemo(()=>{
   if(!batch)return null;
   try{return previewPalmaresBatch(batch,catalog,teams);}
@@ -52,7 +61,7 @@ export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[]}){
   const sameName=teams.filter(t=>slug(t.name)===slug(input.team.name));
   const selected=teams.find(t=>String(t.id)===String(input.team.id))||(sameName.length===1?sameName[0]:null);
   const data={...input,team:{...input.team,id:selected?.id||"",name:selected?.name||input.team.name}};
-  setBatch(data);setGroups(selected?previewPalmaresBatch(data,catalog,teams).groups:[]);setShowAll(false);setFilter("");setNotice("");setError("");
+  setBatch(data);setGroups(selected?previewPalmaresBatch(data,catalog,teams).groups:[]);setShowAll(false);setOnlyReview(true);setFilter("");setNotice("");setError("");
  };
  const loadExample=async()=>{
   setError("");setNotice("");
@@ -87,9 +96,9 @@ export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[]}){
        entries=useMemo(()=>batch?materializePalmaresEntries(batch,groups):[],[batch,groups]),
        plan=useMemo(()=>palmaresImportPlan(entries,existing),[entries,existing]);
  const showGroups=useMemo(()=>{
-  const found=groups.filter(g=>!filter||slug(g.raw_name).includes(slug(filter))||String(g.trophy?.name||"").toLowerCase().includes(filter.toLowerCase()));
+  const found=groups.filter(g=>(!onlyReview||["needs_review","unmatched"].includes(g.status))&&(!filter||slug(g.raw_name).includes(slug(filter))||String(g.trophy?.name||"").toLowerCase().includes(filter.toLowerCase())));
   return showAll?found:found.slice(0,20);
- },[groups,filter,showAll]);
+ },[groups,filter,showAll,onlyReview]);
  const save=async()=>{
   if(saving||!batch||loaded?.error||existingQuery.isLoading||existingQuery.isError)return;
   if(!window.confirm("¿Importar "+plan.pending.length+" registros FM24 para "+batch.team.name+"? Se guardarán como datos de Rob sin verificar; NO generan TrophyHonour."))return;
@@ -170,13 +179,13 @@ export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[]}){
     <div><h4 className="text-xs font-black text-slate-900">Detector de trofeos · revisión de coincidencias</h4><p className="mt-1 text-[11px] text-slate-500">Azul: coincidencia única. Ámbar: revisar. Puedes cambiar cualquier asignación antes de importar.</p></div>
     <div className="flex gap-2"><span className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] text-slate-600">{plan.pending.length} nuevos · {plan.skipped} ya existentes</span></div>
    </div>
-   <div className="mb-3 flex gap-2"><input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Buscar competición…" aria-label="Buscar una competición del JSON" className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 px-3 text-xs outline-none focus:border-blue-300"/><button type="button" className={outline} onClick={()=>setShowAll(x=>!x)}>{showAll?"Ver primeras 20":"Ver todas"}</button></div>
+   <div className="mb-3 flex flex-wrap gap-2"><button type="button" aria-pressed={onlyReview} onClick={()=>{setOnlyReview(v=>!v);setShowAll(false);}} className={onlyReview?primary:outline}>{onlyReview?"Solo discordancias ("+requiresReview+")":"Ver todas las competiciones"}</button><input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Buscar competición…" aria-label="Buscar una competición del JSON" className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 px-3 text-xs outline-none focus:border-blue-300"/><button type="button" className={outline} onClick={()=>setShowAll(x=>!x)}>{showAll?"Ver primeras 20":"Ver todas"}</button></div>
    <div className="space-y-2">
     {showGroups.map(g=><div key={g.index} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-100 bg-slate-50/70 p-3 md:grid-cols-[minmax(180px,1fr)_minmax(220px,1.3fr)_auto] md:items-center">
      <div className="min-w-0"><p className="truncate text-[11px] font-black text-slate-800" title={g.raw_name}>{g.raw_name}</p><p className="mt-1 text-[10px] text-slate-500">{g.count} puestos/años · captura {batch.competitions[g.index].capture_index||"—"}</p><div className="mt-1.5"><CompactResults competition={batch.competitions[g.index]}/></div></div>
      <div className="min-w-0"><div className="mb-1 flex flex-wrap items-center gap-2"><span className={"text-[10px] font-bold "+(g.status==="auto_linked"?"text-blue-700":g.status==="manual_linked"?"text-emerald-700":"text-amber-700")}>{g.status==="auto_linked"?"AUTOVINCULADO":g.status==="manual_linked"?"ELEGIDO":g.status==="ignored"?"IGNORADO":"REVISAR"}</span><span className="text-[10px] text-slate-400">{g.reason}</span></div>
       <TrophyChoice key={g.index} group={g} catalog={catalog} onChoose={t=>decide(g.index,t)}/></div>
-     <div className="flex gap-1 md:flex-col"><button type="button" title="Restablecer sugerencia automática" onClick={()=>reset(g.index)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-100"><RefreshCcw size={14}/></button><button type="button" title="Ignorar esta competición" onClick={()=>ignore(g.index)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-100"><Unlink2 size={14}/></button></div>
+     <div className="flex gap-1 md:flex-col">{g.trophy&&g.status==="needs_review"&&<button type="button" title="Confirmar este trofeo sugerido" onClick={()=>decide(g.index,g.trophy)} className="rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100">Confirmar propuesta</button>}<button type="button" title="Restablecer sugerencia automática" onClick={()=>reset(g.index)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-100"><RefreshCcw size={14}/></button><button type="button" title="Ignorar esta competición" onClick={()=>ignore(g.index)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-100"><Unlink2 size={14}/></button></div>
     </div>)}
    </div>
    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
