@@ -57,6 +57,8 @@ export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[]}){
   catch(e){return {error:e.message};}
  },[batch,catalog,teams]);
  const readBatch=(input)=>{
+  const normalized=normalizePalmaresBatch(input);
+  input=normalized.data;
   validatePalmaresBatch(input);
   const sameName=teams.filter(t=>slug(t.name)===slug(input.team.name));
   const selected=teams.find(t=>String(t.id)===String(input.team.id))||(sameName.length===1?sameName[0]:null);
