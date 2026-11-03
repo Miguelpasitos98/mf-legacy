@@ -86,8 +86,10 @@ const alignedPer90=(records,names,minutesSource=null,{allowRateOnly=false}={})=>
     // Understat-only totals must be divided by Understat minutes even when
     // FotMob lists a different duration for the same competition.
     const understat=String(candidate?.source||"").toLowerCase()==="understat";
+    const fotmob=String(candidate?.source||"").toLowerCase()==="fotmob";
     const mins=understat
       ?(num(candidate.provider_minutes)??num(pickMetric(row,["Understat minutes"])?.value))
+      :fotmob?(num(pickMetric(row,["FotMob minutes"])?.value)??minutesForDisplay(row).value)
       :minutesSource?num(pickMetric(row,[minutesSource])?.value):minutesForDisplay(row).value;
     let value=metricTotal(row,names);
     // Some providers have the genuine /90 rate but no total. Recover the
