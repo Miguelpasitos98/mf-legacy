@@ -40,8 +40,8 @@ ALCANCE ESPECÍFICO SOLICITADO (opcional): ${input||"Toda la carrera como entren
 BIOGRAFÍA ORIENTATIVA (NO LA TOMES POR PRUEBA): ${trim(manager?.biography,1400)||"No aportada"}
 
 OBJETIVO: producir un único JSON con varios MODELOS TÁCTICOS HISTÓRICOS y, DESPUÉS de compararlos, una FILOSOFÍA GENERAL SINTETIZADA. Identifica SOLO los cambios de sistema y comportamiento más importantes, no una entrada por cada año ni por cada trofeo. Ordena cronológicamente. Crea entre 2 y 6 periodos cuando haya evidencia suficiente; menos si la carrera es corta. Puedes diferenciar dos periodos del mismo club cuando exista un cambio estructural demostrado. Para cada uno:
-- Club, primera y última temporada exacta (YYYY/YYYY). Una sola campaña usa profile_scope=season; varias usan profile_scope=period.
-- Formación predominante, salida de balón, presión tras pérdida, altura del bloque, seis estimaciones de estilo en escala 0–100 (NO estadísticas oficiales), los siete perfiles de futbolista GK, CB, FB, DM, AM, WG, ST, y matices. Usa EXCLUSIVAMENTE build_up=short/mixed/direct, transition=counter_press/regroup/balanced y defensive_block=low/medium/high en TODOS los modelos y en general_philosophy. transition significa reacción DEFENSIVA tras pérdida; fast_break y counter_attack son transiciones OFENSIVAS: explícalas en tempo o notas, NO las uses como valor de transition. Si no se sabe la reacción tras pérdida, indica transition=balanced con advertencia expresa en las notas.
+- Club, primera y última temporada exacta (YYYY/YYYY). Una sola campaña usa profile_scope=season; varias usan profile_scope=period. Nunca pongas años calendario 2014 o 2018 como temporadas, ni introduzcas period_start=period_end en un periodo de varias temporadas. Cuando no sepas identificar ambas temporadas, no inventes fechas: reconoce la incertidumbre en las notas.
+- Formación predominante sin lista cerrada: por ejemplo 4-4-2 (rombo), 4-1-2-1-2, 2-3-5, 3-2-5 o 4-6-0 si la evidencia histórica lo respalda. Distingue explícitamente variantes; no sustituyas un 4-4-2 rombo por un 4-4-2 plano. Salida de balón, presión tras pérdida, altura del bloque, seis estimaciones de estilo en escala 0–100 (NO estadísticas oficiales), los siete perfiles de futbolista GK, CB, FB, DM, AM, WG, ST, y matices. Usa EXCLUSIVAMENTE build_up=short/mixed/direct, transition=counter_press/regroup/balanced y defensive_block=low/medium/high en TODOS los modelos y en general_philosophy. transition significa reacción DEFENSIVA tras pérdida; fast_break y counter_attack son transiciones OFENSIVAS: explícalas en tempo o notas, NO las uses como valor de transition. Si no se sabe la reacción tras pérdida, indica transition=balanced con advertencia expresa en las notas.
 - Principales diferencias respecto al periodo anterior, adaptaciones observables y por qué el modelo funcionó o no.
 - Evidencia de RESULTADOS del periodo: títulos o hitos CONTRASTADOS con temporada y fuente, y limitaciones contextuales (calidad plantilla, rivales, recursos, duración). Nunca atribuyas una temporada a un título que no hayas confirmado; si no hay evidencia, dejar listas vacías y success_tier="unknown".
 - success_tier SOLO una de very_successful, successful, mixed, limited, unknown. Es un juicio contextual QUALITATIVO, NO una métrica matemática. Explica su criterio en results_summary. No inventes porcentajes de victorias o puntos, ni números de trofeos.
@@ -110,17 +110,34 @@ export function parseManagerCareerResponse(input){
   const generalScope=normalizeResearchScope(data.general_philosophy,{onWarning});
   if(generalScope!=="general"&&generalScope!==null)
     throw Error("La síntesis final debe representar la filosofía general, no una temporada o periodo.");
-  const ids=new Set(), identities=new Set();
+  const ids=new Set(), identities=new Set(),pendingModels=[];
   const models=data.models.map((model,index)=>{
     const id=trim(model?.model_id,100);
     if(!/^[\w-]{2,100}$/.test(id)||ids.has(id))throw Error("Identificador repetido o inválido en un periodo.");
     ids.add(id);
     const scopeWarnings=[];
     const profileScope=normalizeResearchScope(model,{onWarning:warning=>scopeWarnings.push(warning)});
-    if(!["period","season"].includes(profileScope))
-      throw Error("Cada evolución requiere periodo o temporada específicos y fechas válidas: "+id+".");
-    const normalized=parseManagerTacticalResponse({...model,profile_scope:profileScope,identifiable:true,confidence});
+    const candidateScope=["period","season"].includes(profileScope)?profileScope:
+      model?.period_start||model?.period_end?"period":model?.season?"season":null;
+    if(!candidateScope){
+      const reason="La etapa no indica temporadas exactas. Se conserva como pendiente de revisión, sin inventar fechas ni reemplazar la filosofía general.";
+      warnings.push({modelId:id,field:"periodo",original:JSON.stringify({
+       profile_scope:model.profile_scope,season:model.season,period_start:model.period_start,period_end:model.period_end
+      }),fallback:"pendiente de revisión",reason});
+      pendingModels.push({id,name:trim(model.suggested_name||id,140),reason,
+        original:{period_start:model.period_start||"",period_end:model.period_end||"",season:model.season||""}});
+      return null;
+    }
+    const normalized=parseManagerTacticalResponse({...model,profile_scope:candidateScope,identifiable:true,confidence});
     warnings.push(...scopeWarnings.map(w=>({...w,modelId:id})),...normalized.warnings.map(w=>({...w,modelId:id})));
+    if(!["period","season"].includes(normalized.context.scope)){
+      const reason="Faltan temporadas de inicio y fin comparables. El modelo se mantiene pendiente de revisión, no se guarda como filosofía general.";
+      pendingModels.push({id,name:trim(model.suggested_name||id,140),reason,
+        original:{period_start:model.period_start||"",period_end:model.period_end||"",season:model.season||""}});
+      warnings.push({modelId:id,field:"periodo",original:JSON.stringify(pendingModels.at(-1).original),
+       fallback:"pendiente de revisión",reason});
+      return null;
+    }
     // Also check compatible dates with the canonical saved entity schema.
     const draft=previewManagerTacticalDraft({...PROFILE_BLANK,name:"Modelo principal"},normalized);
     draft.name=trim(model.suggested_name||draft.name,140);
@@ -145,7 +162,7 @@ export function parseManagerCareerResponse(input){
     const changes=trim(model.main_changes,1200);
     return {id,index,profile:draft,roleText:normalized.roleText,sourceUrls:normalized.sourceUrls,
       successTier,resultsSummary:resultSummary,honours,changes};
-  });
+  }).filter(Boolean);
   const generalParsed=parseManagerTacticalResponse({...data.general_philosophy,profile_scope:"general",identifiable:true,confidence});
   warnings.push(...generalParsed.warnings.map(w=>({...w,modelId:"general"})));
   const general=previewManagerTacticalDraft({...PROFILE_BLANK,name:"Filosofía general"},generalParsed);
@@ -153,17 +170,19 @@ export function parseManagerCareerResponse(input){
   cleanProfile(general,"placeholder",generalParsed.roleText);
   const bestId=data.best_supported_model_id==null?null:trim(data.best_supported_model_id,100);
   if(bestId && !ids.has(bestId))throw Error("El modelo identificado como más exitoso no aparece en la lista de etapas.");
-  if(bestId && models.find(m=>m.id===bestId)?.successTier==="unknown"){
+  const nominated=models.find(m=>m.id===bestId);
+  if(bestId && (!nominated||nominated.successTier==="unknown")){
     warnings.push({field:"best_supported_model_id",original:bestId,fallback:"null",
-      reason:"no se puede identificar un modelo ganador cuando sus resultados no se han podido evaluar"});
+      reason:!nominated?"la etapa necesita revisar sus fechas antes de poder compararla":
+       "no se puede identificar un modelo ganador cuando sus resultados no se han podido evaluar"});
   }
   const reason=trim(data.comparative_reason,2300);
   if(reason.length<30)throw Error("La comparación histórica necesita una justificación.");
   const modelList=models.sort((a,b)=>String(a.profile.period_start||a.profile.season).localeCompare(String(b.profile.period_start||b.profile.season)));
   return {format:CAREER_FORMAT,confidence,models:modelList,
     general:{id:"general",profile:general,roleText:generalParsed.roleText,sourceUrls:generalParsed.sourceUrls},
-    bestId:bestId&&models.find(m=>m.id===bestId)?.successTier!=="unknown"?bestId:null,
-    reason,warnings};
+    bestId:bestId&&nominated&&nominated.successTier!=="unknown"?bestId:null,
+    reason,warnings,pendingModels};
 }
 
 export function careerToProfilePayload(item,managerId,{defaultProfile=false}={}){

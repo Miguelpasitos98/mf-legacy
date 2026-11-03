@@ -519,6 +519,11 @@ export default function Managers(){
            <strong>Valores de IA para revisión ({careerDraft.warnings.length}).</strong> Se ha conservado el análisis sin inventar tácticas. Comprueba los campos antes de guardar.
            <ul className="mt-2 list-disc space-y-1 pl-4">{careerDraft.warnings.slice(0,16).map((w,i)=><li key={i}>{w.modelId?String(w.modelId)+" · ":""}{w.field}: «{w.original}» → «{w.fallback}». {w.reason}.</li>)}</ul>
          </div>}
+         {careerDraft.pendingModels?.length>0&&<div role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <strong>{careerDraft.pendingModels.length} etapa(s) requieren corregir fechas antes de importarlas.</strong>
+          <p className="mt-1">El resto del estudio se ha conservado. Estas etapas no se guardan como filosofía general ni como periodos inventados. Puedes corregir las fechas en el JSON original y volver a interpretarlo.</p>
+          <ul className="mt-2 list-disc pl-4 space-y-1">{careerDraft.pendingModels.map(m=><li key={m.id}>{m.name}: {m.original.period_start||"inicio desconocido"} — {m.original.period_end||m.original.season||"fin desconocido"}</li>)}</ul>
+         </div>}
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">{careerDraft.models.map(item=><div className="border rounded-xl p-3 space-y-2" key={item.id}>
            <div className="flex gap-2 items-start">
              <label className="flex items-center gap-2 flex-1 text-sm font-bold"><input type="checkbox" disabled={!canWrite||busy} checked={Boolean(careerSelected[item.id])} onChange={e=>setCareerSelected(prev=>({...prev,[item.id]:e.target.checked}))}/>{item.profile.name}</label>
