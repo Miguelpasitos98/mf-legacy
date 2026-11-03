@@ -10,9 +10,8 @@ const records=[
  {season:"2015/2016",competition:"LaLiga",team_name:"FC Barcelona",minutes:2700},
  {season:"2016/2017",competition:"LaLiga",team_name:"FC Barcelona",minutes:2800}
 ];
-// Matches exact names/club: add FC prefix variant to supported club alias by using
-// source and destination identical Barcelona in the test; no guess on real club IDs.
-const stats=records.map(r=>({...r,team_name:"Barcelona"}));
+// The catalog calls the club FC Barcelona while Understat calls it Barcelona.
+const stats=records;
 const seasons={groups:{season:[
  {season:"2015",team:"Barcelona",time:"2700",xGChain:"28",xGBuildup:"6",xG:"20",xA:"10"},
  {season:"2016",team:"Barcelona",time:"2800",xGChain:"30",xGBuildup:"6.5",xG:"25",xA:"9"},
