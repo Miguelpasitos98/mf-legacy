@@ -36,9 +36,13 @@ test('Trophy edition view shows Rob rows and retains a separate verified section
  assert.match(visual,/tab==="Historia"/);
  assert.match(visual,/TrophyHistoricalArchive mode="editions"/);
  assert.match(visual,/TrophyHistoricalArchive mode="events"/);
- assert.match(visual,/palmarés de MF LEGACY/);
+ assert.match(visual,/Adjudicaciones registradas en MF LEGACY/);
  assert.match(visual,/TrophyEdition\.filter/);
  assert.match(visual,/TrophyHistoricalEvent\.filter/);
+ assert.match(view,/Ediciones y ganadores/);
+ assert.match(visual,/historicalSummary.ranking.map/);
+ assert.match(visual,/finales ganadas/);
+ assert.match(visual,/TrophyHistoricalArchive mode="editions"/);
  assert.match(view,/Exportar CSV/);
  assert.match(view,/Rob \/ FM24 · sin contrastar externamente/);
 });
