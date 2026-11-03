@@ -1,0 +1,66 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {groupTrophiesByTeamReputation,teamReputationValue} from "../src/utils/trophyTeamGroups.js";
+import {trophyViewGroups} from "../src/utils/trophyViews.js";
+const teams=[
+ {id:"B",name:"Barcelona",reputation:"9,400",logo:"https://example.com/b.png"},
+ {id:"R",name:"Real Madrid",reputation:"9700"},
+ {id:"C",name:"Cádiz CF",reputation:"6 300"},
+ {id:"Q",name:"Equipo sin reputación",reputation:""}
+];
+const catalog=[
+ {source_id:"ucl",name:"UEFA Champions League",reputation:195,country_resolution:"international"},
+ {source_id:"league",name:"LaLiga",reputation:185,country_id:"es",category:"League"},
+ {source_id:"cup",name:"Copa del Rey",reputation:169,country_id:"es",category:"Cup"}
+];
+const honours=[
+ {id:"h1",trophy_source_id:"league",recipient_type:"Team",recipient_id:"B",verified:true,season:"2024/25"},
+ {id:"h2",trophy_source_id:"league",recipient_type:"Team",recipient_id:"B",verified:true,season:"2023/24"},
+ {id:"h3",trophy_source_id:"cup",recipient_type:"Team",recipient_id:"C",verified:false,season:"2023/24"},
+ {id:"h4",trophy_source_id:"league",recipient_type:"Team",recipient_id:"R",verified:true,season:"2022/23"}
+];
+const editions=[
+ {edition_key:"ucl_2022_23",champion_team_id:"R",trophy_source_id:"ucl",season:"2022/23",verification_status:"source_extracted"},
+ {edition_key:"ucl_2021_22",champion_team_id:"R",trophy_source_id:"ucl",season:"2021/22",verification_status:"source_extracted"},
+ {edition_key:"ucl_2020_21",champion_team_id:"B",trophy_source_id:"ucl",season:"2020/21",verification_status:"source_extracted"}
+];
+test("All teams appear including teams without honours, descending by same 0–10000 reputation as Players",()=>{
+ const groups=groupTrophiesByTeamReputation({teams,catalog,honours,editions});
+ assert.deepEqual(groups.map(g=>g.id),["R","B","C","Q"]);
+ assert.deepEqual(groups.map(g=>g.reputation),[9700,9400,6300,0]);
+ assert.equal(groups.find(g=>g.id==="Q").items.length,0);
+ assert.equal(teamReputationValue({reputation:"9,400"}),9400);
+});
+test("Trophies appear under clubs with unique trophy cards and distinct provisional & verified counts",()=>{
+ const groups=groupTrophiesByTeamReputation({teams,catalog,honours,editions});
+ const madrid=groups.find(g=>g.id==="R");
+ assert.equal(madrid.items.length,2);
+ assert.equal(madrid.items.find(x=>x.trophy.source_id==="ucl").historicalCount,2);
+ assert.equal(madrid.items.find(x=>x.trophy.source_id==="league").verifiedCount,1);
+ const barca=groups.find(g=>g.id==="B");
+ assert.equal(barca.items.length,2);
+ assert.equal(barca.items.find(x=>x.trophy.source_id==="league").verifiedCount,2);
+ assert.equal(barca.items.find(x=>x.trophy.source_id==="ucl").historicalCount,1);
+ assert.equal(groups.find(g=>g.id==="C").items.length,0);
+});
+test("Filtering group names, records and title source works without deleting empty teams",()=>{
+ const a=groupTrophiesByTeamReputation({teams,catalog,honours,editions,query:"cadiz"});
+ assert.deepEqual(a.map(g=>g.id),["C"]);
+ const b=groupTrophiesByTeamReputation({teams,catalog,honours,editions,sourceMode:"historical"});
+ assert.equal(b.find(g=>g.id==="R").items.length,1);
+ assert.equal(b.find(g=>g.id==="R").items[0].trophy.source_id,"ucl");
+ assert.equal(b.find(g=>g.id==="Q").items.length,0);
+ const filtered=groupTrophiesByTeamReputation({teams,catalog,honours,editions,allowedIds:new Set(["league"])});
+ assert.equal(filtered.find(g=>g.id==="R").items.length,1);
+});
+test("Gallery defaults to highest trophy reputation but optional name sorting remains",()=>{
+ const page=readFileSync(new URL("../src/pages/Trophies.jsx",import.meta.url),"utf8");
+ assert.match(page,/const \[sortMode,setSortMode\]=useState\("reputation_desc"\)/);
+ assert.match(page,/setSortMode\("reputation_desc"\)/);
+ const gallery=trophyViewGroups(catalog,"gallery",[],[],"reputation_desc");
+ const ranks=gallery.flatMap(g=>g.items.map(t=>t.reputation));
+ assert.deepEqual(ranks,[195,185,169]);
+ const alpha=trophyViewGroups(catalog,"gallery",[],[],"name");
+ assert.equal(alpha.flatMap(g=>g.items).length,3);
+});
