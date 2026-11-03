@@ -22,6 +22,7 @@ main{max-width:1450px;margin:0 auto;padding:30px 26px 70px}header{display:flex;j
 <div class="sectionhead"><div class="playerline"><h2 id="playerName">Jugador</h2><span class="tag" id="playerId">ID</span></div><div class="filters"><label class="tiny" for="season">Temporada</label><select id="season"><option value="all">Todas las temporadas</option></select></div></div>
 <div id="metadata" class="meta"></div>
 <div class="metrics"><div class="metric"><span class="label">xGChain total</span><b id="chain">—</b></div><div class="metric secondary"><span class="label">xGChain / 90</span><b id="chain90">—</b></div><div class="metric tertiary"><span class="label">xGBuildup total</span><b id="build">—</b></div><div class="metric quaternary"><span class="label">xGBuildup / 90</span><b id="build90">—</b></div></div>
+<div id="fotmobXgot" class="notice" style="display:none;margin:18px 0"></div>
 <div class="sectionhead"><h2>Panel estadístico completo</h2><span id="availableCount" class="colcount"></span></div><div class="hint">Las cifras de este panel corresponden a la temporada seleccionada o, si eliges «Todas», al acumulado de las temporadas disponibles.</div><div id="fullStats"></div>
 <div class="sectionhead" style="margin-top:27px"><h2>Histórico por temporada</h2><div class="actions"><button class="btn" id="copy">Copiar CSV completo</button><button class="btn" id="export">Exportar CSV completo</button></div></div>
 <div class="filters" style="margin-bottom:12px"><div id="segments" class="segment"><button data-group="featured" class="active">Principales</button><button data-group="all">Todas</button><button data-group="scoring">Goles y xG</button><button data-group="creation">Creación</button><button data-group="advanced">Avanzadas</button><button data-group="discipline">Disciplina</button><button data-group="other">Otros</button></div><label class="switch"><input type="checkbox" id="p90" checked> Mostrar /90</label><input class="search small" id="statSearch" type="search" placeholder="Filtrar columnas…" aria-label="Filtrar estadísticas"></div>
@@ -75,8 +76,80 @@ function aggregate(year,rs){const values={};for(const m of metricDefs){if(m.deri
  const minutes=values.time;const rates={};for(const m of metricDefs){rates[m.key]=m.rate&&m.additive&&minutes>0&&values[m.key]!==null?90*values[m.key]/minutes:null}
  return {year,rs,values,rates,clubs:[...new Set(rs.map(r=>r.club).filter(Boolean))].join(' · '),leagues:[...new Set(rs.map(r=>r.league).filter(Boolean))].join(', ')} }
 function choose(p){selected=p;const found=uniquePlayerRows(p.id),groups=new Map();for(const r of found.list){if(!groups.has(r.year))groups.set(r.year,[]);groups.get(r.year).push(r)}bySeason=[...groups.entries()].map(([year,rs])=>aggregate(year,rs)).sort((a,b)=>b.year-a.year);detailYear=null;
- $('playerName').textContent=p.name;$('playerId').textContent='Understat ID '+p.id;$('results').classList.remove('hidden');$('season').replaceChildren(new Option('Todas las temporadas','all'));for(const g of bySeason)$('season').append(new Option(seasonLabel(g.year),String(g.year)));$('season').value='all';renderAll();renderMatches();
+ $('playerName').textContent=p.name;$('playerId').textContent='Understat ID '+p.id;$('results').classList.remove('hidden');$('season').replaceChildren(new Option('Todas las temporadas','all'));for(const g of bySeason)$('season').append(new Option(seasonLabel(g.year),String(g.year)));$('season').value='all';fotmobState={status:'loading',seasons:[],message:'Buscando xGOT en FotMob…'};
+ renderAll();renderFotmob();renderMatches();
+ if(window.parent!==window)window.parent.postMessage({type:'mf-legacy-understat-select',understatId:p.id,name:p.name},window.location.origin);
  if(found.duplicateCount){$('sourceInfo').textContent+=' · '+found.duplicateCount+' registro(s) repetido(s) para mismo ID/club/liga/temporada: se utilizó el más reciente por fecha de captura.'} $('results').scrollIntoView({behavior:'smooth',block:'start'})}
+// xGOT data is sent by the authenticated Base44 parent, not present in this CSV.
+let fotmobState={status:'idle',seasons:[],message:'',fotmobId:'',mode:''};
+function renderFotmob(){
+ const root=$('fotmobXgot');
+ root.replaceChildren();
+ root.style.display=selected?'block':'none';
+ if(!selected)return;
+ const head=addText(root,'h3','xGOT · FotMob (fuente independiente)');
+ head.style.margin='2px 0 7px';
+ const st=fotmobState;
+ const description=addText(root,'p',st.message||(st.status==='loading'?'Consultando registros de FotMob guardados en MF LEGACY…':
+   st.status==='idle'?'Se mostrará xGOT cuando exista vinculación segura de identidades.':''),'tiny');
+ description.style.marginBottom='10px';
+ if(st.status==='unlinked'||st.status==='empty'||st.status==='error'){
+  const controls=document.createElement('div');controls.className='actions';
+  const label=addText(controls,'label','ID FotMob confirmado: ','tiny');
+  const input=document.createElement('input');input.type='text';input.inputMode='numeric';input.pattern='[0-9]*';input.placeholder='Ej. 342321';input.maxLength=12;
+  input.className='search small';input.style.width='160px';label.append(input);
+  const btn=document.createElement('button');btn.className='btn';btn.textContent='Consultar xGOT';controls.append(btn);root.append(controls);
+  const action=()=>{
+   const fotmobId=input.value.trim();
+   if(!/^\d{1,12}$/.test(fotmobId)){description.textContent='Introduce un ID FotMob numérico válido.';return}
+   fotmobState={status:'loading',seasons:[],message:'Consultando FotMob por ID '+fotmobId+'…'};
+   renderFotmob();
+   if(window.parent!==window)window.parent.postMessage({type:'mf-legacy-fotmob-manual',understatId:selected.id,fotmobId},window.location.origin);
+  };
+  btn.addEventListener('click',action);input.addEventListener('keydown',e=>{if(e.key==='Enter')action()});
+  addText(root,'div','No vincula jugadores ni escribe datos. La identidad debe verificarse por separado.','tiny');
+ }
+ if(st.status!=='ok')return;
+ const relevant=st.seasons.filter(r=>$('season').value==='all'||r.season.startsWith($('season').value+'/'));
+ if(!relevant.length){addText(root,'p','No hay xGOT guardado para la temporada seleccionada.','tiny');return}
+ const wrap=document.createElement('div');wrap.className='tablewrap';
+ const table=document.createElement('table'),headTable=document.createElement('thead'),body=document.createElement('tbody');
+ const tr=document.createElement('tr');
+ for(const name of ['Temporada','Competiciones FotMob','xGOT total','Minutos alineados','xGOT /90','Cobertura'])addText(tr,'th',name);
+ headTable.append(tr);
+ for(const r of relevant){
+  const t=document.createElement('tr');
+  td(t,r.season);
+  td(t,r.entries.map(e=>e.competition).join(' · '));
+  td(t,fmt(r.total));
+  td(t,fmt(r.minutes,0));
+  td(t,fmt(r.per90));
+  td(t,r.partial?'Parcial ('+r.knownCompetitions+'/'+r.allCompetitions+')':'Observaciones disponibles ('+r.allCompetitions+')');
+  body.append(t);
+ }
+ table.append(headTable,body);wrap.append(table);root.append(wrap);
+ addText(root,'p','Fuente: FotMob '+st.fotmobId+'. El total corresponde únicamente a competiciones con xGOT observado. /90 = suma de xGOT × 90 / minutos FotMob de esas mismas observaciones. No equivale necesariamente a toda la temporada ni a los minutos Understat.','tiny');
+ const details=document.createElement('details'),summary=document.createElement('summary');
+ summary.textContent='Ver xGOT por competición y procedencia';details.append(summary);
+ const tbl=document.createElement('table'),tHead=document.createElement('thead'),tBody=document.createElement('tbody');
+ const hr=document.createElement('tr');for(const name of ['Temporada','Competición','xGOT','/90','Minutos FotMob','Procedencia'])addText(hr,'th',name);tHead.append(hr);
+ for(const season of relevant)for(const e of season.entries){
+  const row=document.createElement('tr');
+  td(row,season.season);td(row,e.competition);td(row,fmt(e.total));td(row,fmt(e.per90));td(row,fmt(e.minutes,0));
+  const cell=td(row,e.hasXgot?'FotMob · '+(e.rateOrigin==='calculado'?'90 calculado':'dato publicado'):'Sin xGOT');
+  if(e.hasXgot&&/^https:\/\//.test(e.source_url||'')){const a=document.createElement('a');a.href=e.source_url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=' · Ver fuente';cell.append(a)}
+  tBody.append(row);
+ }
+ tbl.append(tHead,tBody);details.append(tbl);root.append(details);
+}
+window.addEventListener('message',event=>{
+ if(event.origin!==window.location.origin||event.source!==window.parent||event.data?.type!=='mf-legacy-xgot-result')return;
+ if(!selected||event.data.understatId!==selected.id)return;
+ fotmobState={status:event.data.status||'error',seasons:Array.isArray(event.data.seasons)?event.data.seasons:[],
+  message:String(event.data.message||''),fotmobId:String(event.data.fotmobId||''),mode:String(event.data.mode||'')};
+ renderFotmob();
+});
+
 function filtered(){return $('season').value==='all'?bySeason:bySeason.filter(g=>String(g.year)===$('season').value)}
 function addText(parent,tag,text,cls){const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;parent.append(el);return el}
 function td(tr,v,cls){const el=addText(tr,'td',v,cls);return el}
@@ -101,7 +174,7 @@ function csvEscape(v){const s=String(v??'');return /[,\n\r"]/.test(s)?'"'+s.repl
 function csvNumber(v){return Number.isFinite(v)?String(Math.round((v+Number.EPSILON)*1e6)/1e6):''}
 function exportText(){const cols=['understat_id','player_name','season','clubs','leagues','position','primary_position'];for(const m of metricDefs){cols.push(m.key);if(m.rate)cols.push(m.key+'_p90')}cols.push('scrape_timestamp','source');const data=[cols];for(const g of filtered()){const rs=g.rs, values=[selected.id,selected.name,seasonLabel(g.year),g.clubs,g.leagues,[...new Set(rs.map(x=>x.position).filter(Boolean))].join(' | '),[...new Set(rs.map(x=>x.primary).filter(Boolean))].join(' | ')];for(const m of metricDefs){values.push(csvNumber(g.values[m.key]));if(m.rate)values.push(csvNumber(g.rates[m.key]))}values.push([...new Set(rs.map(x=>x.stamp).filter(Boolean))].join(' | '),'understat_players_aggregated');data.push(values)}return '\ufeff'+data.map(row=>row.map(csvEscape).join(',')).join('\r\n')+'\r\n'}
 function downloadBlob(data,name,mime){const u=URL.createObjectURL(new Blob([data],{type:mime})),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
-$('search').addEventListener('input',renderMatches);$('clear').addEventListener('click',()=>{$('search').value='';selected=null;$('results').classList.add('hidden');renderMatches();$('search').focus()});$('season').addEventListener('change',()=>{detailYear=null;renderAll()});$('p90').addEventListener('change',()=>renderHistory(filtered()));$('statSearch').addEventListener('input',()=>renderHistory(filtered()));
+$('search').addEventListener('input',renderMatches);$('clear').addEventListener('click',()=>{$('search').value='';selected=null;fotmobState={status:'idle',seasons:[],message:''};$('results').classList.add('hidden');renderMatches();$('search').focus()});$('season').addEventListener('change',()=>{detailYear=null;renderAll();renderFotmob()});$('p90').addEventListener('change',()=>renderHistory(filtered()));$('statSearch').addEventListener('input',()=>renderHistory(filtered()));
 for(const b of $('segments').querySelectorAll('button'))b.addEventListener('click',()=>{currentGroup=b.dataset.group;for(const b2 of $('segments').querySelectorAll('button'))b2.classList.toggle('active',b2===b);$('statSearch').value='';renderHistory(filtered())});
 $('export').addEventListener('click',()=>{if(selected)downloadBlob(exportText(),'MF_Legacy_Understat_Completo_'+norm(selected.name).replace(/ /g,'_')+'.csv','text/csv;charset=utf-8')});
 $('copy').addEventListener('click',async()=>{if(!selected)return;const t=exportText();try{await navigator.clipboard.writeText(t)}catch(_){const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.append(ta);ta.select();document.execCommand('copy');ta.remove()}const b=$('copy');b.textContent='¡Copiado!';setTimeout(()=>b.textContent='Copiar CSV completo',1800)});
