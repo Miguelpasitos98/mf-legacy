@@ -53,3 +53,38 @@ test('Sin filas de Holanda no se crean temporadas no cubiertas',()=>{
  {season:'2018/2019',team_name:'Vitesse',competition:'Eredivisie'}]);
  assert.equal(r.rates.some(x=>x.season==='2018/2019'),false);
 });
+
+test('El archivo histórico completa goles, asistencias, xG y xA en STATS sin crear temporadas ni reemplazar FotMob',async()=>{
+ const {deriveStatsBackfill}=await import('../base44/functions/understat-auto/core.mjs');
+ const full=[
+ 'id,player_name,season,team_title,league,time,xGChain,xGBuildup,goals,assists,xG,xA,npxG,shots',
+ '101,Example Player,2014/15,Barcelona,La_Liga,3374,54.75,19.75,43,18,39.4,15.2,34.2,190',
+ '101,Example Player,2015/16,Barcelona,La_Liga,2900,42.1,17.2,26,16,28.5,12.1,23.5,130',
+ '101,Example Player,2025/26,Barcelona,La_Liga,400,3,1,2,1,2.1,0.9,1.9,20'
+ ].join('\n');
+ const records=[
+ {id:'a',season:'2014/2015',team_name:'Barcelona',competition:'LaLiga',is_national_team:false},
+ {id:'b',season:'2015/2016',team_name:'Barcelona',competition:'LaLiga',is_national_team:false},
+ {id:'c',season:'2025/2026',team_name:'Barcelona',competition:'LaLiga',is_national_team:false},
+ {id:'d',season:'2014/2015',team_name:'Barcelona',competition:'Champions League',is_national_team:false}
+ ];
+ const plan=deriveStatsBackfill(readArchive(full,'Example Player'),records);
+ assert.equal(plan.status,'verified');
+ assert.deepEqual(plan.entries.map(e=>e.id),['a','b']);
+ const row=plan.entries[0];
+ assert.equal(row.metrics.find(m=>m.name==='Understat Goals').value,43);
+ assert.equal(row.metrics.find(m=>m.name==='Understat Assists').value,18);
+ assert.equal(row.metrics.find(m=>m.name==='Understat xG').value,39.4);
+ assert.equal(row.metrics.find(m=>m.name==='Understat xA').value,15.2);
+ assert.equal(row.metrics.find(m=>m.name==='Understat minutes').value,3374);
+ assert.ok(Math.abs(row.metrics.find(m=>m.name==='Understat xA').per90-15.2*90/3374)<1e-12);
+ assert.equal(plan.entries.some(e=>e.season==='2025/2026'),false);
+ assert.equal(plan.entries.some(e=>e.competition==='Champions League'),false);
+ const {metricsValue}=await import('../src/utils/statsViews.js');
+ const source={metrics:row.metrics};
+ assert.equal(metricsValue(source,'goals'),43);
+ assert.equal(metricsValue(source,'assists'),18);
+ assert.equal(metricsValue(source,'xg'),39.4);
+ assert.equal(metricsValue(source,'xa'),15.2);
+ assert.equal(metricsValue({metrics:[{name:'Goals',value:44},...row.metrics]},'goals'),44);
+});
