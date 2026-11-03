@@ -1,5 +1,5 @@
 import {ARCHIVE_URL,ARCHIVE_SHA256,readArchive,deriveStatsBackfill} from './understatArchiveCore.mjs';
-import {planHistoricalMissing} from '../understat-auto/missingPlan.mjs';
+import {planHistoricalMissing} from './understatMissingPlan.mjs';
 
 // Server-only, add-only fallback for previously created league rows.
 // Caller must authenticate the worker and verify its lease before invoking us.
