@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from "react";
-import {AlertTriangle,CheckCircle2,ImageOff,ImagePlus,Link2,RefreshCcw,Save,Upload,ExternalLink} from "lucide-react";
+import {AlertTriangle,CheckCircle2,ImageOff,RefreshCcw,Save,Upload} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {trophyImageUrl} from "@/utils/trophyCatalog";
 import {statusOf,isImageUrl,trophyImageSummary,prepareTrophyImageUpdate} from "@/utils/trophyImages";
