@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {trophyImageUrl} from "../src/utils/trophyCatalog.js";
-import {trophyImageShouldHide,prepareTrophyImageUpdate,isImageUrl,trophyImageSummary,overrideFor} from "../src/utils/trophyImages.js";
+import {trophyImageShouldHide,prepareTrophyImageUpdate,isImageUrl,trophyImageSummary,overrideFor,parseTrophyImageCsv} from "../src/utils/trophyImages.js";
 
 const manifest={byId:{"13109924":"https://legacy.example/premier-wrong.png"}};
 const premier={source_id:"13109924",name:"Premier League",image_status:"auto"};
@@ -35,6 +35,16 @@ test("Invalid URLs and impossible review statuses cannot be saved",()=>{
  assert.throws(()=>prepareTrophyImageUpdate({image_override_url:"javascript:alert(1)",image_status:"provisional"}),/URL/);
  assert.throws(()=>prepareTrophyImageUpdate({image_status:"verified",image_override_url:""}),/verificar/);
  assert.throws(()=>prepareTrophyImageUpdate({image_status:"wrong",image_override_url:"https://cdn.example/trophy.png"}),/incorrecta/);
+});
+test("Bulk image CSV checks source_id, URLs, states and duplicated IDs",()=>{
+ const csv="source_id;image_override_url;image_status;image_source_type;image_source_reference;image_notes\n13109924;https://cdn.example/premier.png;provisional;url;Premier League source;needs checking\n";
+ const rows=parseTrophyImageCsv(csv);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].source_id,"13109924");
+ assert.equal(rows[0].image_status,"provisional");
+ assert.equal(rows[0].image_source_reference,"Premier League source");
+ assert.throws(()=>parseTrophyImageCsv(csv+"13109924;https://cdn.example/premier.png;provisional;url;;\n"),/duplicado/);
+ assert.throws(()=>parseTrophyImageCsv(csv.replace("provisional","verified").replace("https://cdn.example/premier.png;",";")),/verificar/);
 });
 test("Trophy editor exposes one-click image saving even without an existing Trophy entity",()=>{
  const page=readFileSync(new URL("../src/pages/Trophies.jsx",import.meta.url),"utf8");
