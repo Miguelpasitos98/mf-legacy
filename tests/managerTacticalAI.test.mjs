@@ -40,7 +40,7 @@ test("missing or unsupported values refuse instead of guessing numeric parameter
  assert.throws(()=>parseManagerTacticalResponse({identifiable:false,reason:"Sin evidencia suficiente"}),/Sin evidencia/);
  assert.throws(()=>parseManagerTacticalResponse({...valid,pressing:undefined}),/Falta una estimación/);
  assert.throws(()=>parseManagerTacticalResponse({...valid,pressing:"90"}),/Falta una estimación/);
- assert.throws(()=>parseManagerTacticalResponse({...valid,formation:"2-2-6"}),/formación/);
+ assert.throws(()=>parseManagerTacticalResponse({...valid,formation:"8-2"}),/formación/);
  assert.throws(()=>parseManagerTacticalResponse({...valid,player_role_priorities:{GK:""}}),/rol CB/);
  assert.throws(()=>parseManagerTacticalResponse({...valid,profile_notes:"corto"}),/justificación/);
  assert.throws(()=>parseManagerTacticalResponse("texto incorrecto"),/JSON/);
