@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState} from "react";
-import {useNavigate,useSearchParams} from "react-router-dom";
+import {useSearchParams} from "react-router-dom";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {Search,Trophy,Plus,ChevronRight,ChevronDown,X,Save,Filter,AlertCircle,Trash2,Upload,Medal,Users,Link2,RotateCcw,Globe2} from "lucide-react";
 import {base44} from "@/api/base44Client";
@@ -64,7 +64,6 @@ function DetailsField({title,children,wide}){
  return <div className={wide?"sm:col-span-2":""}><label className={label}>{title}</label>{children}</div>;
 }
 export default function Trophies(){
- const navigate=useNavigate();
  const [searchParams]=useSearchParams();
  const rawTrophyView=searchParams.get("view");
  const viewMode=TROPHY_CATALOG_VIEW_MODES.includes(rawTrophyView)?rawTrophyView:"gallery";
@@ -128,7 +127,6 @@ export default function Trophies(){
   return [...byKey.values()].sort((a,b)=>a.label.localeCompare(b.label,"es"));
  },[countrySections,countryRecords]);
  const activeFilterCount=[type!=="all",category!=="all",countryFilter!=="all",Boolean(teamFilter&&viewMode!=="clubs")].filter(Boolean).length;
- const selectView=mode=>{if(!TROPHY_CATALOG_VIEW_MODES.includes(mode))return;navigate({pathname:"/trophies",search:"?view="+mode});};
  useEffect(()=>{setFocusedGroup("");setShowAllViewGroups(false);setExpandedGroups({});setTab("all");setTeamFilter("");},[viewMode]);
  const clearFilters=()=>{setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");setSortMode("name");};
  const countryTrophyIds=useMemo(()=>countryTrophyIdsFromSections(countrySections,countryFilter),[countrySections,countryFilter]);
