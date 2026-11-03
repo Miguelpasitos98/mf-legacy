@@ -24,6 +24,10 @@ Los textos \`TrophyHistoricalEvent.description_es\` son **resúmenes fieles**, N
 
 El campo \`verification_status = source_extracted\` refleja **origen en el mod**, no verificación por UEFA/FIFA. El booleano \`is_officially_verified = false\` impide equipararlo a una fuente oficial.
 
+## Edición visual en Base44 (Trophies → Editar)
+
+El panel derecho de **Editar** se divide en **Finales e historia** y **Palmarés verificable**. La primera sección permite revisar las 68 finales ya registradas, buscar por año/equipo/estadio, editar una existente, crear nuevas con temporada, campeón, subcampeón, nombre histórico, resultado, sede, ciudad y país, y asociar los clubes a Team cuando exista una correspondencia clara. En **Acontecimientos** se pueden crear y editar textos en español e inglés sin convertirlos en finales. Las fechas se normalizan y se evitan ediciones duplicadas; los registros nuevos no se marcan como verificados ni crean TrophyHonour. La segunda sección conserva la gestión original de adjudicaciones verificables y no se mezcla con las finales de Rob.
+
 ## Cómo incorporar nuevos lotes de capturas
 
 1. Identificar \`Trophy.source_id\` sin inventar IDs.
