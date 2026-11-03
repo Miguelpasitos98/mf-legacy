@@ -33,10 +33,8 @@ test("Historical data does not create verified TrophyHonour claims",()=>{
  const projected=trophyHistoricalSummary(finals,events);
  assert.equal(projected.editionCount,68);
  const ui=fs.readFileSync(new URL("../src/components/trophies/TrophyDetailVisual.jsx",import.meta.url),"utf8");
- assert.match(ui,/Finales documentadas/);
- assert.match(ui,/Clubes campeones · Rob/);
+ assert.match(ui,/TrophyUnifiedClubHistory/);
  assert.match(ui,/Archivo histórico de Rob \/ FM24/);
- assert.match(ui,/Finales extraídas de Rob/);
- assert.match(ui,/Clasificación provisional según Rob/);
- assert.match(ui,/sin verificar oficialmente/);
+ assert.match(ui,/finales detalladas/);
+ assert.doesNotMatch(ui,/historicalSummary\.ranking\.map/);
 });

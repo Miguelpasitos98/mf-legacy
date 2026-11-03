@@ -30,7 +30,7 @@ test('Historical notes are distinct events, never cancelled competitions',()=>{
   assert.ok(event.original_text.length>30);
  }
 });
-test('Trophy edition view shows Rob rows and retains a separate verified section',()=>{
+test('Trophy edition view shows Rob finals and one unified verified and historical club history',()=>{
  const visual=fs.readFileSync(new URL('../src/components/trophies/TrophyDetailVisual.jsx',import.meta.url),'utf8');
  const view=fs.readFileSync(new URL('../src/components/trophies/TrophyHistoricalArchive.jsx',import.meta.url),'utf8');
  assert.match(visual,/tab==="Historia"/);
@@ -40,8 +40,8 @@ test('Trophy edition view shows Rob rows and retains a separate verified section
  assert.match(visual,/TrophyEdition\.filter/);
  assert.match(visual,/TrophyHistoricalEvent\.filter/);
  assert.match(view,/Ediciones y ganadores/);
- assert.match(visual,/historicalSummary.ranking.map/);
- assert.match(visual,/finales ganadas/);
+ assert.match(visual,/TrophyUnifiedClubHistory/);
+ assert.doesNotMatch(visual,/historicalSummary\.ranking\.map/);
  assert.match(visual,/TrophyHistoricalArchive mode="editions"/);
  assert.match(view,/Exportar CSV/);
  assert.match(view,/Rob \/ FM24 · sin contrastar externamente/);

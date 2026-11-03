@@ -21,7 +21,7 @@ test("Trophy detail reads imported per-club awards but does not mark them as off
  const visual=readFileSync(new URL("../src/components/trophies/TrophyDetailVisual.jsx",import.meta.url),"utf8");
  const component=readFileSync(new URL("../src/components/trophies/TrophyPalmaresByClub.jsx",import.meta.url),"utf8");
  assert.match(visual,/TrophyPalmaresEntry\.filter/);
- assert.match(visual,/TrophyPalmaresByClub entries=\{palmaresRows\}/);
+ assert.match(visual,/TrophyUnifiedClubHistory honours=\{honours\} palmares=\{palmaresRows\}/);
  assert.match(component,/Ganador/);
  assert.match(component,/Subcampeón/);
  assert.match(component,/Tercer puesto/);
