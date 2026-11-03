@@ -1,0 +1,62 @@
+{
+  "name": "TrophyHistoricalEvent",
+  "type": "object",
+  "properties": {
+    "event_key": {
+      "type": "string",
+      "description": "Clave estable id_trofeo + temporada + evento para evitar duplicados"
+    },
+    "trophy_id": {
+      "type": "string"
+    },
+    "trophy_source_id": {
+      "type": "string"
+    },
+    "season": {
+      "type": "string",
+      "description": "Temporada asignada por pantalla de Rob"
+    },
+    "event_type": {
+      "type": "string",
+      "description": "founding|format_change|historical_context|achievement|controversy|club_history"
+    },
+    "description_es": {
+      "type": "string",
+      "description": "Resumen fiel al texto de Rob en espa\u00f1ol; no texto verificado"
+    },
+    "original_text": {
+      "type": "string",
+      "description": "Transcripci\u00f3n literal si est\u00e1 legible, o vac\u00edo si solo hay resumen"
+    },
+    "source_dataset": {
+      "type": "string"
+    },
+    "evidence_type": {
+      "type": "string"
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "source_extracted",
+        "externally_verified",
+        "needs_review"
+      ],
+      "default": "source_extracted"
+    },
+    "is_cancellation": {
+      "type": "boolean",
+      "default": false,
+      "description": "En Rob, la frase No se celebr\u00f3 la competici\u00f3n en filas narrativas no significa cancelaci\u00f3n real"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_key",
+    "trophy_id",
+    "trophy_source_id",
+    "season",
+    "description_es"
+  ]
+}
