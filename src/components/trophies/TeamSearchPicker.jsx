@@ -4,7 +4,7 @@ import {normalizeImageUrl} from "@/components/teams/teamUtils";
 import {filterTrophyTeams} from "@/utils/trophyTeamSearch";
 
 const MAX_VISIBLE=60;
-export default function TeamSearchPicker({teams=[],value="",onChange,loading=false,error=false,ariaLabel="Buscar equipo para investigar",placeholder="Escribe para buscar un equipo…" }){
+export default function TeamSearchPicker({teams=[],value="",onChange,loading=false,error=false,ariaLabel="Buscar equipo para investigar",placeholder="Escribe para buscar un equipo…",fieldId="trophy-team-search" }){
  const root=useRef(null),field=useRef(null),[isOpen,setIsOpen]=useState(false);
  const [search,setSearch]=useState(""),[active,setActive]=useState(0);
  const selected=teams.find(team=>String(team.id)===String(value));
@@ -43,12 +43,12 @@ export default function TeamSearchPicker({teams=[],value="",onChange,loading=fal
   }
  };
  return <div className="relative min-w-0" ref={root} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setIsOpen(false);}}>
-  <label htmlFor="trophy-team-search" className="sr-only">{ariaLabel}</label>
+  <label htmlFor={fieldId} className="sr-only">{ariaLabel}</label>
   <div className={"flex h-10 min-w-0 items-center gap-2 rounded-lg border bg-white px-2.5 transition focus-within:border-[#003399] focus-within:ring-2 focus-within:ring-[#003399]/10 "+(isOpen?"border-[#003399]":"border-slate-200")}>
    <Search size={15} className="shrink-0 text-slate-400"/>
-   <input id="trophy-team-search" ref={field} role="combobox" type="text" autoComplete="off"
-    aria-label={ariaLabel} aria-controls="trophy-team-results" aria-expanded={isOpen}
-    aria-autocomplete="list" aria-activedescendant={isOpen&&visible[active]?"trophy-team-option-"+active:undefined}
+   <input id={fieldId} ref={field} role="combobox" type="text" autoComplete="off"
+    aria-label={ariaLabel} aria-controls={fieldId+"-results"} aria-expanded={isOpen}
+    aria-autocomplete="list" aria-activedescendant={isOpen&&visible[active]?fieldId+"-option-"+active:undefined}
     placeholder={loading?"Cargando todos los equipos…":placeholder}
     disabled={loading||error} value={search} onFocus={event=>{setIsOpen(true);event.target.select();setActive(0);}}
     onChange={event=>updateQuery(event.target.value)} onKeyDown={handleKeys}
@@ -62,7 +62,7 @@ export default function TeamSearchPicker({teams=[],value="",onChange,loading=fal
     <ChevronDown size={15} className={isOpen?"rotate-180 transition":"transition"}/>
    </button>
   </div>
-  {isOpen&&!loading&&!error&&<div id="trophy-team-results" role="listbox"
+  {isOpen&&!loading&&!error&&<div id={fieldId+"-results"} role="listbox"
     aria-label="Equipos de MF Legacy" className="absolute left-0 right-0 top-[calc(100%+5px)] z-[90] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_16px_38px_rgba(15,23,42,.16)]">
    <div className="flex justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2 text-[10px] text-slate-500">
     <span>{matched.length.toLocaleString("es-ES")} {matched.length===1?"equipo encontrado":"equipos encontrados"}</span>
@@ -73,7 +73,7 @@ export default function TeamSearchPicker({teams=[],value="",onChange,loading=fal
     {visible.map((team,index)=>{
      const logo=normalizeImageUrl(team.logo||team.logo_url||team.logoUrl);
      const chosen=String(value)===String(team.id);
-     return <button type="button" role="option" id={"trophy-team-option-"+index} key={team.id}
+     return <button type="button" role="option" id={fieldId+"-option-"+index} key={team.id}
       aria-selected={chosen} onMouseEnter={()=>setActive(index)} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(team)}
       className={"flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition "+(active===index?"bg-blue-50 text-[#003399]":"hover:bg-slate-50 text-slate-700")}>
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-50">
