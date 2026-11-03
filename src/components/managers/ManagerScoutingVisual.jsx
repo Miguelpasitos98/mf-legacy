@@ -1,6 +1,8 @@
 import React,{useState} from "react";
 import {Activity,BarChart3,ChevronDown,ChevronUp,ClipboardList,Info,Layers3,Users} from "lucide-react";
 import PlayerPortrait from "@/components/teams/PlayerPortrait";
+import {v4MissingMetricExplanations} from "./managerV4MetricExplanation.mjs";
+import {V4_METRIC_LABELS} from "./managerRoleRules.mjs";
 
 const CONFIDENCE={medium:"Media",low:"Baja",insufficient:"Sin datos suficientes"};
 const modeName={role:"Encaje por ADN V4",historical:"Histórico V3",attributes:"FM26 orientativo V2",position:"Adecuación posicional V1"};
@@ -47,6 +49,10 @@ export function ManagerScoutingSummary({scoreMode,visibility,roleRequirements,st
      <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">{modeName[scoreMode]}</span>
     </div>
     <p className="mt-1 text-xs leading-5 text-slate-600">{statusText}</p>
+    {scoreMode==="role"&&roleRequirements?.metricKeys?.length>0&&<p className="mt-1.5 text-[11px] text-slate-700">
+     <strong>Qué se pide medir:</strong> {roleRequirements.metricKeys.map(key=>V4_METRIC_LABELS[key]||key).join(" · ")}.
+     Que se solicite un indicador no significa que exista una muestra suficiente para puntuarlo.
+    </p>}
     {scoreMode==="role"&&<><p className="mt-1.5 text-[11px] text-slate-600"><strong>Requisitos reconocidos:</strong> {roleRequirements?.matched?.length?roleRequirements.matched.map(x=>x.label).join(" · "):"Ningún indicador histórico directo para la descripción actual"}</p><p className="mt-1 text-[11px] text-slate-500"><strong>Indicadores solicitados:</strong> {roleRequirements?.metricKeys?.length||0} · Solo se puntúan si hay observaciones y al menos diez comparables por métrica.</p>{roleRequirements?.unmeasuredTraits?.length>0&&<p className="mt-1 text-[11px] text-slate-600"><strong>No medible con estas estadísticas:</strong> {roleRequirements.unmeasuredTraits.join(" · ")}</p>}</>}
     {statsError&&<p role="alert" className="mt-2 text-xs text-red-700">{statsError}</p>}
    </div>
@@ -61,6 +67,7 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
  const isPositional=scoreMode==="position";
  const label=isPositional?"Encaje posicional":scoreMode==="attributes"?"Estimación FM26":scoreMode==="role"?"Encaje V4":"Histórico V3";
  const evidence=scoreMode==="role"?item.roleFit:scoreMode==="historical"?item.historical:scoreMode==="attributes"?item.advanced:null;
+ const v4Missing=scoreMode==="role"?v4MissingMetricExplanations(item.roleFit):[];
  return <article className="flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition hover:border-blue-200 hover:shadow-md">
   <div className="flex min-w-0 gap-3">
    <PlayerPortrait player={item.player} className="h-14 w-14 shrink-0 rounded-xl border border-slate-100 bg-slate-50 object-cover" fallback={String(item.player.name||"?").charAt(0)}/>
@@ -88,6 +95,16 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
     {" "}{item.roleFit.minimumPeers??"—"} comparables mínimo ·
     {" "}Confianza {CONFIDENCE[item.roleFit.confidence]?.toLowerCase()||"sin determinar"}
    </p>}
+   {scoreMode==="role"&&item.roleFit?.requested>0&&<p className="mt-1.5 text-[10px] leading-4 text-slate-600">
+    <strong>¿Por qué {item.roleFit.breakdown.length}/{item.roleFit.requested}?</strong>
+    {" "}De los {item.roleFit.requested} indicadores solicitados, solo {item.roleFit.breakdown.length} tienen dato individual y muestra comparable suficiente. Los demás no entran en la puntuación.
+   </p>}
+   {v4Missing.length>0&&<div className="mt-2 space-y-1.5 border-t border-slate-200 pt-2">
+    {v4Missing.slice(0,4).map(metric=><p key={metric.key} className="text-[10px] leading-4 text-amber-900">
+     <strong>{metric.name}:</strong> {metric.reason}
+    </p>)}
+    {v4Missing.length>4&&<p className="text-[10px] text-slate-500">+{v4Missing.length-4} indicadores sin evaluar en Detalle técnico</p>}
+   </div>}
    {score===null&&<p className="mt-1 text-[10px] text-slate-500">Ordenación auxiliar por adecuación posicional, sin convertirla en nota {label}.</p>}
    {scoreMode==="attributes"&&score!==null&&<p className="mt-1 text-[10px] text-slate-500">Modelo experimental, no predicción de rendimiento.</p>}
   </div>
@@ -120,9 +137,9 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
      {item.roleFit.metricDiagnostics.map(metric=><div key={metric.key} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 border-b border-slate-100 px-2.5 py-2 last:border-b-0">
       <span className="min-w-0 flex-1 font-medium text-slate-700">{metric.label}</span>
       <span className={"shrink-0 font-bold tabular-nums "+(metric.status==="measured"?"text-[#225baa]":"text-slate-500")}>
-       {metric.status==="measured"?"P"+item.roleFit.breakdown.find(row=>row.key===metric.key)?.percentile:metric.status==="missing_player"?"Sin dato del jugador":"Muestra insuficiente"}
+       {metric.status==="measured"?"P"+item.roleFit.breakdown.find(row=>row.key===metric.key)?.percentile:metric.status==="missing_player"?"Sin dato individual":metric.peerCount+"/10 comparables"}
       </span>
-      <span className="w-full text-[10px] text-slate-500">{metric.peerCount} comparables externos (cuando existe ID) · {metric.source||"Fuente pendiente"}{metric.scope?" · "+metric.scope:""}{typeof metric.minutes==="number"?" · "+Math.round(metric.minutes)+" minutos registrados":""}</span>
+      <span className="w-full text-[10px] text-slate-500">{metric.peerCount} comparables externos (mínimo 10) · {metric.source||"Fuente pendiente"}{metric.scope?" · "+metric.scope:""}{typeof metric.minutes==="number"?" · "+Math.round(metric.minutes)+" minutos registrados":""}</span>
      </div>)}
     </div>}
     {!item.roleFit.metricDiagnostics?.length&&<p>El ADN no contiene requisitos asociados con seguridad a métricas observadas. No es una ausencia general de datos del jugador.</p>}
