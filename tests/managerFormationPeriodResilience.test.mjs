@@ -162,6 +162,7 @@ test("career and individual UI allow review of repaired formations, dates and pe
  assert.match(managers,/4-4-2 \(rombo\)/);
  assert.match(managers,/careerDraft\.pendingModels/);
  assert.match(managers,/tacticalWarnings\.map/);
+ assert.match(managers,/applyResearchResponse\(dnaJsonInput,identity\);/);
  assert.match(prompt,/La formación NO está limitada a una lista cerrada/);
  assert.match(prompt,/no años calendario sueltos/);
 });

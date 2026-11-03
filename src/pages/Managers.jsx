@@ -264,7 +264,10 @@ export default function Managers(){
    setError("");setNotice("");
    try{
      const identity=String(selected.id)+":"+String(profileId);
-     if(applyResearchResponse(dnaJsonInput,identity))setDnaJsonInput("");
+     // Keep the pasted source JSON in the editor after interpreting it:
+     // users must be able to correct period dates and re-parse without
+     // repeating the research or reconstructing a lengthy AI response.
+     applyResearchResponse(dnaJsonInput,identity);
    }catch(e){setError("El JSON de ADN táctico no es válido: "+(e.message||"Error desconocido"));}
  };
  const biographyPrompt=useMemo(()=>{
