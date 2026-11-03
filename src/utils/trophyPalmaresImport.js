@@ -8,7 +8,7 @@ const canonical={
  "uefa europa league":"europa league",
  "mundialito de clubes":"mundial de clubes fifa",
  "copa de la liga espanola":"copa de la liga de espana",
- "trofeo festa d elx":"festa d elx trophy",
+ "trofeo festa d elx":"festa d elx",
  "trofeo ciudad de zaragoza":"trofeo ciudad de zaragoza",
  "trofeo conde de fenosa":"trofeo conde de fenosa",
  "eusebio cup":"eusebio cup",
@@ -49,24 +49,26 @@ function catalogMatchIndex(catalog){
  return index;
 }
 const only=map=>map&&map.size===1?[...map.values()][0]:null;
-export function matchPalmaresTrophy(name,catalog=[]){
+const historicBounds=name=>{const x=String(name||"").match(/\((\d{4})\s*[-–]\s*(\d{4})\)/);return x?[Number(x[1]),Number(x[2])]:null;};
+const historicalRangeCheck=(name,trophy,years=[])=>{const bounds=historicBounds(trophy?.name);if(bounds&&years.some(y=>y<bounds[0]||y>bounds[1]))return "Años del archivo fuera del rango de la ficha histórica ("+bounds.join("–")+"): comprobar si se trata de otra edición o variante.";return "";};
+export function matchPalmaresTrophy(name,catalog=[],years=[]){
  const key=norm(name),idx=catalogMatchIndex(catalog);
  const direct=idx.get(key);
- if(direct?.size===1)return {trophy:only(direct),status:"auto_linked",confidence:100,reason:"Nombre exacto y único",suggestions:[...direct.values()]};
+ if(direct?.size===1){const trophy=only(direct),conflict=historicalRangeCheck(name,trophy,years);return {trophy,status:conflict?"needs_review":"auto_linked",confidence:conflict?70:100,reason:conflict||"Nombre exacto y único",suggestions:[...direct.values()]};}
  if(direct?.size>1)return {trophy:null,status:"needs_review",confidence:0,reason:"Nombre compartido por varias fichas",suggestions:[...direct.values()]};
  const translated=canonical[key];
  if(translated){
   const records=idx.get(translated);
   if(records?.size===1){
    // A historical trophy that was renamed can be linked only to the same competition identity.
-   return {trophy:only(records),status:key==="mundialito de clubes"?"needs_review":"auto_linked",confidence:key==="mundialito de clubes"?75:99,reason:"Alias de nombre; revisar variantes históricas cuando corresponda",suggestions:[...records.values()]};
+   const trophy=only(records),conflict=historicalRangeCheck(name,trophy,years);const needsReview=key==="mundialito de clubes"||Boolean(conflict);return {trophy,status:needsReview?"needs_review":"auto_linked",confidence:needsReview?70:99,reason:conflict||(needsReview?"Alias con variantes históricas; selección manual necesaria":"Alias de nombre único"),suggestions:[...records.values()]};
   }
  }
  // Unique canonical names with explicit year ranges may be good candidates, but
  // do not assign if competing versions of the same trophy exist.
  const cut=baseName(name);
  const candidates=catalog.filter(t=>baseName(t.name)===cut||slashName(t.name)===slashName(name));
- if(candidates.length===1)return {trophy:candidates[0],status:"auto_linked",confidence:96,reason:"Nombre histórico coincidente con una sola ficha",suggestions:candidates};
+ if(candidates.length===1){const trophy=candidates[0],conflict=historicalRangeCheck(name,trophy,years);return {trophy,status:conflict?"needs_review":"auto_linked",confidence:conflict?70:96,reason:conflict||"Nombre histórico coincidente con una sola ficha",suggestions:candidates};}
  if(candidates.length>1)return {trophy:null,status:"needs_review",confidence:0,reason:"Hay varias versiones históricas",suggestions:candidates.slice(0,8)};
  const parts=new Set(key.split(" ").filter(x=>x.length>3));
  const options=catalog.map(t=>{
@@ -84,7 +86,7 @@ export function previewPalmaresBatch(batch,catalog=[],teamRecords=[]){
  if(!team)throw Error("El Team.id de la captura no existe en Base44. Selecciona o registra antes el club correcto.");
  const groups=batch.competitions.map((c,i)=>({
   index:i,raw_name:c.raw_name,source_note:c.source_note||"",count:c.placements.reduce((n,p)=>n+p.years.length,0),
-  ...matchPalmaresTrophy(c.raw_name,catalog)
+  ...matchPalmaresTrophy(c.raw_name,catalog,c.placements.flatMap(p=>p.years))
  }));
  return {team,competitions,entries,groups,auto:groups.filter(g=>g.status==="auto_linked").length,pending:groups.filter(g=>g.status!=="auto_linked").length};
 }
@@ -99,9 +101,9 @@ export function materializePalmaresEntries(batch,groups){
   return comp.placements.flatMap(part=>part.years.map(year=>({
    entry_key:yearKey(batch.team.id,comp.raw_name,part.rank,year),
    batch_id:id,team_id:String(batch.team.id),team_name:String(batch.team.name),
-   trophy_source_id:status==="ignored"?"":trophy?String(trophy.source_id):"",
-   trophy_id:status==="ignored"?"":String(trophy?.id||""),
-   trophy_name_raw:comp.raw_name,trophy_name_matched:status==="ignored"?"":String(trophy?.name||""),
+   trophy_source_id:["auto_linked","manual_linked"].includes(status)?String(trophy?.source_id||""):"",
+   trophy_id:["auto_linked","manual_linked"].includes(status)?String(trophy?.id||""):"",
+   trophy_name_raw:comp.raw_name,trophy_name_matched:["auto_linked","manual_linked"].includes(status)?String(trophy?.name||""):"",
    source_order:index+1,source_segment:Number(comp.capture_index||0),
    rank:part.rank,calendar_year:year,edition_label:String(year),original_year_text:String(year),
    source_type:batch.source_type,source_files:(batch.source_files||[]).join(" | "),
