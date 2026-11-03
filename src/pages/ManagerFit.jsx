@@ -218,6 +218,20 @@ export default function ManagerFit(){
       {[["Encaje por requisitos",scoutingReport.fit===null?"—":scoutingReport.fit+"/100"],["Histórico general",scoutingReport.historicalScore===null?"—":scoutingReport.historicalScore+"/100"],["Atributos FM26",scoutingReport.attributeScore===null?"—":scoutingReport.attributeScore+"/100"],["CA independiente",scoutingReport.ca===null?"—":scoutingReport.ca+"/200"]].map(([k,v])=><div key={k} className="rounded-xl bg-white border p-3"><p className="text-[11px] text-slate-500">{k}</p><strong className="text-xl tabular-nums">{v}</strong></div>)}
      </div>
      <p className="text-sm font-medium">{scoutingReport.fitLabel}. {scoutingReport.summary}</p>
+     {!!scoutingReport.functionBreakdown.length&&<div className="rounded-xl border bg-white p-3 space-y-2">
+      <h4 className="text-sm font-bold">Ajuste por funciones exigidas en el ADN (V4.1)</h4>
+      <p className="text-[11px] text-slate-500">Cada función evaluable tiene el mismo peso, independientemente de cuántas métricas incluye. Los valores «—» no se completan con estimaciones.</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+       {scoutingReport.functionBreakdown.map(f=><div key={f.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+        <div className="flex items-start justify-between gap-2">
+         <p className="text-xs font-semibold text-slate-800">{f.label}</p>
+         <strong className="shrink-0 tabular-nums text-blue-900">{f.score===null?"—":f.score+"/100"}</strong>
+        </div>
+        <p className="mt-1 text-[11px] text-slate-500">{f.measured}/{f.requested} indicadores con muestra suficiente</p>
+        <div className="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full bg-blue-600" style={{width:f.coverage+"%"}}/></div>
+       </div>)}
+      </div>
+     </div>}
      <p className="text-xs text-slate-600">Cobertura de requisitos {scoutingReport.coverage}% · Confianza {scoutingReport.confidence} · {scoutingReport.unmeasured} indicadores no evaluados</p>
      <div className="grid md:grid-cols-2 gap-3">
       <div className="rounded-xl border bg-white p-3"><h4 className="text-sm font-bold text-emerald-800">Fortalezas observadas (P70+)</h4>

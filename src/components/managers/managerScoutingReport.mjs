@@ -26,6 +26,7 @@ export function buildScoutingReport(player,role,profile,season,roleResult,histor
   unmeasured:Math.max(0,unmeasured),coverage:roleResult?.coverage||0,
   identifiedRequirements:roleResult?.requirements||[],
   metricDiagnostics:roleResult?.metricDiagnostics||[],
+  functionBreakdown:roleResult?.requirementBreakdown||[],
   unmeasuredTraits:roleResult?.unmeasuredTraits||[],
   missingMetricReasons:roleResult?.missing||[],
   historicalScore:historical?.score??null,attributeScore:attributeResult?.score??null,
@@ -40,7 +41,7 @@ export function buildScoutingReport(player,role,profile,season,roleResult,histor
 }
 export function compareManagerProfiles(player,role,season,profiles,metrics,peers,evaluate){
  return profiles.map(profile=>{
-  const result=evaluate(metrics,peers,role,profile);
+  const result=evaluate(metrics,peers,role,profile,{playerId:player?.id??null});
   return {id:String(profile.id),name:String(profile.name||""),is_default:Boolean(profile.is_default),
    fit:result.score,coverage:result.coverage,confidence:result.confidence,
    evaluated:result.breakdown?.length||0};

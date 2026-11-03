@@ -77,24 +77,46 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
     {scoreMode!=="position"&&<span className="text-[10px] text-slate-500">Cobertura {coverage}%</span>}
    </div>
    {scoreMode!=="position"&&<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-[#3a6eae]" style={{width:Math.max(0,Math.min(100,coverage))+"%"}}/></div>}
+   {scoreMode==="role"&&<p className="mt-1.5 text-[10px] text-slate-600">
+    <strong>{item.roleFit.breakdown.length}/{item.roleFit.requested} métricas</strong> ·
+    {" "}{item.roleFit.evaluatedFunctions??0}/{item.roleFit.requestedFunctions??0} funciones evaluadas ·
+    {" "}Confianza {CONFIDENCE[item.roleFit.confidence]?.toLowerCase()||"sin determinar"}
+   </p>}
    {score===null&&<p className="mt-1 text-[10px] text-slate-500">Ordenación auxiliar por adecuación posicional, sin convertirla en nota {label}.</p>}
    {scoreMode==="attributes"&&score!==null&&<p className="mt-1 text-[10px] text-slate-500">Modelo experimental, no predicción de rendimiento.</p>}
   </div>
+  {scoreMode==="role"&&!!item.roleFit.requirementBreakdown?.length&&
+   <div className="flex flex-wrap gap-1.5" aria-label="Funciones del ADN evaluadas">
+    {item.roleFit.requirementBreakdown.slice(0,4).map(family=><span key={family.id}
+     title={family.label+" · "+family.measured+"/"+family.requested+" indicadores"}
+     className="inline-flex min-w-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600">
+     <span className="max-w-[210px] truncate">{family.label.replace(/ \(proxy(?: parcial)?\)/gi,"")}</span>
+     <strong className="tabular-nums text-slate-800">{family.score===null?"—":family.score}</strong>
+    </span>)}
+    {item.roleFit.requirementBreakdown.length>4&&<span className="self-center text-[10px] text-slate-500">+{item.roleFit.requirementBreakdown.length-4} funciones</span>}
+   </div>}
   <div className="flex flex-wrap items-center justify-between gap-2">
-   <span className="text-[10px] text-slate-500">Compatibilidad posicional: {item.fit??"—"}/100</span>
+   <span className="text-[10px] text-slate-500">Adecuación de posición FM26: {item.fit??"—"}/100</span>
    <button type="button" aria-expanded={more} onClick={()=>setMore(v=>!v)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#003399]">{more?"Menos detalle":"Detalle técnico"} {more?<ChevronUp size={14}/>:<ChevronDown size={14}/>}</button>
   </div>
   {more&&<div className="space-y-1 border-t border-slate-100 pt-2 text-[11px] leading-5 text-slate-600">
    <p><strong>Confianza:</strong> {CONFIDENCE[evidence?.confidence||item.reliability]||"No determinada"}</p>
    {scoreMode==="role"&&<div className="space-y-2">
-    <p><strong>Métricas V4:</strong> {item.roleFit.breakdown.length}/{item.roleFit.requested} observadas con comparables. {item.roleFit.limitation}</p>
+    <p><strong>Cómo se ha puntuado V4:</strong> {item.roleFit.breakdown.length}/{item.roleFit.requested} métricas con muestra suficiente. Se calcula una media por función táctica y después se ponderan por igual las funciones evaluadas. {item.roleFit.limitation}</p>
+    {!!item.roleFit.requirementBreakdown?.length&&<div className="overflow-hidden rounded-lg border border-blue-100 bg-blue-50/40">
+     <p className="px-2.5 pt-2 font-semibold text-slate-700">Funciones solicitadas por el entrenador</p>
+     {item.roleFit.requirementBreakdown.map(family=><div key={family.id} className="flex items-center justify-between gap-2 border-b border-blue-100 p-2.5 last:border-b-0">
+      <span className="min-w-0 flex-1 text-slate-700">{family.label}<span className="ml-1 text-slate-500">({family.measured}/{family.requested} indicadores)</span></span>
+      <strong className="tabular-nums">{family.score===null?"Sin nota":family.score+"/100"}</strong>
+     </div>)}
+    </div>}
     {!!item.roleFit.metricDiagnostics?.length&&<div className="overflow-hidden rounded-lg border border-slate-200">
      {item.roleFit.metricDiagnostics.map(metric=><div key={metric.key} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 border-b border-slate-100 px-2.5 py-2 last:border-b-0">
       <span className="min-w-0 flex-1 font-medium text-slate-700">{metric.label}</span>
       <span className={"shrink-0 font-bold tabular-nums "+(metric.status==="measured"?"text-[#225baa]":"text-slate-500")}>
        {metric.status==="measured"?"P"+item.roleFit.breakdown.find(row=>row.key===metric.key)?.percentile:metric.status==="missing_player"?"Sin dato del jugador":"Muestra insuficiente"}
       </span>
-      <span className="w-full text-[10px] text-slate-500">{metric.peerCount} jugadores comparables · {metric.source||"Fuente pendiente"}{metric.scope?" · "+metric.scope:""}</span>
+      <span className="w-full text-[10px] text-slate-500">{metric.peerCount} comparables externos (cuando existe ID) · {metric.source||"Fuente pendiente"}{metric.scope?" · "+metric.scope:""}{typeof metric.minutes==="number"?" · "+Math.round(metric.minutes)+" minutos registrados":""}</span>
      </div>)}
     </div>}
     {!item.roleFit.metricDiagnostics?.length&&<p>El ADN no contiene requisitos asociados con seguridad a métricas observadas.</p>}
@@ -114,7 +136,7 @@ export function ManagerMethodsPanel(){
  return <details className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
   <summary className="cursor-pointer font-bold text-slate-800">Metodología y limitaciones de V4, V3, FM26 y posición</summary>
   <div className="mt-3 space-y-2 leading-5">
-   <p><strong>V4 · Requisitos del ADN:</strong> relaciona únicamente frases explícitas del rol con proxies estadísticos comprobables. No utiliza IA durante la búsqueda. Exige al menos dos indicadores observados y diez jugadores comparables por métrica; sin ellos deja la nota sin calcular.</p>
+   <p><strong>V4.1 · Requisitos del ADN:</strong> identifica funciones descritas explícitamente por el entrenador y calcula un percentil para cada indicador comprobable. Después promedia los indicadores disponibles dentro de cada función y da el mismo peso a cada función evaluada. Se requieren al menos dos indicadores distintos y diez compañeros comparables externos por métrica (cuando se conoce el ID). La cobertura indica la fracción medida, no la calidad del futbolista. Fuentes y alcance deben ser comparables; pocos minutos reducen la confianza.</p>
    <p><strong>V3 · Histórico:</strong> percentiles de una misma temporada y rol. No miden directamente la adaptación a la filosofía del entrenador.</p>
    <p><strong>V2 · FM26:</strong> estimación a partir de posición, atributos del videojuego y parámetros generales de ADN. No sustituye mediciones históricas y mantiene el CA independiente.</p>
    <p><strong>V1 · Posición:</strong> compatibilidad posicional sin evaluación de requisitos del entrenador.</p>
