@@ -8,6 +8,7 @@ import {RECORD_KEYS} from "@/api/recordQueries";
 import {readCompleteRecords} from "@/utils/entityRecords";
 import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-react";
 import HistoricalReview from "@/components/imports/HistoricalReview";
+import UnderstatLivePanel from "@/components/imports/UnderstatLivePanel";
 import {historyCanRetry} from "@/utils/importHistoryReview";
 import {importProgressSummary} from "@/utils/importCoverage";
 import {groupImportJobs,visibleImportGroups} from "@/utils/importJobGroups";
@@ -302,6 +303,7 @@ export default function ImportCenter(){
           Recuperar xG Chain / Buildup automáticamente (Understat)
         </button>
         <p className="text-[11px] text-slate-500">Fuente pública contrastada hasta 2024/25. Se verifica nombre, club, temporada y liga; las temporadas parciales o ambiguas quedan pendientes.</p>
+        <UnderstatLivePanel player={player} linked={linked} fotmobId={fotmob} onApplied={invalidateApplied}/>
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>
         <p className="text-xs text-slate-500">Primera importación: el trabajador de tu PC consulta el perfil y las temporadas disponibles con los límites configurados. Understat usa ligas compatibles y cachés/archivos públicos. FIFA/FC usa revisiones de Career Mode anteriores al lanzamiento; mercado usa valoraciones fechadas dentro de cada temporada. No se altera FM26.</p>
