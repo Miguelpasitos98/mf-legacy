@@ -196,6 +196,22 @@ export default function Trophies(){
   if(current?.id)setDraft(old=>({...old,...imageData,id:current.id}));
   await qc.invalidateQueries({queryKey:TROPHY_KEY});
  };
+ const importImageRows=async records=>{
+  const byId=new Map(all.map(t=>[String(t.source_id),t]));
+  const changes=[];
+  for(const data of records){const original=byId.get(String(data.source_id));if(!original)throw Error("ID desconocido: "+data.source_id);
+   const {source_id,...imageFields}=data;
+   changes.push({record:original,imageFields});
+  }
+  let applied=0;
+  for(const {record,imageFields} of changes){
+   if(record.id)await base44.entities.Trophy.update(record.id,imageFields);
+   else await base44.entities.Trophy.create({source_id:String(record.source_id),name:record.name,trophy_type:TROPHY_TYPES.includes(record.trophy_type)?record.trophy_type:"Team Trophy",category:record.category||"",identification_status:record.identification_status==="Pending"?"Pending":record.identification_status==="Verified"?"Verified":"Manual",is_active:true,...imageFields});
+   applied++;
+  }
+  await qc.invalidateQueries({queryKey:TROPHY_KEY});
+  return applied;
+ };
  const startHonour=()=>{setDetailTab("Editar");setEditorPane("honours");if(!selected?.id){setError("Guarda primero la ficha del trofeo para registrar sus ganadores.");return;}setError("");setHonourDraft(emptyHonour(selected));setRecipientQuery("");};
  const saveHonour=async e=>{
   e.preventDefault();if(honourSaving||!selected?.id)return;
@@ -357,7 +373,7 @@ export default function Trophies(){
     </div>
     <TrophySyncWorkbench key={syncPhase} standalone initialPhase={syncPhase} catalog={catalog} trophies={rows(trophyQuery.data)} honours={honours}/>
    </div>}
-   {section==="review"&&<><TrophyImageReviewQueue catalog={all} manifest={imageManifest} onOpen={open}/><TrophyReviewCenter honours={honours} honoursLoading={honourQuery.isLoading} honoursError={honourQuery.isError}
+   {section==="review"&&<><TrophyImageReviewQueue catalog={all} manifest={imageManifest} onOpen={open} onImport={importImageRows}/><TrophyReviewCenter honours={honours} honoursLoading={honourQuery.isLoading} honoursError={honourQuery.isError}
     catalog={all} catalogReady={!catalogLoading&&!catalogError&&!trophyQuery.isLoading&&!trophyQuery.isError} imageManifest={imageManifest} onOpenTrophy={open}
     onSync={()=>{setSyncPhase("players");setSection("sync");}}/></>}
   </div>
