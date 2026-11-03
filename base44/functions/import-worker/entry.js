@@ -288,6 +288,25 @@ export default async function(req) {
       const remaining=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
       const finalPatch=completionPatch(await db.ImportJob.get(job.id),remaining.length);
       await db.ImportJob.update(job.id,finalPatch);
+      // Always store the next historical-recovery decision in the same job.
+      // It survives closing IMPORT and is consumed by the per-player queue.
+      // Audit failures do not roll back or block an otherwise finished import.
+      if((job.sources||[]).some(s=>s==='understat'||s==='fotmob')){
+        try{
+          const {auditHistoricalArchiveGap}=await import('./understatArchiveBackfill.js');
+          const before=await db.ImportJob.get(job.id);
+          const audit=await auditHistoricalArchiveGap(db,before);
+          const latest=await db.ImportJob.get(job.id);
+          if(latest?.phase===before.phase&&['review','completed'].includes(latest?.status)){
+            await db.ImportJob.update(job.id,{
+              source_results:{...(latest.source_results||{}),understat_gap_audit:audit}
+            });
+          }
+        }catch(e){
+          console.warn('Understat gap audit pending for job',job.id,
+            String(e?.message||e).slice(0,180));
+        }
+      }
       return reply({ok:true,status:finalPatch.status,candidates:counts,
         automatic,archiveRecovery,next_job_id,coverage:source_results.fotmob?.coverage||null});
     }

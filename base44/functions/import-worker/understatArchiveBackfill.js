@@ -1,4 +1,5 @@
 import {ARCHIVE_URL,ARCHIVE_SHA256,readArchive,deriveStatsBackfill} from './understatArchiveCore.mjs';
+import {planHistoricalMissing} from '../understat-auto/missingPlan.mjs';
 
 // Server-only, add-only fallback for previously created league rows.
 // Caller must authenticate the worker and verify its lease before invoking us.
@@ -87,4 +88,51 @@ export async function runHistoricalArchiveBackfill(db,job){
   result.metrics_added+=additions.length;
  }
  return result;
+}
+
+
+// At the end of each local Studio worker block, persist an independent
+// historical gap audit. Unlike backfill, this routine never creates, updates,
+// or overwrites player statistics. Its result labels *source-specific* coverage.
+export async function auditHistoricalArchiveGap(db,job) {
+ const playerId=txt(job?.player_id),pid=txt(job?.fotmob_player_id);
+ const stamp={job_phase:txt(job?.phase),checked_at:new Date().toISOString(),
+  source_revision:ARCHIVE_SHA256,proposals:0,new_seasons:0,existing_seasons:0,
+  note:'Archivo de Understat 2014/15–2024/25; alcance de ligas cubiertas'};
+ if(!/^[a-f0-9]{24}$/i.test(playerId)||!/^\d{1,15}$/.test(pid))
+  return {...stamp,status:'needs_fotmob_link',note:'ID de jugador o FotMob ausente'};
+ const [player,links,back,stats]=await Promise.all([
+  db.Player.get(playerId),
+  allRows(db.PlayerFotmobLink,{player_id:playerId},100),
+  allRows(db.PlayerFotmobLink,{fotmob_player_id:pid},100),
+  allRows(db.PlayerSeasonStats,{player_id:playerId},350)
+ ]);
+ if(!player)return {...stamp,status:'needs_review',note:'Jugador no disponible'};
+ const ids=[...new Set(links.map(l=>txt(l.fotmob_player_id)).filter(Boolean))];
+ if(ids.length!==1||ids[0]!==pid||
+    !links.some(l=>APPROVED.has(txt(l.verification).toLowerCase()))||
+    back.some(l=>txt(l.player_id)!==playerId)||
+    stats.some(r=>txt(r.fotmob_player_id)&&txt(r.fotmob_player_id)!==pid))
+   return {...stamp,status:'needs_fotmob_link',note:'Falta confirmar una identidad FotMob única'};
+ const priorIds=new Set();
+ for(const r of stats)for(const metric of r.metrics||[]){
+  const p=metric?.provenance;
+  if(p?.provider==='understat_archive'&&p.sha256===ARCHIVE_SHA256&&/^\d+$/.test(txt(p.player_id)))
+   priorIds.add(txt(p.player_id));
+ }
+ const players=readArchive(await archiveText(),player.name);
+ const confirmed=priorIds.size===1&&players.has([...priorIds][0])?
+  {understat_id:[...priorIds][0],confirm_identity:true}:{};
+ const plan=planHistoricalMissing(players,stats,confirmed);
+ const total=plan.proposals?.length||0;
+ return {...stamp,
+  status:['verified','manually_confirmed'].includes(plan.status)?(total?'pending':'no_detected_gaps'):
+    !players.size?'not_covered':plan.status==='needs_identity_confirmation'?'needs_identity_confirmation':'needs_review',
+  proposals:total,
+  new_seasons:(plan.proposals||[]).filter(x=>x.action==='create').length,
+  existing_seasons:(plan.proposals||[]).filter(x=>x.action==='complete').length,
+  excluded:(plan.skipped||[]).length,
+  understat_id:plan.understat_id||'',
+  note:plan.reason||stamp.note
+ };
 }
