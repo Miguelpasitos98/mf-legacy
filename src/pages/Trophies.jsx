@@ -9,6 +9,8 @@ import {countryTrophyIdsFromSections,verifiedTeamTrophyIds} from "@/utils/trophy
 import TrophySyncWorkbench from "@/components/trophies/TrophySyncWorkbench";
 import TeamSearchPicker from "@/components/trophies/TeamSearchPicker";
 import CountrySearchPicker from "@/components/trophies/CountrySearchPicker";
+import TrophyCountryPicker from "@/components/trophies/TrophyCountryPicker";
+import {estimateTrophyReputation,REPUTATION_METHOD,normalizeTrophyName} from "@/utils/trophyResearch";
 import TrophyDetailVisual from "@/components/trophies/TrophyDetailVisual";
 import TrophyArchiveOverview from "@/components/trophies/TrophyArchiveOverview";
 import TrophyReviewCenter from "@/components/trophies/TrophyReviewCenter";
@@ -17,7 +19,7 @@ import {TROPHY_CSV_URL,TROPHY_TYPES,TROPHY_CATEGORIES,parseTrophyCatalog,mergeTr
 
 const TROPHY_KEY=["mf-legacy","trophies","definitions"];
 const HONOURS_KEY=["mf-legacy","trophies","honours"];
-const emptyTrophy=()=>({source_id:"",name:"",trophy_type:"",category:"",country:"",organizer:"",competition_id:"",description:"",image_url:"",identification_status:"Manual",is_active:true});
+const emptyTrophy=()=>({source_id:"",name:"",trophy_type:"",category:"",country:"",country_id:"",country_resolution:"pending",region:"",reputation:"",reputation_method:REPUTATION_METHOD,reputation_basis:"",research_source_url:"",organizer:"",competition_id:"",description:"",image_url:"",identification_status:"Manual",is_active:true});
 const emptyHonour=(trophy)=>({season:"",recipient_type:trophy?.trophy_type==="Individual Trophy"?"Player":"Team",recipient_id:"",recipient_name:"",award_rank:"",goals:"",edition_label:"",verified:false,source_url:"",notes:""});
 const rows=result=>Array.isArray(result)?result:(result?.items||result?.data||[]);
 const cls=(active)=>"whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition "+(active?"bg-[#003399] text-white":"text-slate-500 hover:bg-slate-100 hover:text-slate-900");
@@ -37,7 +39,8 @@ function Metric({value,label:caption,icon:Icon}){
   <div className="mt-2 text-xl font-black tabular-nums text-slate-900">{value}</div>
  </div>;
 }
-function TrophyCard({trophy,manifest,open,count}){
+function TrophyCard({trophy,manifest,open,count,country}){
+ const editorial=estimateTrophyReputation(trophy);
  return <button type="button" onClick={open} className="group relative flex min-h-[195px] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-[#003399]/30 hover:shadow-[0_12px_35px_rgba(20,35,65,.09)]">
    <div className="relative flex h-32 items-center justify-center bg-gradient-to-b from-[#F8F9FC] to-white px-5 pt-3">
     <TrophyArtwork trophy={trophy} manifest={manifest} className="h-[110px] w-full"/>
@@ -48,7 +51,7 @@ function TrophyCard({trophy,manifest,open,count}){
    <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-1">
     <h3 title={trophy.name} className="line-clamp-2 text-[12px] font-extrabold leading-4 text-slate-900">{trophy.name}</h3>
     <div className="mt-auto flex items-end justify-between gap-1 pt-3">
-      <span className="max-w-[75%] truncate text-[10px] text-slate-400">{trophy.category||trophy.country||trophy.trophy_type||"ID "+trophy.source_id}</span>
+      <span className="flex min-w-0 items-center gap-1 text-[10px] text-slate-400">{country?.flag&&<img loading="lazy" src={country.flag} alt={country.name} className="h-3.5 w-5 shrink-0 rounded-sm object-cover"/>}<span className="truncate">{country?.name||trophy.category||trophy.country||trophy.trophy_type||"ID "+trophy.source_id}</span></span><span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold tabular-nums text-slate-600" title="Reputación editorial MF LEGACY, no oficial de Football Manager">{editorial.score}/200</span>
       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#003399]">{count>0?<><Medal size={12}/>{count}</>:<ChevronRight size={14}/>}</span>
     </div>
    </div>
@@ -69,6 +72,7 @@ export default function Trophies(){
  const [tab,setTab]=useState("verified");
  const [type,setType]=useState("all");
  const [category,setCategory]=useState("all");
+ const [sortMode,setSortMode]=useState("name");
  const [countryFilter,setCountryFilter]=useState("all");
  const [teamFilter,setTeamFilter]=useState("");
  const [expandedGroups,setExpandedGroups]=useState({});
@@ -100,6 +104,8 @@ export default function Trophies(){
   return ()=>controller.abort();
  },[]);
  const all=useMemo(()=>mergeTrophyCatalog(catalog,rows(trophyQuery.data)),[catalog,trophyQuery.data]);
+ const countryRecords=useMemo(()=>rows(countriesQuery.data),[countriesQuery.data]);
+ const countryMap=useMemo(()=>new Map(countryRecords.map(country=>[String(country.id),country])),[countryRecords]);
  const visualCatalog=useMemo(()=>expandTrophyVisualCards(all),[all]);
  const honours=useMemo(()=>rows(honourQuery.data),[honourQuery.data]);
  const honourCounts=useMemo(()=>{const m=new Map();for(const a of honours){const k=String(a.trophy_source_id||"");m.set(k,(m.get(k)||0)+1);}return m;},[honours]);
@@ -126,7 +132,7 @@ export default function Trophies(){
   const q=normaliseSearch(query);
   return !q||normaliseSearch([t.name,t.source_name,t.source_id,t.country,t.organizer,t.category].join(" ")).includes(q);
  }).sort((a,b)=>a.name.localeCompare(b.name,"es",{numeric:true})),[visualCatalog,tab,type,category,query,countryTrophyIds,teamFilter,verifiedTeamTrophies]);
- const grouped=useMemo(()=>groupTrophies(filtered,rows(leaguesQuery.data),rows(countriesQuery.data)),[filtered,leaguesQuery.data,countriesQuery.data]);
+ const grouped=useMemo(()=>groupTrophies(filtered,rows(leaguesQuery.data),rows(countriesQuery.data),sortMode),[filtered,leaguesQuery.data,countriesQuery.data,sortMode]);
  const teamSelectionName=rows(teamsQuery.data).find(t=>String(t.id)===String(teamFilter))?.name||"";
  
  const selected=useMemo(()=>all.find(t=>String(t.source_id)===String(selectedId))||null,[all,selectedId]);
@@ -136,7 +142,7 @@ export default function Trophies(){
  const candidates=useMemo(()=>rows(candidateQuery.data).filter(x=>normaliseSearch(x.name).includes(normaliseSearch(recipientQuery))).slice(0,8),[candidateQuery.data,recipientQuery]);
 
  const open=t=>{const canonical=all.find(row=>String(row.source_id)===String(t.source_id))||t;
-  setSelectedId(String(t.source_id));setDraft({...canonical,visual_variant_id:t.visual_variant_id||""});setNewRecord(false);setHonourDraft(null);setError("");setShowHonours(true);setDetailTab("Resumen");};
+  setSelectedId(String(t.source_id));setDraft({...canonical,reputation:canonical.reputation??estimateTrophyReputation(canonical).score,reputation_basis:canonical.reputation_basis||estimateTrophyReputation(canonical).basis,reputation_method:canonical.reputation_method||REPUTATION_METHOD,visual_variant_id:t.visual_variant_id||""});setNewRecord(false);setHonourDraft(null);setError("");setShowHonours(true);setDetailTab("Resumen");};
  const create=()=>{const d=emptyTrophy();setSelectedId("");setDraft(d);setNewRecord(true);setHonourDraft(null);setError("");setDetailTab("Editar");};
  const close=()=>{if(saving||honourSaving)return;setDraft(null);setSelectedId("");setHonourDraft(null);setNewRecord(false);setError("");};
  const save=async e=>{
@@ -146,7 +152,8 @@ export default function Trophies(){
   if(!draft.id&&all.some(t=>String(t.source_id)===source_id&&Boolean(t.id))){setError("Ya existe una ficha guardada con este ID.");return;}
   setSaving(true);
   try{
-   const payload={source_id,name,trophy_type:draft.trophy_type,category:draft.category||"",country:draft.country||"",organizer:draft.organizer||"",competition_id:draft.competition_id||"",description:draft.description||"",image_url:draft.image_url||"",source_name:draft.source_name||"",identification_status:draft.identification_status==="Pending"?"Pending":draft.identification_status==="Manual"?"Manual":"Verified",is_active:draft.is_active!==false,notes:draft.notes||""};
+   if(draft.reputation!==""&&draft.reputation!=null&&!Number.isFinite(Number(draft.reputation))){setError("La reputación debe ser un número de 0 a 200.");return;}
+   const payload={source_id,name,trophy_type:draft.trophy_type,category:draft.category||"",country:draft.country||"",organizer:draft.organizer||"",competition_id:draft.competition_id||"",description:draft.description||"",image_url:draft.image_url||"",source_name:draft.source_name||"",identification_status:draft.identification_status==="Pending"?"Pending":draft.identification_status==="Manual"?"Manual":"Verified",is_active:draft.is_active!==false,notes:draft.notes||"",country_id:draft.country_id||"",country_resolution:draft.country_resolution||"pending",region:draft.region||"",reputation:draft.reputation===""||draft.reputation==null?null:Math.min(200,Math.max(0,Math.round(Number(draft.reputation)))),reputation_basis:draft.reputation_basis||"",reputation_method:draft.reputation_method||REPUTATION_METHOD,research_source_url:draft.research_source_url||""};
    if(draft.id)await base44.entities.Trophy.update(draft.id,payload);
    else await base44.entities.Trophy.create(payload);
    await qc.invalidateQueries({queryKey:TROPHY_KEY});setDraft(null);setSelectedId("");setNewRecord(false);
@@ -217,6 +224,7 @@ export default function Trophies(){
      <label className="relative min-w-[210px] flex-1"><Search size={16} className="absolute left-3 top-3 text-slate-400"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nombre, país o ID original…" className={input+" h-8 pl-9 text-xs"}/></label>
      <label className="relative min-w-[155px]"><Filter size={13} className="pointer-events-none absolute left-2.5 top-3.5 text-slate-400"/><select value={type} onChange={e=>setType(e.target.value)} className={input+" h-8 pl-8 text-xs"}><option value="all">Todos los tipos</option>{TROPHY_TYPES.map(v=><option key={v} value={v}>{v}</option>)}</select></label>
      <select value={category} onChange={e=>setCategory(e.target.value)} className={input+" h-8 min-w-[145px] w-auto text-xs"}><option value="all">Todas las categorías</option>{TROPHY_CATEGORIES.map(v=><option key={v} value={v}>{v}</option>)}</select>
+     <select aria-label="Ordenar trofeos" value={sortMode} onChange={e=>setSortMode(e.target.value)} className={input+" h-8 min-w-[155px] w-auto text-xs"}><option value="name">Ordenar por nombre</option><option value="reputation_desc">Reputación: mayor</option><option value="reputation_asc">Reputación: menor</option></select>
      {(query||type!=="all"||category!=="all"||countryFilter!=="all"||teamFilter)&&<button type="button" onClick={()=>{setQuery("");setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");}} className="rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500" aria-label="Limpiar todos los filtros" title="Limpiar todos los filtros"><RotateCcw size={15}/></button>}
     </div>
     <div className="mt-2 grid grid-cols-1 items-end gap-2 sm:grid-cols-2">
@@ -250,7 +258,7 @@ export default function Trophies(){
       <div className="flex items-baseline gap-2"><h2 className="text-sm font-black uppercase tracking-[.08em] text-slate-900">{group.title}</h2><span className="text-[10px] font-medium text-slate-400">{group.items.length} trofeos</span></div>
       {group.kind==="country"&&<span className="text-[10px] text-slate-400">{group.reputation!=null?"Reputación de liga: "+group.reputation:"Sin reputación de liga registrada"}</span>}
      </div>
-     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{group.items.slice(0,expandedGroups[group.key]?group.items.length:24).map(t=><TrophyCard key={t.visual_variant_id||t.source_id} trophy={t} manifest={imageManifest}
+     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{group.items.slice(0,expandedGroups[group.key]?group.items.length:24).map(t=><TrophyCard key={t.visual_variant_id||t.source_id} trophy={t} manifest={imageManifest} country={countryMap.get(String(t.country_id||""))}
       count={isFifaClubWorldCup(t)&&t.visual_variant_id?honours.filter(h=>h.verified===true&&String(h.trophy_source_id)===String(t.source_id)&&fifaCwcVariantForSeason(h.season)?.id===t.visual_variant_id).length:honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
      {group.items.length>24&&<button type="button" onClick={()=>setExpandedGroups(current=>({...current,[group.key]:!current[group.key]}))} className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{expandedGroups[group.key]?"Mostrar menos":"Ver todos los "+group.items.length+" trofeos"}</button>}
     </section>)}</div>:!catalogLoading&&!honourQuery.isLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">{teamFilter?"No hay títulos ganados y verificados para este equipo con los filtros actuales. Esto no significa que el equipo no tenga otros títulos.":"No hay trofeos con estos filtros."}</div>}
@@ -300,10 +308,18 @@ export default function Trophies(){
        <DetailsField title="Trophy Type *"><select className={input} required value={draft.trophy_type||""} onChange={e=>setDraft(v=>({...v,trophy_type:e.target.value}))}><option value="">Seleccionar tipo</option>{TROPHY_TYPES.map(v=><option value={v} key={v}>{v}</option>)}</select></DetailsField>
        <DetailsField title="Nombre oficial" wide><input className={input} value={draft.name||""} required onChange={e=>setDraft(v=>({...v,name:e.target.value}))}/></DetailsField>
        <DetailsField title="Categoría"><select className={input} value={draft.category||""} onChange={e=>setDraft(v=>({...v,category:e.target.value}))}><option value="">Sin clasificar</option>{TROPHY_CATEGORIES.map(v=><option key={v} value={v}>{v}</option>)}</select></DetailsField>
-       <DetailsField title="País / región"><input className={input} value={draft.country||""} onChange={e=>setDraft(v=>({...v,country:e.target.value}))} placeholder="Sin especificar"/></DetailsField>
+       <DetailsField title="País · vinculado a Country">
+        <TrophyCountryPicker countries={countryRecords} value={draft.country_id||""} scope={draft.country_resolution||"pending"}
+         onChange={(country,mode)=>setDraft(v=>({...v,country_id:country?.id||"",country:country?.name||"",country_resolution:mode,region:country? v.region:""}))}/>
+        {!draft.country_id&&draft.country&&<p className="mt-1 text-[10px] text-amber-600">Nombre anterior sin vincular: {draft.country}</p>}
+       </DetailsField>
+       <DetailsField title="Región / sede (opcional)"><input className={input} value={draft.region||""} onChange={e=>setDraft(v=>({...v,region:e.target.value}))} placeholder="Ej. Cádiz, Cataluña, Baviera…"/></DetailsField>
+       <DetailsField title="Reputación · 0 a 200"><div className="flex h-10 items-center gap-3 rounded-lg border border-slate-200 px-3"><input aria-label="Reputación editorial del trofeo, de cero a doscientos" type="range" min="0" max="200" step="1" value={draft.reputation==null||draft.reputation===""?estimateTrophyReputation(draft).score:Number(draft.reputation)} onChange={e=>setDraft(v=>({...v,reputation:Number(e.target.value),reputation_method:'manual_editorial'}))} className="min-w-0 flex-1 accent-[#003399]"/><input aria-label="Nota numérica de reputación" type="number" min="0" max="200" step="1" value={draft.reputation??""} placeholder={String(estimateTrophyReputation(draft).score)} onChange={e=>setDraft(v=>({...v,reputation:e.target.value===""?"":Math.max(0,Math.min(200,Number(e.target.value))),reputation_method:'manual_editorial'}))} className="w-14 border-l border-slate-200 pl-2 text-right text-sm font-black tabular-nums outline-none"/></div><p className="mt-1 text-[10px] text-slate-400">Fama estimada por MF LEGACY, no valor oficial del juego.</p></DetailsField>
+       <DetailsField title="Criterio de reputación" wide><textarea className={input+" min-h-16 py-2"} value={draft.reputation_basis||""} onChange={e=>setDraft(v=>({...v,reputation_basis:e.target.value}))} placeholder={estimateTrophyReputation(draft).basis}/></DetailsField>
        <DetailsField title="Organizador"><input className={input} value={draft.organizer||""} onChange={e=>setDraft(v=>({...v,organizer:e.target.value}))} placeholder="FIFA, UEFA, federación…"/></DetailsField>
        <DetailsField title="ID de competición"><input className={input} value={draft.competition_id||""} onChange={e=>setDraft(v=>({...v,competition_id:e.target.value}))} placeholder="Opcional · League ID"/></DetailsField>
        <DetailsField title="Imagen (URL opcional)" wide><input className={input} value={draft.image_url||""} onChange={e=>setDraft(v=>({...v,image_url:e.target.value}))} placeholder={trophyImageUrl({source_id:draft.source_id})}/></DetailsField>
+       <DetailsField title="Fuente de investigación (opcional)" wide><input className={input} type="url" value={draft.research_source_url||""} onChange={e=>setDraft(v=>({...v,research_source_url:e.target.value}))} placeholder="https://federación o club oficial…"/></DetailsField>
        <DetailsField title="Descripción" wide><textarea className={input+" min-h-20 py-2"} value={draft.description||""} onChange={e=>setDraft(v=>({...v,description:e.target.value}))} placeholder="Historia, relevancia o características del trofeo…"/></DetailsField>
        <DetailsField title="Notas privadas" wide><textarea className={input+" min-h-16 py-2"} value={draft.notes||""} onChange={e=>setDraft(v=>({...v,notes:e.target.value}))} placeholder="Pendientes de investigación…"/></DetailsField>
        <div className="sm:col-span-2 flex items-center justify-between gap-3 pt-2"><span className="text-[10px] text-slate-400">{draft.source_path||"Imagen enlazable desde GitHub por ID original"}</span><button type="submit" disabled={saving} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#003399] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50"><Save size={15}/>{saving?"Guardando…":"Guardar ficha"}</button></div>
@@ -328,7 +344,7 @@ export default function Trophies(){
       <div className="mt-4 rounded-xl bg-slate-50 p-3 text-[11px] leading-5 text-slate-500">Los palmarés de Teams y Players podrán calcularse utilizando <strong>TrophyHonour</strong> por ID, sin duplicar registros.</div>
      </div>
     </div>:<TrophyDetailVisual
-      key={selectedId} trophy={draft||selected} manifest={imageManifest}
+      key={selectedId} trophy={draft||selected} manifest={imageManifest} countries={countryRecords}
       onSelectVisualVariant={variantId=>setDraft(current=>({...current,visual_variant_id:variantId}))}
       tab={detailTab} honours={selectedHonours} onEdit={()=>setDetailTab("Editar")}
       onAdd={startHonour} onVerify={verifyHonour} honourSaving={honourSaving}
