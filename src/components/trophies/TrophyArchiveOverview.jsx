@@ -12,10 +12,10 @@ import ClubTrophyHistory from "@/components/trophies/ClubTrophyHistory";
 
 const MODES=[["equipos","Equipos",Shield],["competiciones","Competiciones",Trophy],["jugadores","Jugadores",Users]];
 const small="text-[10px] font-bold uppercase tracking-[.13em] text-slate-400";
-function TrophyPhoto({trophy,manifest,size="large"}){
+function TrophyPhoto({trophy,manifest,season,size="large"}){
  const [broken,setBroken]=useState(false);
  return <span className={"flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white "+(size==="large"?"h-[142px] w-[142px]":"h-14 w-14")}>
-  {!broken?<img src={trophyImageUrl(trophy,manifest)} alt="" loading="lazy" onError={()=>setBroken(true)} className="h-full w-full object-contain p-1.5 drop-shadow-sm"/>:<Trophy size={30} className="text-slate-300"/>}
+  {!broken?<img src={trophyImageUrl(trophy,manifest,season)} alt="" loading="lazy" onError={()=>setBroken(true)} className="h-full w-full object-contain p-1.5 drop-shadow-sm"/>:<Trophy size={30} className="text-slate-300"/>}
  </span>;
 }
 export default function TrophyArchiveOverview({honours=[],catalog=[],imageManifest,onOpenTrophy,onSync}){
@@ -92,7 +92,7 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
    {rendered.map(item=><button type="button" key={item.source_id} onClick={()=>openCompetition(item.source_id)}
     className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_15px_38px_rgba(20,35,65,.09)]">
     <div className="relative flex min-h-[158px] items-center justify-center bg-gradient-to-b from-[#f1f5fb] to-white px-4 py-3">
-     <TrophyPhoto trophy={item.trophy||{source_id:item.source_id,name:item.name}} manifest={imageManifest}/>
+     <TrophyPhoto trophy={item.trophy||{source_id:item.source_id,name:item.name}} manifest={imageManifest} season={item.latest}/>
      <span className="absolute right-3 top-3 rounded-lg bg-[#003399] px-2 py-1 text-[11px] font-black tabular-nums text-white">{item.count} {item.count===1?"título":"títulos"}</span>
     </div>
     <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
