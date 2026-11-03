@@ -126,3 +126,24 @@ test("FotMob autoapplies a uniquely identified current-club season while preserv
  assert.equal(f.saved.find(x=>x.season==="2026/2027")?.team_id,"team-liverpool");
  assert.equal(c.review_status,"applied");
 });
+
+test("la revisión reanudada completa candidatos restantes aunque otro de la misma temporada ya esté aplicado",async()=>{
+ const f=fixture();
+ const base={...f.candidates[2],source:"fotmob",kind:"metric",
+  verification_status:"unverified",evidence_url:"https://www.fotmob.com/players/921253",
+  source_record_id:"2023/2024:87:8634:goals:total"};
+ f.candidates.splice(0,f.candidates.length,
+  {...base,id:"already",metric_name:"Goals",value:3,review_status:"applied"},
+  {...base,id:"left",metric_name:"Assists",value:4,review_status:"pending",
+   source_record_id:"2023/2024:87:8634:assists:total"});
+ f.saved.push({id:"existing",player_id:f.job.player_id,season:"2023/2024",competition:"LaLiga",
+  fotmob_team_id:"8634",team_name:"Barcelona",fotmob_tournament_id:"87",
+  metrics:[{name:"Goals",value:3,source:"fotmob"}]});
+ const response=await applyVerifiedHistoricals(f.db,f.job);
+ assert.equal(response.applied,1);
+ assert.equal(response.pending,0);
+ assert.equal(f.candidates[0].review_status,"applied");
+ assert.equal(f.candidates[1].review_status,"applied");
+ assert.equal(f.saved[0].metrics.find(m=>m.name==="Goals").value,3);
+ assert.equal(f.saved[0].metrics.find(m=>m.name==="Assists").value,4);
+});
