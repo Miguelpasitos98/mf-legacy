@@ -6,6 +6,28 @@ const txt=v=>String(v??'').trim();
 const rows=v=>Array.isArray(v)?v:v?.items||v?.data||v?.entities||[];
 const metricKey=x=>txt(x).toLowerCase().replace(/[^a-z0-9]/g,'');
 const APPROVED=new Set(['verified','confirmed','manual','manual_confirmada','confirmada','automatic_exact_name_unique','automatic_existing_stats_unique']);
+export function planArchiveAdditions(previous,incoming){
+ const old=Array.isArray(previous)?previous:[];
+ const known=new Map(old.filter(x=>x?.name).map(x=>[metricKey(x.name),x]));
+ const nativeNames={
+  'understatgoals':['goals','goles'],'understatassists':['assists','asistencias'],
+  'understatxg':['xg','expectedgoals'],'understatxa':['xa','expectedassists'],
+  'understatnpxg':['xgexclpenalty','nonpenaltyxg','npxg'],
+  'understatshots':['shots','tiros']};
+ const additions=[];let conflicts=0;
+ for(const metric of incoming||[]){
+  const key=metricKey(metric.name),exact=known.get(key);
+  if(exact){
+   if(exact.value!=null&&Number(exact.value)!==Number(metric.value))conflicts++;
+   continue;
+  }
+  if((nativeNames[key]||[]).some(alias=>{
+    const val=known.get(alias)?.value;return val!==null&&val!==undefined&&val!=='';
+  }))continue;
+  additions.push(metric);known.set(key,metric);
+ }
+ return {additions,conflicts};
+}
 let cachedArchive=null,cachedAt=0;
 async function archiveText(){
  if(cachedArchive&&Date.now()-cachedAt<1800000)return cachedArchive;
@@ -62,22 +84,8 @@ export async function runHistoricalArchiveBackfill(db,job){
     result.skipped++;continue;
   }
   const old=Array.isArray(current.metrics)?current.metrics:[];
-  const known=new Map(old.filter(x=>x?.name).map(x=>[metricKey(x.name),x]));
-  const additions=[];
-  for(const metric of item.metrics){
-   const key=metricKey(metric.name);
-   const exact=known.get(key);
-   if(exact){
-    if(exact.value!==null&&exact.value!==undefined&&Number(exact.value)!==Number(metric.value))result.conflicts++;
-    continue;
-   }
-   const hasNative=(nativeNames[key]||[]).some(alias=>{
-    const val=known.get(alias)?.value;return val!==null&&val!==undefined&&val!=='';
-   });
-   if(hasNative)continue;
-   additions.push(metric);
-   known.set(key,metric);
-  }
+  const {additions,conflicts}=planArchiveAdditions(old,item.metrics);
+  result.conflicts+=conflicts;
   if(!additions.length)continue;
   await db.PlayerSeasonStats.update(current.id,{metrics:[...old,...additions]});
   result.rows_updated++;
