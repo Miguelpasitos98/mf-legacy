@@ -8,6 +8,7 @@ import {estimateTrophyReputation} from "@/utils/trophyResearch";
 import {FIFA_CWC_VISUAL_VARIANTS,isFifaClubWorldCup,CLASSIC_CWC_CREDIT,CLASSIC_CWC_SOURCE} from "@/utils/trophyVisualVariants";
 import {trophyEditionRows,trophyDetailSummary,trophyClubRanking,trophyPlayerRanking} from "@/utils/trophyDetailData";
 import TrophyHistoricalArchive from "@/components/trophies/TrophyHistoricalArchive";
+import {trophyHistoricalSummary} from "@/utils/trophyHistoricalSummary";
 
 const sectionLabel="text-[10px] font-black uppercase tracking-[.14em] text-slate-400";
 const verifiedTag="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-emerald-700";
@@ -78,6 +79,10 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
  const historicalEvents=useMemo(()=>Array.isArray(robEventsQuery.data)?robEventsQuery.data:[],[robEventsQuery.data]);
  const editionCount=historicalEditions.filter(e=>String(e.trophy_source_id)===String(trophy.source_id)).length;
  const eventCount=historicalEvents.filter(e=>String(e.trophy_source_id)===String(trophy.source_id)).length;
+ const historicalSummary=useMemo(()=>trophyHistoricalSummary(historicalEditions,historicalEvents),[historicalEditions,historicalEvents]);
+ const historyLoading=robEditionsQuery.isLoading||robEventsQuery.isLoading;
+ const historyError=robEditionsQuery.isError||robEventsQuery.isError;
+ const hasHistoricalFinals=historicalSummary.editionCount>0;
  const teamMap=useMemo(()=>new Map((teamsQuery.data||[]).map(t=>[String(t.id),t])),[teamsQuery.data]);
  const playerMap=useMemo(()=>new Map((playersQuery.data||[]).map(p=>[String(p.id),p])),[playersQuery.data]);
  const players=useMemo(()=>trophyPlayerRanking(honours,creditsQuery.data||[],playersQuery.data||[]),[honours,creditsQuery.data,playersQuery.data]);
@@ -123,12 +128,22 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
     </div>
     <p className="mt-3 text-[10px] text-slate-500">Ilustración del trofeo clásico: <a href={CLASSIC_CWC_SOURCE} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#003399] hover:underline">{CLASSIC_CWC_CREDIT}</a>. Sin modificaciones.</p>
    </section>}
-   <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-    <Tile icon={Medal} label="Ediciones verificadas" value={summary.verifiedCount}/>
-    <Tile icon={ShieldCheck} label="Clubes campeones" value={summary.clubCount}/>
-    <Tile icon={Clock3} label="Por comprobar" value={summary.pendingCount}/>
-    <Tile icon={CalendarDays} label="Última edición" value={summary.newest||"—"}/>
-   </div>
+   {historyLoading?<div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">Consultando las finales históricas del trofeo…</div>:
+    historyError?<div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">No se pudo cargar el archivo histórico. Los datos verificados se mantienen separados e intactos.</div>:
+    <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+     {hasHistoricalFinals?<>
+      <Tile icon={Medal} label="Finales documentadas" value={historicalSummary.editionCount}/>
+      <Tile icon={ShieldCheck} label="Clubes campeones · Rob" value={historicalSummary.clubCount}/>
+      <Tile icon={Clock3} label="Acontecimientos" value={historicalSummary.eventCount}/>
+      <Tile icon={CalendarDays} label="Última final" value={historicalSummary.newest||"—"}/>
+     </>:<>
+      <Tile icon={Medal} label="Ediciones verificadas" value={summary.verifiedCount}/>
+      <Tile icon={ShieldCheck} label="Clubes campeones" value={summary.clubCount}/>
+      <Tile icon={Clock3} label="Por comprobar" value={summary.pendingCount}/>
+      <Tile icon={CalendarDays} label="Última edición" value={summary.newest||"—"}/>
+     </>}
+    </div>}
+   {hasHistoricalFinals&&<p className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-600"><Info size={13} className="shrink-0 text-amber-600"/><strong className="text-slate-800">Archivo de Rob FM24, pendiente de verificación externa.</strong><span>Palmarés contrastado de MF LEGACY: {summary.verifiedCount} adjudicaciones verificadas. Las finales históricas no suman títulos oficiales.</span></p>}
    {(editionCount>0||eventCount>0)&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3"><div><p className="text-xs font-bold text-blue-900">Archivo histórico de Rob / FM24</p><p className="mt-0.5 text-[11px] text-blue-700">{editionCount} finales · {eventCount} acontecimientos · {String(trophy.source_id)==="1301394"?"lote de capturas completo · ":""}sin verificar oficialmente</p></div><div className="flex gap-2"><button type="button" onClick={()=>onNavigate?.("Ediciones")} className="rounded-lg bg-[#003399] px-3 py-2 text-[11px] font-semibold text-white">Ver finales</button><button type="button" onClick={()=>onNavigate?.("Historia")} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-[11px] font-semibold text-blue-800">Ver historia</button></div></div>}
    {trophy.description&&<p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-relaxed text-slate-600">{trophy.description}</p>}
    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600"><span><strong className="text-slate-800">Reputación editorial: {editorial.score}/200.</strong> {editorial.basis}</span>{trophy.research_source_url&&<a href={trophy.research_source_url} target="_blank" rel="noreferrer" className="font-bold text-blue-700 underline-offset-2 hover:underline">Fuente histórica</a>}</div>
