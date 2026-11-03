@@ -7,9 +7,10 @@ import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {trophyImageUrl} from "@/utils/trophyCatalog";
 import {archiveOverview,searchArchiveRows} from "@/utils/trophyArchiveOverview";
 import TrophyRankingCard from "@/components/trophies/TrophyRankingCard";
+import ClubHonoursGroupCard from "@/components/trophies/ClubHonoursGroupCard";
 import ClubTrophyHistory from "@/components/trophies/ClubTrophyHistory";
 
-const MODES=[["competiciones","Competiciones",Trophy],["equipos","Equipos",Shield],["jugadores","Jugadores",Users]];
+const MODES=[["equipos","Equipos",Shield],["competiciones","Competiciones",Trophy],["jugadores","Jugadores",Users]];
 const small="text-[10px] font-bold uppercase tracking-[.13em] text-slate-400";
 function TrophyPhoto({trophy,manifest,size="large"}){
  const [broken,setBroken]=useState(false);
@@ -17,15 +18,9 @@ function TrophyPhoto({trophy,manifest,size="large"}){
   {!broken?<img src={trophyImageUrl(trophy,manifest)} alt="" loading="lazy" onError={()=>setBroken(true)} className="h-full w-full object-contain p-1.5 drop-shadow-sm"/>:<Trophy size={30} className="text-slate-300"/>}
  </span>;
 }
-function Stat({label,value,icon:Icon}){
- return <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
-  <div className="flex justify-between gap-2"><span className={small}>{label}</span><Icon size={14} className="text-slate-300"/></div>
-  <p className="mt-1.5 text-2xl font-black tabular-nums text-slate-900">{value.toLocaleString("es-ES")}</p>
- </div>;
-}
 export default function TrophyArchiveOverview({honours=[],catalog=[],imageManifest,onOpenTrophy,onSync}){
  const navigate=useNavigate();
- const [mode,setMode]=useState("competiciones"),[search,setSearch]=useState(""),[visible,setVisible]=useState(24);
+ const [mode,setMode]=useState("equipos"),[search,setSearch]=useState(""),[visible,setVisible]=useState(24);
  const [seasonFilter,setSeasonFilter]=useState("all");
  const [selectedClubId,setSelectedClubId]=useState("");
  const teamQuery=useQuery({...completeRecordQueryOptions(base44.entities.Team,["mf-legacy","teams"]),enabled:mode==="equipos",retry:false});
@@ -52,23 +47,11 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
   honours={honours} catalog={catalog} manifest={imageManifest}
   onBack={()=>setSelectedClubId("")} onOpenTrophy={onOpenTrophy} onSync={onSync}
  />;
- return <section className="space-y-4 pb-6">
-  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0d2b52] via-[#123a67] to-[#456887] p-5 text-white md:p-7">
-   <div className="pointer-events-none absolute -right-12 -top-20 h-72 w-72 rounded-full border border-white/10"/>
-   <div className="relative flex flex-wrap items-end justify-between gap-5">
-    <div className="max-w-[690px] space-y-2">
-     <p className="text-[10px] font-extrabold uppercase tracking-[.22em] text-[#bcd2ee]">MF LEGACY · HISTORICAL HONOURS</p>
-     <h2 className="text-3xl font-black tracking-tight md:text-4xl">Palmarés</h2>
-     <p className="text-xs leading-5 text-white/75">Competiciones, clubes y futbolistas conectados mediante sus títulos oficiales verificados. Una única historia, distintas formas de explorarla.</p>
-    </div>
-    <Trophy strokeWidth={1} size={72} className="hidden text-white/35 md:block"/>
-   </div>
-  </div>
-  <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-   <Stat label="Títulos verificados" value={summary.verifiedCount} icon={Medal}/>
-   <Stat label="Competiciones" value={summary.competitions.length} icon={Trophy}/>
-   <Stat label="Clubes campeones" value={summary.clubs.length} icon={Shield}/>
-   <Stat label="Pendientes de validar" value={pending} icon={CalendarDays}/>
+ return <section className="space-y-3 pb-6">
+  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:px-4" aria-label="Resumen del palmarés">
+   {[[Medal,"Títulos verificados",summary.verifiedCount],[Trophy,"Competiciones",summary.competitions.length],[Shield,"Clubes campeones",summary.clubs.length],[CalendarDays,"Pendientes",pending]].map(([Icon,label,value])=><div key={label} className="flex min-w-0 items-center gap-2 text-[11px]">
+    <Icon size={14} className="shrink-0 text-slate-400"/><span className="text-slate-500">{label}</span><strong className="tabular-nums text-slate-900">{value.toLocaleString("es-ES")}</strong>
+   </div>)}
   </div>
   <div className="rounded-2xl border border-slate-200 bg-white p-3 md:p-4">
    <div className="flex flex-wrap items-center justify-between gap-3">
@@ -126,15 +109,14 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
     </div>
    </button>)}
   </div>}
-  {!isError&&!isLoading&&mode==="equipos"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-   {rendered.map((item,index)=><TrophyRankingCard
-     key={item.id} item={item} rank={rankById.get(String(item.id))||index+1} entity={teamMap.get(item.id)}
-     kind="team" manifest={imageManifest} trophiesById={trophiesById}
-     onOpenTrophy={openCompetition}
-     onOpenArchive={openClub}
+  {!isError&&!isLoading&&mode==="equipos"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3" aria-label="Palmarés agrupado por equipos">
+   {rendered.map(item=><ClubHonoursGroupCard
+     key={item.id} item={item} team={teamMap.get(String(item.id))}
+     manifest={imageManifest} trophiesById={trophiesById}
+     onOpenTrophy={openCompetition} onOpenArchive={openClub}
      onOpenProfile={id=>navigate("/teams?stats_team="+encodeURIComponent(id))}
    />)}
-  </div>}
+  </div>
   {!isError&&!isLoading&&mode==="jugadores"&&rendered.length>0&&<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
    {rendered.map((item,index)=><TrophyRankingCard
      key={item.id} item={item} rank={rankById.get(String(item.id))||index+1} entity={playerMap.get(item.id)}
