@@ -82,7 +82,7 @@ export default function Trophies(){
  const [tab,setTab]=useState("verified");
  const [type,setType]=useState("all");
  const [category,setCategory]=useState("all");
- const [sortMode,setSortMode]=useState("name");
+ const [sortMode,setSortMode]=useState("reputation_desc");
  const [showFilters,setShowFilters]=useState(false);
  const [focusedGroup,setFocusedGroup]=useState("");
  const [showAllViewGroups,setShowAllViewGroups]=useState(false);
@@ -132,7 +132,7 @@ export default function Trophies(){
  },[countrySections,countryRecords]);
  const activeFilterCount=[type!=="all",category!=="all",countryFilter!=="all",Boolean(teamFilter&&viewMode!=="clubs")].filter(Boolean).length;
  useEffect(()=>{setFocusedGroup("");setShowAllViewGroups(false);setExpandedGroups({});setTab("all");setTeamFilter("");},[viewMode]);
- const clearFilters=()=>{setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");setSortMode("name");};
+ const clearFilters=()=>{setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");setSortMode("reputation_desc");};
  const countryTrophyIds=useMemo(()=>countryTrophyIdsFromSections(countrySections,countryFilter),[countrySections,countryFilter]);
  // A team's filter means verified trophies actually awarded to that exact Base44 Team.
  const verifiedTeamTrophies=useMemo(()=>verifiedTeamTrophyIds(honours,teamFilter),[honours,teamFilter]);
@@ -150,7 +150,7 @@ export default function Trophies(){
   if(category!=="all"&&t.category!==category)return false;
   if(countryTrophyIds&&!countryTrophyIds.has(String(t.source_id)))return false;
   if(viewMode!=="clubs"&&teamFilter&&!verifiedTeamTrophies.has(String(t.source_id)))return false;
-  const q=normaliseSearch(query);
+  const q=viewMode==="clubs"?"":normaliseSearch(query);
   return !q||normaliseSearch([t.name,t.source_name,t.source_id,t.country,countryMap.get(String(t.country_id||""))?.name,t.region,t.organizer,t.category].join(" ")).includes(q);
  }).sort((a,b)=>a.name.localeCompare(b.name,"es",{numeric:true})),[visualCatalog,tab,type,category,query,countryTrophyIds,teamFilter,verifiedTeamTrophies,countryMap,viewMode]);
  const grouped=useMemo(()=>trophyViewGroups(filtered,viewMode,rows(leaguesQuery.data),countryRecords,sortMode),[filtered,viewMode,leaguesQuery.data,countryRecords,sortMode]);
@@ -305,13 +305,13 @@ export default function Trophies(){
      </div>}
      <label className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">Orden</span>
       <select aria-label="Ordenar trofeos" value={sortMode} onChange={e=>setSortMode(e.target.value)} className={input+" h-9 text-xs"}>
-       <option value="name">Nombre (A–Z)</option><option value="reputation_desc">Mayor reputación</option><option value="reputation_asc">Menor reputación</option>
+       <option value="reputation_desc">Mayor reputación (predeterminado)</option><option value="name">Nombre (A–Z)</option><option value="reputation_asc">Menor reputación</option>
       </select>
      </label>
     </div>
     <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
      <p className="text-[10px] text-slate-400">{teamFilter?"Solo títulos verificados de "+(teamSelectionName||"este club"):"El filtro de club solo muestra títulos ganados y verificados."}</p>
-     <button type="button" disabled={!activeFilterCount&&sortMode==="name"} onClick={clearFilters} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-slate-500 hover:bg-slate-200/70 disabled:cursor-default disabled:opacity-40"><RotateCcw size={12}/> Restablecer</button>
+     <button type="button" disabled={!activeFilterCount&&sortMode==="reputation_desc"} onClick={clearFilters} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-slate-500 hover:bg-slate-200/70 disabled:cursor-default disabled:opacity-40"><RotateCcw size={12}/> Restablecer</button>
     </div>
    </div>}
   </div>}
