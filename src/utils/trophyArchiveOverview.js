@@ -32,9 +32,10 @@ export function archiveOverview(honours=[],credits=[],catalog=[],players=[]){
    competitionMap.set(trophyId,row);
   }
   if(h.recipient_type==="Team"&&teamId){
-   const row=clubMap.get(teamId)||{id:teamId,name:h.recipient_name||"Equipo",total:0,trophies:new Set(),trophyCounts:new Map(),seasons:[],latest:""};
+   const row=clubMap.get(teamId)||{id:teamId,name:h.recipient_name||"Equipo",total:0,trophies:new Set(),trophyCounts:new Map(),trophyLatestSeason:new Map(),seasons:[],latest:""};
    row.total++;row.trophies.add(trophyId);
    row.trophyCounts.set(trophyId,(row.trophyCounts.get(trophyId)||0)+1);
+   if(!row.trophyLatestSeason.get(trophyId)||String(h.season)>String(row.trophyLatestSeason.get(trophyId)))row.trophyLatestSeason.set(trophyId,h.season);
    row.seasons.push(h.season);
    if(!row.latest||h.season>row.latest)row.latest=h.season;
    clubMap.set(teamId,row);
