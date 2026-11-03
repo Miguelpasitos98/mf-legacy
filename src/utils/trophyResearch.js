@@ -9,6 +9,11 @@ const norm = normalizeTrophyName;
 
 // Audited anchors. Match exact names or source IDs, never broad substrings.
 const ANCHORS = [
+ {names:['Youdan Football Cup','Youdan Cup'],score:105,country:'Inglaterra',region:'Sheffield',basis:'Primer torneo documentado por un trofeo de fútbol (1867); notable importancia patrimonial, difusión histórica limitada.',url:'https://www.guinnessworldrecords.com/world-records/75075-oldest-competition-for-a-trophy-in-football-soccer'},
+ {names:['FA Amateur Cup'],score:110,country:'Inglaterra',basis:'Copa inglesa amateur de larga tradición (1893–1974), con finales muy concurridas.',url:'https://www.fchd.info/cups/amcupsummary.htm'},
+ {names:['Drybrough Cup (1971-80)','Drybrough Cup'],score:85,country:'Escocia',basis:'Copa escocesa histórica de corta duración, recordada en el fútbol de clubes nacional.',url:'https://www.scottishfootballmuseum.org.uk/news/the-drybrough-cup/'},
+ {names:['Uhrencup (1962-2019)','Uhrencup'],score:77,country:'Suiza',friendly:true,basis:'Torneo amistoso internacional veraniego organizado históricamente en Suiza.',url:'https://www.rsssf.org/tablesu/uhren.html'},
+ {names:['Trofeo Ciudad de Valladolid (1972-2021)'],score:60,country:'España',region:'Valladolid',friendly:true,basis:'Torneo de verano local de larga tradición y limitada notoriedad fuera de España.'},
  {id:'1301385',names:['FIFA World Cup','Copa Mundial de la FIFA'],score:200,scope:'international',basis:'Máxima notoriedad mundial del fútbol de selecciones.',url:'https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/trophy-design-history-jules-rimet'},
  {id:'1301394',names:['UEFA Champions League','Copa de Europa'],score:195,scope:'international',basis:'Principal competición anual de clubes europeos.',url:'https://www.uefa.com/uefachampionsleague/thetrophy/'},
  {id:'1301388',names:['Eurocopa','UEFA European Championship'],score:190,scope:'international',basis:'Campeonato continental de selecciones de máxima proyección.'},
@@ -95,8 +100,8 @@ export function estimateTrophyReputation(trophy={}) {
 
 // Conservative explicit aliases; no national association is inferred from a winner club.
 const COUNTRY_PATTERNS = [
- ['España',/\b(?:espana|spanish|spain|laliga|copa del rey|supercopa de espana|copa macaya|copa eva duarte|copa de los campeones de espana|copa de la espana libre|trofeo (?:ramon de carranza|teresa herrera|colombino|costa del sol|joan gamper|santiago bernabeu|naranja)|trofeu joan gamper|copa catalunya|campeonato de cataluna|copa cataluna|primera federacion)\b/],
- ['Inglaterra',/\b(?:england|english|premier league|fa cup|efl |carabao|emirates cup|community shield|championship english|county fa|fa county|oxfordshire|cambridgeshire|cumberland|cornwall|cheshire|berks bucks|bedfordshire|birmingham fa|football alliance)\b/],
+ ['España',/\b(?:espana|spanish|spain|laliga|copa del rey|supercopa de espana|copa macaya|copa eva duarte|copa de los campeones de espana|copa de la espana libre|trofeo (?:ramon de carranza|teresa herrera|colombino|costa del sol|joan gamper|santiago bernabeu|naranja)|trofeu joan gamper|copa catalunya|campeonato de cataluna|copa cataluna|primera federacion|ciudad de valladolid|conde de fenosa|copa de galicia|campeonato de cataluna|copa de cataluna)\b/],
+ ['Inglaterra',/\b(?:england|english|premier league|fa cup|efl |carabao|emirates cup|community shield|championship english|county fa|fa county|oxfordshire|cambridgeshire|cumberland|cornwall|cheshire|berks bucks|bedfordshire|birmingham fa|football alliance|fa amateur cup|fa sunday cup|youdan football cup|youdan cup)\b/],
  ['Alemania',/\b(?:germany|german|deutsch|bundesliga|dfb|bezirksliga|verbandsliga|gauliga|oberliga|landesliga|audi cup|sudbayern|nordbayern|rheinland|thuringia|saxony)\b/],
  ['Italia',/\b(?:italy|italian|italia|coppa italia|serie a|serie b|serie c|serie d|supercoppa italiana|eccellenza|promozione|primavera)\b/],
  ['Francia',/\b(?:france|french|francais|francia|coupe de france|ligue 1|ligue 2|championnat national|trophee des champions)\b/],
@@ -106,16 +111,16 @@ const COUNTRY_PATTERNS = [
  ['México',/\b(?:mexico|mexican|liga mx|copa mx|interliga|liga expansion)\b/],
  ['Estados Unidos',/\b(?:united states|estadounidens|usa|us open cup|major league soccer|\bmls\b|usl |nws[l]|league1 ontario|hudson river derby)\b/],
  ['Canadá',/\b(?:canada|canadian|ontario|quebec|canada cup|league1 ontario)\b/],
- ['Escocia',/\b(?:scottish|scotland|escocia|spfl|premiership escocia)\b/],
+ ['Escocia',/\b(?:scottish|scotland|escocia|spfl|premiership escocia|drybrough cup)\b/],
  ['Gales',/\b(?:welsh|wales|walis|gales|cymru|gymru)\b/],
  ['Irlanda',/\b(?:ireland|irish|irlanda|fai cup)\b/],
  ['Irlanda del Norte',/\b(?:northern ireland|northern irish|irlanda del norte)\b/],
  ['Países Bajos',/\b(?:netherlands|dutch|nederland|eredivisie|knvb|eerste divisie|tweede divisie)\b/],
  ['Bélgica',/\b(?:belgium|belgian|belgica|jupiler pro league)\b/],
  ['Austria',/\b(?:austria|austrian|osterreich|österreich)\b/],
- ['Suiza',/\b(?:swiss|switzerland|suiza|schweizer)\b/],
+ ['Suiza',/\b(?:swiss|switzerland|suiza|schweizer|uhrencup|uhren cup)\b/],
  ['Dinamarca',/\b(?:denmark|danish|dinamarca|dansk)\b/],
- ['Suecia',/\b(?:sweden|swedish|suecia|allsvenskan)\b/],
+ ['Suecia',/\b(?:sweden|swedish|suecia|allsvenskan|svenska|rosenska|wicanderska|kamratmasterskapen|fotbollserien)\b/],
  ['Noruega',/\b(?:norway|norwegian|noruega|eliteserien)\b/],
  ['Finlandia',/\b(?:finland|finnish|finlandia|veikkausliiga)\b/],
  ['Polonia',/\b(?:poland|polish|polonia|ekstraklasa)\b/],
