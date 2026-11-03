@@ -79,7 +79,9 @@ test('Catalog view selection and search integrated in Trophies without duplicate
  assert.match(page,/TrophyClubCatalogView/);
  assert.match(page,/visibleModeGroups/);
  assert.match(page,/setTab\("all"\)/);
- assert.match(club,/TrophyEdition\.filter\(\{champion_team_id:teamId\}/);
- assert.match(club,/verified===true/);
+ assert.match(club,/completeRecordQueryOptions\(base44.entities.TrophyEdition/);
+ assert.match(club,/groupTrophiesByTeamReputation/);
+ assert.match(club,/Solo con trofeos/);
+ assert.match(page,/useState\("reputation_desc"\)/);
  assert.doesNotMatch(club,/TrophyHonour\.(create|update|delete)/);
 });
