@@ -254,7 +254,7 @@ export default function Trophies(){
       count={isFifaClubWorldCup(t)&&t.visual_variant_id?honours.filter(h=>h.verified===true&&String(h.trophy_source_id)===String(t.source_id)&&fifaCwcVariantForSeason(h.season)?.id===t.visual_variant_id).length:honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
      {group.items.length>24&&<button type="button" onClick={()=>setExpandedGroups(current=>({...current,[group.key]:!current[group.key]}))} className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{expandedGroups[group.key]?"Mostrar menos":"Ver todos los "+group.items.length+" trofeos"}</button>}
     </section>)}</div>:!catalogLoading&&!honourQuery.isLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">{teamFilter?"No hay títulos ganados y verificados para este equipo con los filtros actuales. Esto no significa que el equipo no tenga otros títulos.":"No hay trofeos con estos filtros."}</div>}
-   <div className="my-6 flex items-center gap-2 text-[10px] text-slate-400"><ImageIcon size={13}/> Imágenes desde GitHub: <code>public/assets/trophies/ID.png</code>. Los archivos aún no incorporados muestran un icono neutro. Los datos originales no se modifican.</div>
+   <div className="my-6 flex items-center gap-2 text-[10px] text-slate-400"><ImageIcon size={13}/> Imágenes del catálogo GitHub y del archivo FM24: <code>public/assets/trophies/ID.png</code>. Los trofeos sin imagen muestran un icono neutro. Los datos originales se conservan.</div>
    </>}
    {section==="palmares"&&<TrophyArchiveOverview
      honours={honours} catalog={all} imageManifest={imageManifest}
