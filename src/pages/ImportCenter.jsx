@@ -213,7 +213,7 @@ export default function ImportCenter(){
   },[jobs,showJobHistory,understatFilter,understatAudits]);
   const selectedJobChain=jobs.filter(j=>j.player_id===selection);
   const selectedUnderstatRevision=selectedJobChain.map(j=>
-    [j.id,j.status,j.finished_at||""].join(":")).sort().join("|");
+    [j.id,j.status,j.finished_at||"",j.phase||""].join(":")).sort().join("|");
   const afterUnderstatApplied=async()=>{
     await invalidateApplied();
     const related=groupedJobs.find(g=>g.playerId===selection);

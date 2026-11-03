@@ -4,7 +4,11 @@ export function understatAuditOf(group,localAudits={}){
  if(!group)return null;
  const job=group.latest;
  const own=localAudits[job?.id];
- return own||job?.source_results?.understat_gap_audit||null;
+ const audit=own||job?.source_results?.understat_gap_audit;
+ // If the worker changed the job after the audit (auto-apply or continuation),
+ // do not show its old diagnostic as fresh.
+ if(audit?.job_phase!==String(job?.phase||""))return null;
+ return audit||null;
 }
 export function understatQueueState(group,localAudits={}){
  if(!group?.sources?.includes("understat"))return {kind:"not_selected",label:"Understat no solicitado"};

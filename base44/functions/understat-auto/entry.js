@@ -100,8 +100,9 @@ export default async function(req){
       audit={...audit,status:'needs_review',note:'Más de 349 filas STATS; requiere diagnóstico manual'};
     }
     const latest=await db.ImportJob.get(jobId);
-    if(!latest||!['review','completed'].includes(latest.status))
+    if(!latest||latest.phase!==job.phase||!['review','completed'].includes(latest.status))
       return reply({ok:true,status:'waiting_job',job_id:jobId});
+    audit.job_phase=String(job.phase||"");
     await db.ImportJob.update(jobId,{
       source_results:{...(latest.source_results||{}),understat_gap_audit:audit}
     });
