@@ -1,4 +1,5 @@
 import {normaliseSearch} from "./trophyCatalog.js";
+import {estimateTrophyReputation} from "./trophyResearch.js";
 
 // Only explicit federation / competition signals; ambiguous historical names remain unclassified.
 /** @type {Array<[string, RegExp]>} */
@@ -81,11 +82,14 @@ export const classifyTrophy=(trophy,leagues=[],countries=[])=>{
  const organization=normaliseSearch(trophy.organizer);
  const key=name+" "+organization;
  if(WORLD.test(key))return {key:"fifa",title:"FIFA · Mundial",kind:"world",rank:0};
+ if(trophy.country_resolution==="international"&&!CONTINENTAL.some(([,pattern])=>pattern.test(key)))return {key:"confed:global",title:"Internacionales · otras",kind:"confederation",rank:7};
  for(let i=0;i<CONTINENTAL.length;i++){
   const [label,re]=CONTINENTAL[i];
   if(re.test(key))return {key:"confed:"+label,title:label,kind:"confederation",rank:i+1};
  }
  const countryById=new Map(countries.map(c=>[String(c.id),c.name]));
+ const linkedCountry=countryById.get(String(trophy.country_id||""));
+ if(linkedCountry)return {key:"country:"+normaliseSearch(linkedCountry),title:linkedCountry,kind:"country",rank:100};
  const cleanCountry=normaliseSearch(trophy.country);
  let country=countries.find(c=>normaliseSearch(c.name)===cleanCountry)?.name||(trophy.country||"").trim();
  const league=leagues.find(l=>String(l.id)===String(trophy.competition_id||""))||
@@ -102,7 +106,7 @@ export const classifyTrophy=(trophy,leagues=[],countries=[])=>{
  if(country)return {key:"country:"+normaliseSearch(country),title:country,kind:"country",rank:100};
  return {key:"unclassified",title:"Sin federación o país confirmado",kind:"unclassified",rank:999};
 };
-export const groupTrophies=(items,leagues=[],countries=[])=>{
+export const groupTrophies=(items,leagues=[],countries=[],sortMode="name")=>{
  const groups=new Map(),scores=new Map();
  const namesById=new Map(countries.map(c=>[String(c.id),normaliseSearch(c.name)]));
  // A country's reputation is the highest registered top-division reputation, not an invented FIFA ranking.
@@ -123,5 +127,5 @@ export const groupTrophies=(items,leagues=[],countries=[])=>{
    if(aScore!==bScore)return bScore-aScore;
   }
   return a.title.localeCompare(b.title,"es");
- }).map(g=>({...g,items:g.items.sort((a,b)=>a.name.localeCompare(b.name,"es",{numeric:true})),reputation:g.kind==="country"?(scores.get(normaliseSearch(g.title))||null):null}));
+ }).map(g=>({...g,items:g.items.sort((a,b)=>{if(sortMode==="reputation_desc"||sortMode==="reputation_asc"){const diff=estimateTrophyReputation(b).score-estimateTrophyReputation(a).score;if(diff!==0)return sortMode==="reputation_desc"?diff:-diff;}return a.name.localeCompare(b.name,"es",{numeric:true});}),reputation:g.kind==="country"?(scores.get(normaliseSearch(g.title))||null):null}));
 };
