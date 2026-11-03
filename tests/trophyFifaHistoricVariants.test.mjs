@@ -42,6 +42,10 @@ test("No new titles or award history are created by two visual variants",()=>{
  assert.equal(output.competitions.length,1);
  assert.equal(output.competitions[0].source_id,FIFA_CWC_SOURCE_ID);
  assert.equal(output.competitions[0].count,2);
+ assert.equal(output.clubs.find(x=>x.id==="barca").trophyLatestSeason.get(FIFA_CWC_SOURCE_ID),"2015");
+ assert.equal(output.clubs.find(x=>x.id==="chelsea").trophyLatestSeason.get(FIFA_CWC_SOURCE_ID),"2025");
+ const clubCard=readFileSync("src/components/trophies/ClubHonoursGroupCard.jsx","utf8");
+ assert.match(clubCard,/season=\{item.trophyLatestSeason\?\.get\(sourceId\)\}/);
 });
 test("The classic design is visible as its own FIFA catalog card; editions use year-aware trophies",()=>{
  const catalog=readFileSync("src/pages/Trophies.jsx","utf8");
