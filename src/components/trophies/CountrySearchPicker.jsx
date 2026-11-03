@@ -58,7 +58,7 @@ export default function CountrySearchPicker({options=[],value="all",onChange}){
  }}>
   <label htmlFor={listId+"-input"} className="sr-only">Buscar país de la competición</label>
   <div className={"flex h-10 w-full items-center gap-2 rounded-lg border bg-white px-2.5 transition focus-within:border-[#003399] focus-within:ring-2 focus-within:ring-[#003399]/10 "+(open?"border-[#003399]":"border-slate-200")}>
-   <Search size={15} className="shrink-0 text-slate-400"/>
+   {selected?.flag?<img src={selected.flag} loading="lazy" alt="" className="h-3.5 w-5 shrink-0 rounded-sm border border-slate-100 object-cover"/>:<Search size={15} className="shrink-0 text-slate-400"/>}
    <input ref={field} id={listId+"-input"} type="text" role="combobox"
     aria-label="Buscar país de la competición" aria-expanded={open}
     aria-controls={listId+"-options"} aria-autocomplete="list"
@@ -88,8 +88,8 @@ export default function CountrySearchPicker({options=[],value="all",onChange}){
      onMouseEnter={()=>setActive(index)} onMouseDown={e=>e.preventDefault()}
      onClick={()=>choose(option)}
      className={"flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition "+(index===active?"bg-blue-50 text-[#003399]":"text-slate-700 hover:bg-slate-50")}>
-     <span className="min-w-0 flex-1 truncate font-semibold">{option.label}</span>
-     {Number.isFinite(option.count)&&<span className="shrink-0 text-[10px] text-slate-400">{option.count}</span>}
+     {option.flag&&<img src={option.flag} loading="lazy" alt="" className="h-3.5 w-5 shrink-0 rounded-sm border border-slate-100 object-cover"/>}<span className="min-w-0 flex-1 truncate font-semibold">{option.label}</span>
+     {option.code&&<span className="shrink-0 text-[9px] text-slate-400">{option.code}</span>}{Number.isFinite(option.count)&&<span className="shrink-0 text-[10px] text-slate-400">{option.count}</span>}
      {option.value===value&&<Check size={14} className="shrink-0 text-emerald-600"/>}
     </button>)}
    </div>
