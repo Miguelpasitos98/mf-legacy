@@ -3,7 +3,7 @@ import {normaliseSearch} from "./trophyCatalog.js";
 export function filterCountryOptions(options,search){
  const q=normaliseSearch(search);
  if(!q)return options||[];
- return (options||[]).filter(option=>normaliseSearch(option.label).includes(q));
+ return (options||[]).filter(option=>normaliseSearch([option.label,option.code].filter(Boolean).join(" ")).includes(q));
 }
 
 export function countryTrophyIdsFromSections(sections, selectedCountry="all"){
