@@ -1,5 +1,5 @@
 import React,{useMemo,useState} from "react";
-import {CheckCircle2,BookOpen,Shield,CalendarDays,ChevronDown,Info} from "lucide-react";
+import {CheckCircle2,BookOpen,Shield,ChevronDown,Info} from "lucide-react";
 import {unifiedTrophyClubHistory} from "@/utils/trophyUnifiedHistory";
 
 const positions=[["winner","Ganador"],["runner_up","Subcampeón"],["third","Tercer puesto"]];
