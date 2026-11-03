@@ -51,6 +51,8 @@ export function readArchive(csv,playerName){
  const headers=cells(lines[0]),required=['id','player_name','season','team_title','league','time','xGChain','xGBuildup'];
  if(required.some(k=>!headers.includes(k)))throw Error('Columnas Understat no reconocidas');
  const indices=Object.fromEntries(required.map(k=>[k,headers.indexOf(k)]));
+ const sourceMetrics=['goals','assists','xG','xA','npxG','shots'];
+ const metricIndices=Object.fromEntries(sourceMetrics.map(k=>[k,headers.indexOf(k)]));
  const players=new Map(),target=normalized(playerName);
  for(let i=1;i<lines.length;i++){
   if(!lines[i])continue;
@@ -61,7 +63,8 @@ export function readArchive(csv,playerName){
   if(!/^\d+$/.test(id)||!season)continue;
   const row={id,season,team:txt(values[indices.team_title]),
     league:leagueKey(values[indices.league]),minutes:num(values[indices.time]),
-    chain:num(values[indices.xGChain]),buildup:num(values[indices.xGBuildup])};
+    chain:num(values[indices.xGChain]),buildup:num(values[indices.xGBuildup]),
+    stats:Object.fromEntries(sourceMetrics.map(k=>[k,metricIndices[k]>=0?num(values[metricIndices[k]]):null]))};
   if(!players.has(id))players.set(id,[]);
   players.get(id).push(row);
  }
@@ -109,7 +112,9 @@ export function deriveRates(players,stats){
    const chain=selected.reduce((sum,r)=>sum+r.chain,0);
    const buildup=selected.reduce((sum,r)=>sum+r.buildup,0);
    rates.push({season,minutes,team_count:selected.length,
-    xg_chain_p90:chain*90/minutes,xg_buildup_p90:buildup*90/minutes});
+    xg_chain_p90:chain*90/minutes,xg_buildup_p90:buildup*90/minutes,
+    xg_total:selected.every(r=>r.stats?.xG!==null&&r.stats?.xG!==undefined)?selected.reduce((n,r)=>n+r.stats.xG,0):null,
+    xa_total:selected.every(r=>r.stats?.xA!==null&&r.stats?.xA!==undefined)?selected.reduce((n,r)=>n+r.stats.xA,0):null});
   }
   results.push({understat_id:id,matched:identities.size,rates,skipped});
  }
