@@ -86,6 +86,10 @@
         "manual"
       ],
       "description": "C\u00f3mo se determin\u00f3 el pa\u00eds: verified=fuente oficial; inferred=nombre/patr\u00f3n claro pero no verificado; pending=sin asignar; international=no aplica pa\u00eds \u00fanico; manual=seleccionado por administrador."
+    },
+    "research_source_url": {
+      "type": "string",
+      "description": "URL de evidencia externa que respalda nombre, pa\u00eds o historia de la competici\u00f3n; independiente de la reputaci\u00f3n subjetiva."
     }
   },
   "required": [
