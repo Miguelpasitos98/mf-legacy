@@ -41,6 +41,8 @@ TRANSLITERATION=str.maketrans({'Ø':'O','ø':'o','Ł':'L','ł':'l','Đ':'D','đ'
 def norm(value):
  value=unicodedata.normalize('NFKD',str(value or '').translate(TRANSLITERATION))
  return ' '.join(re.sub('[^a-z0-9]+',' ',''.join(c for c in value if not unicodedata.combining(c)).casefold()).split())
+EXTRACTOR_VERSION='2026-11-03-complete-metrics-v2'
+
 def now():return datetime.now(timezone.utc).isoformat()
 def edition_for(season):
  m=re.fullmatch(r'(20\d{2})/(20\d{2})',str(season))
@@ -113,9 +115,9 @@ class Catalogs:
   finally:
    if os.path.exists(temp):os.unlink(temp)
  def state(self,pid,source,season,state,details=None,edition='',snapshot=''):
-  with self.connect() as c:c.execute('INSERT OR REPLACE INTO results VALUES(?,?,?,?,?,?,?,?)',(str(pid),source,season,edition,snapshot,state,json.dumps(details or {},ensure_ascii=False),now()))
+  with self.connect() as c:c.execute('INSERT OR REPLACE INTO results VALUES(?,?,?,?,?,?,?,?)',(str(pid),source,season,edition,snapshot,state,json.dumps({**(details or {}),'extractor_version':EXTRACTOR_VERSION},ensure_ascii=False),now()))
  def saved(self,pid,source,season):
-  with self.connect() as c:return bool(c.execute("SELECT 1 FROM results WHERE pid=? AND source=? AND season=? AND state='verificado_guardado' LIMIT 1",(str(pid),source,season)).fetchone())
+  with self.connect() as c:return bool(c.execute("SELECT 1 FROM results WHERE pid=? AND source=? AND season=? AND state='verificado_guardado' AND json_extract(details,'$.extractor_version')=? LIMIT 1",(str(pid),source,season,EXTRACTOR_VERSION)).fetchone())
  def track_job(self,job_id,pid):
   with self.connect() as c:c.execute("INSERT OR IGNORE INTO submissions(job_id,pid,state) VALUES(?,?,'pending')",(job_id,str(pid)))
  def pending_jobs(self,pid=None):

@@ -16,6 +16,7 @@ from collections import Counter
 import shutil
 from datetime import datetime, timezone
 import json
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -118,7 +119,7 @@ def fotmob_coverage(diagnostics, profile_stale=False):
         unique[key]=d
     diagnostics=list(unique.values())
     counts=Counter(d.get("status") for d in diagnostics)
-    retry={"cache_absent","cache_mismatch","query_failed","candidate_limit","provider_paused"}
+    retry={"cache_absent","cache_mismatch","cache_stale","query_failed","candidate_limit","provider_paused"}
     blocked={"team_unidentified","pending_reconciliation","competition_unidentified",
              "incompatible_response","access_denied"}
     received=counts["pending_review"]
@@ -188,7 +189,7 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
         options=[option for option in options if any(
             (not scope.get("season") or scope["season"]==option["season"]) and
             (not scope.get("tournament_id") or str(scope["tournament_id"])==str(option.get("tournament_id"))) and
-            (not scope.get("season_id") or scope["season_id"]==option["season_id"]) and
+            (scope.get("tournament_id") or not scope.get("season_id") or scope["season_id"]==option["season_id"]) and
             (scope.get("season_id") or scope.get("tournament_id") or not scope.get("competition") or
              norm(scope["competition"])==norm(option.get("competition")))
             for scope in target_scopes)]
@@ -211,11 +212,18 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
         file = client.stat_cache_path(root, pid, sid)
         raw = None
         bad_cache=False
+        stale_cache=False
         try:
             if file.exists():
                 data = profile.read_json(file)
                 if fotmob_cache_valid(data,pid,option):
                     raw=data.get("payload")
+                    start=int(option["season"][:4]) if option["season"][:4].isdigit() else 0
+                    today=datetime.now(timezone.utc)
+                    current=today.year if today.month>=7 else today.year-1
+                    ttl=float(os.getenv("MF_V3_STATS_TTL_HOURS","24")) if start>=current else float(os.getenv("MF_V3_HISTORICAL_TTL_HOURS","8760"))
+                    if time.time()-file.stat().st_mtime>max(1,ttl)*3600:
+                        stale_cache=True;raw=None
                 else:
                     # No usar registros de otra temporada, pero sí poder
                     # recuperar la entrada correcta sin borrar el original.
@@ -238,11 +246,11 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                     shutil.copy2(file,file.with_suffix(file.suffix+".old"))
                 client.save_json(file, {"_mf_legacy_meta": {
                     "player_id":pid, "season":option["season"], "competition":option["competition"],
-                    "season_id":sid,"tournament_id":text(option.get("tournament_id"))}, "payload":fresh})
+                    "season_id":sid,"tournament_id":text(option.get("tournament_id")),"retrieved_at":datetime.now(timezone.utc).isoformat()}, "payload":fresh})
                 successful_requests+=1
                 raw=fresh
             if raw is None:
-                diag.update(status="cache_mismatch" if bad_cache else "cache_absent",
+                diag.update(status="cache_mismatch" if bad_cache else "cache_stale" if stale_cache else "cache_absent",
                             reason="Caché incompatible, recuperar con identidad exacta." if bad_cache else "Aún no descargado; pendiente de consulta.")
                 continue
             if not isinstance(raw, dict) or not any(k in raw for k in ("statsSection", "topStatCard")):
@@ -272,8 +280,8 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
             by_name={norm(m['name']):m.get('value') for m in metrics}
             if (number(by_name.get('started')) is not None and number(by_name.get('matches')) is not None
                     and by_name['started']>by_name['matches']):
-                diag.update(status="pending_reconciliation", reason="Titularidades superiores a partidos: el payload es contradictorio; no se proponen valores.")
-                continue
+                diag["conflicts"]=sorted(set(diag.get("conflicts",[]))|{"started","matches"})
+                metrics=[m for m in metrics if norm(m.get("name")) not in {"started","matches"}]
             national_leagues={'9806','9807','9808'}
             career_leagues={text(c.get('fotmob_tournament_id')) for c in bundle.get('career',[])
                             if c.get('is_national_team') and c.get('season')==option['season']}
@@ -295,7 +303,10 @@ def studio_fotmob(root: Path, pid: str, allow_network=False, request_limit=0,
                            and 0 <= m['percentile_per90' if unit=='per90' else 'percentile'] <= 100 else {}),
                         "evidence_url":"https://www.fotmob.com/players/"+pid,
                         "source_record_id":option["season"]+":"+text(option.get("tournament_id"))+":"+tid+":"+norm(name)+":"+unit,
-                        "verification_status":"unverified"})
+                        "verification_status":"unverified",
+                        "provenance":{"provider":"fotmob","player_id":pid,"provider_minutes":number(by_name.get("minutes") or by_name.get("minutes played")),
+                            "scope":"team_competition_season","sha256":hashlib.sha256(json.dumps(raw,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest(),
+                            "retrieved_at":datetime.fromtimestamp(file.stat().st_mtime,timezone.utc).isoformat() if file.exists() else datetime.fromtimestamp(cache.stat().st_mtime,timezone.utc).isoformat()}})
             # Do not cut a season in half when the bounded result is full.
             if len(out)+len(batch)>max_candidates:
                 diag.update(status="candidate_limit", reason="Límite alcanzado; temporada completa conservada para otro lote.")
@@ -491,8 +502,8 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
         try:
             if source=="fotmob":
                 candidates,state=studio_fotmob(root,pid,
-                    allow_network=not offline and os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK")=="1",
-                    request_limit=max(0,min(15,int(os.getenv("MF_V3_MAX_FOTMOB_REQUESTS","0")))),
+                    allow_network=not offline and os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK","1")=="1",
+                    request_limit=max(0,int(os.getenv("MF_V3_MAX_FOTMOB_REQUESTS","8"))),
                     max_candidates=max_candidates,target_scopes=requested,on_progress=on_progress)
             elif source=="understat":
                 bundle,raw,seasons=context()
@@ -528,8 +539,8 @@ def collect(root: Path, pid: str, sources: list[str], max_candidates=6000, offli
                 candidates=[c for c in candidates if not catalog().saved(pid,source,c['season'])]
                 state['note']=re.sub(r'Candidatos Understat: \d+',f'Candidatos Understat: {len(candidates)}',state['note'])
                 for d in state.get('diagnostics',[]):
-                    if catalog().saved(pid,source,d['season']):d['status']='verificado_guardado'
-                    else:catalog().state(pid,source,d['season'],'pendiente_verificacion',d)
+                    if catalog().saved(pid,source,d.get('season','')):d['status']='verificado_guardado'
+                    else:catalog().state(pid,source,d.get('season',''),'pendiente_verificacion',d)
                 supported={'47','87','54','55','53','63'}
                 for o in bundle['season_options']:
                     if text(o.get('tournament_id')) not in supported:
@@ -647,6 +658,12 @@ def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
             call("submit",job_id=jid,claim_id=claim,candidates=candidates[i:i+15])
             time.sleep(0.5)
         call("finish",job_id=jid,claim_id=claim,source_results=states)
+        # Serverless batches finish independently of candidate upload. Drain
+        # compatible observations; conflicts remain visible and cannot loop.
+        while True:
+            result=call("reconcile",job_id=jid)
+            if not result.get("has_more") or not result.get("applied"):
+                break
         catalogs.track_job(jid,assigned['fotmob_player_id'])
         return True
     except Exception as exc:
@@ -687,7 +704,7 @@ def main():
         except (ImportError,FileNotFoundError):
             required['studio_parser_compatible']=False
         print(json.dumps({"ready":all(required.values()),"comprobaciones":required,
-            "consultas_nuevas_limitadas":os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK")=="1",
+            "consultas_nuevas_limitadas":os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK","1")=="1",
             "peticiones_maximas_por_trabajo":os.getenv("MF_V3_MAX_FOTMOB_REQUESTS","0"),
             "nota":"No se realizaron solicitudes a proveedores ni se modificaron datos."},indent=2,ensure_ascii=False))
         if not all(required.values()):sys.exit(2)

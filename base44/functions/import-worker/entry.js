@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk";
+import {completionPatch} from "../../shared/importReview.js";
 
 const reply=(x,status=200)=>Response.json(x,{status,headers:{"Cache-Control":"no-store"}});
 const fail=(msg,status=400)=>reply({ok:false,error:msg},status);
@@ -80,6 +81,10 @@ export default async function(req) {
     const client=createClientFromRequest(req);
     const db=client.asServiceRole.entities;
     const action=str(body.action);
+    if(action.startsWith("repair-")){
+      const {repairRequest}=await import("../../shared/importRepair.js");
+      return reply(await repairRequest(db,body,"worker"));
+    }
     if(action==="claim") {
       if(body.job_id&&!/^[a-f0-9]{24}$/i.test(str(body.job_id)))return fail("ID de trabajo incorrecto.");
       const waiting=body.job_id?[await db.ImportJob.get(str(body.job_id))].filter(j=>j?.status==="queued")
@@ -103,6 +108,18 @@ export default async function(req) {
     if(!/^[a-f0-9]{24}$/i.test(str(body.job_id)))return fail("ID de trabajo incorrecto.");
     const job=await db.ImportJob.get(str(body.job_id));
     if(!job)return fail("Trabajo no encontrado.",404);
+    if(action==="reconcile"){
+      if(!["review","completed"].includes(job.status))return fail("La extracción sigue en curso.",409);
+      const lock=crypto.randomUUID(),now=new Date().toISOString();
+      await db.ImportJob.updateMany({id:job.id,$or:[{review_lock_until:{$exists:false}},{review_lock_until:null},{review_lock_until:""},{review_lock_until:{$lt:now}}]},{$set:{review_lock_id:lock,review_lock_until:new Date(Date.now()+240000).toISOString()}});
+      if((await db.ImportJob.get(job.id)).review_lock_id!==lock)return fail("Otra revisión está en curso.",409);
+      try{
+        const {applyVerifiedHistoricals}=await import("./reviewAuto.js");
+        const result=await applyVerifiedHistoricals(db,job,{maxScopes:8});
+        await db.ImportJob.update(job.id,completionPatch(await db.ImportJob.get(job.id),result.pending));
+        return reply({ok:true,...result});
+      }finally{if((await db.ImportJob.get(job.id)).review_lock_id===lock)await db.ImportJob.update(job.id,{review_lock_id:"",review_lock_until:""});}
+    }
     if(action==="review-status"){
       const groups=new Map();
       for(let skip=0;skip<10000;skip+=100){
@@ -206,7 +223,7 @@ export default async function(req) {
       if(counts){
         try{
           const {applyVerifiedHistoricals}=await import("./reviewAuto.js");
-          automatic=await applyVerifiedHistoricals(db,{...job,status:"review"});
+          automatic=await applyVerifiedHistoricals(db,{...job,status:"review"},{maxScopes:8});
           await db.ImportJob.update(job.id,{phase:"Automático: "+automatic.applied+" candidatos compatibles incorporados; "+automatic.pending+" pendientes de revisión"});
         }catch(e){console.error("Aplicación automática conservadora pendiente",e);}
       }
@@ -232,11 +249,11 @@ export default async function(req) {
       // al límite preventivo de doce bloques por solicitud.
       let next_job_id=null;
       const fotmobReport=report.fotmob||{};
-      const outstanding=(fotmobReport.diagnostics||[]).filter(d=>["cache_absent","cache_mismatch","query_failed","candidate_limit"].includes(d.status));
+      const outstanding=(fotmobReport.diagnostics||[]).filter(d=>["cache_absent","cache_mismatch","cache_stale","query_failed","candidate_limit"].includes(d.status));
       const stopped=(fotmobReport.diagnostics||[]).some(d=>["rate_limited","access_denied"].includes(d.status));
       const canContinue=(job.sources||[]).includes("fotmob")
-        &&Number(job.retry_count||0)<11&&outstanding.length>0
-        &&!stopped&&Number(fotmobReport.successful_requests||0)>0;
+        &&outstanding.length>0
+        &&!stopped&&(Number(fotmobReport.successful_requests||0)>0||Number(fotmobReport.counts?.pending_review||0)>0);
       if(canContinue) {
         try {
           const key="mfv3:continue:"+job.id;
@@ -260,7 +277,10 @@ export default async function(req) {
           }
         }catch(e){console.error("No se pudo encolar el siguiente bloque FotMob",e);}
       }
-      return reply({ok:true,status:counts?"review":"completed",candidates:counts,
+      const remaining=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
+      const finalPatch=completionPatch(await db.ImportJob.get(job.id),remaining.length);
+      await db.ImportJob.update(job.id,finalPatch);
+      return reply({ok:true,status:finalPatch.status,candidates:counts,
         automatic,archiveRecovery,next_job_id,coverage:source_results.fotmob?.coverage||null});
     }
     if(action==="fail") {

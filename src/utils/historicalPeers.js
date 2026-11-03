@@ -1,3 +1,4 @@
+import {selectSourceMetric,metricMinutes,metricNumerator} from "./metricSources.js";
 import {advancedTotals} from "./statsAdvanced.js";
 // MF LEGACY — historical peer comparison, independent of FotMob percentile columns.
 // This module never writes data, and never uses external provider percentiles.
@@ -55,60 +56,23 @@ const PERCENTAGE = {
   ground_duels_won_pct:["Ground duels won %","Ground duels success rate"],
   save_pct:["Save percentage","Save %","Saves %"],
 };
-const pickMetric=(row,names)=>{
-  const index=new Map((row.metrics||[]).filter(m=>m?.name).map(m=>[metricName(m.name),m]));
-  for(const name of names){
-    // Manual entries may store the metric as a rate (" /90"); metricTotal turns
-    // it back into a competition total using aligned minutes. An explicit rate
-    // entry takes precedence over a previously stored total for the same metric.
-    const m=index.get(metricName(name+" /90"))||index.get(metricName(name));
-    if(m && num(m.value)!==null) return m;
-  }
-  return null;
-};
+const pickMetric=(row,names)=>selectSourceMetric(row,names,{allowRateOnly:true});
 const metricTotal=(row,names)=>{
   const m=pickMetric(row,names);
-  if(!m)return null;
-  const minutes=num(row.minutes);
-  // If a source stores a metric named "/90", convert it back to a total
-  // so that season-wide /90 uses aligned minutes rather than mean of rates.
-  if(/(?:\/90|per[\s_-]?90)$/i.test(m.name)){
-    const amount=num(m.value);
-    return minutes>0 ? amount*minutes/90 : null;
-  }
-  return num(m.value);
+  return metricNumerator(row,m,metricMinutes(row,m)??minutesForDisplay(row).value);
 };
-const alignedPer90=(records,names,minutesSource=null,{allowRateOnly=false}={})=>{
-  let amount=0, minutes=0, count=0;
+const alignedPer90=(records,names,minutesSource=null)=>{
+  let amount=0,minutes=0;
   for(const row of records){
-    // Understat totals MUST use Understat minutes, never FotMob minutes.
-    const candidate=pickMetric(row,names);
-    // Understat-only totals must be divided by Understat minutes even when
-    // FotMob lists a different duration for the same competition.
-    const understat=String(candidate?.source||"").toLowerCase()==="understat";
-    const fotmob=String(candidate?.source||"").toLowerCase()==="fotmob";
-    const mins=understat
-      ?(num(candidate.provider_minutes)??num(pickMetric(row,["Understat minutes"])?.value))
-      :fotmob?(num(pickMetric(row,["FotMob minutes"])?.value)??minutesForDisplay(row).value)
-      :minutesSource?num(pickMetric(row,[minutesSource])?.value):minutesForDisplay(row).value;
-    let value=metricTotal(row,names);
-    // Some providers have the genuine /90 rate but no total. Recover the
-    // numerator for this competition only, using the SAME aligned minutes
-    // that will enter the denominator. Never approximate a missing rate.
-    if(allowRateOnly&&value===null&&mins>0){
-      const available=candidate|| (row.metrics||[]).find(m=>names.some(name=>
-        metricName(m.name)===metricName(name)||metricName(m.name)===metricName(name+" /90")));
-      const rate=num(available?.per90);
-      if(rate!==null&&rate>=0)value=rate*mins/90;
-      else if(available&&/(?:\/90|per[\s_-]?90)$/i.test(available.name)){
-        const directRate=num(available.value);
-        if(directRate!==null&&directRate>=0)value=directRate*mins/90;
-      }
-    }
-    if(mins===null || mins<=0 || value===null)continue;
-    amount+=value;minutes+=mins;count++;
+    const metric=pickMetric(row,names);
+    if(!metric)continue;
+    const source=metricMinutes(row,metric);
+    const mins=source??(minutesSource?num(pickMetric(row,[minutesSource])?.value):minutesForDisplay(row).value);
+    const value=metricNumerator(row,metric,mins);
+    if(!(mins>0)||value===null)continue;
+    amount+=value;minutes+=mins;
   }
-  return minutes>0 && count>0 ? amount*90/minutes : null;
+  return minutes>0?amount*90/minutes:null;
 };
 const groundDuelPercentage=records=>{
   let won=0,contested=0;
@@ -251,7 +215,7 @@ export function buildHistoricalObservations({stats=[],players=[],valuations=[],t
     for(const [metric,names] of Object.entries(PER90))
       values[metric]=alignedPer90(records,names,
         metric==="xg_chain_p90"||metric==="xg_buildup_p90"?"Understat minutes":null,
-        {allowRateOnly:metric==="xa_p90"});
+        {allowRateOnly:true});
     // Each indicator is calculated independently using its own available
     // competition rows. For xA, rate-only sources can contribute if there is
     // an aligned duration for that row; other competitions need not provide xA.

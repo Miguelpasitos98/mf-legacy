@@ -6,7 +6,11 @@ param(
   [switch]$SoloLocal,
   [string]$Diagnosticar,
   [string]$Salida,
-  [string]$Trabajo
+  [string]$Trabajo,
+  [ValidateSet("create","status","step","apply","pause","resume","recover")][string]$Reparar,
+  [string]$Ejecucion,
+  [string[]]$Jugadores,
+  [int]$Lotes=1
 )
 $ErrorActionPreference="Stop"
 # A process launched from PowerShell 7 may inherit its module paths even when
@@ -73,14 +77,20 @@ function Ejecutar {
  $env:MF_STUDIO_ROOT=$config.studio_root
  # Pide solo los datos nuevos de un jugador solicitado explícitamente.
  # Consulta limitado a ocho recursos por trabajo. No es una extracción masiva.
- $requestLimit=if($SoloLocal){0}elseif($null -ne $config.max_requests){[Math]::Max(0,[Math]::Min(15,[int]$config.max_requests))}else{8}
+ $requestLimit=if($SoloLocal){0}elseif($null -ne $config.max_requests){[Math]::Max(0,[int]$config.max_requests)}else{8}
  $env:MF_V3_ALLOW_FOTMOB_NETWORK=if($requestLimit -gt 0){"1"}else{"0"}
  $env:MF_V3_MAX_FOTMOB_REQUESTS=[string]$requestLimit
  # Fixed public catalogue files are cached once; SoloLocal disables all reads.
  $env:MF_V3_ALLOW_PUBLIC_ARCHIVES=if($SoloLocal){"0"}else{"1"}
  $pythonArgs=@($workerPath)
- if($Trabajo){$pythonArgs+=@("--job-id",$Trabajo)}
- if($UnaVez){$pythonArgs+= "--once"}
+ if($Reparar){
+  $pythonArgs=@((Join-Path $PSScriptRoot "repair_imports.py"),$Reparar,"--steps",[string]$Lotes)
+  if($Ejecucion){$pythonArgs+=@("--run-id",$Ejecucion)}
+  if($Jugadores){$pythonArgs+=@("--player-ids")+$Jugadores}
+  if($Salida){$pythonArgs+=@("--output",$Salida)}
+ }
+ elseif($Trabajo){$pythonArgs+=@("--job-id",$Trabajo)}
+ if(!$Reparar -and $UnaVez){$pythonArgs+= "--once"}
  elseif($Comprobar){$pythonArgs+="--check-config"}
  elseif($SincronizarRevisiones){$pythonArgs+="--sync-reviews"}
  $pythonExe=Get-Command python -ErrorAction SilentlyContinue

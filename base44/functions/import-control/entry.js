@@ -14,11 +14,11 @@ export function pendingSources(job){
   const diagnostics=r.diagnostics||[];
   return r.status==="error"||r.status==="pending"||r.status==="partial"&&!diagnostics.length||
     r.status==="unavailable"&&(!diagnostics.length||!diagnostics.every(d=>d.status==="fuera_cobertura"))||
-    diagnostics.some(d=>["consulta_pendiente","error_temporal","cache_absent","cache_mismatch","candidate_limit","query_failed","provider_paused","rate_limited"].includes(d.status));
+    diagnostics.some(d=>["consulta_pendiente","error_temporal","cache_absent","cache_mismatch","cache_stale","candidate_limit","query_failed","provider_paused","rate_limited"].includes(d.status));
  });
 }
 export function pendingScopes(job){
- const states=new Set(["consulta_pendiente","error_temporal","cache_absent","cache_mismatch","candidate_limit","query_failed","provider_paused","rate_limited"]);
+ const states=new Set(["consulta_pendiente","error_temporal","cache_absent","cache_mismatch","cache_stale","candidate_limit","query_failed","provider_paused","rate_limited"]);
  return Object.fromEntries(pendingSources(job).map(source=>{
   const diagnostics=job.source_results?.[source]?.diagnostics||[];
   const unresolved=diagnostics.filter(d=>states.has(d.status));
@@ -208,4 +208,3 @@ export default async function(req) {
     console.error("import-control error",e);return bad(e?.message || "Error interno.",500);
   }
 }
-

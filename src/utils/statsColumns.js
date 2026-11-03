@@ -1,3 +1,4 @@
+import {metricMinutes} from "./metricSources.js";
 // Calculadora segura y configurable para columnas de STATS: nunca ejecuta JavaScript del usuario.
 import {metricsValue,statNum,goalkeeperConcededMetric,minutesForDisplay} from "./statsViews.js";
 import {statDisplay} from "./statsSeason.js";
@@ -205,7 +206,7 @@ export function estimatedSeasonRate(records,metricName){
   const total=statNum(metric.value);
   const supplied=statNum(metric.per90);
   const providerMinutes=String(metric.name||"").toLowerCase().startsWith("understat")?metricsValue(record,"understatminutes"):null;
-  const actual=providerMinutes>0?providerMinutes:statNum(record.minutes);
+  const actual=metricMinutes(record,metric)??(providerMinutes>0?providerMinutes:statNum(record.minutes));
   const matches=statNum(record.appearances);
   const minutes=actual>0?actual:(matches>0?matches*90:null);
   if(!minutes)continue;

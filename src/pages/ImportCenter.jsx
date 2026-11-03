@@ -1,3 +1,5 @@
+import ImportDiagnostics from "@/components/imports/ImportDiagnostics";
+import ImportRepairPanel from "@/components/imports/ImportRepairPanel";
 import React, { useCallback, useEffect, useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
@@ -24,12 +26,12 @@ const fmt=x=>x?new Date(x).toLocaleString("es-ES"):"—";
 const queuedTooLong=job=>job?.status==="queued"&&!job.started_at&&Number.isFinite(Date.parse(job.requested_at||job.created_date))&&Date.now()-Date.parse(job.requested_at||job.created_date)>120000;
 const reason=e=>e?.response?.data?.error||e?.message||"Error inesperado";
 const responseRows=r=>Array.isArray(r)?r:r?.items||r?.data||r?.entities||[];
-const missingFotmobCaches=job=>(job?.source_results?.fotmob?.diagnostics||[]).filter(d=>["cache_absent","cache_mismatch","candidate_limit","query_failed","provider_paused","rate_limited"].includes(d.status)).length;
+const missingFotmobCaches=job=>(job?.source_results?.fotmob?.diagnostics||[]).filter(d=>["cache_absent","cache_mismatch","cache_stale","candidate_limit","query_failed","provider_paused","rate_limited"].includes(d.status)).length;
 
 export default function ImportCenter(){
   const cache=useQueryClient();
   const invalidateApplied=()=>Promise.all([STATS_ROWS_KEY,STATS_DETAIL_KEY,HISTORICAL_PEER_KEY,
-    RECORD_KEYS.PlayerHistoricalValuation,["mf-legacy","players","stats-presence"]].map(queryKey=>cache.invalidateQueries({queryKey})));
+    RECORD_KEYS.PlayerHistoricalValuation,RECORD_KEYS.UnderstatSeasonRate,["mf-legacy","players","stats-presence"]].map(queryKey=>cache.invalidateQueries({queryKey})));
   const [players,setPlayers]=useState([]);
   const [searching,setSearching]=useState(false);
   const [searchOpen,setSearchOpen]=useState(false);
@@ -70,17 +72,16 @@ export default function ImportCenter(){
   const refresh=useCallback(async({forceCandidates=false}={})=>{
     const request=++refreshSequence.current;
     try{
-      const result=await base44.entities.ImportJob.list("-created_date",100);
+      const result=await readCompleteRecords(base44.entities.ImportJob);
       if(request!==refreshSequence.current)return;
       const latestJobs=responseRows(result);
       // The Python worker may complete a job while the import screen is open.
       // Polling the job alone used to leave STATS and Composite showing old cache entries.
-      const revision=latestJobs.filter(j=>["review","completed"].includes(j.status)&&
-        /^(?:Automático:|Conciliación histórica:)/i.test(String(j.phase||"")))
+      const revision=latestJobs.filter(j=>["review","completed"].includes(j.status))
         .map(j=>[j.id,j.updated_date,j.phase].join(":" )).sort().join("|");
       if(autoAppliedRevision.current!==null&&revision!==autoAppliedRevision.current){
         await Promise.all([STATS_ROWS_KEY,STATS_DETAIL_KEY,HISTORICAL_PEER_KEY,
-          RECORD_KEYS.PlayerHistoricalValuation].map(queryKey=>cache.invalidateQueries({queryKey})));
+          RECORD_KEYS.PlayerHistoricalValuation,RECORD_KEYS.UnderstatSeasonRate].map(queryKey=>cache.invalidateQueries({queryKey})));
       }
       autoAppliedRevision.current=revision;
       setJobs(latestJobs);setLoaded(true);
@@ -466,6 +467,8 @@ export default function ImportCenter(){
         </div>)}
       </details>)}
       {preview&&<div className="my-3 border rounded p-3 text-sm"><strong>Escritura propuesta · {preview.plan?.operation}</strong><pre className="overflow-auto max-h-80 text-xs">{JSON.stringify(preview.plan||preview.candidate,null,2)}</pre><button className="underline" onClick={()=>setPreview(null)}>Cerrar vista previa</button></div>}
+      <ImportRepairPanel onApplied={invalidateApplied}/>
+      <ImportDiagnostics playerId={selection} candidates={candidateRows} jobs={jobs}/>
       <HistoricalReview job={selectedJobData} disabled={busy||coordinator!=="ready"} onBusyChange={setBusy} onApplied={async()=>{await invalidateApplied();await refresh({forceCandidates:true});}}/>
       <details className="mt-4"><summary className="cursor-pointer text-sm font-semibold text-blue-900">Revisión avanzada individual y por fuente</summary>
       {seasonGroups.length>0&&<section className="mt-4 space-y-3" aria-label="Primeras temporadas disponibles">
@@ -474,7 +477,7 @@ export default function ImportCenter(){
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {seasonGroups.map(group=>{
             const pending=group.items.filter(c=>c.review_status==="pending");
-            const blocked=group.items.some(c=>!["pending","applied"].includes(c.review_status)||c.verification_status==="conflict");
+            const blocked=!group.items.some(c=>c.review_status==="pending"&&c.verification_status!=="conflict");
             const evidence=group.items.find(c=>c.evidence_url)?.evidence_url;
             return <div key={group.key} className="border border-slate-200 rounded-lg p-3 space-y-2">
               <div className="flex flex-wrap justify-between gap-2 text-sm">

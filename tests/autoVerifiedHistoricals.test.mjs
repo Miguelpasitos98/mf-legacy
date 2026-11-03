@@ -4,6 +4,7 @@ import {applyVerifiedHistoricals} from "../base44/functions/import-worker/review
 
 function fixture({duplicateTeam=false,conflict=false}={}) {
  const pid="player-1",jid="job-1",saved=[],candidates=[];
+ let version=0;
  const provenance={provider:"understat_archive",player_id:"understat-1",
   archive_url:"https://example.org/archive.csv",sha256:"abcdef",scope:"league_team_season"};
  const base={job_id:jid,player_id:pid,fotmob_player_id:"921253",source:"understat",kind:"metric",
@@ -22,8 +23,8 @@ function fixture({duplicateTeam=false,conflict=false}={}) {
    updateMany:async(query,patch)=>{for(const c of candidates){if(query.id.$in.includes(c.id))Object.assign(c,patch.$set);}},
    update:async(id,patch)=>Object.assign(candidates.find(x=>x.id===id),patch)},
   Team:{filter:async()=>duplicateTeam?[team,{...team,id:"team-2"}]:[team]},
-  PlayerSeasonStats:{filter:async q=>filter(saved,q),create:async record=>{saved.push({...record,id:"new-row"});return {id:"new-row"};},
-   update:async(id,patch)=>{Object.assign(saved.find(x=>x.id===id),patch)}},
+  PlayerSeasonStats:{filter:async q=>filter(saved,q),get:async id=>saved.find(x=>x.id===id),create:async record=>{const row={...record,id:"new-row-"+(++version),updated_date:String(version)};saved.push(row);return row;},
+   updateMany:async(q,patch)=>{const row=saved.find(x=>x.id===q.id&&x.updated_date===q.updated_date);if(row)Object.assign(row,patch.$set,{updated_date:String(++version)});},update:async(id,patch)=>{Object.assign(saved.find(x=>x.id===id),patch)}},
   PlayerHistoricalValuation:{filter:async()=>[],create:async()=>{},update:async()=>{}}
  };
  if(conflict)saved.push({id:"old",player_id:pid,season:"2023/2024",competition:"LaLiga",
@@ -63,7 +64,7 @@ test("una discrepancia de minutos no bloquea entradas, goles y despejes de FotMo
    {...base,id:"minutes",metric_name:"Minutes",metric_unit:"total",value:1028},
    {...base,id:"tackles",source_record_id:"2024/2025:87:8634:tackles:total",metric_name:"Tackles",value:22},
    {...base,id:"clearances",source_record_id:"2024/2025:87:8634:clearances:total",metric_name:"Clearances",value:48});
- f.saved.push({id:"historic",player_id:f.job.player_id,season:"2024/2025",competition:"LaLiga",
+ f.saved.push({updated_date:"initial",id:"historic",player_id:f.job.player_id,season:"2024/2025",competition:"LaLiga",
    fotmob_team_id:"8634",team_name:"Barcelona",fotmob_tournament_id:"87",
    minutes:1018,appearances:28,metrics:[{name:"Minutes",value:1018,unit:"total",source:"understat"},{name:"Understat minutes",value:1018,unit:"total",source:"understat"}]});
  const result=await applyVerifiedHistoricals(f.db,f.job);
@@ -137,7 +138,7 @@ test("la revisión reanudada completa candidatos restantes aunque otro de la mis
   {...base,id:"already",metric_name:"Goals",value:3,review_status:"applied"},
   {...base,id:"left",metric_name:"Assists",value:4,review_status:"pending",
    source_record_id:"2023/2024:87:8634:assists:total"});
- f.saved.push({id:"existing",player_id:f.job.player_id,season:"2023/2024",competition:"LaLiga",
+ f.saved.push({updated_date:"initial",id:"existing",player_id:f.job.player_id,season:"2023/2024",competition:"LaLiga",
   fotmob_team_id:"8634",team_name:"Barcelona",fotmob_tournament_id:"87",
   metrics:[{name:"Goals",value:3,source:"fotmob"}]});
  const response=await applyVerifiedHistoricals(f.db,f.job);

@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 
 const source=readFileSync(new URL("../base44/functions/import-review/entry.js",import.meta.url),"utf8")
   .replace('import {createClientFromRequest} from "npm:@base44/sdk";',"const createClientFromRequest=()=>globalThis.__reviewClient;");
-const {default:review,metricPlan,seasonPlan}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
+const {default:review,metricPlan,seasonPlan}=await import("data:text/javascript;base64,"+Buffer.from(source.replaceAll('"../../shared/importReview.js"',JSON.stringify(new URL("../base44/shared/importReview.js",import.meta.url).href))).toString("base64"));
 const pid="bbbbbbbbbbbbbbbbbbbbbbbb",jid="aaaaaaaaaaaaaaaaaaaaaaaa",cid="cccccccccccccccccccccccc";
 const item={id:cid,job_id:jid,player_id:pid,fotmob_player_id:"309328",kind:"metric",source:"fotmob",
   season:"2024/2025",competition:"Ligue 1",fotmob_team_id:"9847",team_name:"Paris Saint-Germain",
@@ -29,7 +29,7 @@ test("fill only an empty per90 slot; preserve manual values and metadata",()=>{
     metrics:[{name:"Goals",value:0,source:"manual",verification_status:"manual"}]};
   const plan=metricPlan({...item,metric_unit:"per90",value:0},player,[old]);
   assert.equal(plan.operation,"update");
-  assert.deepEqual(plan.record.metrics,[{name:"Goals",value:0,per90:0,source:"manual",verification_status:"manual"}]);
+  assert.deepEqual(plan.record.metrics,[{name:"Goals",value:0,per90:0,source:"manual",verification_status:"manual",source_url:item.evidence_url}]);
   assert.equal(old.metrics[0].per90,undefined);
   assert.deepEqual(Object.keys(plan.record),["metrics"]);
   assert.throws(()=>metricPlan({...item,value:2},player,[old]),/No se sobrescribe/);
@@ -51,7 +51,7 @@ test("ambiguous duplicate rows and conflicting IDs cannot be applied",()=>{
 test("per90, percentages and per-match keep distinct representations",()=>{
   assert.equal(metricPlan({...item,metric_unit:"per90",value:1.5},player,[]).record.metrics[0].per90,1.5);
   const percent=metricPlan({...item,metric_name:"Pass accuracy",metric_unit:"percentage",value:89.4},player,[]).record.metrics[0];
-  assert.deepEqual(percent,{name:"Pass accuracy",value:89.4,unit:"percentage",source:"fotmob",verification_status:"verified"});
+  assert.deepEqual(percent,{name:"Pass accuracy",value:89.4,unit:"percentage",source:"fotmob",verification_status:"verified",source_url:item.evidence_url});
   assert.equal(metricPlan({...item,metric_unit:"per_match",value:1.2},player,[]).record.metrics[0].per_match,1.2);
 });
 test("duel counts and percentages do not collapse to the same metric",()=>{

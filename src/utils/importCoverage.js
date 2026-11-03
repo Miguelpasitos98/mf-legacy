@@ -1,6 +1,6 @@
 // Identidad de temporada+competición sobre la que FotMob publica playerStats.
 // La presencia de métricas en STATS se mide por separado (ImportCandidate review).
-const retryable=new Set(["cache_absent","cache_mismatch","candidate_limit","query_failed","provider_paused"]);
+const retryable=new Set(["cache_absent","cache_mismatch","cache_stale","candidate_limit","query_failed","provider_paused"]);
 const blocked=new Set(["team_unidentified","pending_reconciliation","competition_unidentified","incompatible_response","duplicate_option","access_denied","rate_limited"]);
 const unavailable=new Set(["no_statistics","provider_unavailable"]);
 const terminal=new Set(["pending_review",...unavailable]);

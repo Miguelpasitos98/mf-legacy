@@ -11,7 +11,7 @@ source=source.replace('const {applyVerifiedHistoricals}=await import("./reviewAu
   "const applyVerifiedHistoricals=async()=>({applied:0});");
 source=source.replace('const {runHistoricalArchiveBackfill}=await import("./understatArchiveBackfill.js");',
   "const runHistoricalArchiveBackfill=async()=>({status: 'skipped', metrics_added:0, rows_updated:0});");
-const {default:worker}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
+const {default:worker}=await import("data:text/javascript;base64,"+Buffer.from(source.replaceAll('import("./reviewAuto.js")', 'import('+JSON.stringify(new URL("../base44/functions/import-worker/reviewAuto.js",import.meta.url).href)+')').replaceAll('import("./understatArchiveBackfill.js")','import('+JSON.stringify(new URL("../base44/functions/import-worker/understatArchiveBackfill.js",import.meta.url).href)+')').replaceAll('"../../shared/importReview.js"',JSON.stringify(new URL("../base44/shared/importReview.js",import.meta.url).href))).toString("base64"));
 const jobId="aaaaaaaaaaaaaaaaaaaaaaaa",pid="bbbbbbbbbbbbbbbbbbbbbbbb",claim="claimed-token";
 function setup({attempt=0,networkRequests=8,sources=["fotmob"]}={}) {
  const existing={id:jobId,claim_id:claim,status:"running",sources,player_id:pid,
@@ -51,9 +51,9 @@ test("Without network requests, no repeated auto-fetch",async()=>{
  const f=setup({networkRequests:0});await finish(0);
  assert.equal(f.jobs.length,1);
 });
-test("After the twelfth bounded block, no further work is queued",async()=>{
+test("History continues beyond twelve blocks while source makes progress",async()=>{
  const f=setup({attempt:11});await finish();
- assert.equal(f.jobs.length,1);
+ assert.equal(f.jobs.length,2);
 });
 test("Mixed-source first import continues with only FotMob when historic caches are missing",async()=>{
  const f=setup({sources:["fotmob","fifa","market"]});await finish();

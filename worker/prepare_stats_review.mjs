@@ -2,9 +2,7 @@
 import {readFileSync,writeFileSync} from "node:fs";
 import {pathToFileURL} from "node:url";
 
-const source=readFileSync(new URL("../base44/functions/import-review/entry.js",import.meta.url),"utf8")
- .replace('import {createClientFromRequest} from "npm:@base44/sdk";',"const createClientFromRequest=()=>{throw Error('Offline only');};");
-const {seasonPlan}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
+import {seasonPlan} from "../base44/shared/importReview.js";
 
 export function prepareReview(input,context) {
  const player=context.player,links=context.links||[],pid=String(input.fotmob_player_id);

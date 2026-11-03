@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {advancedTotals} from '../src/utils/statsAdvanced.js';
-const moduleFrom=async(path,replace)=>import('data:text/javascript;base64,'+Buffer.from(readFileSync(new URL(path,import.meta.url),'utf8').replace(replace,'const createClientFromRequest=()=>({});')).toString('base64'));
+const moduleFrom=async(path,replace)=>import('data:text/javascript;base64,'+Buffer.from(readFileSync(new URL(path,import.meta.url),'utf8').replace(replace,'const createClientFromRequest=()=>({});').replace(/(from\s+[\"\'])(\.{1,2}\/[^\"\']+)([\"\'])/g,(_all,a,rel,b)=>a+new URL(rel,new URL(path,import.meta.url)).href+b)).toString('base64'));
 const {valuationPlan,reviewedCurrentTeamLink}=await moduleFrom('../base44/functions/import-review/entry.js','import {createClientFromRequest} from "npm:@base44/sdk";');
 const {pendingSources}=await moduleFrom('../base44/functions/import-control/entry.js','import { createClientFromRequest } from "npm:@base44/sdk";');
 const {provenanceRecord}=await moduleFrom('../base44/functions/import-worker/entry.js','import { createClientFromRequest } from "npm:@base44/sdk";');

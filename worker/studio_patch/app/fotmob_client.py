@@ -8,6 +8,8 @@ import json
 import os
 from pathlib import Path
 import re
+import time
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from .profile import profile_identity
@@ -28,8 +30,21 @@ def _fetch(resource, params, opener=urlopen):
         raise ValueError('Recurso no admitido.')
     url=API_ROOT+resource+'?'+urlencode(params)
     req=Request(url,headers={'Accept':'application/json','User-Agent':'MF-Legacy-Stats-Studio/1.0'})
-    with opener(req,timeout=DEFAULT_TIMEOUT) as response:
-        raw=response.read(7_000_001)
+    # Retry transient transport/5xx errors only. Authentication and rate-limit
+    # responses stop the provider; never rotate identities or bypass controls.
+    for attempt in range(3):
+        try:
+            with opener(req,timeout=DEFAULT_TIMEOUT) as response:
+                raw=response.read(7_000_001)
+            break
+        except HTTPError as exc:
+            if exc.code not in (500,502,503,504) or attempt==2:
+                raise
+            time.sleep(2**attempt)
+        except (URLError, TimeoutError):
+            if attempt==2:
+                raise
+            time.sleep(2**attempt)
     if len(raw)>7_000_000:
         raise ValueError('La respuesta excede el límite seguro de tamaño.')
     data=json.loads(raw.decode('utf-8-sig'))

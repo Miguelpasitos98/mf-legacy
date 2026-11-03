@@ -10,7 +10,7 @@ globalThis.Deno={env:{get:(key)=>key==="MF_V3_WORKER_TOKEN"?configured:""}};
 const source=readFileSync(new URL("../base44/functions/import-worker/entry.js",import.meta.url),"utf8")
   .replace('import { createClientFromRequest } from "npm:@base44/sdk";',
            "const createClientFromRequest=()=>globalThis.__mfTestClient;");
-const {default:worker}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
+const {default:worker}=await import("data:text/javascript;base64,"+Buffer.from(source.replaceAll('import("./reviewAuto.js")', 'import('+JSON.stringify(new URL("../base44/functions/import-worker/reviewAuto.js",import.meta.url).href)+')').replaceAll('import("./understatArchiveBackfill.js")','import('+JSON.stringify(new URL("../base44/functions/import-worker/understatArchiveBackfill.js",import.meta.url).href)+')').replaceAll('"../../shared/importReview.js"',JSON.stringify(new URL("../base44/shared/importReview.js",import.meta.url).href))).toString("base64"));
 const JOB_ID="aaaaaaaaaaaaaaaaaaaaaaaa";
 const PLAYER_ID="bbbbbbbbbbbbbbbbbbbbbbbb";
 const jobs=new Map();

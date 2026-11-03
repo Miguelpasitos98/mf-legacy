@@ -1,4 +1,6 @@
 import {createClientFromRequest} from "npm:@base44/sdk";
+import {metricPlan,seasonPlan,compatibleSeasonPlan,valuationPlan,reviewedCurrentTeamLink,completionPatch} from "../../shared/importReview.js";
+export {metricPlan,seasonPlan,valuationPlan,reviewedCurrentTeamLink};
 const str=x=>String(x??"").trim();
 const rows=x=>Array.isArray(x)?x:x?.items||x?.data||x?.entities||[];
 const reply=(data,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"no-store"}});
@@ -10,13 +12,6 @@ const metricId=x=>{
 };
 const empty=x=>x===undefined||x===null||x==="";
 const slug=x=>norm(x).replace(/ /g,"-");
-export function reviewedCurrentTeamLink(player,team,item){
-  const club=x=>norm(x).replace(/^(?:fc |cf )|(?: fc| cf)$/g,"").trim();
-  if(item.is_national_team!==false||!team?.id||player?.team_id!==team.id)return {};
-  if(!club(item.team_name)||club(item.team_name)!==club(team.name))return {};
-  if(!empty(team.fotmob_id)&&str(team.fotmob_id)!==str(item.fotmob_team_id))return {};
-  return {team_id:team.id};
-}
 const competitionKey=x=>({"super lig":"super lig","super league turkey":"super lig","ligue 1 uber eats":"ligue 1","english premier league":"premier league"}[norm(x)]||norm(x));
 async function allRows(entity,query) {
   const out=[];
@@ -26,135 +21,9 @@ async function allRows(entity,query) {
   }
   throw Error("Demasiados registros para resolver la identidad con seguridad.");
 }
-export function metricPlan(item,player,existing,teamLink={}) {
-  if(!/^\d{1,15}$/.test(str(item.fotmob_team_id))||!str(item.competition)||!str(item.metric_name))throw Error("Falta identidad de competición/equipo/métrica.");
-  const signedMetric=["goals prevented","goles evitados"].includes(norm(item.metric_name));
-  if(typeof item.value!=="number"||!Number.isFinite(item.value)||(item.value<0&&!signedMetric))throw Error("Valor no válido.");
-  if(!["total","per90","percentage","per_match"].includes(item.metric_unit))throw Error("Unidad no admitida.");
-  if(item.metric_unit==="percentage"&&item.value>100)throw Error("Porcentaje fuera de rango.");
-  const sameComp=r=>competitionKey(r.competition)===competitionKey(item.competition)
-    ||(str(r.fotmob_tournament_id)&&str(r.fotmob_tournament_id)===str(item.fotmob_tournament_id));
-  const matches=existing.filter(r=>sameComp(r)&&(str(r.fotmob_team_id)===str(item.fotmob_team_id)
-    ||norm(r.team_name)===norm(item.team_name)||(!str(r.fotmob_team_id)&&!str(r.team_name))));
-  if(matches.length>1)throw Error("Hay varias filas para la misma temporada, club y competición.");
-  const target=matches[0];
-  if(!target&&existing.some(r=>sameComp(r)&&!str(r.fotmob_team_id)))throw Error("Existe una fila de esta competición con equipo sin ID FotMob; concilia la identidad antes de crear otra.");
-  if(target&&str(target.fotmob_team_id)&&str(target.fotmob_team_id)!==str(item.fotmob_team_id))throw Error("El nombre coincide pero el ID de equipo es distinto.");
-  if(target&&str(target.fotmob_player_id)&&str(target.fotmob_player_id)!==str(item.fotmob_player_id))throw Error("La fila pertenece a otro ID FotMob.");
-  if(target&&str(target.fotmob_tournament_id)&&str(item.fotmob_tournament_id)&&str(target.fotmob_tournament_id)!==str(item.fotmob_tournament_id))throw Error("Competiciones homónimas con distinto ID oficial.");
-  if(target&&typeof target.is_national_team==="boolean"&&typeof item.is_national_team==="boolean"&&target.is_national_team!==item.is_national_team)throw Error("Club y selección incompatibles.");
-  const metrics=Array.isArray(target?.metrics)?target.metrics.map(m=>({...m})):[];
-  const understatKey=x=>norm(x).replace(/(?: season)? 90$/,"").replace(/ /g,"");
-  const family=understatKey(item.metric_name);
-  if(["xgchain","xgbuildup"].includes(family)&&target){
-    const manual=(target.manual_metric_history||[]).some(h=>[family,"understatminutes"].includes(understatKey(h.metric_name)))
-      ||metrics.some(m=>understatKey(m.name)===family&&norm(m.source).includes("manual"));
-    if(manual){
-      const prior=metrics.find(m=>metricId(m.name)===metricId(item.metric_name));
-      const slot=item.metric_unit==="per90"?"per90":item.metric_unit==="per_match"?"per_match":"value";
-      if(!empty(prior?.[slot])&&Number(prior[slot])===item.value)return {operation:"unchanged",target_id:target.id,record:{}};
-      throw Error("Existe una corrección manual de esta métrica o de sus minutos; se conserva para conciliación individual.");
-    }
-  }
-  const indices=metrics.map((m,i)=>metricId(m.name)===metricId(item.metric_name)?i:-1).filter(i=>i>=0);
-  if(indices.length>1)throw Error("La métrica tiene variantes existentes; requiere conciliación.");
-  const idx=indices[0]??-1;
-  const key=item.metric_unit==="per90"?"per90":item.metric_unit==="per_match"?"per_match":"value";
-  const old=idx<0?{}:metrics[idx];
-  if(key==="value"&&old.unit&&old.unit!==item.metric_unit)throw Error("La unidad existente es distinta.");
-  if(!empty(old[key])&&Number(old[key])!==item.value)throw Error("Existe un valor distinto. No se sobrescribe.");
-  const field=key==="value"?({"matches":"appearances","appearances":"appearances","minutes":"minutes","minutes played":"minutes","rating":"rating","fotmob rating":"rating"}[norm(item.metric_name)]):null;
-  if(field&&target&&!empty(target[field])&&Number(target[field])!==item.value)throw Error("Existe un resumen distinto. No se sobrescribe.");
-  const pctKey=key==="per90"?"percentile_per90":"percentile";
-  const addPercentile=typeof item.percentile==="number"&&empty(old[pctKey]);
-  const metricChanged=empty(old[key])||addPercentile;
-  if(metricChanged) {
-    const metric={...old,name:old.name||item.metric_name,[key]:item.value,
-      source:old.source||item.source,verification_status:old.verification_status||"verified",
-      ...(item.derivation&&!old.derivation?{derivation:item.derivation}:{}),
-      ...(item.provenance&&!old.provenance?{provenance:item.provenance}:{}),
-      ...(item.provenance&&item.evidence_url&&!old.source_url?{source_url:item.evidence_url}:{}),
-      ...(typeof item.percentile==="number"&&empty(old[key==="per90"?"percentile_per90":"percentile"])?{[key==="per90"?"percentile_per90":"percentile"]:item.percentile}:{}),
-      ...(key==="value"?{unit:item.metric_unit}:{})};
-    if(idx<0)metrics.push(metric);else metrics[idx]=metric;
-  }
-  const summary=field&&empty(target?.[field])?{[field]:item.value}:{};
-  if(target) {
-    const patch={...summary,...Object.fromEntries(Object.entries(teamLink).filter(([key])=>empty(target[key]))),...(metricChanged?{metrics}:{})};
-    return {operation:Object.keys(patch).length?"update":"unchanged",target_id:target.id,record:patch};
-  }
-  if(!str(item.fotmob_tournament_id)||typeof item.is_national_team!=="boolean")throw Error("La primera importación requiere ID de competición y ámbito club/selección.");
-  return {operation:"create",record:{
-    external_record_id:"fotmob:"+[item.fotmob_player_id,item.fotmob_team_id,slug(item.season),slug(item.competition)].join(":"),
-    player_id:item.player_id,fotmob_player_id:item.fotmob_player_id,player_name:player.name,
-    season:item.season,competition:item.competition,fotmob_team_id:item.fotmob_team_id,team_name:item.team_name,
-    ...(item.fotmob_tournament_id?{fotmob_tournament_id:item.fotmob_tournament_id}:{}),
-    ...(typeof item.is_national_team==="boolean"?{is_national_team:item.is_national_team}:{}),
-    ...teamLink,...summary,metrics,source:item.source,verification_status:"manually_reviewed",review_status:"approved",import_batch:item.job_id
-  }};
-}
-export function seasonPlan(items,player,existing,teamLink={}) {
-  if(!items.length)throw Error("No hay métricas pendientes para esta temporada.");
-  const identity=x=>[x.player_id,x.fotmob_player_id,x.season,x.competition,x.fotmob_team_id,x.fotmob_tournament_id,x.is_national_team].join("|");
-  if(items.some(x=>identity(x)!==identity(items[0])))throw Error("El lote mezcla equipos o competiciones.");
-  let virtual=existing.map(r=>({...r})),created=false,targetId,patch={};
-  for(const item of items) {
-    const plan=metricPlan(item,player,virtual,teamLink);
-    if(plan.operation==="create") {
-      created=true;targetId="__preview_new__";patch={...plan.record};
-      virtual.push({...plan.record,id:targetId});
-    } else {
-      targetId=plan.target_id;
-      Object.assign(patch,plan.record);
-      virtual=virtual.map(r=>r.id===targetId?{...r,...plan.record}:r);
-    }
-  }
-  return {operation:created?"create":Object.keys(patch).length?"update":"unchanged",
-    ...(created?{}:{target_id:targetId}),record:patch,candidates:items.length};
-}
-export function valuationPlan(item,old=null){
-  const overall=item.kind==="overall",field=overall?"fifa_fc_overall":"transfermarkt_value_eur";
-  if(!["overall","market_value"].includes(item.kind)||!Number.isInteger(item.value)||item.value<0||(overall&&(item.value<1||item.value>99)))throw Error("Valoración inválida.");
-  const match=/^(20\d{2})\/(20\d{2})$/.exec(item.season);
-  if(!match||+match[2]!==+match[1]+1)throw Error("Temporada histórica inválida.");
-  if(old&&!empty(old[field])&&Number(old[field])!==item.value)throw Error("Ya existe una valoración diferente; no se sobrescribe.");
-  const p=item.provenance||{},desired={};
-  if(overall){
-    const game=+match[2]%100,expected=(game<=23?"fifa ":"fc ")+game;
-    if(norm(item.fifa_edition).replace("ea sports ","")!==expected)throw Error("La edición FIFA/FC no corresponde a la temporada.");
-    if(old?.fifa_edition&&norm(old.fifa_edition).replace("ea sports ","")!==expected)throw Error("La edición existente es distinta.");
-    if(p.rating_kind&&p.rating_kind!=="launch_base"||p.mode&&p.mode!=="career")throw Error("Se requiere una valoración base de lanzamiento de Career Mode.");
-    if(p.revision_date&&(!p.release_date||p.revision_date>p.release_date))throw Error("La revisión es posterior al lanzamiento; no se importa como carta base.");
-    if(old?.fifa_fc_position&&item.fifa_fc_position&&old.fifa_fc_position!==item.fifa_fc_position)throw Error("Existe una posición FIFA diferente; se conserva para revisión.");
-    Object.assign(desired,{fifa_fc_overall:item.value,fifa_edition:item.fifa_edition,fifa_source_url:item.evidence_url,
-      ...(item.fifa_fc_position?{fifa_fc_position:item.fifa_fc_position}:{}),
-      ...(p.player_id?{fifa_source_player_id:p.player_id}:{}),...(p.revision?{fifa_source_revision:p.revision}:{}),
-      ...(p.revision_date?{fifa_source_date:p.revision_date}:{}),...(p.rating_kind?{fifa_rating_kind:p.rating_kind}:{})});
-  }else{
-    if(!withinSeason(item.season,str(item.as_of_date)))throw Error("La fecha no corresponde a la temporada.");
-    if(p.value_kind&&p.value_kind!=="market_value")throw Error("La fuente no es un valor de mercado histórico.");
-    if(old&&!empty(old[field])&&old.market_value_as_of&&old.market_value_as_of!==item.as_of_date)throw Error("La fecha existente es distinta; no se sobrescribe.");
-    Object.assign(desired,{transfermarkt_value_eur:item.value,market_value_as_of:item.as_of_date,transfermarkt_source_url:item.evidence_url,
-      ...(p.player_id?{market_source_player_id:p.player_id}:{}),...(p.selection_rule?{market_selection_rule:p.selection_rule}:{}),
-      ...(typeof p.provisional==="boolean"?{market_value_status:p.provisional?"provisional":"definitivo"}:{})});
-  }
-  const patch=Object.fromEntries(Object.entries(desired).filter(([key,value])=>!empty(value)&&empty(old?.[key])));
-  const source=overall?"fifa":"market";
-  if(item.provenance&&!old?.source_provenance?.[source])patch.source_provenance={...(old?.source_provenance||{}),[source]:item.provenance};
-  return {operation:old?(Object.keys(patch).length?"update":"unchanged"):"create",...(old?{target_id:old.id}:{}),record:patch};
-}
-function withinSeason(season,date) {
-  if(!/^\d{4}(-\d{2}-\d{2})$/.test(date))return false;
-  const match=/^(\d{4})(?:\/(\d{4}))?$/.exec(season);
-  if(!match)return false;
-  const start=match[2]?match[1]+"-07-01":match[1]+"-01-01";
-  const end=match[2]?match[2]+"-06-30":match[1]+"-12-31";
-  const parsed=new Date(date+"T00:00:00Z");
-  return !Number.isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===date&&date>=start&&date<=end;
-}
 async function conclude(db,job) {
   const pending=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
-  if(!pending.length)await db.ImportJob.update(job.id,{status:"completed",phase:"Candidatos revisados",progress:100});
+  await db.ImportJob.update(job.id,completionPatch(await db.ImportJob.get(job.id),pending.length));
 }
 
 // A review unit is one destination record. All fields are planned together so
@@ -206,7 +75,9 @@ export function historyPlan(candidates,player,stats,valuations,teamLinks={}) {
       if(unit.kind==="stats"){
         const link=teamLinks[[item.fotmob_team_id,item.is_national_team].join("|")]||{};
         if(link.error)throw Error(link.error);
-        const plan=seasonPlan(pending,player,stats.filter(r=>r.season===item.season),link);
+        const plan=compatibleSeasonPlan(pending,player,stats.filter(r=>r.season===item.season),link);
+        if(!plan.candidates)throw Error(plan.conflicts.map(c=>c.reason).join("; "));
+        if(plan.conflicts.length)unit.reason=plan.conflicts.length+" métricas conflictivas quedan pendientes";
         Object.assign(unit,plan);unit.before=plan.target_id?stats.find(r=>r.id===plan.target_id):null;
       }else{
         const existing=valuations.filter(r=>r.season===item.season);
@@ -372,6 +243,10 @@ export default async function(req) {
     const data=await req.json();
     const action=str(data.action),candidateId=str(data.candidate_id);
     const db=sdk.asServiceRole.entities;
+    if(action.startsWith("repair-")){
+      const {repairRequest}=await import("../../shared/importRepair.js");
+      return reply(await repairRequest(db,data,user.id));
+    }
     if(action==="auto-safe-job"){
       const jobId=str(data.job_id);
       if(!/^[a-f0-9]{24}$/i.test(jobId))return bad("ID de trabajo no válido.");
@@ -379,8 +254,8 @@ export default async function(req) {
       if(!target||!["review","completed"].includes(target.status))return bad("Trabajo no finalizado o desconocido.",409);
       if(target.review_lock_until&&target.review_lock_until>new Date().toISOString())return bad("Hay una revisión en curso.",409);
       const {applyVerifiedHistoricals}=await import("./reviewAuto.js");
-      const result=await applyVerifiedHistoricals(db,{...target,status:"review"});
-      await db.ImportJob.update(target.id,{phase:"Conciliación histórica: "+result.applied+" valores incorporados; "+result.pending+" por revisar"});
+      const result=await applyVerifiedHistoricals(db,{...target,status:"review"},{dryRun:data.dry_run===true,maxScopes:8});
+      if(data.dry_run!==true)await db.ImportJob.update(target.id,{phase:"Conciliación histórica: "+result.applied+" valores incorporados; "+result.pending+" por revisar"});
       return reply({ok:true,job_id:target.id,...result});
     }
     if(["history-preview","history-approve","history-batches"].includes(action))return await historyRequest(db,user,data);
@@ -414,11 +289,11 @@ export default async function(req) {
       ||backlinks.some(l=>str(l.player_id)!==item.player_id))return bad("La vinculación FotMob ya no es única y verificada.",409);
     if(item.kind==="metric") {
       const grouped=action.endsWith("-season");
-      const group=grouped?(await allRows(db.ImportCandidate,{job_id:item.job_id,player_id:item.player_id,
+      const allGroup=grouped?(await allRows(db.ImportCandidate,{job_id:item.job_id,player_id:item.player_id,
         kind:"metric",season:item.season,competition:item.competition,fotmob_team_id:item.fotmob_team_id,
         source:item.source})): [item];
-      if(grouped&&group.some(c=>!["pending","applied"].includes(c.review_status)))return bad("La temporada contiene observaciones descartadas; revisa individualmente.",409);
-      if(group.some(c=>c.verification_status==="conflict"))return bad("Hay métricas en conflicto; requiere conciliación.",409);
+      const group=allGroup.filter(c=>c.review_status==="pending"&&c.verification_status!=="conflict");
+      if(!group.length)return bad("No hay métricas compatibles pendientes.",409);
       if(action==="verify-season") {
         if(group.some(c=>!str(c.evidence_url).startsWith("https://")))return bad("Hay métricas sin evidencia.",409);
         await db.ImportCandidate.updateMany({id:{$in:group.map(c=>c.id)},job_id:item.job_id,review_status:"pending"},
@@ -440,7 +315,8 @@ export default async function(req) {
         }
       }
       let plan;
-      try {plan=grouped?seasonPlan(group,player,existing,teamLink):metricPlan(item,player,existing,teamLink);}catch(e){return bad(e.message,409);}
+      try {plan=grouped?compatibleSeasonPlan(group,player,existing,teamLink):metricPlan(item,player,existing,teamLink);}catch(e){return bad(e.message,409);}
+      if(grouped&&!plan.candidates)return bad("Todas las métricas requieren conciliación.",409);
       if(action==="preview"||action==="preview-season")return reply({ok:true,plan,can_apply:group.every(c=>c.verification_status==="verified")});
       if(plan.operation==="create") {
         // A timeout may hide a successful create. Never replay an ambiguous write.
@@ -449,12 +325,12 @@ export default async function(req) {
         }
       } else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
       if(grouped) {
-        const pending=group.filter(c=>c.review_status==="pending");
+        const pending=group.filter(c=>c.review_status==="pending"&&plan.candidate_ids.includes(c.id));
         if(pending.length)await db.ImportCandidate.updateMany({id:{$in:pending.map(c=>c.id)},job_id:item.job_id,review_status:"pending"},
           {$set:{review_status:"applied",verification_status:"verified",review_note:"Temporada aprobada; se completaron únicamente campos vacíos"}});
         await conclude(db,job);
         return reply({ok:true,status:"applied",operation:plan.operation,candidates:group.length,
-          season_id:plan.target_id,created_season:plan.operation==="create",new_metrics:plan.operation==="unchanged"?0:pending.length});
+          season_id:plan.target_id,created_season:plan.operation==="create",new_metrics:plan.added_values||0,conflicts:plan.conflicts||[],unchanged_values:plan.unchanged_values||0});
       }
     } else if(item.kind==="overall"||item.kind==="market_value") {
       const existing=rows(await db.PlayerHistoricalValuation.filter({player_id:item.player_id,season:item.season},undefined,10));

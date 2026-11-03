@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 const source=readFileSync(new URL("../base44/functions/import-control/entry.js",import.meta.url),"utf8").replace('import { createClientFromRequest } from "npm:@base44/sdk";','const createClientFromRequest=()=>globalThis.__simpleImportSdk;');
-const {default:handler}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
+const {default:handler}=await import("data:text/javascript;base64,"+Buffer.from(source.replaceAll('"./catalogue-identity.js"',JSON.stringify(new URL("../base44/functions/import-control/catalogue-identity.js",import.meta.url).href))).toString("base64"));
 const pid="a".repeat(24);
 const fixture=({statsIds=["815006","815006"],otherOwner=""}={})=>{
  const links=[],jobs=[],created=[];

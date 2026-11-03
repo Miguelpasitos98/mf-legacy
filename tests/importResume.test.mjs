@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../base44/functions/import-control/entry.js',import.meta.url),'utf8').replace('import { createClientFromRequest } from "npm:@base44/sdk";','const createClientFromRequest=()=>globalThis.__resumeSdk;');
-const {default:handler,pendingSources,pendingScopes}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const {default:handler,pendingSources,pendingScopes}=await import('data:text/javascript;base64,'+Buffer.from(source.replaceAll('"./catalogue-identity.js"',JSON.stringify(new URL("../base44/functions/import-control/catalogue-identity.js",import.meta.url).href))).toString('base64'));
 const id='a'.repeat(24),jid='b'.repeat(24);
 function fixture(status='failed'){
  const job={id:jid,player_id:id,player_name:'Player',fotmob_player_id:'123',status,sources:['understat'],received_candidates:31,source_results:{understat:{status:'complete'}},lease_expires_at:'2000-01-01T00:00:00Z'};

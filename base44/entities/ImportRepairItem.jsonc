@@ -1,0 +1,14 @@
+{
+  "name": "ImportRepairItem",
+  "type": "object",
+  "properties": {
+    "run_id": {"type": "string"},
+    "item_key": {"type": "string"},
+    "job_id": {"type": "string"},
+    "player_id": {"type": "string"},
+    "report": {"type": "object"},
+    "checked_at": {"type": "string"}
+  },
+  "required": ["run_id", "item_key", "report"],
+  "rls": {"create": {"user_condition": {"role": "admin"}}, "read": {"user_condition": {"role": "admin"}}, "update": {"user_condition": {"role": "admin"}}, "delete": {"user_condition": {"role": "admin"}}}
+}

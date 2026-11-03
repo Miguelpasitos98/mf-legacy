@@ -5,7 +5,7 @@ import {webcrypto} from "node:crypto";
 if(!globalThis.crypto)globalThis.crypto=webcrypto;
 const src=readFileSync(new URL("../base44/functions/import-cache/entry.js",import.meta.url),"utf8")
  .replace('import { createClientFromRequest } from "npm:@base44/sdk";',"const createClientFromRequest=()=>globalThis.__cacheApi;");
-const {default:handler}=await import("data:text/javascript;base64,"+Buffer.from(src).toString("base64"));
+const {default:handler}=await import("data:text/javascript;base64,"+Buffer.from(src.replaceAll('"../../shared/importReview.js"',JSON.stringify(new URL("../base44/shared/importReview.js",import.meta.url).href))).toString("base64"));
 const playerId="aaaaaaaaaaaaaaaaaaaaaaaa",fotmobId="276738",player={id:playerId,name:"Antonio Rüdiger"};
 let user,links,stats,sources,jobs,candidates,sequence=0;
 const rows=(data,q,limit)=>data.filter(r=>Object.entries(q).every(([key,value])=>

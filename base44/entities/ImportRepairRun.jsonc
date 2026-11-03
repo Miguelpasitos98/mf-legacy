@@ -1,0 +1,21 @@
+{
+  "name": "ImportRepairRun",
+  "type": "object",
+  "properties": {
+    "mode": {"type": "string", "enum": ["simulation", "apply"]},
+    "status": {"type": "string", "enum": ["ready", "paused", "completed"]},
+    "simulation_id": {"type": "string"},
+    "targets": {"type": "array", "items": {"type": "object"}},
+    "cursor": {"type": "integer"},
+    "counts": {"type": "object"},
+    "players_scanned": {"type": "integer"},
+    "created_by_actor": {"type": "string"},
+    "started_at": {"type": "string"},
+    "finished_at": {"type": "string"},
+    "lock_id": {"type": "string"},
+    "lock_until": {"type": "string"},
+    "last_error": {"type": "string"}
+  },
+  "required": ["mode", "status", "targets", "cursor"],
+  "rls": {"create": {"user_condition": {"role": "admin"}}, "read": {"user_condition": {"role": "admin"}}, "update": {"user_condition": {"role": "admin"}}, "delete": {"user_condition": {"role": "admin"}}}
+}

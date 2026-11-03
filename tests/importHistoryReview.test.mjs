@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {importLandingView} from '../src/utils/importHistoryReview.js';
 const source=readFileSync(new URL('../base44/functions/import-review/entry.js',import.meta.url),'utf8').replace('import {createClientFromRequest} from "npm:@base44/sdk";','const createClientFromRequest=()=>globalThis.__historyClient;').replace('console.error("import-review",e);','');
-const {default:review,historyPlan,historyValueRows}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const {default:review,historyPlan,historyValueRows}=await import('data:text/javascript;base64,'+Buffer.from(source.replaceAll('"../../shared/importReview.js"',JSON.stringify(new URL("../base44/shared/importReview.js",import.meta.url).href))).toString('base64'));
 const jid='a'.repeat(24),pid='b'.repeat(24),cid='c'.repeat(24);
 const item={id:cid,job_id:jid,player_id:pid,fotmob_player_id:'309328',kind:'metric',source:'understat',season:'2023/2024',competition:'Ligue 1',fotmob_team_id:'9847',team_name:'Paris Saint-Germain',fotmob_tournament_id:'53',is_national_team:false,metric_name:'xG Chain',metric_unit:'per90',value:.5161540821,verification_status:'verified',review_status:'pending',evidence_url:'https://understat.com/player/1223'};
 const player={id:pid,name:'Milan Škriniar'};

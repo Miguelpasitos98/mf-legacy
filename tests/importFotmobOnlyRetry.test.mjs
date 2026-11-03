@@ -6,7 +6,7 @@ globalThis.crypto??=webcrypto;
 let source=readFileSync(new URL("../base44/functions/import-control/entry.js",import.meta.url),"utf8");
 source=source.replace('import { createClientFromRequest } from "npm:@base44/sdk";',
   "const createClientFromRequest=()=>globalThis.__fotmobControlTestClient;");
-const {default:control}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
+const {default:control}=await import("data:text/javascript;base64,"+Buffer.from(source.replaceAll('"./catalogue-identity.js"',JSON.stringify(new URL("../base44/functions/import-control/catalogue-identity.js",import.meta.url).href))).toString("base64"));
 test("Recuperar FotMob no vuelve a cargar FIFA ni mercado",async()=>{
  const playerId="bbbbbbbbbbbbbbbbbbbbbbbb";
  const previous={id:"aaaaaaaaaaaaaaaaaaaaaaaa",player_id:playerId,status:"review",retry_count:2,
