@@ -81,6 +81,7 @@ export default async function(req) {
     const client=createClientFromRequest(req);
     const db=withEntityRetries(client.asServiceRole.entities);
     const action=str(body.action);
+    if(action==="capabilities")return reply({ok:true,engine:"mf-historical-20261103-v4",batch_size:25,global_repair:true,quota_retries:true});
     if(action.startsWith("repair-")){
       const {repairRequest}=await import("../../shared/importRepair.js");
       return reply(await repairRequest(db,body,"worker"));
@@ -94,7 +95,7 @@ export default async function(req) {
       if(!job)return reply({ok:true,job:null});
       const claimId=crypto.randomUUID(),now=new Date();
       const end=new Date(now.getTime()+10*60*1000).toISOString();
-      await db.ImportJob.update(job.id,{status:"running",phase:"Iniciando extracción",progress:1,claim_id:claimId,worker_id:str(body.worker_id).slice(0,80),started_at:now.toISOString(),heartbeat_at:now.toISOString(),lease_expires_at:end});
+      await db.ImportJob.update(job.id,{status:"running",phase:"Iniciando extracción",progress:1,claim_id:claimId,worker_id:str(body.worker_id).slice(0,80),worker_version:str(body.worker_version).slice(0,80),started_at:now.toISOString(),heartbeat_at:now.toISOString(),lease_expires_at:end});
       const check=await db.ImportJob.get(job.id);
       if(check.claim_id!==claimId||check.status!=="running")return reply({ok:true,job:null});
       const existing_stats=[];

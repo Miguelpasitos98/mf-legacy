@@ -29,6 +29,7 @@ from typing import Any
 
 SCOPED_FIELDS = {"goals", "assists", "shots", "key_passes", "xG", "xA",
                  "npxG", "xGChain", "xGBuildup"}
+WORKER_VERSION="mf-historical-20261103-v4"
 
 
 def text(value: Any) -> str:
@@ -609,7 +610,7 @@ def sync_reviews(root,pid=None):
         cache.apply_review_status(job['job_id'],job['pid'],state.get('groups',[]),state.get('finished',False))
 
 def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
-    assigned=call("claim",worker_id=os.getenv("HOSTNAME","mf-v3-python"),**({"job_id":job_id} if job_id else {}))["job"]
+    assigned=call("claim",worker_id=os.getenv("HOSTNAME","mf-v3-python"),worker_version=WORKER_VERSION,**({"job_id":job_id} if job_id else {}))["job"]
     if not assigned:
         return False
     jid,claim=assigned["id"],assigned["claim_id"]
@@ -718,7 +719,13 @@ def main():
             required['studio_parser_compatible']=callable(getattr(studio_import(root)[2],'resolve_stats_team',None))
         except (ImportError,FileNotFoundError):
             required['studio_parser_compatible']=False
+        try:
+            backend=call('capabilities')
+            required['backend_compatible']=backend.get('engine')==WORKER_VERSION
+        except Exception:
+            required['backend_compatible']=False
         print(json.dumps({"ready":all(required.values()),"comprobaciones":required,
+            "worker_version":WORKER_VERSION,
             "consultas_nuevas_limitadas":os.getenv("MF_V3_ALLOW_FOTMOB_NETWORK","1")=="1",
             "peticiones_maximas_por_trabajo":os.getenv("MF_V3_MAX_FOTMOB_REQUESTS","0"),
             "nota":"No se realizaron solicitudes a proveedores ni se modificaron datos."},indent=2,ensure_ascii=False))
