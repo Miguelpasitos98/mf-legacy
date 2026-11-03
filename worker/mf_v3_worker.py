@@ -380,7 +380,15 @@ def studio_understat(root: Path, pid: str, max_candidates=300, existing_scopes=N
                 'status':'consulta_pendiente','reason':'Archivo Understat 2025: temporada parcial; consultar fuente actualizada.'})
             continue
         batch=[]
-        for original,label in [('xGChain','xG Chain'),('xGBuildup','xG Buildup')]:
+        # Import verified league totals that are present in the same Understat
+        # observation, not just Chain/Buildup. Separate names ensure FotMob
+        # remains authoritative if its own historical data arrives later.
+        for original,label in [
+            ('xGChain','xG Chain'),('xGBuildup','xG Buildup'),
+            ('goals','Understat Goals'),('assists','Understat Assists'),
+            ('xG','Understat xG'),('xA','Understat xA'),
+            ('npxG','Understat npxG'),('shots','Understat Shots')
+        ]:
             d=fields.get(original) or {};total=number(d.get('normalized_value',d.get('value')))
             if total is None or total<0:continue
             chain=fields.get('xGChain') or {};chain_value=number(chain.get('normalized_value',chain.get('value')))
