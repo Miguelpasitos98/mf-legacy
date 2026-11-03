@@ -1,5 +1,5 @@
 import {createClientFromRequest} from 'npm:@base44/sdk';
-import {ARCHIVE_URL,ARCHIVE_SHA256,readArchive,deriveRates} from './core.mjs';
+import {ARCHIVE_URL,ARCHIVE_SHA256,readArchive,deriveRates,deriveStatsBackfill} from './core.mjs';
 
 const txt=x=>String(x??'').trim();
 const rows=x=>Array.isArray(x)?x:x?.items||x?.data||x?.entities||[];
@@ -46,6 +46,7 @@ export default async function(req){
    return reply({ok:false,error:'Historial con IDs FotMob contradictorios'},409);
   const candidates=readArchive(await archiveText(),player.name);
   const result=deriveRates(candidates,seasons);
+  const backfill=deriveStatsBackfill(candidates,seasons);
   if(result.status!=='verified')return reply({ok:true,status:result.status,saved:0,
    reason:'Understat no pudo identificar inequívocamente al jugador con al menos dos clubes/temporadas compatibles; requiere revisión'});
   const existing=rows(await db.UnderstatSeasonRate.filter({player_id:playerId},undefined,250));
@@ -56,7 +57,8 @@ export default async function(req){
    if(found.length>1||found.length===1&&txt(found[0].team_key)!=='season-global'){
     skipped.push({season:r.season,reason:'Ya existen tasas de club; requiere conciliación sin sobrescribirlas'});continue;
    }
-   const incoming={xg_chain_p90:r.xg_chain_p90,xg_buildup_p90:r.xg_buildup_p90};
+   const incoming={xg_chain_p90:r.xg_chain_p90,xg_buildup_p90:r.xg_buildup_p90,
+     ...(r.xg_total!==null?{xg_total:r.xg_total}:{}),...(r.xa_total!==null?{xa_total:r.xa_total}:{})};
    if(found.length){
     const old=found[0],patch={};
     for(const [field,value] of Object.entries(incoming))
@@ -73,7 +75,9 @@ export default async function(req){
    }
   }
   return reply({ok:true,status:'verified',player:player.name,understat_player_id:result.understat_id,
-   saved,updated,unchanged,skipped,source_revision:ARCHIVE_SHA256,
+   saved,updated,unchanged,skipped:[...skipped,...backfill.skipped].slice(0,100),
+   stats_updated:statsUpdated,stats_metrics_added:metricsAdded,stats_conflicts:statsConflicts,
+   source_revision:ARCHIVE_SHA256,
    last_full_season:'2024/2025',verified_season_rates:result.rates.length});
  }catch(e){
   console.error('understat-auto failed',String(e?.message||e).slice(0,300));
