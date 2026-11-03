@@ -1,5 +1,5 @@
 import React,{useMemo,useState} from "react";
-import {CalendarDays,Search,MapPin,Trophy,BookOpen,Download,AlertCircle,ChevronDown} from "lucide-react";
+import {CalendarDays,Search,MapPin,Download,AlertCircle,ChevronDown} from "lucide-react";
 
 const normalize=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const unique=items=>[...new Set(items.filter(Boolean))];
