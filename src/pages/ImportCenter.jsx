@@ -231,7 +231,7 @@ export default function ImportCenter(){
     }catch(e){setError(reason(e));}finally{setBusy(false);}
   };
   const enrichUnderstat=async()=>{
-    if(!player||!linked||busy||active)return;
+    if(!player||!linked||busy)return;
     setBusy(true);setError("");setNotice("");
     try{
       const response=await base44.functions.invoke("understat-auto",{
@@ -242,10 +242,11 @@ export default function ImportCenter(){
       const updated=(data.saved||0)+(data.updated||0);
       const blocked=(data.skipped||[]).length;
       setNotice(data.status==="verified"
-        ?"Understat histórico: "+updated+" temporadas completadas, "+(data.unchanged||0)+
-         " ya guardadas y "+blocked+" sin datos de temporada completa. Fuente verificada hasta 2024/25; no se modifica FotMob."
+        ?"Understat histórico: "+(data.stats_updated||0)+" registros de STATS completados con "+(data.stats_metrics_added||0)+
+         " estadísticas nuevas (goles, asistencias, xG/xA, npxG, tiros). "+updated+
+         " temporadas de Chain/Buildup actualizadas; "+blocked+" entradas sin vinculación o cobertura completa. No se sobrescriben datos FotMob."
         :"Understat: "+(data.reason||"No hay datos históricos con identidad inequívoca."));
-      if(updated)await invalidateApplied();
+      if(updated||data.stats_updated)await invalidateApplied();
     }catch(e){setError("Consulta Understat: "+reason(e));}
     finally{setBusy(false);}
   };
@@ -310,11 +311,11 @@ export default function ImportCenter(){
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
         <button disabled={!canStartHistory} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">{usingCatalogueSuggestion?"Confirmar ID del catálogo y recuperar historial":"Recuperar historial disponible"}</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
-        <button type="button" disabled={!player||!linked||busy||active}
+        <button type="button" disabled={!player||!linked||busy}
           onClick={enrichUnderstat} className="w-full py-2 rounded-lg border border-blue-200 bg-blue-50 text-[#003399] font-semibold disabled:opacity-40">
-          Recuperar xG Chain / Buildup automáticamente (Understat)
+          Completar estadísticas históricas en STATS (Understat)
         </button>
-        <p className="text-[11px] text-slate-500">Fuente pública contrastada hasta 2024/25. Se verifica nombre, club, temporada y liga; las temporadas parciales o ambiguas quedan pendientes.</p>
+        <p className="text-[11px] text-slate-500">Completa goles, asistencias, xG, xA, npxG y tiros en las ligas verificadas hasta 2024/25, además de Chain/Buildup. Funciona incluso con un trabajo FotMob en cola. No sustituye estadísticas FotMob ni cubre copas o selecciones.</p>
         <UnderstatLivePanel player={player} linked={linked} fotmobId={fotmob} onApplied={invalidateApplied}/>
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>
