@@ -51,6 +51,7 @@ function TrophyCard({trophy,manifest,open,count,country}){
    <div className="relative flex h-32 items-center justify-center bg-gradient-to-b from-[#F8F9FC] to-white px-5 pt-3">
     <TrophyArtwork trophy={trophy} manifest={manifest} className="h-[110px] w-full"/>
     {trophy.identification_status==="Pending"&&<span className="absolute right-2 top-2 rounded-md bg-amber-50 px-1.5 py-1 text-[9px] font-bold text-amber-700" title="La correspondencia entre imagen, nombre e ID de FM24 necesita revisión">REVISAR ID</span>}
+    {["wrong","missing","provisional"].includes(trophy.image_status)&&<span className="absolute right-2 bottom-1 rounded-md bg-amber-50 px-1.5 py-1 text-[9px] font-bold text-amber-700" title="Imagen pendiente de revisión, independiente del estado de identificación">{trophy.image_status==="wrong"?"IMAGEN INCORRECTA":trophy.image_status==="missing"?"SIN IMAGEN":"IMAGEN PROVISIONAL"}</span>}
     {trophy.id&&<span className="absolute left-2 top-2 rounded-md bg-blue-50 px-1.5 py-1 text-[9px] font-bold text-blue-800">FICHA</span>}
     {trophy.visual_variant_years&&<span className="absolute bottom-1.5 left-2 rounded-md bg-slate-900/75 px-1.5 py-0.5 text-[9px] font-bold text-white">{trophy.visual_variant_years}</span>}
    </div>
