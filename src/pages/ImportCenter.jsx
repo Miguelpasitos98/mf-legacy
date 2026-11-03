@@ -152,6 +152,7 @@ export default function ImportCenter(){
   const usingCatalogueSuggestion=!linked&&!historyFotmobId&&!fotmobDraftTouched&&Boolean(catalogueSuggestion);
   const availableFotmobId=identityView?(linked?fotmob:links.length===0?(historyFotmobId||effectiveDraft):""):"";
   const active=jobs.some(j=>j.player_id===selection&&ACTIVE.includes(j.status));
+  const playerRunning=jobs.some(j=>j.player_id===selection&&j.status==="running");
   const canStartHistory=coordinator==="ready"&&Boolean(player)&&linksState==="ready"&&(linked||links.length===0&&/^[0-9]{1,15}$/.test(availableFotmobId))&&!active&&selectedSources.length>0&&!busy;
   const selectedJobData=jobs.find(j=>j.id===selectedJob);
   const waitingForWorker=jobs.filter(queuedTooLong);
@@ -231,7 +232,7 @@ export default function ImportCenter(){
     }catch(e){setError(reason(e));}finally{setBusy(false);}
   };
   const enrichUnderstat=async()=>{
-    if(!player||!linked||busy)return;
+    if(!player||!linked||busy||playerRunning)return;
     setBusy(true);setError("");setNotice("");
     try{
       const response=await base44.functions.invoke("understat-auto",{
@@ -311,11 +312,11 @@ export default function ImportCenter(){
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
         <button disabled={!canStartHistory} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">{usingCatalogueSuggestion?"Confirmar ID del catálogo y recuperar historial":"Recuperar historial disponible"}</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
-        <button type="button" disabled={!player||!linked||busy}
+        <button type="button" disabled={!player||!linked||busy||playerRunning}
           onClick={enrichUnderstat} className="w-full py-2 rounded-lg border border-blue-200 bg-blue-50 text-[#003399] font-semibold disabled:opacity-40">
           Completar estadísticas históricas en STATS (Understat)
         </button>
-        <p className="text-[11px] text-slate-500">Completa goles, asistencias, xG, xA, npxG y tiros en las ligas verificadas hasta 2024/25, además de Chain/Buildup. Funciona incluso con un trabajo FotMob en cola. No sustituye estadísticas FotMob ni cubre copas o selecciones.</p>
+        <p className="text-[11px] text-slate-500">Completa goles, asistencias, xG, xA, npxG y tiros en las ligas verificadas hasta 2024/25, además de Chain/Buildup. Funciona con trabajos FotMob en cola; si el trabajador ya está escribiendo ese jugador, se espera a que finalice. No sustituye estadísticas FotMob ni cubre copas o selecciones.</p>
         <UnderstatLivePanel player={player} linked={linked} fotmobId={fotmob} onApplied={invalidateApplied}/>
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>
