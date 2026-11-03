@@ -78,7 +78,7 @@ export function reconcilePlayer({league, season, playerName, leaguePlayers, prov
     if(compatible.length>1)skipped.push({season:row.season,reason:"Club y temporada duplicados en STATS"});
   }
   const anchors=matches.filter(m=>m.season===label&&m.league===league);
-  const distinct = new Set(matches.map(m=>m.season+"|"+teamKey(m.team)));
+  const distinct = new Set(matches.filter(m=>fullSeasonsOnly(m.season)).map(m=>m.season+"|"+teamKey(m.team)));
   if(anchors.length!==1||distinct.size<2||skipped.length){
     return {status:"insufficient_identity",understat_id:identity.understat_id,
       matches:distinct.size,reason:"Se necesitan al menos dos temporadas o clubes confirmados en STATS, incluyendo la liga y temporada consultadas. No se ha guardado nada.",skipped};
