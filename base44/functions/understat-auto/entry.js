@@ -1,5 +1,5 @@
 import {createClientFromRequest} from 'npm:@base44/sdk';
-import {ARCHIVE_URL,ARCHIVE_SHA256,readArchive,deriveRates,deriveStatsBackfill} from './core.mjs';
+import {ARCHIVE_URL,ARCHIVE_SHA256,readArchive,deriveRates,deriveStatsBackfill,teamKey,leagueKey} from './core.mjs';
 import {planHistoricalMissing,checkedImportCandidate,archiveMetrics,missingMetrics,externalArchiveId} from './missingPlan.mjs';
 
 const txt=x=>String(x??'').trim();
@@ -57,12 +57,12 @@ export default async function(req){
     const key=txt(body.row_key);
     // Recheck current source and database immediately before modifying one row.
     const latest=rows(await db.PlayerSeasonStats.filter({player_id:playerId},undefined,350));
+    if(latest.some(r=>txt(r.fotmob_player_id)&&txt(r.fotmob_player_id)!==pid))return reply({ok:false,error:'Los IDs FotMob de STATS son contradictorios'},409);
     if(latest.length>=350)return reply({ok:false,error:'Historial demasiado amplio para una importación segura'},409);
     const fresh=planHistoricalMissing(candidates,latest,options);
     const proposal=checkedImportCandidate(fresh,key);
     if(!proposal)return reply({ok:false,error:'La propuesta ya no está disponible o no supera la revisión de identidad'},409);
-    const source=(candidates.get(fresh.understat_id)||[]).find(x=>[x.season,x.league,x.team].length&&
-      x.season===proposal.season&&x.league===proposal.league_key&&
+    const source=(candidates.get(fresh.understat_id)||[]).find(x=>x.season===proposal.season&&x.league===proposal.league_key&&
       // Proposed and source team refer to the exact same archived observation.
       x.team===proposal.team);
     if(!source)return reply({ok:false,error:'El registro original ya no coincide'},409);
@@ -85,8 +85,7 @@ export default async function(req){
     if(proposal.action!=='complete'||!proposal.existing_id)return reply({ok:false,error:'Acción no reconocida'},409);
     const record=await db.PlayerSeasonStats.get(proposal.existing_id);
     if(!record||txt(record.player_id)!==playerId||record.season!==proposal.season||
-       record.team_name!==proposal.team||record.competition!==proposal.league&&
-       !proposal.existing_id)return reply({ok:false,error:'La ficha cambió; actualiza la vista previa'},409);
+       teamKey(record.team_name)!==teamKey(proposal.team)||leagueKey(record.competition)!==proposal.league_key)return reply({ok:false,error:'La ficha cambió; actualiza la vista previa'},409);
     const existing=Array.isArray(record.metrics)?record.metrics:[];
     const additions=missingMetrics(existing,incoming);
     if(!additions.length)return reply({ok:true,status:'unchanged',season:proposal.season,metrics_added:0});
