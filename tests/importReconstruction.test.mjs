@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {compatibleSeasonPlan,completionPatch,applyVerifiedHistoricals,persistImportPlan} from "../base44/shared/importReview.js";
 import {buildHistoricalObservations} from "../src/utils/historicalPeers.js";
 import {metricMinutes} from "../src/utils/metricSources.js";
+import {columnValue,initialConfig} from "../src/utils/statsColumns.js";
 const player={id:"p",name:"Player"};
 const base={player_id:"p",fotmob_player_id:"169200",season:"2017/2018",competition:"Premier League",fotmob_team_id:"8456",team_name:"Manchester City",fotmob_tournament_id:"47",is_national_team:false,source:"fotmob",metric_name:"Goals",metric_unit:"total",value:8};
 const row={...base,id:"s",minutes:3000,metrics:[{name:"Goals",value:8,source:"manual"}]};
@@ -43,6 +44,11 @@ test("provider clocks include nested provenance and preserve negative goalkeeper
 test("a manual metric remains preferred over native and provider fallback entries",()=>{
   const obs=buildHistoricalObservations({players:[{id:"p",position:"CAM"}],stats:[{...row,metrics:[{name:"xA",value:10,source:"manual"},{name:"Understat xA",value:50,source:"understat",provider_minutes:2000}]}]})[0];
   assert.equal(obs.values.xa_p90,0.3);
+});
+test("STATS derives native goals/90 before considering a different Understat goal count",()=>{
+  const record={minutes:2818,metrics:[{name:"Goals",value:13,source:"fotmob"},{name:"FotMob minutes",value:2800},
+    {name:"Understat Goals",value:14,per90:14*90/2818,source:"understat"}]};
+  assert.equal(columnValue(record,"competition","goalsper90",initialConfig()),13*90/2800);
 });
 test("an empty extraction block cannot report success with outstanding source scopes",()=>{
   assert.equal(completionPatch({source_results:{fotmob:{status:"partial",coverage:{complete:false}}}},0).status,"review");

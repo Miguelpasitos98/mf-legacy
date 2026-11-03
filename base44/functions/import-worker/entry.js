@@ -193,16 +193,17 @@ export default async function(req) {
         source_results[s]={status:["complete","partial","unavailable","error","skipped"].includes(v.status)?v.status:"error",
           note:str(v.note).slice(0,300),
           counts:Object.fromEntries(Object.entries(v.counts||{}).filter(([k,n])=>/^[a-z_]{1,45}$/.test(k)&&Number.isInteger(n)&&n>=0)),
-          diagnostics:(Array.isArray(v.diagnostics)?v.diagnostics:[]).slice(0,200).map(d=>({
+          diagnostics:(Array.isArray(v.diagnostics)?v.diagnostics:[]).map(d=>({
             season:str(d.season).slice(0,20),competition:str(d.competition).slice(0,140),
             season_id:str(d.season_id).slice(0,20),tournament_id:str(d.tournament_id).slice(0,20),
             status:str(d.status).slice(0,45),reason:str(d.reason).slice(0,250),
             team_name:str(d.team_name).slice(0,140),fotmob_team_id:str(d.fotmob_team_id).slice(0,20),
             recovered_metrics:Math.max(0,Math.trunc(Number(d.recovered_metrics)||0)),
-            candidates:Math.max(0,Math.trunc(Number(d.candidates)||0))
+            candidates:Math.max(0,Math.trunc(Number(d.candidates)||0)),
+            conflicts:Array.isArray(d.conflicts)?d.conflicts.map(str):[]
           })),
-          network_requests:Math.min(100,Math.max(0,Math.trunc(Number(v.network_requests)||0))),
-          successful_requests:Math.min(100,Math.max(0,Math.trunc(Number(v.successful_requests)||0))),
+          network_requests:Math.max(0,Math.trunc(Number(v.network_requests)||0)),
+          successful_requests:Math.max(0,Math.trunc(Number(v.successful_requests)||0)),
           coverage: v.coverage&&typeof v.coverage==="object"?{
             ...Object.fromEntries(["total","received","pending","unavailable","needs_review","rate_limited"]
                 .map(k=>[k,Math.min(1000,Math.max(0,Math.trunc(Number(v.coverage[k])||0)))])),

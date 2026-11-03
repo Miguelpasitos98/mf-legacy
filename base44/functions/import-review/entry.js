@@ -1,5 +1,5 @@
 import {createClientFromRequest} from "npm:@base44/sdk";
-import {metricPlan,seasonPlan,compatibleSeasonPlan,valuationPlan,reviewedCurrentTeamLink,completionPatch} from "../../shared/importReview.js";
+import {metricPlan,seasonPlan,compatibleSeasonPlan,valuationPlan,reviewedCurrentTeamLink,completionPatch,persistImportPlan} from "../../shared/importReview.js";
 export {metricPlan,seasonPlan,valuationPlan,reviewedCurrentTeamLink};
 const str=x=>String(x??"").trim();
 const rows=x=>Array.isArray(x)?x:x?.items||x?.data||x?.entities||[];
@@ -46,7 +46,7 @@ export function historyValueRows(unit){
     return {candidate_id:c.id,name:c.metric_name||(c.kind==="overall"?"Overall / "+c.fifa_edition+" / "+c.fifa_fc_position:"Mercado EUR / "+c.as_of_date),
       source:c.source,unit:c.metric_unit||"",found:c.value,existing:old??null,new_value:unit.selectable&&unit.candidate_ids.includes(c.id)&&empty(old)?c.value:null,
       verification:c.verification_status,status:c.review_status,evidence_url:c.evidence_url,provenance:c.provenance||{},
-      action:c.review_status!=="pending"?"Conservar":c.verification_status!=="verified"?"Pendiente individual":!empty(old)&&Number(old)!==c.value?"Conflicto":empty(old)?"Añadir":"Conservar"};
+      action:unit.conflicts?.some(x=>x.candidate_id===c.id)?"Conflicto":c.review_status!=="pending"?"Conservar":c.verification_status!=="verified"?"Pendiente individual":!empty(old)&&Number(old)!==c.value?"Conflicto":empty(old)?"Añadir":"Conservar"};
   });
 }
 export function historyPlan(candidates,player,stats,valuations,teamLinks={}) {
@@ -318,12 +318,9 @@ export default async function(req) {
       try {plan=grouped?compatibleSeasonPlan(group,player,existing,teamLink):metricPlan(item,player,existing,teamLink);}catch(e){return bad(e.message,409);}
       if(grouped&&!plan.candidates)return bad("Todas las métricas requieren conciliación.",409);
       if(action==="preview"||action==="preview-season")return reply({ok:true,plan,can_apply:group.every(c=>c.verification_status==="verified")});
-      if(plan.operation==="create") {
-        // A timeout may hide a successful create. Never replay an ambiguous write.
-        try {const saved=await db.PlayerSeasonStats.create(plan.record);plan.target_id=saved?.id;}catch {
-          return bad("Creación no confirmada; vuelve a consultar STATS antes de reintentar.",409);
-        }
-      } else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
+      const before=existing.find(r=>r.id===plan.target_id);
+      try{const saved=await persistImportPlan(db.PlayerSeasonStats,plan,before);plan.target_id=saved.id;}
+      catch(e){return bad(e.message,409);}
       if(grouped) {
         const pending=group.filter(c=>c.review_status==="pending"&&plan.candidate_ids.includes(c.id));
         if(pending.length)await db.ImportCandidate.updateMany({id:{$in:pending.map(c=>c.id)},job_id:item.job_id,review_status:"pending"},

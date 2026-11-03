@@ -583,7 +583,7 @@ def call(action: str, **kwargs):
         "X-MF-Worker-Token":token,"User-Agent":"MF-Legacy-V3-Worker/0.2"})
     for attempt in range(4):
         try:
-            with urlopen(request,timeout=50) as response:
+            with urlopen(request,timeout=240 if action in ("repair-step","reconcile") else 50) as response:
                 result=json.load(response)
             break
         except HTTPError as exc:
@@ -652,10 +652,12 @@ def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
         if lost_claim.is_set():raise RuntimeError('La concesión caducó o el trabajo fue cancelado')
         total=len(candidates)
         print("Extracción terminada: "+str(total)+" observaciones candidatas; enviando por lotes",flush=True)
-        for i in range(0,total,15):
-            call("heartbeat",job_id=jid,claim_id=claim,
-                 progress=min(95,5+int(85*i/max(1,total))),phase="Normalización y envío seguro")
-            call("submit",job_id=jid,claim_id=claim,candidates=candidates[i:i+15])
+        for i in range(0,total,25):
+            if i==0 or time.monotonic()-last_heartbeat[0]>=20:
+                call("heartbeat",job_id=jid,claim_id=claim,
+                     progress=min(95,5+int(85*i/max(1,total))),phase="Normalización y envío seguro")
+                last_heartbeat[0]=time.monotonic()
+            call("submit",job_id=jid,claim_id=claim,candidates=candidates[i:i+25])
             time.sleep(0.5)
         call("finish",job_id=jid,claim_id=claim,source_results=states)
         # Serverless batches finish independently of candidate upload. Drain

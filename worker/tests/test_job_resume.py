@@ -27,7 +27,7 @@ class JobResumeTests(unittest.TestCase):
     return {'ok':True}
    with patch('worker.mf_v3_worker.call',side_effect=remote),patch('worker.mf_v3_worker.sync_reviews'),patch('worker.mf_v3_worker.collect',return_value=(records,{'fotmob':{'status':'complete'}})) as collect,patch('worker.mf_v3_worker.time.sleep'):
     self.assertRaises(RuntimeError,run_once,root)
-    self.assertEqual(len(staged),15)
+    self.assertEqual(len(staged),25)
     self.assertTrue(run_once(root));self.assertEqual(len(staged),31);self.assertEqual(len(finishes),1);self.assertEqual(collect.call_count,1)
 
 if __name__=='__main__':unittest.main()

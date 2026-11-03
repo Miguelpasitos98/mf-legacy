@@ -2,9 +2,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {recordQueryOptions,statsSnapshotOptions} from "@/api/recordQueries";
 import {flattenStatsPages} from "@/utils/statsRowsCache";
 import {createHistoricalPeerDataset,HISTORICAL_PEER_KEY,PEER_ENTITIES} from "@/utils/historicalPeerCache";
+import {useImportDataSync} from "./useImportDataSync";
 
 export function useHistoricalPeerDataset(enabled = false) {
   const client=useQueryClient();
+  useImportDataSync(client,enabled);
   return useQuery({
     queryKey:HISTORICAL_PEER_KEY,
     queryFn:async()=>{

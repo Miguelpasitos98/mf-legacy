@@ -1,4 +1,4 @@
-import {metricMinutes} from "./metricSources.js";
+import {metricMinutes,selectSourceMetric,metricNumerator} from "./metricSources.js";
 // Calculadora segura y configurable para columnas de STATS: nunca ejecuta JavaScript del usuario.
 import {metricsValue,statNum,goalkeeperConcededMetric,minutesForDisplay} from "./statsViews.js";
 import {statDisplay} from "./statsSeason.js";
@@ -253,9 +253,11 @@ export function columnValue(row,mode,id,config){
   // por competición, sin requerir minutos adicionales ni estimarlos desde PJ.
   const directRateMetric=directSourceRate(definition);
   if(mode==="competition"&&directRateMetric){
-   const direct=[directRateMetric,"understat"+directRateMetric].map(name=>(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===name)).find(m=>m&&statNum(m.per90)!==null);
+   const direct=selectSourceMetric(row,[directRateMetric,"Understat "+directRateMetric],{allowRateOnly:true});
    const value=statNum(direct?.per90);
    if(value!==null)return value;
+   const duration=metricMinutes(row,direct),total=metricNumerator(row,direct,duration);
+   if(duration>0&&total!==null)return total*90/duration;
   }
   // Existing custom GK columns also need the safe source-rate fallback.
   const normalized=normalizedFormula(definition.formula);

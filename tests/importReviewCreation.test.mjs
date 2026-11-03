@@ -83,7 +83,7 @@ function setup(verified=true) {
     PlayerFotmobLink:{async filter(){return links();}},
     ImportJob:{async get(){return {id:jid,player_id:pid,fotmob_player_id:"309328",status:"review"};},async update(){}},
     ImportCandidate:{async get(id){return candidates.get(id);},async update(id,p){Object.assign(candidates.get(id),p);},async updateMany(q,data){for(const c of candidates.values())if(q.id.$in.includes(c.id)&&c.review_status===q.review_status)Object.assign(c,data.$set);},async filter(){return [...candidates.values()];}},
-    PlayerSeasonStats:{async filter(q,sort,limit,skip=0){return stats.slice(skip,skip+limit);},async create(row){stats.push({...row,id:"row"});creates++;},async update(id,patch){Object.assign(stats.find(x=>x.id===id),patch);}},
+    PlayerSeasonStats:{async filter(q,sort,limit,skip=0){return stats.slice(skip,skip+limit);},async get(id){return stats.find(r=>r.id===id);},async create(row){const saved={...row,id:"row",updated_date:"v1"};stats.push(saved);creates++;return saved;},async updateMany(q,p){const row=stats.find(r=>r.id===q.id&&r.updated_date===q.updated_date);if(row)Object.assign(row,p.$set,{updated_date:"v2"});},async update(id,patch){Object.assign(stats.find(x=>x.id===id),patch);}},
     Team:{async filter(){return [{id:"psg",fotmob_id:"9847"}];}},NationalTeam:{async filter(){return [];}}
   };
   globalThis.__reviewClient={auth:{async me(){return {role:"admin"};}},asServiceRole:{entities:db}};

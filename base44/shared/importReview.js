@@ -301,8 +301,11 @@ export async function applyVerifiedHistoricals(db,job,{dryRun=false,maxScopes=In
         let teamLink={};
         if(first.is_national_team){
           const nations=await allRows(db.NationalTeam,{fotmob_id:Number(first.fotmob_team_id)});
-          if(nations.length!==1)throw Error("Selección sin vínculo interno único.");
-          teamLink={national_team_id:nations[0].id,national_country_id:nations[0].country_id};
+          if(nations.length>1)throw Error("ID de selección duplicado en el catálogo.");
+          if(nations.length===1)teamLink={national_team_id:nations[0].id,national_country_id:nations[0].country_id};
+          // An absent internal national-team page cannot erase official data.
+          // Preserve the exact external team ID and national scope, without
+          // guessing a country ID or linking the player's current club.
         }else{
           if(str(first.fotmob_tournament_id)==="288"||/euro u21|european under.?21/.test(norm(first.competition)))throw Error("Identidad juvenil pendiente de conciliación.");
           const byId=teams.filter(t=>str(t.fotmob_id)===str(first.fotmob_team_id));

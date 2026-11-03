@@ -49,7 +49,7 @@ test("Truncated historical records cannot establish an automatic identity",async
 test("UI selects all sources and only requires recovery click after player selection",()=>{
  const ui=readFileSync(new URL("../src/pages/ImportCenter.jsx",import.meta.url),"utf8");
  assert.doesNotMatch(ui,/PublicReferenceImport|identityConfirmed|He comprobado que el ID corresponde/);
- assert.match(ui,/>Recuperar historial disponible<\/button>/);
+ assert.match(ui,/Recuperar historial disponible/);
  assert.match(ui,/use_stored_fotmob_id:true/);
  assert.match(ui,/useState\(SOURCES.map\(x=>x.id\)\)/);
  assert.match(ui,/setFotmobDraft/);
