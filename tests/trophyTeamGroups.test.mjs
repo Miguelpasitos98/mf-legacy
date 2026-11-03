@@ -78,6 +78,23 @@ test("Club catalog keeps image ID review separate from accepted historical troph
  assert.doesNotMatch(page,/FM24 provisional/);
  assert.match(page,/Las coincidencias de identidad pendientes no se incluyen/);
 });
+test("Trophy strips rank each club trophy by editorial reputation, not title count",()=>{
+ const groups=groupTrophiesByTeamReputation({teams,catalog,honours,editions});
+ assert.deepEqual(groups.find(g=>g.id==="R").items.map(x=>x.trophy.source_id),["ucl","league"]);
+ const highWins=[{entry_key:"many-1",team_id:"R",trophy_source_id:"league",rank:"winner",calendar_year:2018,match_status:"manual_linked"},
+  {entry_key:"many-2",team_id:"R",trophy_source_id:"league",rank:"winner",calendar_year:2019,match_status:"manual_linked"}];
+ const ordered=groupTrophiesByTeamReputation({teams,catalog,honours,editions,palmares:highWins});
+ assert.deepEqual(ordered.find(g=>g.id==="R").items.map(x=>x.reputationScore),[195,185]);
+});
+test("Club view uses one horizontal scrollable row with arrows per team",()=>{
+ const view=readFileSync(new URL("../src/components/trophies/TrophyClubCatalogView.jsx",import.meta.url),"utf8");
+ assert.match(view,/overflow-x-auto/);
+ assert.match(view,/scrollBy\(\{left:direction\*420,behavior:"smooth"\}\)/);
+ assert.match(view,/snap-x snap-proximity/);
+ assert.match(view,/shrink-0 snap-start/);
+ assert.match(view,/TrophyHorizontalStrip group=\{group\}/);
+ assert.doesNotMatch(view,/grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6/);
+});
 test("Gallery defaults to highest trophy reputation but optional name sorting remains",()=>{
  const page=readFileSync(new URL("../src/pages/Trophies.jsx",import.meta.url),"utf8");
  assert.match(page,/const \[sortMode,setSortMode\]=useState\("reputation_desc"\)/);
