@@ -15,11 +15,14 @@ export const scoutingCoverage=(item,mode)=>mode==="role"?item?.roleFit?.coverage
 export function ManagerScoutingSummary({scoreMode,visibility,roleRequirements,statsLoading,statsError,season}){
  const available=visibility.scoredCount||0,compatible=visibility.compatibleCount||0;
  const noV4Criteria=scoreMode==="role"&&!roleRequirements?.matched?.length;
+ const hasDescription=Boolean(roleRequirements?.text?.trim());
  const pending=statsLoading;
- const status=scoreMode==="role"?(noV4Criteria?"No se reconocen criterios del rol":available?"V4 parcialmente evaluable":"Datos insuficientes para puntuar V4"):
+ const status=scoreMode==="role"?(noV4Criteria?"ADN del rol sin indicadores históricos evaluables":available?"V4 parcialmente evaluable":"Datos insuficientes para puntuar V4"):
  scoreMode==="historical"?(available?"Histórico calculado":"Sin muestra histórica suficiente"):
  scoreMode==="attributes"?(available?"Estimaciones FM26 disponibles":"Atributos FM26 insuficientes"):"Solo posición";
- const statusText=noV4Criteria?"El ADN de este rol aún no especifica indicadores que el sistema pueda relacionar de forma fiable con estadísticas.":
+ const statusText=noV4Criteria?(hasDescription?
+  "El entrenador solicita «"+roleRequirements.text+"», pero no hay indicadores históricos suficientemente directos para ese rasgo, o falta reconocer alguna expresión. Esto NO significa que los jugadores carezcan de estadísticas. V4 no puede asignarles una nota táctica con esta descripción.":
+  "El ADN guardado no contiene descripción específica para este rol. Completa el perfil del entrenador antes de calcular un encaje V4."):
  pending?"Comprobando métricas de "+season+"…":
  scoreMode==="role"&&available===0?"Aunque existan jugadores compatibles, la V4 exige dos indicadores medidos y una muestra de al menos diez comparables por indicador. No sustituimos esa nota por el encaje posicional.":
  modeDescription[scoreMode];
@@ -44,7 +47,7 @@ export function ManagerScoutingSummary({scoreMode,visibility,roleRequirements,st
      <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">{modeName[scoreMode]}</span>
     </div>
     <p className="mt-1 text-xs leading-5 text-slate-600">{statusText}</p>
-    {scoreMode==="role"&&<><p className="mt-1.5 text-[11px] text-slate-600"><strong>Requisitos reconocidos:</strong> {roleRequirements?.matched?.length?roleRequirements.matched.map(x=>x.label).join(" · "):"Ninguno para este rol"}</p><p className="mt-1 text-[11px] text-slate-500"><strong>Indicadores solicitados:</strong> {roleRequirements?.metricKeys?.length||0} · Solo se puntúan si hay observaciones y al menos diez comparables por métrica.</p>{roleRequirements?.unmeasuredTraits?.length>0&&<p className="mt-1 text-[11px] text-slate-600"><strong>No medible con estas estadísticas:</strong> {roleRequirements.unmeasuredTraits.join(" · ")}</p>}</>}
+    {scoreMode==="role"&&<><p className="mt-1.5 text-[11px] text-slate-600"><strong>Requisitos reconocidos:</strong> {roleRequirements?.matched?.length?roleRequirements.matched.map(x=>x.label).join(" · "):"Ningún indicador histórico directo para la descripción actual"}</p><p className="mt-1 text-[11px] text-slate-500"><strong>Indicadores solicitados:</strong> {roleRequirements?.metricKeys?.length||0} · Solo se puntúan si hay observaciones y al menos diez comparables por métrica.</p>{roleRequirements?.unmeasuredTraits?.length>0&&<p className="mt-1 text-[11px] text-slate-600"><strong>No medible con estas estadísticas:</strong> {roleRequirements.unmeasuredTraits.join(" · ")}</p>}</>}
     {statsError&&<p role="alert" className="mt-2 text-xs text-red-700">{statsError}</p>}
    </div>
   </div>
@@ -73,11 +76,13 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
   </div>
   <div className="rounded-lg bg-slate-50 px-3 py-2">
    <div className="flex flex-wrap items-center justify-between gap-2">
-    <span className="text-[11px] font-semibold text-slate-700">{score===null?"Sin datos suficientes para puntuar":label}</span>
-    {scoreMode!=="position"&&<span className="text-[10px] text-slate-500">Cobertura {coverage}%</span>}
+    <span className="text-[11px] font-semibold text-slate-700">{score===null?
+    (scoreMode==="role"&&item.roleFit?.unmatched?"ADN sin métricas reconocibles":
+     "Evidencia insuficiente para puntuar"):label}</span>
+    {scoreMode!=="position"&&<span className="text-[10px] text-slate-500">{scoreMode==="role"&&item.roleFit?.requested===0?"Cobertura no aplicable":"Cobertura "+coverage+"%"}</span>}
    </div>
    {scoreMode!=="position"&&<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-[#3a6eae]" style={{width:Math.max(0,Math.min(100,coverage))+"%"}}/></div>}
-   {scoreMode==="role"&&<p className="mt-1.5 text-[10px] text-slate-600">
+   {scoreMode==="role"&&item.roleFit?.requested>0&&<p className="mt-1.5 text-[10px] text-slate-600">
     <strong>{item.roleFit.breakdown.length}/{item.roleFit.requested} métricas</strong> ·
     {" "}{item.roleFit.evaluatedFunctions??0}/{item.roleFit.requestedFunctions??0} funciones evaluadas ·
     {" "}{item.roleFit.minimumPeers??"—"} comparables mínimo ·
@@ -120,7 +125,7 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
       <span className="w-full text-[10px] text-slate-500">{metric.peerCount} comparables externos (cuando existe ID) · {metric.source||"Fuente pendiente"}{metric.scope?" · "+metric.scope:""}{typeof metric.minutes==="number"?" · "+Math.round(metric.minutes)+" minutos registrados":""}</span>
      </div>)}
     </div>}
-    {!item.roleFit.metricDiagnostics?.length&&<p>El ADN no contiene requisitos asociados con seguridad a métricas observadas.</p>}
+    {!item.roleFit.metricDiagnostics?.length&&<p>El ADN no contiene requisitos asociados con seguridad a métricas observadas. No es una ausencia general de datos del jugador.</p>}
     {!!item.roleFit.unmeasuredTraits?.length&&<p><strong>Sin medida histórica directa:</strong> {item.roleFit.unmeasuredTraits.join(" · ")}</p>}
    </div>}
    {scoreMode==="historical"&&<p><strong>Histórico:</strong> {item.historical.breakdown.length?item.historical.breakdown.map(m=>m.key+" P"+m.percentile).join(" · "):"Sin indicadores históricos evaluables"}</p>}
