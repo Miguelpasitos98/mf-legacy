@@ -1,5 +1,7 @@
 // Team trophies in the same descending reputation order as Players -> Teams.
-// TrophyHonour verified awards are kept strictly separate from provisional FM24.
+// Sources retain their evidence status, while visible trophies are ranked by reputation.
+import {estimateTrophyReputation} from "./trophyResearch.js";
+
 export function teamReputationValue(team){
  const raw=team?.reputation??team?.data?.reputation??team?.data?.team?.reputation??0;
  const numeric=Number(String(raw).replace(/,/g,"").replace(/\s+/g,"").trim());
@@ -72,12 +74,12 @@ export function groupTrophiesByTeamReputation({teams=[],catalog=[],honours=[],ed
   return normalize([group.team?.name,group.team?.short_name,group.team?.city].filter(Boolean).join(" ")).includes(needle);
  }).map(group=>{
   const items=[...group.itemsById.values()].map(item=>({
-   trophy:item.trophy,verifiedCount:item.verifiedCount,historicalCount:item.historicalYears.size,
+   trophy:item.trophy,reputationScore:estimateTrophyReputation(item.trophy).score,verifiedCount:item.verifiedCount,historicalCount:item.historicalYears.size,
    totalWins:new Set([...item.historicalYears,...item.verifiedYears]).size+Math.max(0,item.verifiedCount-item.verifiedYears.size),
    runnerUpCount:item.runnerYears.size,thirdCount:item.thirdYears.size,
    seasons:[...item.seasons].sort(),historicalYears:[...item.historicalYears].sort(),latest:[...item.historicalYears].sort().at(-1)||""
   })).filter(item=>sourceMode==="verified"?item.verifiedCount>0:sourceMode==="historical"?(item.historicalCount+item.runnerUpCount+item.thirdCount)>0:true)
-    .sort((a,b)=>b.totalWins-a.totalWins||String(a.trophy.name).localeCompare(String(b.trophy.name),"es",{sensitivity:"base"}));
+    .sort((a,b)=>b.reputationScore-a.reputationScore||String(a.trophy.name).localeCompare(String(b.trophy.name),"es",{sensitivity:"base",numeric:true}));
   return {id:group.id,team:group.team,reputation:group.reputation,
    verifiedCount:items.reduce((n,item)=>n+item.verifiedCount,0),
    historicalCount:items.reduce((n,item)=>n+item.historicalCount,0),
