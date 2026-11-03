@@ -3,6 +3,7 @@
  * A reputation estimate is NOT an official Football Manager attribute.
  * Neither a geographic suggestion nor a title name verifies the FM image ID.
  */
+import {historicGeography} from './trophyCountryHistory.js';
 export const REPUTATION_METHOD = 'mf_legacy_reputation_editorial_v1_2026_11';
 export const normalizeTrophyName = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const norm = normalizeTrophyName;
@@ -109,7 +110,7 @@ const COUNTRY_PATTERNS = [
  ['Brasil',/\b(?:brasil|brazil|brazilian|brasileiro|brasileira|brasileirao|copa do brasil|paulista|carioca|amazonense|bahia state|gaucho|pernambuco|rondoniense|paranaense|mineiro|cearense|mato grossense|potiguar|sergipe|goias|copa rio)\b/],
  ['Argentina',/\b(?:argentina|argentine|argentino|argentinean|copa argentina|superliga argentina|primera nacional argentina|metropolitana b|federal a|copa de la liga argentina)\b/],
  ['México',/\b(?:mexico|mexican|liga mx|copa mx|interliga|liga expansion)\b/],
- ['Estados Unidos',/\b(?:united states|estadounidens|usa|us open cup|major league soccer|\bmls\b|usl |nws[l]|league1 ontario|hudson river derby)\b/],
+ ['Estados Unidos',/\b(?:united states|estadounidens|usa|us open cup|major league soccer|\bmls\b|usl |nws[l]|hudson river derby)\b/],
  ['Canadá',/\b(?:canada|canadian|ontario|quebec|canada cup|league1 ontario)\b/],
  ['Escocia',/\b(?:scottish|scotland|escocia|spfl|premiership escocia|drybrough cup)\b/],
  ['Gales',/\b(?:welsh|wales|walis|gales|cymru|gymru)\b/],
@@ -130,7 +131,7 @@ const COUNTRY_PATTERNS = [
  ['Grecia',/\b(?:greece|greek|grecia|ellada)\b/],
  ['Rumanía',/\b(?:romania|romanian|rumania|liga i)\b/],
  ['Ucrania',/\b(?:ukraine|ukrainian|ucrania|ukrainska)\b/],
- ['Rusia',/\b(?:russia|russian|rusia|soviet|ussr|kssr)\b/],
+ ['Rusia',/\b(?:russia|russian|rusia)\b/],
  ['Georgia',/\b(?:georgia|georgian|georgian cup)\b/],
  ['Albania',/\b(?:albania|albanian|albanes)\b/],
  ['Armenia',/\b(?:armenia|armenian)\b/],
@@ -182,6 +183,12 @@ export function inferTrophyCountry(trophy={}, countries=[]) {
  const target=anchor?.country;
  if(target){const found=countries.find(c=>norm(c.name)===norm(target));if(found)return{country_id:found.id,country:found.name,region:anchor.region||'',resolution:'inferred',basis:'Competiciones históricas identificadas mediante nombre y fuente institucional.'};}
  const n=norm(trophy.name||trophy.source_name);
+ const historical=historicGeography(trophy.name||trophy.source_name);
+ if(historical?.type==='international')return {country_id:'',country:'',resolution:'international',basis:historical.basis};
+ if(historical?.type==='country'){
+   const actual=countries.find(c=>norm(c.name)===norm(historical.name));
+   if(actual)return {country_id:actual.id,country:actual.name,resolution:'inferred',basis:historical.basis};
+ }
  if(MULTINATIONAL.test(n))return {country_id:'',country:'',resolution:'international',basis:'Ámbito multinacional expreso en la denominación; sin Country único.'};
  // Longer/unique country terms take priority; multiple-country matches are refused.
  const hits=COUNTRY_PATTERNS.filter(([,pattern])=>pattern.test(n));
