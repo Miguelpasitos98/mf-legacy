@@ -1,10 +1,12 @@
 import React,{useEffect,useMemo,useState} from "react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
-import {Search,Trophy,Plus,ChevronRight,ChevronDown,X,Save,Filter,AlertCircle,Trash2,Upload,Medal,Users,Link2,RotateCcw} from "lucide-react";
+import {Search,Trophy,Plus,ChevronRight,ChevronDown,X,Save,Filter,AlertCircle,Trash2,Upload,Medal,Users,Link2,RotateCcw,LayoutGrid,Star,Globe2,Flag,Shield} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {useLeaguesQuery,useCountriesQuery,useTeamsQuery} from "@/hooks/useSharedData";
 import {groupTrophies} from "@/utils/trophyGrouping";
+import {trophyViewGroups,TROPHY_CATALOG_VIEW_MODES} from "@/utils/trophyViews";
+import TrophyClubCatalogView from "@/components/trophies/TrophyClubCatalogView";
 import {countryTrophyIdsFromSections,verifiedTeamTrophyIds} from "@/utils/trophyCatalogFilters";
 import TrophySyncWorkbench from "@/components/trophies/TrophySyncWorkbench";
 import TeamSearchPicker from "@/components/trophies/TeamSearchPicker";
@@ -20,6 +22,7 @@ import {TROPHY_CSV_URL,TROPHY_TYPES,TROPHY_CATEGORIES,parseTrophyCatalog,mergeTr
 
 const TROPHY_KEY=["mf-legacy","trophies","definitions"];
 const HONOURS_KEY=["mf-legacy","trophies","honours"];
+const CATALOG_VIEWS=[["gallery","Galería",LayoutGrid],["reputation","Reputación",Star],["scope","Ámbito",Globe2],["leagues","Ligas",Trophy],["countries","Países",Flag],["clubs","Clubes",Shield]];
 const emptyTrophy=()=>({source_id:"",name:"",trophy_type:"",category:"",country:"",country_id:"",country_resolution:"pending",region:"",reputation:"",reputation_method:REPUTATION_METHOD,reputation_basis:"",research_source_url:"",organizer:"",competition_id:"",description:"",image_url:"",identification_status:"Manual",is_active:true});
 const emptyHonour=(trophy)=>({season:"",recipient_type:trophy?.trophy_type==="Individual Trophy"?"Player":"Team",recipient_id:"",recipient_name:"",award_rank:"",goals:"",edition_label:"",verified:false,source_url:"",notes:""});
 const rows=result=>Array.isArray(result)?result:(result?.items||result?.data||[]);
@@ -74,6 +77,9 @@ export default function Trophies(){
  const [category,setCategory]=useState("all");
  const [sortMode,setSortMode]=useState("name");
  const [showFilters,setShowFilters]=useState(false);
+ const [viewMode,setViewMode]=useState("gallery");
+ const [focusedGroup,setFocusedGroup]=useState("");
+ const [showAllViewGroups,setShowAllViewGroups]=useState(false);
  const [countryFilter,setCountryFilter]=useState("all");
  const [teamFilter,setTeamFilter]=useState("");
  const [expandedGroups,setExpandedGroups]=useState({});
@@ -118,7 +124,8 @@ export default function Trophies(){
   for(const country of countryRecords){const key="country:"+normaliseSearch(country.name);const option=byKey.get(key);byKey.set(key,{value:key,label:country.name,count:option?.count||0,flag:country.flag||"",code:country.code||""});}
   return [...byKey.values()].sort((a,b)=>a.label.localeCompare(b.label,"es"));
  },[countrySections,countryRecords]);
- const activeFilterCount=[type!=="all",category!=="all",countryFilter!=="all",Boolean(teamFilter)].filter(Boolean).length;
+ const activeFilterCount=[type!=="all",category!=="all",countryFilter!=="all",Boolean(teamFilter&&viewMode!=="clubs")].filter(Boolean).length;
+ const selectView=mode=>{if(!TROPHY_CATALOG_VIEW_MODES.includes(mode))return;setViewMode(mode);setFocusedGroup("");setShowAllViewGroups(false);setExpandedGroups({});if(mode!=="gallery")setTab("all");if(mode==="clubs")setTeamFilter("");};
  const clearFilters=()=>{setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");setSortMode("name");};
  const countryTrophyIds=useMemo(()=>countryTrophyIdsFromSections(countrySections,countryFilter),[countrySections,countryFilter]);
  // A team's filter means verified trophies actually awarded to that exact Base44 Team.
@@ -136,11 +143,14 @@ export default function Trophies(){
   if(type!=="all"&&t.trophy_type!==type)return false;
   if(category!=="all"&&t.category!==category)return false;
   if(countryTrophyIds&&!countryTrophyIds.has(String(t.source_id)))return false;
-  if(teamFilter&&!verifiedTeamTrophies.has(String(t.source_id)))return false;
+  if(viewMode!=="clubs"&&teamFilter&&!verifiedTeamTrophies.has(String(t.source_id)))return false;
   const q=normaliseSearch(query);
   return !q||normaliseSearch([t.name,t.source_name,t.source_id,t.country,countryMap.get(String(t.country_id||""))?.name,t.region,t.organizer,t.category].join(" ")).includes(q);
- }).sort((a,b)=>a.name.localeCompare(b.name,"es",{numeric:true})),[visualCatalog,tab,type,category,query,countryTrophyIds,teamFilter,verifiedTeamTrophies,countryMap]);
- const grouped=useMemo(()=>groupTrophies(filtered,rows(leaguesQuery.data),rows(countriesQuery.data),sortMode),[filtered,leaguesQuery.data,countriesQuery.data,sortMode]);
+ }).sort((a,b)=>a.name.localeCompare(b.name,"es",{numeric:true})),[visualCatalog,tab,type,category,query,countryTrophyIds,teamFilter,verifiedTeamTrophies,countryMap,viewMode]);
+ const grouped=useMemo(()=>trophyViewGroups(filtered,viewMode,rows(leaguesQuery.data),countryRecords,sortMode),[filtered,viewMode,leaguesQuery.data,countryRecords,sortMode]);
+ const selectableGroupView=viewMode==="countries"||viewMode==="leagues";
+ const visibleModeGroups=selectableGroupView?(focusedGroup?grouped.filter(g=>g.key===focusedGroup):[]):grouped;
+ const allowedClubSourceIds=useMemo(()=>new Set(filtered.map(t=>String(t.source_id))),[filtered]);
  const teamSelectionName=rows(teamsQuery.data).find(t=>String(t.id)===String(teamFilter))?.name||"";
  
  const selected=useMemo(()=>all.find(t=>String(t.source_id)===String(selectedId))||null,[all,selectedId]);
@@ -245,7 +255,7 @@ export default function Trophies(){
     <button type="button" onClick={create} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#003399] px-3 text-[11px] font-bold text-white transition hover:bg-[#002977]"><Plus size={15}/> Nuevo trofeo</button>
    </div>
    {showFilters&&<div id="trophy-advanced-filters" className="mt-2 rounded-lg border border-slate-200 bg-[#F8F9FC] p-3">
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(140px,.75fr)_minmax(150px,.85fr)_minmax(190px,1.1fr)_minmax(190px,1.1fr)_minmax(160px,.85fr)]">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
      <label className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">Tipo</span>
       <select value={type} onChange={e=>setType(e.target.value)} className={input+" h-9 text-xs"}><option value="all">Todos los tipos</option>{TROPHY_TYPES.map(v=><option key={v} value={v}>{v}</option>)}</select>
      </label>
@@ -255,9 +265,9 @@ export default function Trophies(){
      <div className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">País</span>
       <CountrySearchPicker options={[{value:"all",label:"Todos los países"},...countryOptions,{value:"international",label:"Internacionales · confederaciones"},{value:"unclassified",label:"Sin país confirmado"}]} value={countryFilter} onChange={setCountryFilter}/>
      </div>
-     <div className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">Club campeón</span>
+     {viewMode!=="clubs"&&<div className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">Club campeón verificado</span>
       <TeamSearchPicker teams={rows(teamsQuery.data)} value={teamFilter} onChange={setTeamFilter} loading={teamsQuery.isLoading} error={teamsQuery.isError} ariaLabel="Filtrar por club campeón verificado" placeholder="Buscar club…"/>
-     </div>
+     </div>}
      <label className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">Orden</span>
       <select aria-label="Ordenar trofeos" value={sortMode} onChange={e=>setSortMode(e.target.value)} className={input+" h-9 text-xs"}>
        <option value="name">Nombre (A–Z)</option><option value="reputation_desc">Mayor reputación</option><option value="reputation_asc">Menor reputación</option>
@@ -269,6 +279,12 @@ export default function Trophies(){
      <button type="button" disabled={!activeFilterCount&&sortMode==="name"} onClick={clearFilters} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-slate-500 hover:bg-slate-200/70 disabled:cursor-default disabled:opacity-40"><RotateCcw size={12}/> Restablecer</button>
     </div>
    </div>}
+  </div>}
+  {section==="catalog"&&<div role="tablist" aria-label="Vistas de la biblioteca de trofeos" className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-4 py-1.5 md:px-7">
+   {CATALOG_VIEWS.map(([key,title,Icon])=><button key={key} role="tab" type="button" aria-selected={viewMode===key} onClick={()=>selectView(key)}
+    className={"inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[11px] font-bold transition "+(viewMode===key?"bg-[#003399] text-white shadow-sm":"text-slate-500 hover:bg-slate-100 hover:text-slate-900")}>
+    <Icon size={13}/>{title}
+   </button>)}
   </div>}
   <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3 md:px-7">
    {section==="catalog"&&<>
