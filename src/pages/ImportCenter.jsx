@@ -8,13 +8,14 @@ import {STATS_ROWS_KEY,STATS_DETAIL_KEY} from "@/utils/statsRowsCache";
 import {HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import {RECORD_KEYS} from "@/api/recordQueries";
 import {readCompleteRecords} from "@/utils/entityRecords";
-import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-react";
+import { AlertTriangle, Database, RefreshCw, Search } from "lucide-react";
 import HistoricalReview from "@/components/imports/HistoricalReview";
 import UnderstatMissingImport from "@/components/imports/UnderstatMissingImport";
 import {historyCanRetry} from "@/utils/importHistoryReview";
 import {importProgressSummary} from "@/utils/importCoverage";
 import {groupImportJobs,visibleImportGroups} from "@/utils/importJobGroups";
 import {understatQueueState,understatQueueCounts} from "@/utils/importUnderstatQueue";
+import {rateLimitDetails} from "@/utils/importRateLimit";
 import useImportPlayerIdentity from "@/hooks/useImportPlayerIdentity";
 import {importIdentitySuggestion} from "@/utils/importIdentitySuggestion";
 import {IDENTITY_KEY} from "@/hooks/useIdentityCatalog";
@@ -57,6 +58,7 @@ export default function ImportCenter(){
   const [coordinator,setCoordinator]=useState("checking");
   const [statsStatus,setStatsStatus]=useState({state:"idle",count:0,ids:[]});
   const refreshSequence=useRef(0),currentJob=useRef(selectedJob);
+  const refreshPauseUntil=useRef(0);
   const autoAppliedJobs=useRef(new Set());
   const autoAppliedRevision=useRef(null);
   const [autoApplying,setAutoApplying]=useState(false);
@@ -73,6 +75,10 @@ export default function ImportCenter(){
   useEffect(()=>{setFotmobDraft("");setFotmobDraftTouched(false);},[selection]);
 
   const refresh=useCallback(async({forceCandidates=false}={})=>{
+    if(Date.now()<refreshPauseUntil.current){
+      if(forceCandidates)setNotice("Base44 ha limitado las consultas temporalmente. La lista se actualizará cuando se libere el cupo; tus datos siguen intactos.");
+      return;
+    }
     const request=++refreshSequence.current;
     try{
       const result=await readCompleteRecords(base44.entities.ImportJob);
@@ -97,7 +103,14 @@ export default function ImportCenter(){
           staleTime:job?.status==="completed"?Infinity:10000,retry:false});
         if(request===refreshSequence.current&&currentJob.current===selectedJob){setCandidateRows(candidates);setCandidatesLoading(false);setError("");}
       }
-    }catch(e){if(request===refreshSequence.current){setError(reason(e));setLoaded(true);setCandidatesLoading(false);}}
+    }catch(e){if(request===refreshSequence.current){
+      const limit=rateLimitDetails(e);
+      if(limit){
+        refreshPauseUntil.current=Date.now()+limit.seconds*1000;
+        setNotice(limit.message);
+      }else setError(reason(e));
+      setLoaded(true);setCandidatesLoading(false);
+    }}
   },[selectedJob,cache]);
   useEffect(()=>{
     base44.functions.invoke("import-control",{action:"health"})
@@ -171,7 +184,7 @@ export default function ImportCenter(){
     groupedJobs.filter(g=>{
       const kind=understatQueueState(g,understatAudits).kind;
       return understatFilter==="needs_action"?
-        ["pending","identity","review","unscanned","error"].includes(kind):
+        ["pending","identity","review","unscanned","error","deferred"].includes(kind):
         understatFilter==="no_gaps"?kind==="no_gaps":
         understatFilter==="active"?kind==="active":true;
     });
@@ -331,22 +344,19 @@ export default function ImportCenter(){
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
         <button disabled={!canStartHistory} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">{usingCatalogueSuggestion?"Confirmar ID del catálogo y recuperar historial":"Recuperar historial disponible"}</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
-        {selectedSources.includes("understat")&&<UnderstatMissingImport player={player} linked={linked} fotmobId={fotmob}
-          workerBusy={active||busy} jobRevision={selectedUnderstatRevision}
-          onApplied={afterUnderstatApplied}/>}
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>
         <p className="text-xs text-slate-500">Primera importación: el trabajador de tu PC consulta el perfil y las temporadas disponibles con los límites configurados. Understat usa ligas compatibles y cachés/archivos públicos. FIFA/FC usa revisiones de Career Mode anteriores al lanzamiento; mercado usa valoraciones fechadas dentro de cada temporada. No se altera FM26.</p>
       </section>
-      <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
-        <h2 className="font-semibold text-lg">Protección de las estadísticas</h2>
-        <p className="text-xs text-slate-600">El motor web ya normaliza y crea temporadas desde registros estructurados. La obtención directa de datos nuevos requiere fuentes con acceso autorizado.</p>
-        <div className="flex items-start gap-3 text-sm"><ShieldCheck className="text-[#003399] shrink-0"/><p>La información se guarda inicialmente como candidata. Solo se aplica cuando hay evidencia e identificación exacta.</p></div>
-        <div className="flex items-start gap-3 text-sm"><Database className="text-[#003399] shrink-0"/><p>La sincronización conserva las entradas verificadas, correcciones manuales y diferencias entre competiciones.</p></div>
-        <p className="text-xs text-slate-600">Cero es un valor válido; una métrica ausente no se convierte en cero. Understat histórico permite revisar nuevas temporadas de liga o completar estadísticas ausentes, aprobando cada propuesta individualmente. Los valores FotMob existentes y las correcciones manuales se mantienen.</p>
-        <a href="https://github.com/Miguelpasitos98/mf-legacy/tree/main/worker" target="_blank" rel="noopener noreferrer" className="block text-sm text-[#003399] underline">Trabajador local de Studio (respaldo para extracciones nuevas)</a>
-        <Link to="/import-unified" className="text-sm text-slate-600 underline">Importador JSON anterior (opcional)</Link>
-        <p className="text-xs text-slate-600">El motor web permite crear primeras temporadas. El trabajador local sigue disponible como respaldo para consultas puntuales sujetas a los permisos del proveedor.</p>
+      <section className="min-w-0 self-start rounded-xl border border-slate-200 bg-white p-4 md:p-5" data-understat-right-panel>
+        {selectedSources.includes("understat")?
+          <UnderstatMissingImport player={player} linked={linked} fotmobId={fotmob}
+            workerBusy={active||busy} jobRevision={selectedUnderstatRevision}
+            onApplied={afterUnderstatApplied}/>:
+          <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+            <div className="flex items-center gap-2 font-semibold text-[#003399]"><Database size={18}/>Understat histórico</div>
+            <p className="text-sm text-slate-600">Activa la fuente «Understat» en la columna izquierda para detectar temporadas y estadísticas ausentes.</p>
+          </div>}
       </section>
     </div>
 
@@ -365,7 +375,7 @@ export default function ImportCenter(){
           <span className="rounded-md bg-white px-2 py-1 text-blue-800">En proceso: {auditCounts.active}</span>
           <span className="rounded-md bg-white px-2 py-1 text-amber-900">Por completar: {auditCounts.pending} ({auditCounts.proposals} propuestas)</span>
           <span className="rounded-md bg-white px-2 py-1 text-amber-900">Confirmar ID / revisar: {auditCounts.identity+auditCounts.review}</span>
-          <span className="rounded-md bg-white px-2 py-1 text-slate-700">Por analizar: {auditCounts.unscanned}</span>
+          <span className="rounded-md bg-white px-2 py-1 text-slate-700">Por analizar: {auditCounts.unscanned+auditCounts.deferred}</span>
           <span className="rounded-md bg-white px-2 py-1 text-emerald-800">Sin huecos detectados: {auditCounts.no_gaps}</span>
           {auditCounts.not_covered>0&&<span className="rounded-md bg-white px-2 py-1 text-slate-600">Sin cobertura: {auditCounts.not_covered}</span>}
         </div>
@@ -410,7 +420,7 @@ export default function ImportCenter(){
                   "bg-slate-100 text-slate-600")}>{audit.label}</span>}
               </div>
               {g.sources.includes("understat")&&!g.active&&
-                ["pending","identity","review","unscanned","error"].includes(audit.kind)&&
+                ["pending","identity","review","unscanned","error","deferred"].includes(audit.kind)&&
                 <button type="button" onClick={()=>openUnderstatFor(g)}
                   className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">Revisar Understat</button>}
               <button type="button" onClick={()=>{setSelectedJob(job.id);setExpandedPlayers(v=>({...v,[g.id]:true}));}} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-[#003399]">Diagnóstico</button>

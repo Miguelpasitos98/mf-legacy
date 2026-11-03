@@ -4,7 +4,8 @@ export function understatAuditOf(group,localAudits={}){
  if(!group)return null;
  const job=group.latest;
  const own=localAudits[job?.id];
- const audit=own||job?.source_results?.understat_gap_audit;
+ const audit=Object.prototype.hasOwnProperty.call(localAudits,job?.id)?
+   own:job?.source_results?.understat_gap_audit;
  // If the worker changed the job after the audit (auto-apply or continuation),
  // do not show its old diagnostic as fresh.
  if(audit?.job_phase!==String(job?.phase||""))return null;
@@ -24,6 +25,7 @@ export function understatQueueState(group,localAudits={}){
   case "needs_fotmob_link":return {kind:"identity",label:"Confirmar vínculo FotMob"};
   case "not_covered":return {kind:"not_covered",label:"Understat · sin cobertura en archivo"};
   case "needs_review":return {kind:"review",label:"Understat · requiere revisión"};
+  case "deferred_rate_limit":return {kind:"deferred",label:"Understat · pendiente (límite Base44)"};
   case "error":return {kind:"error",label:"Error al analizar Understat"};
   default:return {kind:"unscanned",label:"Understat pendiente de diagnóstico"};
  }
@@ -31,7 +33,7 @@ export function understatQueueState(group,localAudits={}){
 export function understatQueueCounts(groups,audits={}){
  const withSource=groups.filter(g=>g.sources.includes("understat"));
  const counts={total:withSource.length,active:0,unscanned:0,pending:0,identity:0,
-   no_gaps:0,not_covered:0,review:0,error:0,proposals:0};
+   no_gaps:0,not_covered:0,review:0,error:0,deferred:0,proposals:0};
  for(const g of withSource){
   const s=understatQueueState(g,audits);
   if(s.kind in counts)counts[s.kind]++;
