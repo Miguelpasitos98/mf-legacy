@@ -18,10 +18,16 @@ export function reviewedCurrentTeamLink(player,team,item){
 }
 const competitionKey=x=>({"super lig":"super lig","super league turkey":"super lig","ligue 1 uber eats":"ligue 1","english premier league":"premier league"}[norm(x)]||norm(x));
 async function allRows(entity,query) {
+  // Do not fetch thousands of candidates through dozens of strictly serial
+  // HTTP calls. Stable ID ordering and five small parallel pages keep the
+  // same 10,000-row safety cap while bounding import completion time.
   const out=[];
-  for(let skip=0;skip<10000;skip+=100) {
-    const page=rows(await entity.filter(query,"id",100,skip));out.push(...page);
-    if(page.length<100)return out;
+  for(let skip=0;skip<10000;skip+=500){
+    const pages=await Promise.all([0,100,200,300,400].map(n=>entity.filter(query,"id",100,skip+n)));
+    for(const response of pages){
+      const page=rows(response);out.push(...page);
+      if(page.length<100)return out;
+    }
   }
   throw Error("Demasiados registros para resolver la identidad con seguridad.");
 }
@@ -43,6 +49,22 @@ export function metricPlan(item,player,existing,teamLink={}) {
   if(target&&str(target.fotmob_tournament_id)&&str(item.fotmob_tournament_id)&&str(target.fotmob_tournament_id)!==str(item.fotmob_tournament_id))throw Error("Competiciones homónimas con distinto ID oficial.");
   if(target&&typeof target.is_national_team==="boolean"&&typeof item.is_national_team==="boolean"&&target.is_national_team!==item.is_national_team)throw Error("Club y selección incompatibles.");
   const metrics=Array.isArray(target?.metrics)?target.metrics.map(m=>({...m})):[];
+  // Understat and FotMob may legitimately publish different minutes for the
+  // same league season. Preserve both denominators without rewriting the
+  // established season total, and do not let this block the other indicators.
+  if(target&&item.source==="fotmob"&&norm(item.metric_name)==="minutes"&&
+      item.metric_unit==="total"&&!empty(target.minutes)&&Number(target.minutes)!==item.value&&
+      metrics.some(m=>metricId(m.name)==="understat minutes")){
+    const match=metrics.filter(m=>metricId(m.name)==="fotmob minutes");
+    if(match.length>1||match.length===1&&!empty(match[0].value)&&Number(match[0].value)!==item.value)
+      throw Error("Minutos FotMob contradictorios; requiere revisión.");
+    if(match.length===1&&!empty(match[0].value))return {operation:"unchanged",target_id:target.id,record:{}};
+    const fotmobMinutes={name:"FotMob minutes",value:item.value,unit:"total",source:"fotmob",
+      source_url:item.evidence_url,verification_status:item.verification_status||"unverified",
+      ...(item.provenance?{provenance:item.provenance}:{})};
+    if(match.length===1)Object.assign(match[0],fotmobMinutes);else metrics.push(fotmobMinutes);
+    return {operation:"update",target_id:target.id,record:{metrics}};
+  }
   const indices=metrics.map((m,i)=>metricId(m.name)===metricId(item.metric_name)?i:-1).filter(i=>i>=0);
   if(indices.length>1)throw Error("La métrica tiene variantes existentes; requiere conciliación.");
   const idx=indices[0]??-1;
@@ -172,6 +194,21 @@ export async function applyVerifiedHistoricals(db,job) {
     byScope.get(key).push(c);
   }
   const teams=await allRows(db.Team,{});
+  // Read the player once. Querying every competition separately caused the
+  // auto-review to stall midway through large historical jobs (3,000+ candidates).
+  const statsSnapshot=await allRows(db.PlayerSeasonStats,{player_id:job.player_id});
+  const seasonRows=season=>statsSnapshot.filter(r=>r.season===season);
+  const saveSeason=async plan=>{
+    if(plan.operation==="create"){
+      const created=await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
+      statsSnapshot.push({...plan.record,...created});
+      result.created_stats++;
+    }else if(plan.operation==="update"){
+      const updated=await db.PlayerSeasonStats.update(plan.target_id,plan.record);
+      const i=statsSnapshot.findIndex(r=>r.id===plan.target_id);
+      if(i>=0)statsSnapshot[i]={...statsSnapshot[i],...plan.record,...(updated||{})};
+    }
+  };
   const club=v=>norm(v).replace(/^(fc|cf) /,"").replace(/ (fc|cf)$/,"");
   for(const group of byScope.values()){
     const first=group[0],prov=first.provenance||{};
@@ -182,12 +219,9 @@ export async function applyVerifiedHistoricals(db,job) {
       (!t.fotmob_id||str(t.fotmob_id)===str(first.fotmob_team_id)));
     if(matching.length!==1)continue;
     try{
-      const existing=await allRows(db.PlayerSeasonStats,{player_id:job.player_id,season:first.season});
+      const existing=seasonRows(first.season);
       const plan=seasonPlan(group,player,existing,{team_id:matching[0].id});
-      if(plan.operation==="create"){
-        await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
-        result.created_stats++;
-      }else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
+      await saveSeason(plan);
       await db.ImportCandidate.updateMany({id:{$in:group.map(c=>c.id)},job_id:job.id,review_status:"pending"},
         {$set:{review_status:"applied",review_note:"Autoaplicado: Understat contrastado, club único y temporada cerrada"}});
       result.applied+=group.length;
@@ -197,11 +231,23 @@ export async function applyVerifiedHistoricals(db,job) {
   // los IDs de equipo/competición coinciden con un club interno único.
   // Los valores incompatibles, combinaciones incompletas o selecciones se dejan pendientes.
   const fotmobGroups=new Map();
-  for(const c of records.filter(x=>x.source==="fotmob"&&x.kind==="metric")){
+  // Los lotes retomados pueden mezclar candidatos aplicados y pendientes.
+  // No permitir que un candidato ya aplicado bloquee el resto de la temporada.
+  for(const c of records.filter(x=>x.source==="fotmob"&&x.kind==="metric"&&
+       x.review_status==="pending"&&x.verification_status!=="conflict")){
     const key=[c.season,c.competition,c.fotmob_team_id,c.fotmob_tournament_id,c.is_national_team].join("|");
     if(!fotmobGroups.has(key))fotmobGroups.set(key,[]);
     fotmobGroups.get(key).push(c);
   }
+  const fotmobAppliedIds=[];
+  const flushFotmobIds=async()=>{
+    while(fotmobAppliedIds.length){
+      const part=fotmobAppliedIds.slice(0,250);
+      await db.ImportCandidate.updateMany({id:{$in:part},job_id:job.id,review_status:"pending"},
+        {$set:{review_status:"applied",review_note:"Autoaplicado: identidad verificada; valores conflictivos conservados aparte"}});
+      fotmobAppliedIds.splice(0,part.length);
+    }
+  };
   for(const group of fotmobGroups.values()){
     const first=group[0];
     if(group.some(c=>c.review_status!=="pending"||c.verification_status==="conflict"||
@@ -222,7 +268,7 @@ export async function applyVerifiedHistoricals(db,job) {
     if(matching.length>1||(matching.length===0&&alreadyAttributed))continue;
     const teamLink=matching.length===1?{team_id:matching[0].id}:{};
     try{
-      const existing=await allRows(db.PlayerSeasonStats,{player_id:job.player_id,season:first.season});
+      const existing=seasonRows(first.season);
       // Una cifra conflictiva (p. ej. minutos Understat frente a FotMob) NO
       // debe bloquear las demás métricas oficiales de la misma competición.
       // Validar cada candidato contra el lote virtual y mantener conflictos pendientes.
@@ -240,18 +286,16 @@ export async function applyVerifiedHistoricals(db,job) {
         continue;
       }
       const plan=seasonPlan(safe,player,existing,teamLink);
-      if(plan.operation==="create"){
-        await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
-        result.created_stats++;
-      }else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
-      await db.ImportCandidate.updateMany({id:{$in:safe.map(c=>c.id)},job_id:job.id,review_status:"pending"},
-        {$set:{review_status:"applied",review_note:"Autoaplicado: identidad verificada; valores conflictivos conservados aparte"}});
+      await saveSeason(plan);
+      fotmobAppliedIds.push(...safe.map(c=>c.id));
+      if(fotmobAppliedIds.length>=250)await flushFotmobIds();
       result.applied+=safe.length;
       if(rejected.length&&result.errors.length<8)
         result.errors.push("fotmob "+first.season+" "+first.competition+": "+rejected.length+" valores en conflicto, conservados para revisión");
     }catch(e){if(result.errors.length<8)result.errors.push("fotmob "+first.season+" "+first.competition+": "+e.message);}
   }
-  result.pending=records.length-result.applied;
+  try{await flushFotmobIds();}catch(e){if(result.errors.length<8)result.errors.push("No se pudo completar el marcado de candidatos FotMob: "+e.message);}
+  result.pending=Math.max(0,records.filter(c=>c.review_status==="pending").length-result.applied);
   return result;
 }
 async function conclude(db,job) {
