@@ -93,7 +93,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
        const hint=coverage?coverage.available+" de "+coverage.total+" competiciones · "+coverage.minutes.toLocaleString("es-ES")+" minutos disponibles para esta fórmula":partial?"Subtotal parcial: faltan estadísticas":undefined;
        const missingKeeperOffense=value===null&&goalkeeper(player)&&GK_OFFENSE.has(k);
        const missingOffenseZero=value===null&&(k==="penaltygoals"||k==="ga")&&!missingKeeperOffense;
-       return <td key={k} className={"px-2 py-2 text-right"+line(k)} title={missingKeeperOffense||missingOffenseZero?"0 visual: estadística ausente, no es un cero confirmado.":hint}>{missingKeeperOffense||missingOffenseZero?<span className="text-slate-400">0<sup>†</sup></span>:fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
+       return <td key={k} className={"px-2 py-2 text-right"+line(k)} title={missingKeeperOffense||missingOffenseZero?"0 visual: estadística ausente, no es un cero confirmado.":hint}>{missingKeeperOffense||missingOffenseZero?<span className="text-slate-900">0<sup>†</sup></span>:fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
       })}
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
