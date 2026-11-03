@@ -185,12 +185,12 @@ export async function applyVerifiedHistoricals(db,job) {
   const saveSeason=async plan=>{
     if(plan.operation==="create"){
       const created=await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
-      statsSnapshot.push(created);
+      statsSnapshot.push({...plan.record,...created});
       result.created_stats++;
     }else if(plan.operation==="update"){
       const updated=await db.PlayerSeasonStats.update(plan.target_id,plan.record);
       const i=statsSnapshot.findIndex(r=>r.id===plan.target_id);
-      if(i>=0)statsSnapshot[i]=updated||{...statsSnapshot[i],...plan.record};
+      if(i>=0)statsSnapshot[i]={...statsSnapshot[i],...plan.record,...(updated||{})};
     }
   };
   const club=v=>norm(v).replace(/^(fc|cf) /,"").replace(/ (fc|cf)$/,"");
