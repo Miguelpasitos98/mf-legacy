@@ -15,7 +15,7 @@ const small="text-[10px] font-bold uppercase tracking-[.13em] text-slate-400";
 function TrophyPhoto({trophy,manifest,season,size="large"}){
  const [broken,setBroken]=useState(false);
  return <span className={"flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white "+(size==="large"?"h-[142px] w-[142px]":"h-14 w-14")}>
-  {!broken?<img src={trophyImageUrl(trophy,manifest,season)} alt="" loading="lazy" onError={()=>setBroken(true)} className="h-full w-full object-contain p-1.5 drop-shadow-sm"/>:<Trophy size={30} className="text-slate-300"/>}
+  {!broken&&trophyImageUrl(trophy,manifest,season)?<img src={trophyImageUrl(trophy,manifest,season)} alt="" loading="lazy" onError={()=>setBroken(true)} className="h-full w-full object-contain p-1.5 drop-shadow-sm"/>:<Trophy size={30} className="text-slate-300"/>}
  </span>;
 }
 export default function TrophyArchiveOverview({honours=[],catalog=[],imageManifest,onOpenTrophy,onSync}){
