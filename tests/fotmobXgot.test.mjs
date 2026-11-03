@@ -52,3 +52,12 @@ test("top-level FotMob xGOT is recognized and derived from own minutes",()=>{
  assert.equal(xgot.per90,0.5);
  assert.equal(result.metrics.find(x=>x.name==="xG").value,7);
 });
+
+test("single-competition published rate is preserved without dividing again",()=>{
+ const result=summarizeFotmobXgot([{...base,metrics:[metric(4,{per90:0.42})]}],"123").seasons[0];
+ assert.equal(result.total,4);assert.equal(result.per90,0.42);
+});
+test("published rate without total never fabricates an xGOT total",()=>{
+ const result=summarizeFotmobXgot([{...base,metrics:[{name:"xGOT",value:null,per90:0.35,source:"fotmob",verification_status:"verified"}]}],"123").seasons[0];
+ assert.equal(result.total,null);assert.equal(result.per90,0.35);
+});

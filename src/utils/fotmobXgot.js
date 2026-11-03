@@ -40,7 +40,11 @@ export function summarizeFotmobXgot(records,fotmobId=""){
   const known=entries.filter(e=>e.total!==null),rateRows=known.filter(e=>e.minutes>0);
   const total=known.length?known.reduce((n,e)=>n+e.total,0):null;
   const totalMinutes=rateRows.reduce((n,e)=>n+e.minutes,0);
-  const rate=rateRows.length&&rateRows.length===known.length?total*90/totalMinutes:null;
+  // A single published per90 is used as provided, even if its minutes
+  // differ slightly from a rounded season-minute display. For multiple
+  // competitions, rates require totals and aligned source minutes.
+  const rate=entries.length===1&&entries[0].per90!==null?entries[0].per90:
+    rateRows.length&&rateRows.length===known.length?total*90/totalMinutes:null;
   return {season,entries,total,per90:rate,minutes:totalMinutes||null,
     knownCompetitions:known.length,allCompetitions:entries.length,
     partial:known.length!==entries.length,
