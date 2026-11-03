@@ -21,7 +21,7 @@ test('Rob Champions: no final entry can become verified TrophyHonour by accident
 });
 test('Historical notes are distinct events, never cancelled competitions',()=>{
  assert.equal(events.length,29);
- assert.equal(new Set(events.map(x=>x.event_key)).size,28);
+ assert.equal(new Set(events.map(x=>x.event_key)).size,29);
  for(const event of events){
   assert.equal(event.trophy_source_id,'1301394');
   assert.equal(event.verification_status,'source_extracted');
