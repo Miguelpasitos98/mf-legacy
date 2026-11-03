@@ -30,6 +30,10 @@ test("two historical clubs never collapse into one destination",()=>{
   const b=compatibleSeasonPlan([{...base,id:"b",fotmob_team_id:"9827",team_name:"Bordeaux"}],player,[{...a.record,id:"a"}]);
   assert.equal(b.operation,"create");assert.notEqual(a.record.external_record_id,b.record.external_record_id);
 });
+test("UEFA U17 can never be attributed to the player's club",()=>{
+  const plan=compatibleSeasonPlan([{...base,id:"u17",competition:"UEFA U17 Championship",fotmob_tournament_id:"301"}],player,[]);
+  assert.equal(plan.candidates,0);assert.match(plan.conflicts[0].reason,/selecciones/);
+});
 test("provider clocks include nested provenance and preserve negative goalkeeper rates",()=>{
   const metric={name:"Understat xA",value:12,source:"understat",provenance:{provider_minutes:2700}};
   assert.equal(metricMinutes({minutes:3000},metric),2700);

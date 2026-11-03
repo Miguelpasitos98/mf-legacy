@@ -7,6 +7,13 @@ const metricId=x=>{
 };
 const empty=x=>x===undefined||x===null||x==="";
 const slug=x=>norm(x).replace(/ /g,"-");
+export function requiresNationalScope(competition,tournament=""){
+  const name=norm(competition).replace(/ /g,"");
+  if(name.includes("clubworldcup"))return false;
+  return ["50","77","114","301","288","9806","9807","9808","10195","10607"].includes(str(tournament))||
+    /^(?:uefau\d{2}championship|euro(?:u\d{2})?(?:qualification)?$)/.test(name)||
+    /worldcup|nationsleague|copaamerica|africacupofnations|asiancup|goldcup|summerolympics|internationalfriendly/.test(name);
+}
 export function reviewedCurrentTeamLink(player,team,item){
   const club=x=>norm(x).replace(/^(?:fc |cf )|(?: fc| cf)$/g,"").trim();
   if(item.is_national_team!==false||!team?.id||player?.team_id!==team.id)return {};
@@ -47,6 +54,7 @@ export async function retryMutation(write){
   }
 }
 export function metricPlan(item,player,existing,teamLink={}) {
+  if(item.is_national_team===false&&requiresNationalScope(item.competition,item.fotmob_tournament_id))throw Error("El torneo es de selecciones; no se atribuye a un club.");
   if(!/^\d{1,15}$/.test(str(item.fotmob_team_id))||!str(item.competition)||!str(item.metric_name))throw Error("Falta identidad de competición/equipo/métrica.");
   const signedMetric=["goals prevented","goles evitados"].includes(norm(item.metric_name));
   if(typeof item.value!=="number"||!Number.isFinite(item.value)||(item.value<0&&!signedMetric))throw Error("Valor no válido.");

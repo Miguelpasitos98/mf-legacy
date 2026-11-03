@@ -138,7 +138,7 @@ def _national_competition(option):
     # El Mundial de Clubes no es una competición de selecciones.
     if tournament == '78' or 'club-world-cup' in name:
         return False
-    return tournament in {'50','77','114','9806','9807','9808','10195','10607'} or name=='euro' or any(x in name for x in
+    return tournament in {'50','77','114','301','288','9806','9807','9808','10195','10607'} or name=='euro' or bool(re.search(r'uefa-u\d{2}-championship|euro-u\d{2}',name)) or any(x in name for x in
         ('world-cup-uefa-qualification','uefa-nations-league','euro-qualification',
          'world-cup-u20','uefa-u19-championship','euro-qualifying',
          'world-cup','euro-championship','international-friendly'))
