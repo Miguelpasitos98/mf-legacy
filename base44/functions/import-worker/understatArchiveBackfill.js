@@ -69,11 +69,6 @@ export async function runHistoricalArchiveBackfill(db,job){
  if(plan.status!=='verified')return {...result,status:plan.status,reason:'No hay identidad histórica única en Understat'};
  result.status='verified';
  result.skipped=plan.skipped.length;
- const nativeNames={
-  'understatgoals':['goals','goles'],'understatassists':['assists','asistencias'],
-  'understatxg':['xg','expectedgoals'],'understatxa':['xa','expectedassists'],
-  'understatnpxg':['xgexclpenalty','nonpenaltyxg','npxg'],
-  'understatshots':['shots','tiros']};
  for(const item of plan.entries){
   // Reload to avoid losing new FotMob metrics written since planning.
   const current=await db.PlayerSeasonStats.get(item.id);
