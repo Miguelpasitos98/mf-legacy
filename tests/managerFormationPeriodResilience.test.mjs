@@ -78,6 +78,24 @@ test("explicit abbreviated seasons and ranges normalize without changing the sta
  assert.equal(merged.period_start,"2018/2019");
  assert.equal(merged.period_end,"2020/2021");
 });
+test("manual date fields accept explicitly abbreviated seasons while rejecting invented calendar years",()=>{
+ const period=cleanProfile({...PROFILE_BLANK,name:"Etapa válida",profile_scope:"period",
+  period_start:"2018/19",period_end:"2020/21",formation:"4-4-2 (rombo)"},"coach",roles);
+ assert.equal(period.period_start,"2018/2019");
+ assert.equal(period.period_end,"2020/2021");
+ assert.equal(period.formation,"4-1-2-1-2");
+ const single=cleanProfile({...PROFILE_BLANK,name:"Campaña válida",profile_scope:"season",season:"2018/19"},"coach",roles);
+ assert.equal(single.season,"2018/2019");
+ assert.throws(()=>cleanProfile({...PROFILE_BLANK,name:"Mal periodo",profile_scope:"period",
+  period_start:"2014",period_end:"2016"},"coach",roles),/periodo necesita temporadas/i);
+});
+test("the editor requires explicit approval before saving ambiguous period as general",()=>{
+ const ui=fs.readFileSync("src/pages/Managers.jsx","utf8");
+ assert.match(ui,/dateGeneralReviewed/);
+ assert.match(ui,/scopeSuggestion\?\.origin==="invalid_dates"/);
+ assert.match(ui,/He revisado las fechas y confirmo/);
+ assert.match(ui,/profileScope\(profileDraft\)==="general"&&!dateGeneralReviewed/);
+});
 test("AI with same-season period is repairable as a season, never a hard error",()=>{
  const output=parseManagerTacticalResponse({...base,period_start:"2018/19",period_end:"2018/19"});
  assert.equal(output.context.scope,"season");
