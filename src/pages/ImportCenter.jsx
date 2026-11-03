@@ -14,6 +14,7 @@ import UnderstatMissingImport from "@/components/imports/UnderstatMissingImport"
 import {historyCanRetry} from "@/utils/importHistoryReview";
 import {importProgressSummary} from "@/utils/importCoverage";
 import {groupImportJobs,visibleImportGroups} from "@/utils/importJobGroups";
+import {understatAuditOf,understatQueueState,understatQueueCounts} from "@/utils/importUnderstatQueue";
 import useImportPlayerIdentity from "@/hooks/useImportPlayerIdentity";
 import {importIdentitySuggestion} from "@/utils/importIdentitySuggestion";
 import {IDENTITY_KEY} from "@/hooks/useIdentityCatalog";
@@ -62,6 +63,10 @@ export default function ImportCenter(){
   const [showJobHistory,setShowJobHistory]=useState(false);
   const [expandedPlayers,setExpandedPlayers]=useState({});
   const [technicalHistory,setTechnicalHistory]=useState({});
+  const [understatAudits,setUnderstatAudits]=useState({});
+  const auditRequests=useRef(new Set());
+  const auditRetryAfter=useRef(new Map());
+  const [understatFilter,setUnderstatFilter]=useState("all");
   currentJob.current=selectedJob;
   const player=selectedPlayer?.id===selection?selectedPlayer:players.find(p=>p.id===selection);
   const identity=useImportPlayerIdentity(player);
@@ -162,7 +167,78 @@ export default function ImportCenter(){
   const currentWorkerJob=jobs.find(j=>j.status==="running"&&
     (!j.lease_expires_at||Date.parse(j.lease_expires_at)>Date.now()));
   const groupedJobs=groupImportJobs(jobs);
-  const visibleGroups=visibleImportGroups(groupedJobs,showJobHistory);
+  const auditCounts=understatQueueCounts(groupedJobs,understatAudits);
+  const allVisibleGroups=visibleImportGroups(groupedJobs,showJobHistory);
+  const visibleGroups=understatFilter==="all"?allVisibleGroups:
+    groupedJobs.filter(g=>{
+      const kind=understatQueueState(g,understatAudits).kind;
+      return understatFilter==="needs_action"?
+        ["pending","identity","review","unscanned","error"].includes(kind):
+        understatFilter==="no_gaps"?kind==="no_gaps":
+        understatFilter==="active"?kind==="active":true;
+    });
+  // Run source-specific audits for settled jobs, including previous queue
+  // entries when the user opens the complete history. This never imports data.
+  useEffect(()=>{
+    const candidates=visibleGroups.filter(g=>g.sources.includes("understat")&&!g.active&&
+      ["review","completed"].includes(g.latest?.status)).filter(g=>{
+       const job=g.latest;
+       if(understatAuditOf(g,understatAudits))return false;
+       if(auditRequests.current.has(job.id))return false;
+       if((auditRetryAfter.current.get(job.id)||0)>Date.now())return false;
+       return true;
+      }).slice(0,2);
+    for(const g of candidates){
+      const jobId=g.latest.id;
+      auditRequests.current.add(jobId);
+      base44.functions.invoke("understat-auto",{action:"audit-job",job_id:jobId})
+        .then(({data})=>{
+          if(data?.status==="audited"&&data?.audit)
+            setUnderstatAudits(old=>({...old,[jobId]:data.audit}));
+          else if(data?.status==="waiting_job")
+            auditRetryAfter.current.set(jobId,Date.now()+15000);
+          else
+            auditRetryAfter.current.set(jobId,Date.now()+60000);
+        })
+        .catch(()=>{
+          auditRetryAfter.current.set(jobId,Date.now()+45000);
+        })
+        .finally(()=>{
+          auditRequests.current.delete(jobId);
+          // Always ask React to consider the next visible player once a slot
+          // is free; it will not refetch already audited jobs.
+          setUnderstatAudits(old=>({...old}));
+        });
+    }
+  },[jobs,showJobHistory,understatFilter,understatAudits]);
+  const selectedJobChain=jobs.filter(j=>j.player_id===selection);
+  const selectedUnderstatRevision=selectedJobChain.map(j=>
+    [j.id,j.status,j.finished_at||""].join(":")).sort().join("|");
+  const afterUnderstatApplied=async()=>{
+    await invalidateApplied();
+    const related=groupedJobs.find(g=>g.playerId===selection);
+    if(related?.latest?.id&&["review","completed"].includes(related.latest.status)){
+      try{
+        const {data}=await base44.functions.invoke("understat-auto",{
+          action:"audit-job",job_id:related.latest.id
+        });
+        if(data?.status==="audited"&&data.audit)
+          setUnderstatAudits(old=>({...old,[related.latest.id]:data.audit}));
+      }catch(e){console.warn("Understat audit could not refresh",e);}
+    }
+    await refresh();
+  };
+  const openUnderstatFor=async(g)=>{
+    try{
+      setError("");
+      const p=await base44.entities.Player.get(g.playerId);
+      if(!p?.id)throw Error("No se encontró este jugador en PLAYERS");
+      setSelectedPlayer(p);setSelection(p.id);setSearch(p.name);setSearchOpen(false);
+      setSelectedSources(old=>old.includes("understat")?old:[...old,"understat"]);
+      const element=document.getElementById("import-player-selector");
+      element?.scrollIntoView({behavior:"smooth",block:"start"});
+    }catch(e){setError("No se pudo abrir el jugador: "+reason(e));}
+  };
   const chainProgress=importProgressSummary(jobs,selectedJobData);
   const importCoverage=chainProgress?.coverage;
   const reconcileExisting=async(jobForPlayer=selectedJobData)=>{
@@ -266,7 +342,7 @@ export default function ImportCenter(){
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-900 flex gap-2"><AlertTriangle size={19} className="shrink-0"/>{coordinator==="ready"?"El trabajador Studio de tu PC puede solicitar estadísticas nuevas de FotMob para IDs confirmados, con un máximo de 8 peticiones por trabajo. Los resultados se revisan antes de guardarlos; Understat, FIFA y mercado dependen de catálogos verificados disponibles.":coordinator==="auth_required"?"Inicia sesión con una cuenta de administrador para solicitar y revisar importaciones.":coordinator==="checking"?"Comprobando los servicios de importación...":"El backend de importaciones no es accesible. No se admiten solicitudes hasta restaurar el coordinador."}</div>
     {coordinator==="auth_required"&&<button className="bg-[#003399] text-white rounded-lg px-4 py-2 mb-4" onClick={()=>base44.auth.loginWithProvider("google",window.location.href)}>Iniciar sesión de administrador</button>}
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      <section className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
+      <section id="import-player-selector" className="rounded-xl bg-white border border-slate-200 p-5 space-y-3">
         <h2 className="font-semibold text-lg">1. Seleccionar jugador de PLAYERS</h2>
         <p className="text-sm text-slate-600">Busca un futbolista que ya exista en PLAYERS, aunque todavía no tenga ninguna temporada en STATS. No se crearán fichas duplicadas.</p>
         <div className="relative">
@@ -294,7 +370,8 @@ export default function ImportCenter(){
         <button disabled={!canStartHistory} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">{usingCatalogueSuggestion?"Confirmar ID del catálogo y recuperar historial":"Recuperar historial disponible"}</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
         {selectedSources.includes("understat")&&<UnderstatMissingImport player={player} linked={linked} fotmobId={fotmob}
-          workerBusy={active||busy} onApplied={invalidateApplied}/>}
+          workerBusy={active||busy} jobRevision={selectedUnderstatRevision}
+          onApplied={afterUnderstatApplied}/>}
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>
         <p className="text-xs text-slate-500">Primera importación: el trabajador de tu PC consulta el perfil y las temporadas disponibles con los límites configurados. Understat usa ligas compatibles y cachés/archivos públicos. FIFA/FC usa revisiones de Career Mode anteriores al lanzamiento; mercado usa valoraciones fechadas dentro de cada temporada. No se altera FM26.</p>
@@ -319,6 +396,25 @@ export default function ImportCenter(){
           <p className="mt-1 text-xs text-slate-500">{groupedJobs.length} jugadores · {jobs.length} trabajos recientes, agrupados por jugador</p></div>
         {groupedJobs.length>8&&<button type="button" onClick={()=>setShowJobHistory(v=>!v)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#003399]">{showJobHistory?"Ocultar historial antiguo":"Ver historial completo"}</button>}
       </div>
+      <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3" data-understat-queue-status>
+        <p className="text-xs font-semibold text-[#0d315b]">Seguimiento automático de Understat · por jugador</p>
+        <p className="mt-1 text-[11px] text-slate-600">Al finalizar una importación, se vuelve a comprobar qué temporadas y estadísticas faltan. Los diagnósticos quedan guardados en el historial; no se aplican datos sin autorización.</p>
+        <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+          <span className="rounded-md bg-white px-2 py-1 text-blue-800">En proceso: {auditCounts.active}</span>
+          <span className="rounded-md bg-white px-2 py-1 text-amber-900">Por completar: {auditCounts.pending} ({auditCounts.proposals} propuestas)</span>
+          <span className="rounded-md bg-white px-2 py-1 text-amber-900">Confirmar ID / revisar: {auditCounts.identity+auditCounts.review}</span>
+          <span className="rounded-md bg-white px-2 py-1 text-slate-700">Por analizar: {auditCounts.unscanned}</span>
+          <span className="rounded-md bg-white px-2 py-1 text-emerald-800">Sin huecos detectados: {auditCounts.no_gaps}</span>
+          {auditCounts.not_covered>0&&<span className="rounded-md bg-white px-2 py-1 text-slate-600">Sin cobertura: {auditCounts.not_covered}</span>}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[
+            ["all","Todos"],["needs_action","Pendientes de revisar"],
+            ["active","En proceso"],["no_gaps","Sin huecos Understat"]
+          ].map(([value,label])=><button key={value} type="button" onClick={()=>{setUnderstatFilter(value);if(value!=="all")setShowJobHistory(true);}}
+            className={"rounded-lg border px-3 py-1.5 text-[11px] font-semibold "+(understatFilter===value?"border-[#003399] bg-[#003399] text-white":"border-blue-200 bg-white text-[#003399]")}>{label}</button>)}
+        </div>
+      </div>
       {waitingForWorker.length>0&&<p role="status" className={"mb-3 rounded-lg px-3 py-2 text-xs "+(currentWorkerJob?"bg-blue-50 text-blue-900":"bg-amber-50 text-amber-900")}>
         {currentWorkerJob
           ?<><strong>{jobs.filter(j=>j.status==="queued").length} trabajos en cola.</strong> El trabajador está procesando {currentWorkerJob.player_name||"otro jugador"}. Continuará con los demás por orden; no repitas las solicitudes.</>
@@ -334,7 +430,8 @@ export default function ImportCenter(){
           const technical=Boolean(technicalHistory[g.id]);
           const waiting=g.items.some(j=>queuedTooLong(j));
           const currentStatus=g.active?(waiting&&job.status==="queued"?(currentWorkerJob?"En cola · trabajador ocupado":"En cola · comprobar trabajador"):STATUS[job.status]||job.status)
-            :g.errors&&!g.reviews?"Revisar error":g.reviews?"Hay valores por revisar":"Finalizado";
+            :g.errors&&!g.reviews?"Revisar error":g.reviews?"Hay valores por revisar":"Trabajo terminado";
+          const audit=understatQueueState(g,understatAudits);
           return <div key={g.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <div className="flex flex-wrap items-center gap-3 px-3 py-3">
               <button type="button" onClick={()=>setExpandedPlayers(v=>({...v,[g.id]:!v[g.id]}))} aria-expanded={expanded} className="flex min-w-0 flex-1 items-center gap-3 text-left">
@@ -342,7 +439,18 @@ export default function ImportCenter(){
                 <span className="min-w-0"><strong className="block truncate text-sm text-slate-900">{g.playerName}</strong>
                   <span className="block text-[11px] text-slate-500">{g.items.length} trabajos agrupados · {g.sources.join(" · ")}</span></span>
               </button>
-              <div className="text-right"><span className={"rounded-full px-2 py-1 text-[11px] font-semibold "+(g.active?"bg-blue-50 text-[#003399]":g.reviews?"bg-amber-50 text-amber-800":g.errors?"bg-red-50 text-red-700":"bg-slate-100 text-slate-700")}>{currentStatus}</span></div>
+              <div className="flex flex-col items-end gap-1 text-right">
+                <span className={"rounded-full px-2 py-1 text-[11px] font-semibold "+(g.active?"bg-blue-50 text-[#003399]":g.reviews?"bg-amber-50 text-amber-800":g.errors?"bg-red-50 text-red-700":"bg-slate-100 text-slate-700")}>{currentStatus}</span>
+                {g.sources.includes("understat")&&<span className={"rounded-md px-2 py-1 text-[11px] font-semibold "+(
+                  audit.kind==="pending"||audit.kind==="identity"||audit.kind==="review"?"bg-amber-50 text-amber-900":
+                  audit.kind==="no_gaps"?"bg-emerald-50 text-emerald-800":
+                  audit.kind==="error"?"bg-rose-50 text-rose-800":
+                  "bg-slate-100 text-slate-600")}>{audit.label}</span>}
+              </div>
+              {g.sources.includes("understat")&&!g.active&&
+                ["pending","identity","review","unscanned","error"].includes(audit.kind)&&
+                <button type="button" onClick={()=>openUnderstatFor(g)}
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">Revisar Understat</button>}
               <button type="button" onClick={()=>{setSelectedJob(job.id);setExpandedPlayers(v=>({...v,[g.id]:true}));}} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-[#003399]">Diagnóstico</button>
             </div>
             {expanded&&<div className="space-y-3 border-t border-slate-200 bg-slate-50 p-3">
