@@ -215,7 +215,10 @@ export async function applyVerifiedHistoricals(db,job) {
   // los IDs de equipo/competición coinciden con un club interno único.
   // Los valores incompatibles, combinaciones incompletas o selecciones se dejan pendientes.
   const fotmobGroups=new Map();
-  for(const c of records.filter(x=>x.source==="fotmob"&&x.kind==="metric")){
+  // Los lotes retomados pueden mezclar candidatos aplicados y pendientes.
+  // No permitir que un candidato ya aplicado bloquee el resto de la temporada.
+  for(const c of records.filter(x=>x.source==="fotmob"&&x.kind==="metric"&&
+       x.review_status==="pending"&&x.verification_status!=="conflict")){
     const key=[c.season,c.competition,c.fotmob_team_id,c.fotmob_tournament_id,c.is_national_team].join("|");
     if(!fotmobGroups.has(key))fotmobGroups.set(key,[]);
     fotmobGroups.get(key).push(c);
@@ -276,7 +279,7 @@ export async function applyVerifiedHistoricals(db,job) {
     }catch(e){if(result.errors.length<8)result.errors.push("fotmob "+first.season+" "+first.competition+": "+e.message);}
   }
   try{await flushFotmobIds();}catch(e){if(result.errors.length<8)result.errors.push("No se pudo completar el marcado de candidatos FotMob: "+e.message);}
-  result.pending=records.length-result.applied;
+  result.pending=Math.max(0,records.filter(c=>c.review_status==="pending").length-result.applied);
   return result;
 }
 async function conclude(db,job) {
