@@ -28,6 +28,68 @@ export default async function(req){
   if(user.role!=='admin')return reply({ok:false,error:'Solo administradores'},403);
   const body=await req.json();
   if(body?.action==='health')return reply({ok:true,source:'Understat · archivo histórico verificado',last_full_season:'2024/2025'});
+  // Persist a small, source-scoped audit in the existing ImportJob so the
+  // queue can display missing seasons even after the browser is reopened.
+  // Audits are read-only for STATS; only the diagnostic field of the job changes.
+  if(body?.action==='audit-job'){
+    const jobId=txt(body.job_id);
+    if(!/^[a-f0-9]{24}$/i.test(jobId))return reply({ok:false,error:'Trabajo inválido'},400);
+    const db=sdk.asServiceRole.entities;
+    const job=await db.ImportJob.get(jobId);
+    if(!job)return reply({ok:false,error:'Trabajo no encontrado'},404);
+    if(['queued','running'].includes(job.status))return reply({ok:true,status:'waiting_job',job_id:jobId});
+    if(!['review','completed'].includes(job.status))return reply({ok:true,status:'not_finished',job_id:jobId});
+    if(!(job.sources||[]).includes('understat'))return reply({ok:true,status:'not_requested',job_id:jobId});
+    const playerId=txt(job.player_id),pid=txt(job.fotmob_player_id);
+    if(!/^[a-f0-9]{24}$/i.test(playerId)||!/^[0-9]{1,15}$/.test(pid))
+      return reply({ok:true,status:'unlinked',job_id:jobId});
+    const playerJobs=rows(await db.ImportJob.filter({player_id:playerId},undefined,150));
+    if(playerJobs.some(j=>['queued','running'].includes(j.status)))
+      return reply({ok:true,status:'waiting_job',job_id:jobId});
+    const current=await db.ImportJob.get(jobId);
+    // Recheck the same job after reading; the worker might still be finishing.
+    if(!['review','completed'].includes(current?.status))return reply({ok:true,status:'waiting_job',job_id:jobId});
+    const [player,links,back,stats]=await Promise.all([
+      db.Player.get(playerId),
+      db.PlayerFotmobLink.filter({player_id:playerId},undefined,30),
+      db.PlayerFotmobLink.filter({fotmob_player_id:pid},undefined,30),
+      db.PlayerSeasonStats.filter({player_id:playerId},undefined,350)
+    ]);
+    const saved=rows(stats),linkRows=rows(links),backRows=rows(back);
+    const approved=new Set(['verified','confirmed','manual','manual_confirmada','confirmada','automatic_exact_name_unique','automatic_existing_stats_unique']);
+    let audit={status:'needs_fotmob_link',proposals:0,new_seasons:0,existing_seasons:0,
+      checked_at:new Date().toISOString(),source_revision:ARCHIVE_SHA256,
+      note:'Identidad FotMob no confirmada'};
+    const ids=new Set(linkRows.map(l=>txt(l.fotmob_player_id)).filter(Boolean));
+    if(player&&saved.length<350&&ids.size===1&&ids.has(pid)&&
+       linkRows.some(l=>approved.has(txt(l.verification).toLowerCase()))&&
+       !backRows.some(l=>txt(l.player_id)!==playerId)&&
+       !saved.some(r=>txt(r.fotmob_player_id)&&txt(r.fotmob_player_id)!==pid)){
+      const plan=planHistoricalMissing(readArchive(await archiveText(),player.name),saved);
+      const count=plan.proposals?.length||0;
+      audit={
+        status:plan.status==='verified'?(count?'pending':'no_detected_gaps'):
+          plan.status==='needs_identity_confirmation'?'needs_identity_confirmation':'needs_review',
+        proposals:count,
+        new_seasons:(plan.proposals||[]).filter(x=>x.action==='create').length,
+        existing_seasons:(plan.proposals||[]).filter(x=>x.action==='complete').length,
+        excluded:(plan.skipped||[]).length,
+        checked_at:new Date().toISOString(),source_revision:ARCHIVE_SHA256,
+        understat_id:plan.understat_id||'',
+        note:plan.status==='verified'?'Archivo histórico contrastado contra STATS (solo ligas cubiertas)':plan.reason||'Identidad o cobertura pendiente'
+      };
+    }else if(saved.length>=350){
+      audit={...audit,status:'needs_review',note:'Más de 349 filas STATS; requiere diagnóstico manual'};
+    }
+    const latest=await db.ImportJob.get(jobId);
+    if(!latest||!['review','completed'].includes(latest.status))
+      return reply({ok:true,status:'waiting_job',job_id:jobId});
+    await db.ImportJob.update(jobId,{
+      source_results:{...(latest.source_results||{}),understat_gap_audit:audit}
+    });
+    return reply({ok:true,status:'audited',job_id:jobId,audit});
+  }
+
   const isSupplement=['preview-missing','apply-missing'].includes(body?.action);
   if(!isSupplement&&body?.action!=='enrich')return reply({ok:false,error:'Operación desconocida'},400);
   const playerId=txt(body.player_id),pid=txt(body.fotmob_player_id);
