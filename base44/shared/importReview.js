@@ -280,8 +280,10 @@ const trustedFotmob=c=>c.source==="fotmob"&&str(c.evidence_url).match(new RegExp
 export async function applyVerifiedHistoricals(db,job,{dryRun=false,maxScopes=Infinity}={}){
   const result={applied:0,pending:0,created_stats:0,created_valuations:0,added_values:0,unchanged_values:0,conflicts:[],errors:[],scopes:[],has_more:false,dry_run:dryRun};
   if(!["review","completed"].includes(job.status))return result;
+  const records=await allRows(db.ImportCandidate,{job_id:job.id,review_status:"pending"});
+  if(!records.length)return result;
   const player=await verifiedIdentity(db,job);
-  const [records,stats,teams,valuations]=await Promise.all([allRows(db.ImportCandidate,{job_id:job.id}),allRows(db.PlayerSeasonStats,{player_id:job.player_id}),allRows(db.Team,{}),allRows(db.PlayerHistoricalValuation,{player_id:job.player_id})]);
+  const [stats,teams,valuations]=await Promise.all([allRows(db.PlayerSeasonStats,{player_id:job.player_id}),allRows(db.Team,{}),allRows(db.PlayerHistoricalValuation,{player_id:job.player_id})]);
   const pending=records.filter(c=>c.review_status==="pending");
   const mark=async ids=>{
     if(dryRun)return;
@@ -362,3 +364,4 @@ export async function applyVerifiedHistoricals(db,job,{dryRun=false,maxScopes=In
   result.pending=Math.max(0,pending.length-result.applied);
   return result;
 }
+
