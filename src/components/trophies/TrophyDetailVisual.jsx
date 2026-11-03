@@ -70,8 +70,10 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
  const playersQuery=useQuery({...completeRecordQueryOptions(base44.entities.Player,["mf-legacy","players"]),enabled:needsPlayers,retry:false});
  const creditsQuery=useQuery({...completeRecordQueryOptions(base44.entities.PlayerTrophyCredit,["mf-legacy","trophies","credits"]),enabled:tab==="Jugadores",retry:false});
  const needHistory=["Resumen","Ediciones","Historia"].includes(tab);
- const robEditionsQuery=useQuery({...completeRecordQueryOptions(base44.entities.TrophyEdition,["mf-legacy","trophies","historical-editions"]),enabled:needHistory,retry:false});
- const robEventsQuery=useQuery({...completeRecordQueryOptions(base44.entities.TrophyHistoricalEvent,["mf-legacy","trophies","historical-events"]),enabled:needHistory,retry:false});
+ const historyTrophyId=String(trophy?.source_id||"");
+ // Only read the opened competition, not every historical result across the library.
+ const robEditionsQuery=useQuery({...completeRecordQueryOptions({list:options=>base44.entities.TrophyEdition.filter({trophy_source_id:historyTrophyId},options)},["mf-legacy","trophies","historical-editions",historyTrophyId]),enabled:needHistory&&Boolean(historyTrophyId),retry:false});
+ const robEventsQuery=useQuery({...completeRecordQueryOptions({list:options=>base44.entities.TrophyHistoricalEvent.filter({trophy_source_id:historyTrophyId},options)},["mf-legacy","trophies","historical-events",historyTrophyId]),enabled:needHistory&&Boolean(historyTrophyId),retry:false});
  const historicalEditions=useMemo(()=>Array.isArray(robEditionsQuery.data)?robEditionsQuery.data:[],[robEditionsQuery.data]);
  const historicalEvents=useMemo(()=>Array.isArray(robEventsQuery.data)?robEventsQuery.data:[],[robEventsQuery.data]);
  const editionCount=historicalEditions.filter(e=>String(e.trophy_source_id)===String(trophy.source_id)).length;
