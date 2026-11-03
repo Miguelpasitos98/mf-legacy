@@ -15,7 +15,7 @@ function Portrait({url,kind}){
 function AwardImage({trophy,manifest}){
  const [bad,setBad]=useState(false);
  return <div className="flex h-[59px] w-[55px] shrink-0 items-center justify-center rounded-lg bg-white">
-  {!bad?<img src={trophyImageUrl(trophy,manifest)} alt="" loading="lazy" className="h-full w-full object-contain px-1 py-1.5" onError={()=>setBad(true)}/>:<Trophy size={22} strokeWidth={1.3} className="text-slate-300"/>}
+  {!bad&&trophyImageUrl(trophy,manifest)?<img src={trophyImageUrl(trophy,manifest)} alt="" loading="lazy" className="h-full w-full object-contain px-1 py-1.5" onError={()=>setBad(true)}/>:<Trophy size={22} strokeWidth={1.3} className="text-slate-300"/>}
  </div>;
 }
 export default function TrophyRankingCard({item,rank,entity,kind="team",manifest,trophiesById,onOpenTrophy,onOpenProfile,onOpenArchive}){
