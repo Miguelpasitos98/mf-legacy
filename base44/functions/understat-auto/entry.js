@@ -74,6 +74,34 @@ export default async function(req){
     saved++;
    }
   }
+  // Safely enrich pre-existing league rows. No season creation, no overwrites,
+  // and no assumption that Understat and FotMob definitions are interchangeable.
+  let statsUpdated=0,metricsAdded=0,statsConflicts=0;
+  const metricKey=x=>txt(x).toLowerCase().replace(/[^a-z0-9]/g,'');
+  for(const candidate of backfill.entries){
+   const current=await db.PlayerSeasonStats.get(candidate.id);
+   if(!current||txt(current.player_id)!==playerId||
+      (txt(current.fotmob_player_id)&&txt(current.fotmob_player_id)!==pid)||
+      current.season!==candidate.season||current.competition!==candidate.competition||
+      current.team_name!==candidate.team_name||current.is_national_team===true){
+    skipped.push({season:candidate.season,reason:'El registro cambió durante la conciliación; revisar'});continue;
+   }
+   const previous=Array.isArray(current.metrics)?current.metrics:[];
+   const known=new Map(previous.filter(m=>m?.name).map(m=>[metricKey(m.name),m]));
+   const additions=[];
+   for(const metric of candidate.metrics){
+    const existingMetric=known.get(metricKey(metric.name));
+    if(existingMetric){
+     if(existingMetric.value!=null&&Number(existingMetric.value)!==Number(metric.value))statsConflicts++;
+     continue;
+    }
+    known.set(metricKey(metric.name),metric);
+    additions.push(metric);
+   }
+   if(!additions.length)continue;
+   await db.PlayerSeasonStats.update(current.id,{metrics:[...previous,...additions]});
+   statsUpdated++;metricsAdded+=additions.length;
+  }
   return reply({ok:true,status:'verified',player:player.name,understat_player_id:result.understat_id,
    saved,updated,unchanged,skipped:[...skipped,...backfill.skipped].slice(0,100),
    stats_updated:statsUpdated,stats_metrics_added:metricsAdded,stats_conflicts:statsConflicts,
