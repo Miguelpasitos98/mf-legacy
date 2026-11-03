@@ -15,7 +15,7 @@ function Crest({team}){
 function SmallTrophy({trophy,manifest,season}){
  const [failed,setFailed]=useState(false);
  return <span className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-lg bg-white p-1">
-  {!failed?<img src={trophyImageUrl(trophy,manifest,season)} alt="" loading="lazy" className="h-full w-full object-contain" onError={()=>setFailed(true)}/>:
+  {!failed&&trophyImageUrl(trophy,manifest,season)?<img src={trophyImageUrl(trophy,manifest,season)} alt="" loading="lazy" className="h-full w-full object-contain" onError={()=>setFailed(true)}/>:
    <Trophy size={23} strokeWidth={1.4} className="text-slate-300"/>}
  </span>;
 }
