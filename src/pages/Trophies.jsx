@@ -151,6 +151,7 @@ export default function Trophies(){
  const selectableGroupView=viewMode==="countries"||viewMode==="leagues";
  const visibleModeGroups=selectableGroupView?(focusedGroup?grouped.filter(g=>g.key===focusedGroup):[]):grouped;
  const allowedClubSourceIds=useMemo(()=>new Set(filtered.map(t=>String(t.source_id))),[filtered]);
+ useEffect(()=>{if(focusedGroup&&!grouped.some(group=>group.key===focusedGroup))setFocusedGroup("");},[focusedGroup,grouped]);
  const teamSelectionName=rows(teamsQuery.data).find(t=>String(t.id)===String(teamFilter))?.name||"";
  
  const selected=useMemo(()=>all.find(t=>String(t.source_id)===String(selectedId))||null,[all,selectedId]);
