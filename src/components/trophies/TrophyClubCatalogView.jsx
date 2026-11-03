@@ -1,13 +1,37 @@
-import React,{useMemo,useState} from "react";
+import React,{useMemo,useRef,useState} from "react";
 import {useQuery} from "@tanstack/react-query";
-import {AlertCircle,ChevronDown,Info,Medal,Search,Shield,SlidersHorizontal,Trophy} from "lucide-react";
+import {AlertCircle,ChevronDown,ChevronLeft,ChevronRight,Info,Medal,Search,Shield,SlidersHorizontal,Trophy} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {groupTrophiesByTeamReputation} from "@/utils/trophyTeamGroups";
 
 const rows=r=>Array.isArray(r)?r:(r?.items||r?.data||[]);
 const choices=[["all","Todos"],["verified","Contrastados"],["historical","Archivo FM24"]];
-const showName=count=>count===1?"trofeo":"trofeos";
+function TrophyHorizontalStrip({group,Card,manifest,onOpen}){
+ const track=useRef(null);
+ const scroll=direction=>track.current?.scrollBy({left:direction*420,behavior:"smooth"});
+ return <div className="min-w-0">
+  <div className="mb-2 flex items-center justify-between gap-2">
+   <span className="text-[10px] font-semibold text-slate-400">De mayor a menor reputación · desplaza para ver todos</span>
+   <div className="flex shrink-0 items-center gap-1">
+    <button type="button" aria-label={"Desplazar trofeos de "+group.team.name+" hacia la izquierda"} onClick={()=>scroll(-1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:text-[#003399]"><ChevronLeft size={17}/></button>
+    <button type="button" aria-label={"Desplazar trofeos de "+group.team.name+" hacia la derecha"} onClick={()=>scroll(1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:text-[#003399]"><ChevronRight size={17}/></button>
+   </div>
+  </div>
+  <div ref={track} role="region" aria-label={"Carrusel horizontal de trofeos de "+group.team.name} tabIndex={0}
+   className="flex min-w-0 snap-x snap-proximity gap-3 overflow-x-auto overscroll-x-contain pb-4 outline-none focus-visible:ring-2 focus-visible:ring-[#003399]"
+   style={{scrollbarWidth:"thin",scrollbarColor:"#94a3b8 #e2e8f0"}}>
+   {group.items.map(item=><div key={item.trophy.source_id} className="w-[182px] shrink-0 snap-start space-y-1.5 sm:w-[195px]">
+    <Card trophy={item.trophy} manifest={manifest} open={()=>onOpen(item.trophy)} count={item.totalWins}/>
+    <div className="flex flex-wrap items-center gap-1" title={"Resultados vinculados al trofeo. "+item.verifiedCount+" adjudicaciones contrastadas; "+item.historicalCount+" años registrados en archivo histórico."}>
+     {item.totalWins>0&&<span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-1 text-[9px] font-bold text-[#003399]"><Medal size={10}/>{item.totalWins} {item.totalWins===1?"título":"títulos"}</span>}
+     {item.runnerUpCount>0&&<span className="rounded bg-slate-100 px-1.5 py-1 text-[9px] font-semibold text-slate-600">{item.runnerUpCount} {item.runnerUpCount===1?"subcampeonato":"subcampeonatos"}</span>}
+     {item.thirdCount>0&&<span className="rounded bg-slate-100 px-1.5 py-1 text-[9px] font-semibold text-slate-600">{item.thirdCount} {item.thirdCount===1?"tercer puesto":"terceros puestos"}</span>}
+    </div>
+   </div>)}
+  </div>
+ </div>;
+}
 
 export default function TrophyClubCatalogView({teams=[],catalog=[],honours=[],manifest,onOpen,Card,allowedIds=null,loading=false,error=false,query=""}){
  const [sourceMode,setSourceMode]=useState("all");
@@ -64,16 +88,7 @@ export default function TrophyClubCatalogView({teams=[],catalog=[],honours=[],ma
       <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[.08em] text-slate-400">{group.items.length} {group.items.length===1?"competición":"competiciones"}</span>
      </div>
      {!isClosed&&(group.items.length>0?
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">
-       {group.items.map(item=><div key={item.trophy.source_id} className="min-w-0 space-y-1.5">
-        <Card trophy={item.trophy} manifest={manifest} open={()=>onOpen(item.trophy)} count={item.totalWins}/>
-        <div className="flex flex-wrap items-center gap-1" title={"Resultados vinculados al trofeo. " + item.verifiedCount + " adjudicaciones contrastadas; " + item.historicalCount + " años registrados en archivo histórico."}>
-         {item.totalWins>0&&<span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-1 text-[9px] font-bold text-[#003399]"><Medal size={10}/>{item.totalWins} {item.totalWins===1?"título":"títulos"}</span>}
-         {item.runnerUpCount>0&&<span className="rounded bg-slate-100 px-1.5 py-1 text-[9px] font-semibold text-slate-600">{item.runnerUpCount} {item.runnerUpCount===1?"subcampeonato":"subcampeonatos"}</span>}
-         {item.thirdCount>0&&<span className="rounded bg-slate-100 px-1.5 py-1 text-[9px] font-semibold text-slate-600">{item.thirdCount} {item.thirdCount===1?"tercer puesto":"terceros puestos"}</span>}
-        </div>
-       </div>)}
-      </div>:
+      <TrophyHorizontalStrip group={group} Card={Card} manifest={manifest} onOpen={onOpen}/>: 
       <div className="flex items-center gap-2 rounded-xl border border-dashed border-slate-200 bg-white/60 px-4 py-3 text-[11px] text-slate-400"><Trophy size={14}/> Sin trofeos vinculados en MF LEGACY para este filtro.</div>
      )}
     </section>;
