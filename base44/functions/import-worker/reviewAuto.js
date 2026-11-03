@@ -49,6 +49,22 @@ export function metricPlan(item,player,existing,teamLink={}) {
   if(target&&str(target.fotmob_tournament_id)&&str(item.fotmob_tournament_id)&&str(target.fotmob_tournament_id)!==str(item.fotmob_tournament_id))throw Error("Competiciones homónimas con distinto ID oficial.");
   if(target&&typeof target.is_national_team==="boolean"&&typeof item.is_national_team==="boolean"&&target.is_national_team!==item.is_national_team)throw Error("Club y selección incompatibles.");
   const metrics=Array.isArray(target?.metrics)?target.metrics.map(m=>({...m})):[];
+  // Understat and FotMob may legitimately publish different minutes for the
+  // same league season. Preserve both denominators without rewriting the
+  // established season total, and do not let this block the other indicators.
+  if(target&&item.source==="fotmob"&&norm(item.metric_name)==="minutes"&&
+      item.metric_unit==="total"&&!empty(target.minutes)&&Number(target.minutes)!==item.value&&
+      metrics.some(m=>metricId(m.name)==="understat minutes")){
+    const match=metrics.filter(m=>metricId(m.name)==="fotmob minutes");
+    if(match.length>1||match.length===1&&!empty(match[0].value)&&Number(match[0].value)!==item.value)
+      throw Error("Minutos FotMob contradictorios; requiere revisión.");
+    if(match.length===1&&!empty(match[0].value))return {operation:"unchanged",target_id:target.id,record:{}};
+    const fotmobMinutes={name:"FotMob minutes",value:item.value,unit:"total",source:"fotmob",
+      source_url:item.evidence_url,verification_status:item.verification_status||"unverified",
+      ...(item.provenance?{provenance:item.provenance}:{})};
+    if(match.length===1)Object.assign(match[0],fotmobMinutes);else metrics.push(fotmobMinutes);
+    return {operation:"update",target_id:target.id,record:{metrics}};
+  }
   const indices=metrics.map((m,i)=>metricId(m.name)===metricId(item.metric_name)?i:-1).filter(i=>i>=0);
   if(indices.length>1)throw Error("La métrica tiene variantes existentes; requiere conciliación.");
   const idx=indices[0]??-1;
