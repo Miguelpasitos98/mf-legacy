@@ -4,7 +4,7 @@ import {BookOpenCheck,ChevronDown,FileJson,Link2,Search,ShieldAlert,Upload,Downl
 import {base44} from "@/api/base44Client";
 import TeamSearchPicker from "./TeamSearchPicker";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
-import {previewPalmaresBatch,materializePalmaresEntries,palmaresImportPlan,validatePalmaresBatch} from "@/utils/trophyPalmaresImport";
+import {previewPalmaresBatch,materializePalmaresEntries,palmaresImportPlan,validatePalmaresBatch,normalizePalmaresBatch} from "@/utils/trophyPalmaresImport";
 
 const QUERY=["mf-legacy","trophies","fm24-palmares-entries"];
 const slug=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("es").trim();
@@ -61,7 +61,10 @@ export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[]}){
   const sameName=teams.filter(t=>slug(t.name)===slug(input.team.name));
   const selected=teams.find(t=>String(t.id)===String(input.team.id))||(sameName.length===1?sameName[0]:null);
   const data={...input,team:{...input.team,id:selected?.id||"",name:selected?.name||input.team.name}};
-  setBatch(data);setGroups(selected?previewPalmaresBatch(data,catalog,teams).groups:[]);setShowAll(false);setOnlyReview(true);setFilter("");setNotice("");setError("");
+  setBatch(data);setGroups(selected?previewPalmaresBatch(data,catalog,teams).groups:[]);setShowAll(false);setOnlyReview(true);setFilter("");setError("");
+  setNotice(normalized.changes.length||normalized.pending.length
+   ?"Formato corregido automáticamente: "+normalized.changes.filter(x=>!x.startsWith("Sin años:")).length+" puestos normalizados y "+normalized.pending.length+" competiciones sin resultados conservadas para revisión."
+   :"JSON validado. Revisa las coincidencias antes de importarlo.");
  };
  const loadExample=async()=>{
   setError("");setNotice("");
@@ -74,7 +77,9 @@ export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[]}){
  };
  const upload=async event=>{
   const file=event.target.files?.[0];event.target.value="";if(!file)return;
-  try{if(file.size>2*1024*1024)throw Error("El JSON supera 2 MB.");readBatch(JSON.parse(await file.text()));}
+  try{if(file.size>2*1024*1024)throw Error("El JSON supera 2 MB.");const content=await file.text();
+    let json;try{json=JSON.parse(content);}catch(parseError){throw Error(parseError instanceof SyntaxError?"JSON incompleto o mal cerrado: vuelve a descargar el archivo completo. "+parseError.message:parseError.message);}
+    readBatch(json);}
   catch(e){setError("No se pudo abrir el JSON: "+(e?.message||e));}
  };
  const chooseTeam=id=>{

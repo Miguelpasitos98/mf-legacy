@@ -20,6 +20,27 @@ const baseName=name=>norm(name).replace(/\s+\d{4}\s+\d{4}$/,"").replace(/\s+(?:t
 const slashName=name=>norm(name).replace(/\bde\b/g,"").replace(/\bthe\b/g,"").trim();
 const yearKey=(teamId,name,rank,year)=>[String(teamId),norm(name),rank,String(year)].join("|");
 export const palmaresBatchId=batch=>"fm24_"+String(batch.team?.id||"unknown")+"_"+(batch.source_type||"screenshot");
+// Normalize common exporter synonyms; unresolved competitions remain visible as review notes.
+export function normalizePalmaresBatch(input){
+ if(!input||!Array.isArray(input.competitions))throw Error("El archivo no contiene la lista de competiciones.");
+ const pending=[...(Array.isArray(input.competitions_pending_review)?input.competitions_pending_review:[])];
+ const changes=[],competitions=[];
+ for(const c of input.competitions){
+  if(!Array.isArray(c.placements))throw Error("La competición "+String(c.raw_name||"sin nombre")+" no tiene una lista de puestos válida.");
+  if(c.placements.length===0){
+   pending.push({raw_name:c.raw_name,capture_index:c.capture_index,source_note:c.source_note||"",review_note:c.review_note||"No hay años visibles para importar."});
+   changes.push("Sin años: "+c.raw_name);continue;
+  }
+  const placements=c.placements.map(p=>{
+   const names={third_place:"third",thirdplace:"third",third_position:"third",thirdposition:"third",champion:"winner",runnerup:"runner_up",second:"runner_up"};
+   const rank=names[p.rank]||p.rank;
+   if(rank!==p.rank)changes.push(c.raw_name+": "+p.rank+" → "+rank);
+   return {...p,rank};
+  });
+  competitions.push({...c,placements});
+ }
+ return {data:{...input,competitions,competitions_pending_review:pending},changes,pending};
+}
 export function validatePalmaresBatch(data){
  if(data?.format!==PALMARES_FORMAT)throw Error("Formato incorrecto: se esperaba "+PALMARES_FORMAT);
  if(!data.team?.name||!Array.isArray(data.competitions)||!data.competitions.length)throw Error("Faltan el nombre del equipo o las competiciones.");
