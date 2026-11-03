@@ -10,6 +10,8 @@ const norm = normalizeTrophyName;
 
 // Audited anchors. Match exact names or source IDs, never broad substrings.
 const ANCHORS = [
+ {id:'2000335360',names:['Corinthian Bowl (1906-1913)'],score:66,country:'Suecia',basis:'Copa sueca histórica celebrada entre 1906 y 1913, de gran valor patrimonial pero escasa notoriedad fuera del país.',url:'https://globalsportsarchive.com/en/soccer/competition/corinthian-bowl-1906/10099'},
+ {id:'2000335356',names:['Bass Charity Vase'],score:74,country:'Inglaterra',friendly:true,basis:'Trofeo benéfico amistoso inglés disputado desde 1890; gran tradición local y notoriedad internacional limitada.',url:'https://www.lcfc.com/media-article/The-Bass-Charity-Vase-A-History'},
  {names:['Youdan Football Cup','Youdan Cup'],score:105,country:'Inglaterra',region:'Sheffield',basis:'Primer torneo documentado por un trofeo de fútbol (1867); notable importancia patrimonial, difusión histórica limitada.',url:'https://www.guinnessworldrecords.com/world-records/75075-oldest-competition-for-a-trophy-in-football-soccer'},
  {names:['FA Amateur Cup'],score:110,country:'Inglaterra',basis:'Copa inglesa amateur de larga tradición (1893–1974), con finales muy concurridas.',url:'https://www.fchd.info/cups/amcupsummary.htm'},
  {names:['Drybrough Cup (1971-80)','Drybrough Cup'],score:85,country:'Escocia',basis:'Copa escocesa histórica de corta duración, recordada en el fútbol de clubes nacional.',url:'https://www.scottishfootballmuseum.org.uk/news/the-drybrough-cup/'},
