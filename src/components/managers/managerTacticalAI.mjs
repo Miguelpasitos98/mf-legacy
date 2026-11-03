@@ -1,4 +1,7 @@
 import {DNA_AXES,PROFILE_BLANK,ROLES,validSeason,profileScope} from "./managerModel.mjs";
+import {normalizeFormationDescription} from "./managerFormationNormalization.mjs";
+import {normalizeExplicitSeason,resolveExplicitManagerPeriod} from "./managerSeasonNormalization.mjs";
+export {normalizeManagerFormation} from "./managerFormationNormalization.mjs";
 
 export const FORMATIONS = ["4-3-3","4-2-3-1","4-4-2","3-5-2","3-4-3","4-3-1-2","5-3-2","4-1-4-1"];
 export const TACTICAL_JSON_EXAMPLE = {
@@ -33,7 +36,7 @@ INSTRUCCIONES DEL USUARIO (orientativas): ${userNotes||"No hay"}
 Objetivo: elaborar un borrador de ADN táctico explicable para el editor Manager DNA. Investiga y contrasta, si es real, la filosofía de juego y el periodo solicitado, con fuentes de clubes, federaciones, competiciones y análisis tácticos reputados. Distingue periodos/clubes del entrenador y no atribuyas un estilo constante a toda su trayectoria. Si el nombre es ambiguo o no hay evidencia suficiente, devuelve identificable=false, sin inventar valores.
 ${fictional?"Este técnico es FICTICIO: plantea una interpretación creativa coherente con las indicaciones del usuario. No atribuyas fuentes reales ni afirmes que es evidencia histórica.":""}
 Evalúa y estima seis parámetros de 0 a 100: possession (0 juego directo, 100 posesión), pressing (0 repliegue pasivo, 100 presión intensa), tempo (0 pausado, 100 transiciones muy verticales), defensive_line (0 bloque bajo, 100 línea alta), attacking_width (0 juego interior, 100 bandas), risk_taking (0 conservador, 100 creativo). IMPORTANTE: los números son una estimación analítica subjetiva para un editor, NO estadísticas observadas ni cifras oficiales. Evita extremos sin pruebas.
-Prioriza formation entre ${FORMATIONS.join(", ")}, pero si la formación histórica contrastada es otra (por ejemplo 4-2-2-2, 3-4-2-1 o 4-1-2-1-2), consérvala exactamente como sistema de diez jugadores de campo separado por guiones; NO la sustituyas por otra. CAMPOS ENUMERADOS: build_up SOLO short/mixed/direct (tipo de salida con balón); transition SOLO counter_press/regroup/balanced (reacción DEFENSIVA tras perder la posesión); defensive_block SOLO low/medium/high (altura de bloque). IMPORTANTE: fast_break, counter_attack, quick_transition y transiciones rápidas describen fases OFENSIVAS, NO son valores válidos para transition. Expresa esa velocidad con tempo y profile_notes. Si falta evidencia sobre la reacción tras pérdida, utiliza transition=balanced como marcador neutral y EXPLICA EN LAS NOTAS la incertidumbre; no atribuyas presión tras pérdida sin prueba. Describe qué busca en un GK, CB, FB, DM, AM, WG y ST, adaptado al periodo. Si un rol no tiene evidencia, escribe "Sin información suficiente"; no inventes atributos verificados. Identifica también el ALCANCE exacto del perfil. Escribe profile_scope: "general" si realmente describes filosofía transversal de varias etapas sin fechas; "period" si analizas una etapa de VARIAS temporadas; "season" si analizas una campaña concreta. Para "period": indica reference_club, period_start y period_end con formato YYYY/YYYY (inclusive). Para "season": indica season con formato YYYY/YYYY. Para "general": deja vacíos los campos temporales y reference_club. suggested_name debe ser un título breve, por ejemplo "Liverpool 2018–2020", "Liverpool 2019/2020" o "Filosofía general". Si tienes dudas sobre las fechas, no inventes: usa "general" e indica incertidumbre. En profile_notes incluye explicación breve por líneas, argumentos sobre los valores y advertencias de incertidumbre; en source_urls solo URLs verdaderamente comprobadas, nunca inventadas.
+La formación NO está limitada a una lista cerrada. Puedes utilizar sistemas clásicos, actuales y subvariantes como "4-4-2 (rombo)", "4-3-3 (falso nueve)", "4-6-0", "2-3-5". Prioriza formation entre ${FORMATIONS.join(", ")}, pero si la formación histórica contrastada es otra (por ejemplo 4-2-2-2, 3-4-2-1 o 4-1-2-1-2), conserva la denominación histórica con la variante entre paréntesis si importa; el importador normalizará la disposición numérica de diez jugadores y guardará la variante en las notas. NO la sustituyas por otra distinta. CAMPOS ENUMERADOS: build_up SOLO short/mixed/direct (tipo de salida con balón); transition SOLO counter_press/regroup/balanced (reacción DEFENSIVA tras perder la posesión); defensive_block SOLO low/medium/high (altura de bloque). IMPORTANTE: fast_break, counter_attack, quick_transition y transiciones rápidas describen fases OFENSIVAS, NO son valores válidos para transition. Expresa esa velocidad con tempo y profile_notes. Si falta evidencia sobre la reacción tras pérdida, utiliza transition=balanced como marcador neutral y EXPLICA EN LAS NOTAS la incertidumbre; no atribuyas presión tras pérdida sin prueba. Describe qué busca en un GK, CB, FB, DM, AM, WG y ST, adaptado al periodo. Si un rol no tiene evidencia, escribe "Sin información suficiente"; no inventes atributos verificados. Identifica también el ALCANCE exacto del perfil. Escribe profile_scope: "general" si realmente describes filosofía transversal de varias etapas sin fechas; "period" si analizas una etapa de VARIAS temporadas; "season" si analizas una campaña concreta. Para "period": indica reference_club, period_start y period_end como temporadas exactas YYYY/YYYY (inclusive), no años calendario sueltos como "2014" ni rangos ambiguos como "2014-2016"; si solo puedes acreditar UNA campaña usa "season". Para "season": indica season con formato YYYY/YYYY. Para "general": deja vacíos los campos temporales y reference_club. suggested_name debe ser un título breve, por ejemplo "Liverpool 2018–2020", "Liverpool 2019/2020" o "Filosofía general". Si tienes dudas sobre las fechas, no inventes: usa "general" e indica incertidumbre. En profile_notes incluye explicación breve por líneas, argumentos sobre los valores y advertencias de incertidumbre; en source_urls solo URLs verdaderamente comprobadas, nunca inventadas.
 
 RESPONDE SOLO JSON VÁLIDO con exactamente estas claves y tipos:
 {"identifiable":true,"confidence":"high|medium|low","profile_scope":"general|period|season","reference_club":"club si procede","period_start":"YYYY/YYYY o vacío","period_end":"YYYY/YYYY o vacío","season":"YYYY/YYYY o vacío","suggested_name":"Nombre breve","formation":"4-3-3","possession":0,"pressing":0,"tempo":0,"defensive_line":0,"attacking_width":0,"risk_taking":0,"build_up":"short|mixed|direct","transition":"counter_press|regroup|balanced","defensive_block":"low|medium|high","player_role_priorities":{"GK":"texto","CB":"texto","FB":"texto","DM":"texto","AM":"texto","WG":"texto","ST":"texto"},"profile_notes":"explicación española con periodo y matices","source_urls":["https://fuente-real"]}.
@@ -57,28 +60,35 @@ function unwrapJSON(result) {
 
 // Older JSON exports have no structured dates. Only inspect the explicit
 // "ETAPA REPRESENTADA" introduction, never the full biography/history list.
-export function inferManagerProfileContext(data){
+export function inferManagerProfileContext(data,{onWarning}={}){
   const scope=data?.profile_scope;
   if(["general","period","season"].includes(scope)){
     const club=String(data.reference_club||"").trim().slice(0,160);
-    if(scope==="season" && validSeason(data.season))
-      return {scope,reference_club:club,season:data.season,period_start:"",period_end:"",suggested_name:String(data.suggested_name||"").trim(),origin:"structured"};
-    if(scope==="period" && validSeason(data.period_start) && validSeason(data.period_end) &&
-      data.period_start < data.period_end)
-      return {scope,reference_club:club,season:"",period_start:data.period_start,period_end:data.period_end,
-        suggested_name:String(data.suggested_name||"").trim(),origin:"structured"};
-    if(scope==="general")
-      return {scope,reference_club:"",season:"",period_start:"",period_end:"",suggested_name:String(data.suggested_name||"").trim(),origin:"structured"};
-    throw Error("La IA ha indicado un periodo sin fechas compatibles; revisa su respuesta.");
+    const resolved=resolveExplicitManagerPeriod(data,scope);
+    const suggested_name=String(data.suggested_name||"").trim();
+    if(resolved.origin==="invalid_dates"){
+      onWarning?.({field:"periodo",original:JSON.stringify(resolved.raw),fallback:"general (provisional)",
+        reason:"no hay dos temporadas explícitas, consecutivas y ordenadas; se conserva la referencia original para revisión, sin inventar fechas"});
+      return {...resolved,reference_club:"",suggested_name:suggested_name||"Filosofía general (fechas por revisar)"};
+    }
+    if(resolved.scope!==scope){
+      onWarning?.({field:"profile_scope",original:scope,fallback:resolved.scope,
+        reason:resolved.scope==="season"?"las fechas indican una sola campaña documentada":"las fechas indican varias campañas; se ha corregido el alcance sin alterar las temporadas"});
+    }
+    return {...resolved,reference_club:resolved.scope==="general"?"":club,
+      suggested_name,origin:resolved.origin==="corrected"?"dates_corrected":"structured"};
   }
+  // Only read the explicitly labelled stage heading from legacy JSON.
+  // Do not mine the rest of a biography for dates.
   const notes=String(data?.profile_notes||"");
   const match=notes.match(/(?:^|\n)\s*ETAPA REPRESENTADA\s*:\s*([^\n]{0,350})/i);
   if(match){
     const header=match[1];
-    const seasons=[...new Set((header.match(/(?:19|20)\d{2}\/(?:19|20)\d{2}/g)||[]).filter(validSeason))].sort();
-    const club=header.split(/[,.;]|(?:temporadas?|campañas?|periodo|período)/i)[0]
+    const rawSeasons=header.match(/(?:19|20)\d{2}[\s/.-]+(?:(?:19|20)\d{2}|\d{2})/g)||[];
+    const seasons=[...new Set(rawSeasons.map(normalizeExplicitSeason).filter(Boolean))].sort();
+    const club=header.split(/[,.;]|(?:temporadas?|campa(?:n|ñ)as?|periodo|período)/i)[0]
       .replace(/\b(?:FC|CF|F\.C\.)\b/gi,"").trim().slice(0,160);
-    if(seasons.length>=2 && seasons[0]<seasons[seasons.length-1]){
+    if(seasons.length>=2&&seasons[0]<seasons[seasons.length-1]){
       const start=seasons[0],end=seasons[seasons.length-1];
       return {scope:"period",reference_club:club,season:"",period_start:start,period_end:end,
         suggested_name:[club,start.slice(0,4)+"–"+end.slice(5)].filter(Boolean).join(" "),origin:"explicit_notes"};
@@ -180,21 +190,6 @@ export const formatTacticalWarnings=warnings=>(warnings||[]).length?
  warnings.map(w=>"- "+w.field+": la IA devolvió "+JSON.stringify(w.original)+
  " → valor provisional "+JSON.stringify(w.fallback)+". Motivo: "+w.reason+".").join("\n"):"";
 
-// Coach histories may contain formations not available as editable pitch presets.
-// Retain a valid eleven-player outfield formation rather than silently replacing it
-// with a different shape (for example 4-2-2-2 is NOT 4-2-3-1).
-export function normalizeManagerFormation(raw){
- if(typeof raw!=="string")throw Error("Formación ausente o no textual: "+JSON.stringify(raw));
- const stripped=raw.trim().replace(/[–—−_./\s]+/g,"-").replace(/^-+|-+$/g,"");
- const canonical=stripped.replace(/^sistema-?/i,"").replace(/^formaci[oó]n-?/i,"");
- const parts=canonical.split("-");
- const counts=parts.map(Number);
- if(parts.length<2||parts.length>5||parts.some(p=>!/^\d$/.test(p))||
-    counts.some(n=>n<1||n>5)||counts[0]<3||counts[0]>5||counts.reduce((a,b)=>a+b,0)!==10)
-  throw Error("La formación no es válida: "+JSON.stringify(raw)+
-    ". Introduce una distribución válida de 10 jugadores de campo, por ejemplo 4-2-2-2, sin contar al portero.");
- return parts.join("-");
-}
 export function parseManagerTacticalResponse(input) {
   const data=unwrapJSON(input);
   if(data.identifiable!==true)throw Error(String(data.reason||"La identidad o el estilo del entrenador no se han podido verificar.").slice(0,250));
@@ -202,7 +197,9 @@ export function parseManagerTacticalResponse(input) {
   const onWarning=warning=>warnings.push(warning);
   const confidence=normalizeResearchConfidence(data.confidence,{onWarning});
   const scope=normalizeResearchScope(data,{onWarning});
-  const formation=normalizeManagerFormation(data.formation);
+  const shape=normalizeFormationDescription(data.formation);
+  const formation=shape.formation;
+  if(shape.warning)onWarning(shape.warning);
   const tacticalValues=Object.fromEntries(["build_up","transition","defensive_block"]
     .map(key=>[key,normalizeTacticalEnum(key,data[key],{onWarning})]));
   const numeric={};
@@ -223,7 +220,7 @@ export function parseManagerTacticalResponse(input) {
     throw Error("Falta la justificación del análisis táctico.");
   const sourceUrls=Array.isArray(data.source_urls)
     ? [...new Set(data.source_urls.filter(validHttp).map(x=>x.trim()))].slice(0,8):[];
-  const context=inferManagerProfileContext(scope===null?data:{...data,profile_scope:scope});
+  const context=inferManagerProfileContext(scope===null?data:{...data,profile_scope:scope},{onWarning});
   return {context,values:{...numeric,formation,...tacticalValues},roleText,notes:data.profile_notes.trim().slice(0,3500),
     sourceUrls,confidence,warnings};
 }
@@ -233,7 +230,7 @@ export function parseManagerTacticalResponse(input) {
 export function effectiveProfileContext(current,parsed){
   const suggested=parsed.context||inferManagerProfileContext({});
   const existingScope=profileScope(current);
-  if(suggested.origin==="not_specified" && (
+  if(["not_specified","invalid_dates"].includes(suggested.origin) && (
     existingScope==="season" || existingScope==="period" ||
     Boolean(current?.period_start||current?.period_end||current?.season)
   ))return {scope:existingScope,reference_club:current.reference_club||"",

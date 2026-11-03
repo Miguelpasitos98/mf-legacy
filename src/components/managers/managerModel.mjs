@@ -1,3 +1,4 @@
+import {normalizeFormationDescription} from "./managerFormationNormalization.mjs";
 export const DNA_AXES = [
   { key:"possession", label:"Control del balón", low:"Juego directo", high:"Posesión" },
   { key:"pressing", label:"Intensidad de presión", low:"Pasivo", high:"Presión intensa" },
@@ -73,6 +74,7 @@ export const cleanProfile = (raw,managerId,roleText={}) => {
    throw Error("El periodo necesita temporadas de inicio y fin válidas y ordenadas.");
  if(scope==="period"&&periodStart===periodEnd)throw Error("Para una única temporada selecciona «Temporada específica».");
 
+ const shape=normalizeFormationDescription(String(raw.formation||"4-3-3"));
  const source=String(raw.source_url||"").trim();
  if(source && !/^https?:\/\//i.test(source))throw Error("La fuente táctica debe ser una URL http(s).");
  const roles=Object.fromEntries(ROLES.map(r=>[r.key,String(roleText[r.key]||"").trim()]).filter(([,v])=>v));
@@ -82,13 +84,14 @@ export const cleanProfile = (raw,managerId,roleText={}) => {
   period_start:scope==="period"?periodStart:"",
   period_end:scope==="period"?periodEnd:"",
   reference_club:scope==="general"?"":club,
-  formation:String(raw.formation||"4-3-3").trim(),
+  formation:shape.formation,
   ...Object.fromEntries(DNA_AXES.map(({key})=>[key,clampAxis(raw[key])])),
   build_up:["short","mixed","direct"].includes(raw.build_up)?raw.build_up:"mixed",
   transition:["counter_press","regroup","balanced"].includes(raw.transition)?raw.transition:"balanced",
   defensive_block:["low","medium","high"].includes(raw.defensive_block)?raw.defensive_block:"medium",
   player_role_priorities:JSON.stringify(roles),
-  profile_notes:String(raw.profile_notes||"").trim(),source_url:source,
+  profile_notes:[String(raw.profile_notes||"").trim(),...(shape.warning&&!String(raw.profile_notes||"").includes(shape.original)?
+    ["FORMACIÓN ORIGINAL (variante de referencia): "+shape.original+". "+shape.warning.reason]:[])].filter(Boolean).join("\n\n"),source_url:source,
   career_model_key:String(raw.career_model_key||"").trim(),
   success_tier:["very_successful","successful","mixed","limited","unknown"].includes(raw.success_tier)?raw.success_tier:"unknown",
   evidence_summary:String(raw.evidence_summary||"").trim(),
