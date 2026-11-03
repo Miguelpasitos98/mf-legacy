@@ -1,5 +1,6 @@
 import {createClientFromRequest} from 'npm:@base44/sdk';
 import {ARCHIVE_URL,ARCHIVE_SHA256,readArchive,deriveRates,deriveStatsBackfill} from './core.mjs';
+import {planHistoricalMissing,checkedImportCandidate,archiveMetrics,missingMetrics,externalArchiveId} from './missingPlan.mjs';
 
 const txt=x=>String(x??'').trim();
 const rows=x=>Array.isArray(x)?x:x?.items||x?.data||x?.entities||[];
@@ -27,7 +28,8 @@ export default async function(req){
   if(user.role!=='admin')return reply({ok:false,error:'Solo administradores'},403);
   const body=await req.json();
   if(body?.action==='health')return reply({ok:true,source:'Understat · archivo histórico verificado',last_full_season:'2024/2025'});
-  if(body?.action!=='enrich')return reply({ok:false,error:'Operación desconocida'},400);
+  const isSupplement=['preview-missing','apply-missing'].includes(body?.action);
+  if(!isSupplement&&body?.action!=='enrich')return reply({ok:false,error:'Operación desconocida'},400);
   const playerId=txt(body.player_id),pid=txt(body.fotmob_player_id);
   if(!/^[a-f0-9]{24}$/i.test(playerId)||! /^\d{1,15}$/.test(pid))return reply({ok:false,error:'Identidad inválida'},400);
   const db=sdk.asServiceRole.entities;
@@ -41,10 +43,64 @@ export default async function(req){
    return reply({ok:false,error:'Primero confirma una vinculación FotMob única'},409);
   const seasons=rows(await db.PlayerSeasonStats.filter({player_id:playerId},undefined,350));
   if(seasons.length>=350)return reply({ok:false,error:'Historial demasiado amplio para verificar íntegramente'},409);
-  if(!seasons.length)return reply({ok:true,status:'no_stats',saved:0,reason:'Importa primero las temporadas FotMob'});
+  if(!isSupplement&&!seasons.length)return reply({ok:true,status:'no_stats',saved:0,reason:'Importa primero las temporadas FotMob'});
   if(seasons.some(s=>txt(s.fotmob_player_id)&&txt(s.fotmob_player_id)!==pid))
    return reply({ok:false,error:'Historial con IDs FotMob contradictorios'},409);
   const candidates=readArchive(await archiveText(),player.name);
+  if(isSupplement){
+    const options={understat_id:txt(body.understat_id),confirm_identity:body.confirm_identity===true};
+    const plan=planHistoricalMissing(candidates,seasons,options);
+    if(body.action==='preview-missing')
+      return reply({ok:true,...plan,source_url:ARCHIVE_URL});
+    if(body.confirm_apply!==true)return reply({ok:false,error:'La incorporación exige autorización explícita por temporada'},400);
+    if(txt(body.source_revision)!==ARCHIVE_SHA256)return reply({ok:false,error:'La versión del archivo cambió: actualiza la vista previa'},409);
+    const key=txt(body.row_key);
+    // Recheck current source and database immediately before modifying one row.
+    const latest=rows(await db.PlayerSeasonStats.filter({player_id:playerId},undefined,350));
+    if(latest.length>=350)return reply({ok:false,error:'Historial demasiado amplio para una importación segura'},409);
+    const fresh=planHistoricalMissing(candidates,latest,options);
+    const proposal=checkedImportCandidate(fresh,key);
+    if(!proposal)return reply({ok:false,error:'La propuesta ya no está disponible o no supera la revisión de identidad'},409);
+    const source=(candidates.get(fresh.understat_id)||[]).find(x=>[x.season,x.league,x.team].length&&
+      x.season===proposal.season&&x.league===proposal.league_key&&
+      // Proposed and source team refer to the exact same archived observation.
+      x.team===proposal.team);
+    if(!source)return reply({ok:false,error:'El registro original ya no coincide'},409);
+    const incoming=archiveMetrics(source,fresh.understat_id);
+    if(proposal.action==='create'){
+      const external=externalArchiveId(fresh.understat_id,proposal);
+      const duplicate=rows(await db.PlayerSeasonStats.filter({external_record_id:external},undefined,5));
+      if(duplicate.length)return reply({ok:false,error:'La temporada de archivo ya existe, actualiza la vista previa'},409);
+      const saved=await db.PlayerSeasonStats.create({
+        external_record_id:external,player_id:playerId,fotmob_player_id:pid,
+        player_name:player.name,season:proposal.season,competition:proposal.league,
+        team_name:proposal.team,minutes:source.minutes,appearances:Number.isInteger(source.stats?.games)?source.stats.games:null,
+        metrics:incoming,source:'understat',verification_status:'verified',
+        review_status:'approved',is_national_team:false
+      });
+      return reply({ok:true,status:'created',season:proposal.season,
+        team:proposal.team,record_id:saved.id,metrics_added:incoming.length,
+        notice:'Nueva temporada de liga creada desde Understat. Club pendiente de vinculación cuando no exista ID verificado.'});
+    }
+    if(proposal.action!=='complete'||!proposal.existing_id)return reply({ok:false,error:'Acción no reconocida'},409);
+    const record=await db.PlayerSeasonStats.get(proposal.existing_id);
+    if(!record||txt(record.player_id)!==playerId||record.season!==proposal.season||
+       record.team_name!==proposal.team||record.competition!==proposal.league&&
+       !proposal.existing_id)return reply({ok:false,error:'La ficha cambió; actualiza la vista previa'},409);
+    const existing=Array.isArray(record.metrics)?record.metrics:[];
+    const additions=missingMetrics(existing,incoming);
+    if(!additions.length)return reply({ok:true,status:'unchanged',season:proposal.season,metrics_added:0});
+    // Replace only placeholders with an absent value; never replace real numbers (including 0).
+    const replaced=existing.map(m=>{
+      const add=additions.find(a=>String(a.name).toLowerCase()===String(m.name).toLowerCase());
+      return add&&(m.value===null||m.value===undefined||m.value==='')?add:m;
+    });
+    const existingNames=new Set(existing.map(m=>String(m.name||'').toLowerCase()));
+    const next=[...replaced,...additions.filter(m=>!existingNames.has(String(m.name).toLowerCase()))];
+    await db.PlayerSeasonStats.update(record.id,{metrics:next});
+    return reply({ok:true,status:'completed',season:proposal.season,
+      team:proposal.team,record_id:record.id,metrics_added:additions.length});
+  }
   const result=deriveRates(candidates,seasons);
   const backfill=deriveStatsBackfill(candidates,seasons);
   if(result.status!=='verified')return reply({ok:true,status:result.status,saved:0,
