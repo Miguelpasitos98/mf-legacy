@@ -83,7 +83,7 @@ export default function ManagerFit(){
  const historicalIndex=useMemo(()=>{
   const peers=historicalRoleCandidates(players,role);
   const result=new Map();
-  for(const p of peers)result.set(String(p.id),collectPlayerSeasonMetrics(seasonStats,understatRows,season,p.id));
+  for(const p of peers)result.set(String(p.id),{...collectPlayerSeasonMetrics(seasonStats,understatRows,season,p.id),__playerId:String(p.id)});
   return result;
  },[players,role,seasonStats,understatRows,season]);
  const historicalPeerMetrics=useMemo(()=>[...historicalIndex.values()],[historicalIndex]);
@@ -94,7 +94,7 @@ export default function ManagerFit(){
    .map(item=>({...item,valuation:valuationForSeason(valuationRows,item.player.id,season),
      advanced:managerFitAttributes(item.player,role,profile),
      historical:seasonPercentiles(historicalIndex.get(String(item.player.id))||{},historicalPeerMetrics,role,profile),
-     roleFit:evaluateRoleRequirements(historicalIndex.get(String(item.player.id))||{},historicalPeerMetrics,role,profile)}));
+     roleFit:evaluateRoleRequirements(historicalIndex.get(String(item.player.id))||{},historicalPeerMetrics,role,profile,{playerId:item.player.id})}));
   const eligible=filterScoutingCandidates(rows,{season,
     minAge:minAge===""?null:Number(minAge),maxAge:maxAge===""?null:Number(maxAge),
     maxValueM:maxValueM===""?null:Number(maxValueM),knownValueOnly,minimumCoverage,coverageMode:scoreMode});
@@ -107,7 +107,7 @@ export default function ManagerFit(){
   return compareCandidates(comparedIds.map(playerId=>{
    const player=players.find(p=>String(p.id)===String(playerId));
    return player?{player,valuation:valuationForSeason(valuationRows,player.id,season),
-    roleFit:evaluateRoleRequirements(historicalIndex.get(String(player.id))||{},historicalPeerMetrics,role,profile),
+    roleFit:evaluateRoleRequirements(historicalIndex.get(String(player.id))||{},historicalPeerMetrics,role,profile,{playerId:player.id}),
     historical:seasonPercentiles(historicalIndex.get(String(player.id))||{},historicalPeerMetrics,role,profile),
     advanced:managerFitAttributes(player,role,profile)}:null;
   }).filter(Boolean),comparedIds);
@@ -117,7 +117,7 @@ export default function ManagerFit(){
  const scoutingRow=scoutingPlayer&&profile?{
   player:scoutingPlayer,advanced:managerFitAttributes(scoutingPlayer,role,profile),
   historical:seasonPercentiles(historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,role,profile),
-  roleFit:evaluateRoleRequirements(historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,role,profile)
+  roleFit:evaluateRoleRequirements(historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,role,profile,{playerId:scoutingPlayer.id})
  }:null;
  const scoutingReport=scoutingRow?buildScoutingReport(scoutingPlayer,role,profile,season,scoutingRow.roleFit,scoutingRow.historical,scoutingRow.advanced):null;
  const scoutingComparison=scoutingRow?compareManagerProfiles(scoutingPlayer,role,season,profileOptions,historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,evaluateRoleRequirements):[];
