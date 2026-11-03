@@ -67,11 +67,12 @@ test("una discrepancia de minutos no bloquea entradas, goles y despejes de FotMo
    fotmob_team_id:"8634",team_name:"Barcelona",fotmob_tournament_id:"87",
    minutes:1018,appearances:28,metrics:[{name:"Minutes",value:1018,unit:"total",source:"understat"}]});
  const result=await applyVerifiedHistoricals(f.db,f.job);
- assert.equal(result.applied,2);
+ assert.equal(result.applied,3);
  assert.equal(f.saved[0].minutes,1018);
+ assert.equal(f.saved[0].metrics.find(m=>m.name==="FotMob minutes")?.value,1028);
  assert.equal(f.saved[0].metrics.find(m=>m.name==="Tackles")?.value,22);
  assert.equal(f.saved[0].metrics.find(m=>m.name==="Clearances")?.value,48);
- assert.equal(f.candidates[0].review_status,"pending");
+ assert.equal(f.candidates[0].review_status,"applied");
  assert.equal(f.candidates[1].review_status,"applied");
 });
 
