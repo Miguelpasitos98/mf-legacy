@@ -1,6 +1,7 @@
 import {createClientFromRequest} from 'npm:@base44/sdk';
 import {ARCHIVE_URL,ARCHIVE_SHA256,readArchive,deriveRates,deriveStatsBackfill,teamKey,leagueKey} from './core.mjs';
 import {planHistoricalMissing,checkedImportCandidate,archiveMetrics,missingMetrics,externalArchiveId} from './missingPlan.mjs';
+import {automaticHistoricalImport} from './autoSafe.mjs';
 
 const txt=x=>String(x??'').trim();
 const rows=x=>Array.isArray(x)?x:x?.items||x?.data||x?.entities||[];
@@ -28,6 +29,52 @@ export default async function(req){
   if(user.role!=='admin')return reply({ok:false,error:'Solo administradores'},403);
   const body=await req.json();
   if(body?.action==='health')return reply({ok:true,source:'Understat · archivo histórico verificado',last_full_season:'2024/2025'});
+  if(body?.action==='auto-safe-player'){
+    const jobId=txt(body.job_id);
+    if(!/^[a-f0-9]{24}$/i.test(jobId))return reply({ok:false,error:'Trabajo inválido'},400);
+    const db=sdk.asServiceRole.entities;
+    const job=await db.ImportJob.get(jobId);
+    if(!job)return reply({ok:false,error:'Trabajo no encontrado'},404);
+    if(!['review','completed'].includes(job.status))
+      return reply({ok:true,status:'waiting',reason:'Trabajo todavía en curso'});
+    // This lock is shared with the existing review reconciliation. Never let
+    // two browser tabs auto-create the same season at the same time.
+    const token=crypto.randomUUID(),now=new Date().toISOString();
+    await db.ImportJob.updateMany(
+      {id:jobId,$or:[{review_lock_until:{$exists:false}},{review_lock_until:null},
+        {review_lock_until:""},{review_lock_until:{$lt:now}}]},
+      {$set:{review_lock_id:token,review_lock_until:new Date(Date.now()+120000).toISOString()}});
+    if((await db.ImportJob.get(jobId)).review_lock_id!==token)
+      return reply({ok:true,status:'busy',reason:'Otra conciliación está activa'});
+    try{
+      const result=await automaticHistoricalImport(db,job,await archiveText(),{maxRows:4});
+      if(result.audit&&!['partial','finished'].includes(result.status)){
+        const latest=await db.ImportJob.get(jobId);
+        if(['review','completed'].includes(latest?.status)&&latest.phase===job.phase)
+          await db.ImportJob.update(jobId,{source_results:{
+            ...(latest.source_results||{}),understat_gap_audit:result.audit
+          }});
+      }
+      if(result.status==='identity_required'&&!result.audit){
+        const latest=await db.ImportJob.get(jobId);
+        if(['review','completed'].includes(latest?.status)&&latest.phase===job.phase)
+          await db.ImportJob.update(jobId,{source_results:{
+            ...(latest.source_results||{}),understat_gap_audit:{
+              status:'needs_fotmob_link',job_phase:job.phase,
+              checked_at:new Date().toISOString(),proposals:0,
+              note:result.reason||'Identidad FotMob pendiente'}
+          }});
+      }
+      return reply({...result,job_id:jobId});
+    }finally{
+      try{
+        const latest=await db.ImportJob.get(jobId);
+        if(latest?.review_lock_id===token)
+          await db.ImportJob.update(jobId,{review_lock_id:"",review_lock_until:""});
+      }catch(e){console.warn('Understat bulk lock expires naturally',String(e?.message||e).slice(0,100))}
+    }
+  }
+
   // Persist a small, source-scoped audit in the existing ImportJob so the
   // queue can display missing seasons even after the browser is reopened.
   // Audits are read-only for STATS; only the diagnostic field of the job changes.
