@@ -70,25 +70,25 @@ export function estimateTrophyReputation(trophy={}) {
  if(anchor)return {score:anchor.score,basis:anchor.basis,method:REPUTATION_METHOD,estimated:true,source:anchor.url||''};
  const n=norm(trophy.name||trophy.source_name);
  if(!n)return {score:0,basis:'Nombre no identificado: no se puede valorar.',method:REPUTATION_METHOD,estimated:true};
- let score=54,reason='Estimación por el alcance y tipo de competición expresado en el nombre.';
+ let score=49,reason='Estimación por el alcance y tipo de competición expresado en el nombre.';
  const cat=norm(trophy.category);
- if(SUPERCUP.test(n)) {score=100;reason='Supercopa, valoración inicial por su difusión normalmente inferior a la liga o copa principal.';}
- else if(FRIENDLY.test(n)){score=61;reason='Torneo amistoso o de exhibición: estima notoriedad histórica, no oficialidad.';}
- else if(CUP.test(n)||cat==='cup'){score=104;reason='Copa: estimación de reconocimiento general a falta de investigación individual.';}
- else if(LEAGUE.test(n)||cat==='league'){score=117;reason='Liga: estimación por nivel y alcance, sujeta a investigación de la competición.';}
- else if(cat==='individual award'){score=92;reason='Premio individual: estimación preliminar de reconocimiento.';}
- if(WORLD.test(n)){score=Math.max(score,170);reason='Alcance mundial sugerido por denominación; identidad pendiente de comprobación.';}
- else if(CONFED.test(n)){score=Math.max(score,146);reason='Alcance continental o interconfederativo aparente; identidad pendiente de comprobación.';}
+ if(SUPERCUP.test(n)) {score=76;reason='Supercopa, valoración inicial por su difusión normalmente inferior a la liga o copa principal.';}
+ else if(FRIENDLY.test(n)){score=55;reason='Torneo amistoso o de exhibición: estima notoriedad histórica, no oficialidad.';}
+ else if(CUP.test(n)||cat==='cup'){score=76;reason='Copa: estimación de reconocimiento general a falta de investigación individual.';}
+ else if(LEAGUE.test(n)||cat==='league'){score=88;reason='Liga: estimación por nivel y alcance, sujeta a investigación de la competición.';}
+ else if(cat==='individual award'){score=80;reason='Premio individual: estimación preliminar de reconocimiento.';}
+ if(WORLD.test(n)){score=Math.max(score,162);reason='Alcance mundial sugerido por denominación; identidad pendiente de comprobación.';}
+ else if(CONFED.test(n)){score=Math.max(score,136);reason='Alcance continental o interconfederativo aparente; identidad pendiente de comprobación.';}
  const isElite=ELITE_COUNTRIES.some(c=>n.includes(c))||/\b(?:english|spanish|german|italian|french|brazilian|argentine|laliga|bundesliga|premier league|serie a|fa cup|dfb|coppa italia)\b/.test(n);
- if(isElite&&!WORLD.test(n)&&!CONFED.test(n))score+=11;
- if(REGIONAL.test(n)){score=Math.min(score,75);reason='Ámbito regional, divisional inferior o juvenil indicado por el nombre; notoriedad estimada.';}
- if(AGE.test(n)){score=Math.min(score,88);reason='Competición juvenil o de reserva: notoriedad estimada, no juzga su calidad deportiva.';}
+ if(isElite&&!WORLD.test(n)&&!CONFED.test(n))score+=13;
+ if(REGIONAL.test(n)){score=Math.min(score,59);reason='Ámbito regional, divisional inferior o juvenil indicado por el nombre; notoriedad estimada.';}
+ if(AGE.test(n)){score=Math.min(score,73);reason='Competición juvenil o de reserva: notoriedad estimada, no juzga su calidad deportiva.';}
  if(WOMEN.test(n)&&/(?:world cup|champions league|wsl|liga f|frauen bundesliga|nws[l])/.test(n))
   score=Math.max(score, n.includes('world cup')?180: n.includes('champions league')?165:138);
- if(/\b(?:first division|primera division|premier league|serie a|bundesliga)\b/.test(n)&&!AGE.test(n)&&!REGIONAL.test(n))score=Math.max(score,148);
- if(/\b(?:third|fourth|fifth|3rd|4th|5th|segunda|second|tier 2|liga 2|serie b|primera b|league one|league two)\b/.test(n))score=Math.min(score,105);
- if(/\b(?:historical|extinct|former)\b/.test(n))score=Math.min(score,110);
- if(trophy.trophy_type==='Individual Trophy')score=Math.max(score,66);
+ if(/\b(?:first division|primera division|premier league|serie a|bundesliga)\b/.test(n)&&!AGE.test(n)&&!REGIONAL.test(n))score=Math.max(score,137);
+ if(/\b(?:third|fourth|fifth|3rd|4th|5th|segunda|second|tier 2|liga 2|serie b|primera b|league one|league two)\b/.test(n))score=Math.min(score,90);
+ if(/\b(?:historical|extinct|former)\b/.test(n))score=Math.min(score,98);
+ if(trophy.trophy_type==='Individual Trophy')score=Math.max(score,61);
  score=Math.min(200,Math.max(15,Math.round(score)));
  return {score,basis:reason,method:REPUTATION_METHOD,estimated:true};
 }
