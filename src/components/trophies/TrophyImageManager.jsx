@@ -87,3 +87,5 @@ export default function TrophyImageManager({trophy,manifest,onSave,disabled=fals
   {notice&&<p role="status" className="flex items-center gap-1.5 rounded-lg bg-emerald-50 p-2.5 text-[11px] text-emerald-700"><CheckCircle2 size={13}/>{notice}</p>}
   {imageState.status==="wrong"&&!imageState.override&&<p className="text-[10px] leading-4 text-amber-700">La imagen incorrecta se ocultará tras guardar. Podrás añadir una alternativa después.</p>}
  </section>;
+
+}
