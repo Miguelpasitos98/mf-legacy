@@ -30,7 +30,8 @@ test("Scouting separates scored / unscored, keeps comparisons and reports and di
  assert.match(scouting,/onCompare=\{\(\)=>setComparedIds/);
  assert.match(scouting,/onReport=\{\(\)=>setScoutingPlayerId/);
  assert.match(candidate,/visibility\.scoredCount/);
- assert.match(candidate,/Sin datos suficientes para puntuar/);
+ assert.match(candidate,/ADN sin métricas reconocibles/);
+ assert.match(candidate,/Evidencia insuficiente para puntuar/);
  assert.match(candidate,/more&&/);
  assert.match(candidate,/score===null\?"—"/);
  assert.match(candidate,/V4\.1 · Requisitos del ADN/);
