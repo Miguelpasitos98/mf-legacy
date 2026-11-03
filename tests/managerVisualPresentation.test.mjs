@@ -33,6 +33,7 @@ test("Scouting separates scored / unscored, keeps comparisons and reports and di
  assert.match(candidate,/Sin datos suficientes para puntuar/);
  assert.match(candidate,/more&&/);
  assert.match(candidate,/score===null\?"—"/);
- assert.match(candidate,/V4 · Requisitos del ADN/);
+ assert.match(candidate,/V4\.1 · Requisitos del ADN/);
+ assert.match(candidate,/Funciones del ADN evaluadas/);
  assert.match(candidate,/predice/i);
 });
