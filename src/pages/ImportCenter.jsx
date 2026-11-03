@@ -55,6 +55,7 @@ export default function ImportCenter(){
   const [statsStatus,setStatsStatus]=useState({state:"idle",count:0,ids:[]});
   const refreshSequence=useRef(0),currentJob=useRef(selectedJob);
   const autoAppliedJobs=useRef(new Set());
+  const autoAppliedRevision=useRef(null);
   const [autoApplying,setAutoApplying]=useState(false);
   const [showJobHistory,setShowJobHistory]=useState(false);
   const [expandedPlayers,setExpandedPlayers]=useState({});
@@ -71,7 +72,18 @@ export default function ImportCenter(){
     try{
       const result=await base44.entities.ImportJob.list("-created_date",100);
       if(request!==refreshSequence.current)return;
-      setJobs(responseRows(result));setLoaded(true);
+      const latestJobs=responseRows(result);
+      // The Python worker may complete a job while the import screen is open.
+      // Polling the job alone used to leave STATS and Composite showing old cache entries.
+      const revision=latestJobs.filter(j=>["review","completed"].includes(j.status)&&
+        /^(?:Automático:|Conciliación histórica:)/i.test(String(j.phase||"")))
+        .map(j=>[j.id,j.updated_date,j.phase].join(":" )).sort().join("|");
+      if(autoAppliedRevision.current!==null&&revision!==autoAppliedRevision.current){
+        await Promise.all([STATS_ROWS_KEY,STATS_DETAIL_KEY,HISTORICAL_PEER_KEY,
+          RECORD_KEYS.PlayerHistoricalValuation].map(queryKey=>cache.invalidateQueries({queryKey})));
+      }
+      autoAppliedRevision.current=revision;
+      setJobs(latestJobs);setLoaded(true);
       if(selectedJob){
         const queryKey=["mf-legacy","import-candidates",selectedJob];
         const job=responseRows(result).find(j=>j.id===selectedJob);
