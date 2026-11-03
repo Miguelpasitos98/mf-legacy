@@ -11,6 +11,7 @@ import {MAX_COMPARE,toggleCandidate,compareCandidates,candidateOverview} from "@
 import {managerFitAttributes} from "@/components/managers/managerFitAttributes.mjs";
 import {profileScopeLabel} from "@/components/managers/managerModel.mjs";
 import {visibleManagerFitCandidates} from "@/components/managers/managerFitVisibility.mjs";
+import {managerScoutingPool,managerScoutingCandidateIds} from "@/components/managers/managerScoutingPool.mjs";
 const all=async(entity,query={})=>{
  const output=[];
  for(let skip=0;skip<100000;skip+=200){
@@ -33,7 +34,7 @@ export default function ManagerFit(){
  const [minCA,setMinCA]=useState(0);
  const [showUnknown,setShowUnknown]=useState(false);
  const [resultSort,setResultSort]=useState("score");
- const [resultLimit,setResultLimit]=useState(48);
+ const [showAllResults,setShowAllResults]=useState(false);
  const [scoreMode,setScoreMode]=useState("role");
  const [season,setSeason]=useState(()=>params.get("season")||"2025/2026");
  const [seasonStats,setSeasonStats]=useState([]);
@@ -82,6 +83,8 @@ export default function ManagerFit(){
   .finally(()=>{if(active)setStatsLoading(false)});
   return ()=>{active=false};
  },[season]);
+ // Build statistical reference from the full role cohort, never from the
+ // manually chosen scouting pool: restricting peers to the bag biases percentiles.
  const historicalIndex=useMemo(()=>{
   const peers=historicalRoleCandidates(players,role);
   const result=new Map();
@@ -90,10 +93,13 @@ export default function ManagerFit(){
  },[players,role,seasonStats,understatRows,season]);
  const historicalPeerMetrics=useMemo(()=>[...historicalIndex.values()],[historicalIndex]);
  const roleRequirements=useMemo(()=>deriveRoleRequirements(profile,role),[profile,role]);
- useEffect(()=>setResultLimit(48),[role,profileId,season,scoreMode,search,minCA,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage,showUnknown]);
+ const candidates=useMemo(()=>managerScoutingPool(players),[players]);
+ const candidateIds=useMemo(()=>managerScoutingCandidateIds(players),[players]);
+ const resultLimit=showAllResults?Number.POSITIVE_INFINITY:48;
+ useEffect(()=>setShowAllResults(false),[role,profileId,season,scoreMode,search,minCA,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage]);
  const visibility=useMemo(()=>{
   if(!profile)return {rows:[],fallback:false,compatibleCount:0,scoredCount:0,unscoredCount:0,shownCount:0,displayCount:0};
-  const rows=rankPlayers(players,role,profile,{search,minCA,showUnknown:true})
+  const rows=rankPlayers(candidates,role,profile,{search,minCA,showUnknown:true})
    .map(item=>({...item,valuation:valuationForSeason(valuationRows,item.player.id,season),
      advanced:managerFitAttributes(item.player,role,profile),
      historical:seasonPercentiles(historicalIndex.get(String(item.player.id))||{},historicalPeerMetrics,role,profile),
@@ -102,21 +108,21 @@ export default function ManagerFit(){
     minAge:minAge===""?null:Number(minAge),maxAge:maxAge===""?null:Number(maxAge),
     maxValueM:maxValueM===""?null:Number(maxValueM),knownValueOnly,minimumCoverage,coverageMode:scoreMode});
   return visibleManagerFitCandidates(eligible,{scoreMode,showUnknown,sortMode:resultSort,limit:resultLimit});
- },[players,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics,
+ },[candidates,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics,
     valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage,resultSort,resultLimit]);
  const results=visibility.rows;
  const comparedRows=useMemo(()=>{
   if(!profile||!comparedIds.length)return [];
   return compareCandidates(comparedIds.map(playerId=>{
    const player=players.find(p=>String(p.id)===String(playerId));
-   return player?{player,valuation:valuationForSeason(valuationRows,player.id,season),
+   return player&&candidateIds.has(String(player.id))?{player,valuation:valuationForSeason(valuationRows,player.id,season),
     roleFit:evaluateRoleRequirements(historicalIndex.get(String(player.id))||{},historicalPeerMetrics,role,profile,{playerId:player.id}),
     historical:seasonPercentiles(historicalIndex.get(String(player.id))||{},historicalPeerMetrics,role,profile),
     advanced:managerFitAttributes(player,role,profile)}:null;
   }).filter(Boolean),comparedIds);
- },[profile,comparedIds,players,valuationRows,season,historicalIndex,historicalPeerMetrics,role]);
+ },[profile,comparedIds,players,candidateIds,valuationRows,season,historicalIndex,historicalPeerMetrics,role]);
  const comparisonBudget=candidateOverview(comparedRows,totalBudget);
- const scoutingPlayer=players.find(p=>String(p.id)===scoutingPlayerId)||null;
+ const scoutingPlayer=candidates.find(p=>String(p.id)===scoutingPlayerId)||null;
  const scoutingRow=scoutingPlayer&&profile?{
   player:scoutingPlayer,advanced:managerFitAttributes(scoutingPlayer,role,profile),
   historical:seasonPercentiles(historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,role,profile),
@@ -162,14 +168,21 @@ export default function ManagerFit(){
     <label className="text-xs font-bold">Cobertura mínima<select aria-label="Cobertura mínima" className="block border bg-white rounded-lg p-2 w-full mt-1" value={minimumCoverage} onChange={e=>setMinimumCoverage(Number(e.target.value))}>{[0,25,50,75,100].map(x=><option key={x} value={x}>{x}%</option>)}</select></label>
     <label className="text-xs font-bold flex flex-col justify-center gap-2"><span>Valor histórico</span><span className="flex gap-2 font-normal items-center"><input type="checkbox" checked={knownValueOnly} onChange={e=>setKnownValueOnly(e.target.checked)}/> Solo con valor</span></label>
    </div>
+   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#c9d9ef] bg-[#f2f6fc] px-3 py-2.5 text-xs">
+    <div className="min-w-0">
+     <strong className="text-blue-900">Bolsa de candidatos: {candidates.length} jugadores marcados</strong>
+     <p className="mt-0.5 text-slate-600">MANAGER FIT muestra únicamente futbolistas que has incorporado manualmente desde PLAYERS. El resto del catálogo se utiliza solo como referencia estadística de comparación.</p>
+    </div>
+    <Link to="/players?view=candidates" className="shrink-0 rounded-lg border border-blue-200 bg-white px-3 py-2 font-bold text-blue-800 hover:bg-blue-50">Gestionar bolsa en PLAYERS</Link>
+   </div>
    <p className="text-[11px] text-slate-500">Edad calculada al cierre de la temporada indicada. Valor de mercado histórico de esa misma campaña, no precio de traspaso ni valor actual. Los registros sin fecha o importe verificable no se estiman.</p>
-   <div className="flex flex-wrap gap-3 items-center"><input aria-label="Buscar jugador" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar futbolista por nombre…" className="border rounded-lg p-2 text-sm flex-1 min-w-[180px]"/><label className="text-sm flex items-center gap-2"><input type="checkbox" checked={showUnknown} onChange={e=>setShowUnknown(e.target.checked)}/> Incluir encaje no evaluable</label></div>
+   <div className="flex flex-wrap gap-3 items-center"><input aria-label="Buscar jugador" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar futbolista por nombre…" className="border rounded-lg p-2 text-sm flex-1 min-w-[180px]"/><label className="text-sm flex items-center gap-2"><input type="checkbox" checked={showUnknown} onChange={e=>{setShowUnknown(e.target.checked);setShowAllResults(e.target.checked)}}/> Incluir encaje no evaluable de la bolsa</label></div>
    {manager&&profile?<div className="text-xs rounded-lg bg-blue-50 p-3"><strong>{manager.name} · {profile.name}</strong><p className="mt-1"><strong>Lo que busca en {ROLE_LABELS[role].toLowerCase()}:</strong> {(()=>{try{return JSON.parse(profile.player_role_priorities||"{}")[role]||"Sin descripción específica"}catch{return "Sin descripción específica"}})()}</p></div>:!loading&&<p className="text-sm text-amber-700">Necesitas un entrenador con un ADN guardado antes de evaluar futbolistas. <Link className="underline" to="/managers">Abrir MANAGERS</Link>.</p>}
   </section>
   <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 md:p-5 space-y-4">
    <div className="flex flex-wrap items-center justify-between gap-2">
     <div><p className="text-[10px] font-extrabold uppercase tracking-[.14em] text-[#315fa7]">Manager Fit · Análisis comparativo</p>
-     <h2 className="mt-1 text-base font-black text-slate-900">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}</h2><p className="text-[11px] text-slate-500">{visibility.compatibleCount} compatibles · {visibility.scoredCount} evaluables en el modelo seleccionado</p></div>
+     <h2 className="mt-1 text-base font-black text-slate-900">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}</h2><p className="text-[11px] text-slate-500">{visibility.compatibleCount} compatibles en la bolsa · {visibility.scoredCount} evaluables en el modelo seleccionado · {players.length} jugadores del catálogo para la muestra histórica</p></div>
     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold text-slate-600">Modelo auditable · No predice rendimiento</span>
    </div>
    <ManagerScoutingSummary scoreMode={scoreMode} visibility={visibility} roleRequirements={roleRequirements} statsLoading={statsLoading} statsError={statsError} season={season}/>
@@ -187,9 +200,9 @@ export default function ManagerFit(){
      </select>
     </label>
     {visibility.unscoredCount>0&&scoreMode!=="position"&&
-     <button type="button" onClick={()=>setShowUnknown(v=>!v)}
+     <button type="button" onClick={()=>{setShowUnknown(v=>!v);setShowAllResults(!showUnknown)}}
       className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold text-blue-800 hover:bg-blue-50">
-      {showUnknown?"Ocultar jugadores sin nota":"Ver "+visibility.unscoredCount+" compatibles sin puntuación"}
+      {showUnknown?"Ocultar jugadores sin nota":"Mostrar todos los "+visibility.unscoredCount+" compatibles sin puntuación de la bolsa"}
      </button>}
    </div>
    {statsLoading&&<p role="status" className="text-xs font-semibold text-blue-700">Cargando métricas históricas de {season}…</p>}
@@ -204,9 +217,9 @@ export default function ManagerFit(){
    </div>
    {!loading&&visibility.displayCount>visibility.shownCount&&<div className="flex flex-col items-center gap-2 border-t border-slate-100 pt-4">
     <span className="text-xs text-slate-500">Mostrando {visibility.shownCount} de {visibility.displayCount} jugadores del filtro actual.</span>
-    <button type="button" onClick={()=>setResultLimit(n=>Math.min(500,n+48))}
-     disabled={resultLimit>=500} className="rounded-lg border border-blue-200 bg-blue-50 px-5 py-2.5 text-xs font-bold text-blue-900 hover:bg-blue-100 disabled:opacity-50">
-     {resultLimit>=500?"Límite de 500 resultados":"Mostrar otros "+Math.min(48,visibility.displayCount-visibility.shownCount)+" jugadores"}
+    <button type="button" onClick={()=>setShowAllResults(true)}
+     className="rounded-lg border border-blue-200 bg-blue-50 px-5 py-2.5 text-xs font-bold text-blue-900 hover:bg-blue-100">
+     Mostrar todos los {visibility.displayCount} resultados de la bolsa
     </button>
    </div>}
    <ManagerMethodsPanel/>
@@ -272,9 +285,11 @@ export default function ManagerFit(){
      </div>
      <p className="text-xs border-l-2 border-amber-400 pl-3 text-slate-600">{scoutingReport.limitations} Los percentiles son relativos a la muestra disponible, no equivalen a predicciones de éxito bajo el entrenador. Las descripciones sin métricas comprobables no se puntúan.</p>
    </section>}
-   {!loading&&!results.length&&!statsLoading&&<p className="p-5 text-center text-slate-500 text-sm">
-    No se encontraron jugadores compatibles con la posición y los filtros actuales. Prueba a quitar filtros de edad, valoración, CA o cobertura, o selecciona otro rol.
-   </p>}
+   {!loading&&!results.length&&!statsLoading&&<div className="p-5 text-center text-slate-600 text-sm space-y-2">
+    <p>{candidates.length===0?"Tu bolsa de candidatos está vacía. Añade futbolistas desde PLAYERS para comenzar.":
+      "No hay futbolistas de tu bolsa que cumplan el rol y los filtros actuales. Prueba a cambiar el rol o los filtros; los demás jugadores del catálogo no se incorporan automáticamente."}</p>
+    <Link to="/players?view=candidates" className="inline-block rounded-lg border border-blue-200 px-3 py-2 font-bold text-blue-800 hover:bg-blue-50">Ver bolsa de candidatos en PLAYERS</Link>
+   </div>}
   </section>
  </main>;
 }
