@@ -199,11 +199,13 @@ export function formulaCoverage(row,mode,id,config){
 export function estimatedSeasonRate(records,metricName){
  let numerator=0,denominator=0,estimated=false,covered=0;
  for(const record of records||[]){
-  const metric=metricName==="goalsconceded"?goalkeeperConcededMetric(record):(record.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===metricName);
+  const names=metricName==="goalsconceded"?[]:[metricName,"understat"+metricName];
+  const metric=metricName==="goalsconceded"?goalkeeperConcededMetric(record):names.map(name=>(record.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===name)).find(m=>m&&((statNum(m.per90)!==null)||(statNum(m.value)!==null)));
   if(!metric)continue;
   const total=statNum(metric.value);
   const supplied=statNum(metric.per90);
-  const actual=statNum(record.minutes);
+  const providerMinutes=String(metric.name||"").toLowerCase().startsWith("understat")?metricsValue(record,"understatminutes"):null;
+  const actual=providerMinutes>0?providerMinutes:statNum(record.minutes);
   const matches=statNum(record.appearances);
   const minutes=actual>0?actual:(matches>0?matches*90:null);
   if(!minutes)continue;
@@ -250,7 +252,7 @@ export function columnValue(row,mode,id,config){
   // por competición, sin requerir minutos adicionales ni estimarlos desde PJ.
   const directRateMetric=directSourceRate(definition);
   if(mode==="competition"&&directRateMetric){
-   const direct=(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===directRateMetric);
+   const direct=[directRateMetric,"understat"+directRateMetric].map(name=>(row.metrics||[]).find(m=>String(m.name||"").toLowerCase().replace(/[^a-z]/g,"")===name)).find(m=>m&&statNum(m.per90)!==null);
    const value=statNum(direct?.per90);
    if(value!==null)return value;
   }
