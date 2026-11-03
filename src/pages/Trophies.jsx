@@ -308,7 +308,7 @@ export default function Trophies(){
      <button type="button" onClick={close} aria-label="Cerrar ficha del trofeo" className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={19}/></button>
     </div>
     <nav aria-label="Secciones del trofeo" className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 md:px-7">
-     {(newRecord?["Editar"]:["Resumen","Ediciones","Clubes","Jugadores","Editar"]).map(section=>
+     {(newRecord?["Editar"]:["Resumen","Ediciones","Historia","Clubes","Jugadores","Editar"]).map(section=>
       <button key={section} type="button" onClick={()=>{setDetailTab(section);setError("");}}
        aria-current={detailTab===section?"page":undefined}
        className={"shrink-0 rounded-lg px-3 py-2 text-[11px] font-bold transition "+(detailTab===section?"bg-[#003399] text-white":"text-slate-500 hover:bg-slate-100 hover:text-slate-800")}>
@@ -367,7 +367,7 @@ export default function Trophies(){
       key={selectedId} trophy={draft||selected} manifest={imageManifest} countries={countryRecords}
       onSelectVisualVariant={variantId=>setDraft(current=>({...current,visual_variant_id:variantId}))}
       tab={detailTab} honours={selectedHonours} onEdit={()=>setDetailTab("Editar")}
-      onAdd={startHonour} onVerify={verifyHonour} honourSaving={honourSaving}
+      onAdd={startHonour} onVerify={verifyHonour} onNavigate={setDetailTab} honourSaving={honourSaving}
     />}
    </div>
   </div>}
