@@ -29,7 +29,7 @@ export function groupTrophiesByTeamReputation({teams=[],catalog=[],honours=[],ed
   if(!group||!trophy||allowedIds&&!allowedIds.has(String(sourceId)))return null;
   const key=String(sourceId);
   if(!group.itemsById.has(key))group.itemsById.set(key,{
-   trophy,verifiedCount:0,historicalCount:0,runnerUpCount:0,thirdCount:0,
+   trophy,verifiedCount:0,historicalCount:0,runnerUpCount:0,thirdCount:0,verifiedYears:new Set(),
    historicalYears:new Set(),runnerYears:new Set(),thirdYears:new Set(),seasons:new Set(),latest:""
   });
   return group.itemsById.get(key);
@@ -42,7 +42,7 @@ export function groupTrophiesByTeamReputation({teams=[],catalog=[],honours=[],ed
   const item=getItem(honour.recipient_id,honour.trophy_source_id);
   if(!item)continue;
   item.verifiedCount++;
-  if(honour.season)item.seasons.add(seasonKey(honour.season));
+  if(honour.season){item.seasons.add(seasonKey(honour.season));const year=editionYear({season:honour.season});if(year)item.verifiedYears.add(year);}
  };
  const seenEditions=new Set();
  for(const edition of editions){
@@ -73,10 +73,11 @@ export function groupTrophiesByTeamReputation({teams=[],catalog=[],honours=[],ed
  }).map(group=>{
   const items=[...group.itemsById.values()].map(item=>({
    trophy:item.trophy,verifiedCount:item.verifiedCount,historicalCount:item.historicalYears.size,
+   totalWins:new Set([...item.historicalYears,...item.verifiedYears]).size+Math.max(0,item.verifiedCount-item.verifiedYears.size),
    runnerUpCount:item.runnerYears.size,thirdCount:item.thirdYears.size,
    seasons:[...item.seasons].sort(),historicalYears:[...item.historicalYears].sort(),latest:[...item.historicalYears].sort().at(-1)||""
   })).filter(item=>sourceMode==="verified"?item.verifiedCount>0:sourceMode==="historical"?(item.historicalCount+item.runnerUpCount+item.thirdCount)>0:true)
-    .sort((a,b)=>(b.verifiedCount+b.historicalCount)-(a.verifiedCount+a.historicalCount)||String(a.trophy.name).localeCompare(String(b.trophy.name),"es",{sensitivity:"base"}));
+    .sort((a,b)=>b.totalWins-a.totalWins||String(a.trophy.name).localeCompare(String(b.trophy.name),"es",{sensitivity:"base"}));
   return {id:group.id,team:group.team,reputation:group.reputation,
    verifiedCount:items.reduce((n,item)=>n+item.verifiedCount,0),
    historicalCount:items.reduce((n,item)=>n+item.historicalCount,0),

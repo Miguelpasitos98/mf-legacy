@@ -1,12 +1,12 @@
 import React,{useMemo,useState} from "react";
 import {useQuery} from "@tanstack/react-query";
-import {AlertCircle,BookOpen,ChevronDown,Info,Medal,Search,Shield,SlidersHorizontal,Trophy} from "lucide-react";
+import {AlertCircle,ChevronDown,Info,Medal,Search,Shield,SlidersHorizontal,Trophy} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {groupTrophiesByTeamReputation} from "@/utils/trophyTeamGroups";
 
 const rows=r=>Array.isArray(r)?r:(r?.items||r?.data||[]);
-const choices=[["all","Todos"],["verified","Verificados"],["historical","Histórico FM24"]];
+const choices=[["all","Todos"],["verified","Contrastados"],["historical","Archivo FM24"]];
 const showName=count=>count===1?"trofeo":"trofeos";
 
 export default function TrophyClubCatalogView({teams=[],catalog=[],honours=[],manifest,onOpen,Card,allowedIds=null,loading=false,error=false,query=""}){
@@ -61,17 +61,16 @@ export default function TrophyClubCatalogView({teams=[],catalog=[],honours=[],ma
        <span className="min-w-0"><strong className="block truncate text-sm font-extrabold text-slate-900">{group.team.name}</strong><span className="mt-0.5 block text-[10px] text-slate-400">Reputación: {group.reputation.toLocaleString("es-ES")}</span></span>
        <ChevronDown size={15} className={"shrink-0 text-slate-400 transition "+(isClosed?"-rotate-90":"")}/>
       </button>
-      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[.08em] text-slate-400">{group.items.length} {showName(group.items.length)}</span>
+      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[.08em] text-slate-400">{group.items.length} {group.items.length===1?"competición":"competiciones"}</span>
      </div>
      {!isClosed&&(group.items.length>0?
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">
        {group.items.map(item=><div key={item.trophy.source_id} className="min-w-0 space-y-1.5">
-        <Card trophy={item.trophy} manifest={manifest} open={()=>onOpen(item.trophy)} count={item.verifiedCount}/>
-        <div className="flex flex-wrap items-center gap-1">
-         {item.verifiedCount>0&&<span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-1 text-[9px] font-bold text-emerald-700"><Medal size={10}/>{item.verifiedCount} verificados</span>}
-         {item.historicalCount>0&&<span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-1 text-[9px] font-bold text-amber-700"><BookOpen size={10}/>{item.historicalCount} campeonatos · FM24 provisional</span>}
-         {item.runnerUpCount>0&&<span className="rounded bg-slate-100 px-1.5 py-1 text-[9px] font-semibold text-slate-600">{item.runnerUpCount} subcampeonatos</span>}
-         {item.thirdCount>0&&<span className="rounded bg-slate-100 px-1.5 py-1 text-[9px] font-semibold text-slate-600">{item.thirdCount} terceros puestos</span>}
+        <Card trophy={item.trophy} manifest={manifest} open={()=>onOpen(item.trophy)} count={item.totalWins}/>
+        <div className="flex flex-wrap items-center gap-1" title={"Resultados vinculados al trofeo. " + item.verifiedCount + " adjudicaciones contrastadas; " + item.historicalCount + " años registrados en archivo histórico."}>
+         {item.totalWins>0&&<span className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-1 text-[9px] font-bold text-[#003399]"><Medal size={10}/>{item.totalWins} {item.totalWins===1?"título":"títulos"}</span>}
+         {item.runnerUpCount>0&&<span className="rounded bg-slate-100 px-1.5 py-1 text-[9px] font-semibold text-slate-600">{item.runnerUpCount} {item.runnerUpCount===1?"subcampeonato":"subcampeonatos"}</span>}
+         {item.thirdCount>0&&<span className="rounded bg-slate-100 px-1.5 py-1 text-[9px] font-semibold text-slate-600">{item.thirdCount} {item.thirdCount===1?"tercer puesto":"terceros puestos"}</span>}
         </div>
        </div>)}
       </div>:
@@ -80,6 +79,6 @@ export default function TrophyClubCatalogView({teams=[],catalog=[],honours=[],ma
     </section>;
    })}
   </div>
-  <p className="flex items-start gap-1.5 text-[11px] leading-5 text-slate-500"><Info size={13} className="mt-0.5 shrink-0"/> Los títulos verificados proceden de TrophyHonour. FM24 y las finales de Rob aportan resultados provisionales (ganador, subcampeón y tercero cuando constan). Los años repetidos de campeón se deduplican. Solo se incluyen entradas con equipo y trofeo vinculados, nunca coincidencias pendientes.</p>
+  <p className="flex items-start gap-1.5 text-[11px] leading-5 text-slate-500"><Info size={13} className="mt-0.5 shrink-0"/> Se muestran juntos los resultados ya vinculados en MF LEGACY, sin duplicar el mismo año de campeón. Cada registro conserva su fuente original (FM24/Rob o adjudicación contrastada). Las coincidencias de identidad pendientes no se incluyen.</p>
  </section>;
 }
