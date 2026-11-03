@@ -32,13 +32,13 @@ test("real 4-4-2 diamond is accepted AND its structure remains distinct from a f
  assert.ok(parsed.warnings.some(w=>w.field==="formation"&&w.original==="4-4-2 (rombo)"));
  const draft=previewManagerTacticalDraft(PROFILE_BLANK,parsed);
  assert.equal(draft.formation,"4-1-2-1-2");
- assert.match(draft.profile_notes,/4-4-2 \\(rombo\\)/);
+ assert.match(draft.profile_notes,/4-4-2 \(rombo\)/);
  assert.equal(cleanProfile(draft,"coach",parsed.roleText).formation,"4-1-2-1-2");
 });
 test("manual profile editor accepts formation variants and preserves original description",()=>{
  const saved=cleanProfile({...PROFILE_BLANK,name:"Milán rombo",formation:"4-4-2 (rombo)",profile_notes:"Formación documentada."},"coach",roles);
  assert.equal(saved.formation,"4-1-2-1-2");
- assert.match(saved.profile_notes,/4-4-2 \\(rombo\\)/);
+ assert.match(saved.profile_notes,/4-4-2 \(rombo\)/);
  assert.match(saved.profile_notes,/Formación documentada/);
  const flat=cleanProfile({...PROFILE_BLANK,name:"Clásico",formation:"4-4-2"},"coach",roles);
  assert.equal(flat.formation,"4-4-2");
@@ -141,9 +141,9 @@ test("career research skips only unresolvable historical periods and keeps valid
 test("career and individual UI allow review of repaired formations, dates and pending periods",()=>{
  const managers=fs.readFileSync("src/pages/Managers.jsx","utf8");
  const prompt=fs.readFileSync("src/components/managers/managerTacticalAI.mjs","utf8");
- assert.match(managers,/4-4-2 \\(rombo\\)/);
- assert.match(managers,/careerDraft\\.pendingModels/);
- assert.match(managers,/tacticalWarnings\\.map/);
+ assert.match(managers,/4-4-2 \(rombo\)/);
+ assert.match(managers,/careerDraft\.pendingModels/);
+ assert.match(managers,/tacticalWarnings\.map/);
  assert.match(prompt,/La formación NO está limitada a una lista cerrada/);
  assert.match(prompt,/no años calendario sueltos/);
 });
