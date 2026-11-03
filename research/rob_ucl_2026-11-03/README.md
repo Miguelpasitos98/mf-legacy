@@ -7,7 +7,7 @@
 ## Datos importados
 
 - **TrophyEdition:** 68 finales consecutivas de 1955/56 a 2022/23.
-- **TrophyHistoricalEvent:** 28 notas históricas, con fechas de la pantalla, resumidas en español, algunas anteriores a la primera competición.
+- **TrophyHistoricalEvent:** 29 notas históricas, con fechas de la pantalla, resumidas en español, algunas anteriores a la primera competición.
 - **Team.id:** 62 campeones y 60 subcampeones relacionados por correspondencia inequívoca con Team. Los demás quedan deliberadamente sin ID.
 - **TrophyHonour:** **0 adjudicaciones creadas**. No se ha alterado el palmarés verificado.
 - **Marcadores:** no se importan; la tabla de FM24 no los proporcionaba en esas columnas.
@@ -34,4 +34,4 @@ El campo \`verification_status = source_extracted\` refleja **origen en el mod**
 6. No fusionar distintas competiciones históricas solo porque sus nombres coincidan.
 7. No marcar como oficialmente verificadas las descripciones del mod.
 
-**Estado:** importación parcial de trabajo; el usuario aún no ha indicado «Champions completa». Seguir aceptando nuevas capturas.
+**Estado de las capturas: CHAMPIONS COMPLETA (confirmado por el usuario).** El lote de cuatro capturas está cerrado: 68 finales, 29 notas narrativas. La **verificación externa** del contenido histórico sigue pendiente. Es posible ampliar posteriormente con datos oficiales, sin sobrescribir el material original del mod.

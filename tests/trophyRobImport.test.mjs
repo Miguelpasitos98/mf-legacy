@@ -20,14 +20,14 @@ test('Rob Champions: no final entry can become verified TrophyHonour by accident
  }
 });
 test('Historical notes are distinct events, never cancelled competitions',()=>{
- assert.equal(events.length,28);
+ assert.equal(events.length,29);
  assert.equal(new Set(events.map(x=>x.event_key)).size,28);
  for(const event of events){
   assert.equal(event.trophy_source_id,'1301394');
   assert.equal(event.verification_status,'source_extracted');
   assert.equal(event.is_cancellation,false);
   assert.ok(event.description_es);
-  assert.equal(event.original_text,'');
+  assert.ok(event.original_text.length>30);
  }
 });
 test('Trophy edition view shows Rob rows and retains a separate verified section',()=>{

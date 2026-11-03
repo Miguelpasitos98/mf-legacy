@@ -6,26 +6,12 @@
     "season": "2022/23",
     "event_type": "achievement",
     "description_es": "Manchester City completó en 2023 el triplete de Premier League, FA Cup y UEFA Champions League; Rob destaca que fue el segundo triplete continental de un club inglés.",
-    "original_text": "",
+    "original_text": "In 2023, having earlier won the Premier League and FA Cup titles, Manchester City achieved the continental treble - only the second time it had been achieved in English men's football history.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
-  },
-  {
-    "event_key": "rob_fm24_ucl_2020_21_02",
-    "trophy_id": "6ae28d39b84f31b9499777ae",
-    "trophy_source_id": "1301394",
-    "season": "2020/21",
-    "event_type": "format_change",
-    "description_es": "Rob explica que UEFA decidió un formato ampliado a partir de 2024/25, con 36 equipos y una fase de liga en lugar de la fase de grupos tradicional.",
-    "original_text": "",
-    "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
-    "evidence_type": "screenshot",
-    "verification_status": "source_extracted",
-    "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_2020_21_03",
@@ -34,12 +20,26 @@
     "season": "2020/21",
     "event_type": "controversy",
     "description_es": "El proyecto de la Superliga Europea de 2021, promovido por dirigentes de varios clubes, provocó fuertes reacciones de UEFA, FIFA y aficionados y fue suspendido.",
-    "original_text": "",
+    "original_text": "Shock plans for a breakaway European Super League were announced by Real Madrid President Florentino Pérez, along with the chairmen of Juventus, Man Utd, Liverpool, and Arsenal. Feeling they were being treat harshly by UEFA, they aimed to create a more financially lucrative rival to the UEFA Champions League. The plans were shelved in a matter of days after severe backlash from UEFA, FIFA, and fans, who opposed the elitism of the new project.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
+  },
+  {
+    "event_key": "rob_fm24_ucl_2020_21_02",
+    "trophy_id": "6ae28d39b84f31b9499777ae",
+    "trophy_source_id": "1301394",
+    "season": "2020/21",
+    "event_type": "format_change",
+    "description_es": "Rob explica que UEFA decidió un formato ampliado a partir de 2024/25, con 36 equipos y una fase de liga en lugar de la fase de grupos tradicional.",
+    "original_text": "Partly in response to the failed Super League breakaway competition, UEFA decided on an extended format beginning with the 2024-25 season. The current multi-group stage will be replaced with one large league-style group stage, in which the number of teams increases from 32 to 36.",
+    "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
+    "evidence_type": "screenshot",
+    "verification_status": "source_extracted",
+    "is_cancellation": false,
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_2016_17_04",
@@ -48,12 +48,12 @@
     "season": "2016/17",
     "event_type": "historical_context",
     "description_es": "El texto de Rob comenta un periodo posterior de presencia destacada de equipos ingleses en finales, y menciona las finales entre clubes ingleses.",
-    "original_text": "",
+    "original_text": "The following years would see English teams dominate; two all-English finals, as well as Liverpool losing the 2022 final to Real Madrid.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_2013_14_05",
@@ -62,12 +62,12 @@
     "season": "2013/14",
     "event_type": "achievement",
     "description_es": "Real Madrid ganó La Décima en 2013/14, diez títulos en la Copa de Europa/Champions League.",
-    "original_text": "",
+    "original_text": "Real Madrid won their long-awaited La Décima, their record-breaking tenth European Cup/UEFA Champions League title, in the 2013-14 season.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_2009_10_06",
@@ -76,12 +76,12 @@
     "season": "2009/10",
     "event_type": "achievement",
     "description_es": "Rob recuerda el triplete del Inter de José Mourinho de 2010 tras ganar la final ante Bayern Múnich en el Santiago Bernabéu.",
-    "original_text": "",
+    "original_text": "The two clubs competing in the 2010 final had each won their domestic league and cup competitions, meaning that the winner would become only the sixth club in Europe to have achieved a continental treble, and the first such club from their respective countries. Internazionale, coached by José Mourinho, beat Bayern 2-0 at the Santiago Bernabéu.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_2008_09_07",
@@ -90,12 +90,12 @@
     "season": "2008/09",
     "event_type": "historical_context",
     "description_es": "El texto anuncia una década de gran protagonismo de Real Madrid y Barcelona, con menciones a Atlético de Madrid y a la racha europea del Madrid.",
-    "original_text": "",
+    "original_text": "The following ten competitions would see the Spanish dominance rise to unprecedented levels, with Barcelona and Real Madrid winning seven titles, as well as having Atlético Madrid reach two finals. Real Madrid reached the semi-finals of the competition for eight consecutive seasons, from 2010-11 to 2017-18, winning four titles, including La Décima and the threepeat.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_2004_05_08",
@@ -104,12 +104,12 @@
     "season": "2004/05",
     "event_type": "historical_context",
     "description_es": "Rob compara las sorpresas del Porto campeón en 2004 y la remontada de Liverpool ante Milan en la final de 2005, conocida como el Milagro de Estambul.",
-    "original_text": "",
+    "original_text": "There was a major upset in 2004, and a similar surprise in 2005. Outsiders Porto and their manager José Mourinho achieved the rare feat of following up a UEFA Cup victory, by winning the Champions League the next season. In 2005, the 'Miracle of Istanbul' would see Liverpool turn around a 0-3 deficit against Milan to bring the score back to 3-3. They would win the penalty shootout, and lift their fifth title; And their first since 1984.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_2001_02_09",
@@ -118,12 +118,12 @@
     "season": "2001/02",
     "event_type": "historical_context",
     "description_es": "El texto recuerda la volea de Zidane en Glasgow en 2002 y el inusual triple subcampeonato del Bayer Leverkusen en esa temporada.",
-    "original_text": "",
+    "original_text": "In 2002, a sublime Zinedine Zidane volley gave the Real Madrid its ninth European Cup and the third European Cup in five seasons. Bayer Leverkusen became the first finalist never to have won their domestic league; they had earlier lost the Bundesliga title in the last match of the season, and subsequently also lost in the DFB-Pokal final, to achieve an unwanted 'runners-up treble'.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1999_00_10",
@@ -132,12 +132,12 @@
     "season": "1999/00",
     "event_type": "format_change",
     "description_es": "Rob explica los cambios de 1999/00 en el acceso a la Champions League y la ampliación del número de equipos de las grandes ligas.",
-    "original_text": "",
+    "original_text": "The 1999-2000 season saw UEFA again ease the entry requirements for the Champions League. Now the top three leagues, according to UEFA's rankings, could enter four teams, while the next three leagues could enter three teams.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1998_99_11",
@@ -146,12 +146,12 @@
     "season": "1998/99",
     "event_type": "achievement",
     "description_es": "Manchester United ganó el triplete de 1998/99, con remontada ante Bayern Múnich en la final del Camp Nou.",
-    "original_text": "",
+    "original_text": "1998-99 was the third leg of a historic treble for Man Utd. Going into this game, they had won the Premier League two-weeks back, and the FA Cup the weekend before hand. After a leggy performance, they would score twice in stoppage time to turn the match on its head, beat Bayern, and win the cup. It was the club's first success since 1968 and marked the first English winner since Liverpool in 1984. 'Football, bloody hell.'",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1997_98_12",
@@ -160,12 +160,12 @@
     "season": "1997/98",
     "event_type": "format_change",
     "description_es": "UEFA permitió la participación de subcampeones de algunas ligas europeas de primer nivel en la Champions League desde 1997/98.",
-    "original_text": "",
+    "original_text": "In 1997-98, UEFA allowed the runners-up of top European leagues to compete in the Champions League. UEFA rationale was that the quality of its premier tournament increased by including more top teams from big leagues rather than minnows. An old face claimed the crown in 1998: Real Madrid.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1994_95_13",
@@ -174,12 +174,12 @@
     "season": "1994/95",
     "event_type": "historical_context",
     "description_es": "El Ajax de Louis van Gaal ganó la Champions de 1994/95 con una plantilla joven, con jugadores como Edwin van der Sar, Edgar Davids, Clarence Seedorf y Patrick Kluivert.",
-    "original_text": "",
+    "original_text": "Milan also went on to reach the final in 1995 but lost 1-0 to a youthful Louis van Gaal Ajax side, featuring players such as Edwin van der Sar, Edgar Davids, Clarence Seedorf, and Patrick Kluivert.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1993_94_14",
@@ -188,12 +188,12 @@
     "season": "1993/94",
     "event_type": "achievement",
     "description_es": "El Milan de Fabio Capello derrotó al Dream Team de Johan Cruyff por 4-0 en la final europea de 1993/94.",
-    "original_text": "",
+    "original_text": "Milan reclaimed the trophy in 1994, beating a star-studded Barcelona side, 4-0, in what many have hailed as one of the finest European Cup Final performances of the modern age. Fabio Capello spurned the traditional Italian caution of catenaccio, and led them to a rout of Johan Cruyff's 'Dream Team'.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1992_93_15",
@@ -202,12 +202,12 @@
     "season": "1992/93",
     "event_type": "format_change",
     "description_es": "La competición adoptó el nombre UEFA Champions League en la temporada 1992/93, con cambios de imagen y comercialización.",
-    "original_text": "",
+    "original_text": "The competition was renamed to UEFA Champions League for the 1992-93 season, undergoing some diverse changes of marketing and TV. Marseille defeated Milan in the 1993 final, and became the first team in the Champions League and the first European champions from France.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1991_92_16",
@@ -216,12 +216,12 @@
     "season": "1991/92",
     "event_type": "historical_context",
     "description_es": "Rob enlaza el título de Estrella Roja en 1991, el regreso de los clubes ingleses y el triunfo del Barcelona de Johan Cruyff en Wembley en 1992.",
-    "original_text": "",
+    "original_text": "The 1991 trophy went to Yugoslav league champions Red Star Belgrade. The 1991 final was also the only final in the period from 1989 to 1998 that failed to feature an Italian team. The ban on English clubs from European football was lifted for the 1990-91 season. The 1992 final, played at Wembley Stadium, was won by Barcelona against Sampdoria. Barça, at the time nicknamed the 'Dream Team', were coached by Johan Cruyff.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1988_89_17",
@@ -230,12 +230,26 @@
     "season": "1988/89",
     "event_type": "historical_context",
     "description_es": "Rob repasa el éxito del Milan de Arrigo Sacchi en 1989 y la relevancia de sus defensores internacionales.",
-    "original_text": "",
+    "original_text": "In 1989, under the management of Arrigo Sacchi, Milan won the European Cup for the first time in 20 years. The Dutch trio of Marco van Basten, Ruud Gullit and Frank Rijkaard were the brilliant heart of the Italian side, which also featured a defence comprising Mauro Tassotti, Franco Baresi, Alessandro Costacurta and Paolo Maldini, often considered one of the greatest defences in the history of the game.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
+  },
+  {
+    "event_key": "rob_fm24_ucl_1987_88_29",
+    "trophy_id": "6ae28d39b84f31b9499777ae",
+    "trophy_source_id": "1301394",
+    "season": "1987/88",
+    "event_type": "historical_context",
+    "description_es": "Tras Heysel, Steaua de Bucarest, FC Porto y PSV Eindhoven ganaron las tres Copas de Europa siguientes. Rob destaca que Steaua fue el primer equipo del bloque oriental en conquistar el título.",
+    "original_text": "The first three seasons after the Heysel Disaster saw the European Cup lifted by unlikely heroes; Steaua București of Romania, Porto of Portugal and PSV Eindhoven of the Netherlands. Steaua were the first Eastern Bloc team to win the competition.",
+    "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
+    "evidence_type": "screenshot",
+    "verification_status": "source_extracted",
+    "is_cancellation": false,
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1984_85_18",
@@ -244,12 +258,12 @@
     "season": "1984/85",
     "event_type": "controversy",
     "description_es": "El texto recuerda la tragedia de Heysel de 1985, la sanción a clubes ingleses y sus repercusiones en las competiciones europeas.",
-    "original_text": "",
+    "original_text": "In 1985, Liverpool returned to defend the trophy in Brussels. But the 1-0 defeat by Juventus was overshadowed by the death of 39 mostly Juventus fans in the Heysel Stadium. The consequence was a five-year ban from European competition for English clubs, with a six-year ban on Liverpool.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1981_82_19",
@@ -258,12 +272,12 @@
     "season": "1981/82",
     "event_type": "historical_context",
     "description_es": "Rob destaca el dominio de clubes ingleses entre 1977 y 1982, incluidos Liverpool, Nottingham Forest y Aston Villa.",
-    "original_text": "",
+    "original_text": "In 1977 and 1978, Liverpool became the first British club to win the trophy twice. In 1979 and 1980, fellow English side Nottingham Forest, guided by their uniquely gifted manager Brian Clough, also won the trophy back-to-back. They remain the only side to win the competition more times than their own domestic league. Aston Villa wrapped up a period of English dominance with a win in 1982. There had been an English finalist for 6-years in a row.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1975_76_20",
@@ -272,12 +286,12 @@
     "season": "1975/76",
     "event_type": "historical_context",
     "description_es": "Se recuerda el Bayern Múnich de Beckenbauer, Sepp Maier, Gerd Müller, Uli Hoeneß y Paul Breitner, vencedor de tres Copas de Europa consecutivas.",
-    "original_text": "",
+    "original_text": "The mid-1970s belonged to Bayern Munich. Led by Franz Beckenbauer, and also starring Sepp Maier, Gerd Müller, Uli Hoeneß and Paul Breitner, the German club not only emulated Ajax's trio of victories but was unmistakably inspired by the beacon of 'Total Football'.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1969_70_21",
@@ -286,12 +300,12 @@
     "season": "1969/70",
     "event_type": "historical_context",
     "description_es": "Feyenoord fue el primer club neerlandés campeón de Europa en 1970; Rob relaciona la etapa siguiente con Ajax y el fútbol total.",
-    "original_text": "",
+    "original_text": "In 1970 Feyenoord were the first Dutch outfit to collect the European Cup. However, for the next three years, Ajax and its exponents of 'Total Football', including Johan Cruyff and Johan Neeskens, among others, together with their pioneering tactician and coach Rinus Michels, would more profoundly take European centre stage.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1967_68_22",
@@ -300,12 +314,12 @@
     "season": "1967/68",
     "event_type": "historical_context",
     "description_es": "Manchester United ganó en 1968 una Copa de Europa vinculada emocionalmente a la tragedia aérea de Múnich de 1958 y a sus supervivientes.",
-    "original_text": "",
+    "original_text": "In 1968, ten years after the Munich air disaster, Manchester United became the first English team to win the competition. Matt Busby, United's manager at the time of the disaster in Munich, survived life-threatening injuries suffered in the crash and was still at the helm for United, and two other Munich survivors played in the game, and game - Bobby Charlton, who scored two goals in the game, and Bill Foulkes.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1966_67_23",
@@ -314,12 +328,12 @@
     "season": "1966/67",
     "event_type": "historical_context",
     "description_es": "El Celtic se convirtió en 1967 en el primer club británico en conquistar la Copa de Europa; sus jugadores son conocidos como los Lisbon Lions.",
-    "original_text": "",
+    "original_text": "In 1967, Celtic became the first British team to win the competition. The team, which became known as the Lisbon Lions, managed by Jock Stein, were unique as they were all born within 30 miles (50 km) of Celtic Park in Glasgow.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1964_65_24",
@@ -328,12 +342,12 @@
     "season": "1964/65",
     "event_type": "historical_context",
     "description_es": "Rob relata la hegemonía del Grande Inter, campeón de Europa en 1964 y 1965.",
-    "original_text": "",
+    "original_text": "Benfica, after winning two European Cups, would then go on to reach a third successive final in 1963, but lost to Milan, whose city rivals Internazionale would win the trophy in both 1964 and 1965. This Grande Inter period is well remembered in Italy with many at the time expecting the club to match the domination of Real throughout the decade.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1959_60_25",
@@ -342,12 +356,12 @@
     "season": "1959/60",
     "event_type": "historical_context",
     "description_es": "Real Madrid dominó las primeras cinco ediciones y ganó en Glasgow la final de 1960 contra Eintracht Frankfurt.",
-    "original_text": "",
+    "original_text": "Real Madrid dominated the first five competitions with relative ease. This culminated in the historic 1960 European Cup Final, at Hampden Park in Glasgow, Scotland, where Real Madrid obliterated Eintracht Frankfurt of West Germany 7-3 in front of BBC and other Eurovision television cameras and a crowd of 127,621.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1954_55_26",
@@ -356,12 +370,12 @@
     "season": "1954/55",
     "event_type": "founding",
     "description_es": "Rob relata las conversaciones y aprobación de la Copa de Europa en 1955, antes de su primera temporada 1955/56.",
-    "original_text": "",
+    "original_text": "The UEFA Congress met in March 1955 to discuss the proposal for a continental club champions league, with approval given in April of that year, and the kick-off of the first European Cup the following season, in a straight knockout format.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1953_54_27",
@@ -370,12 +384,12 @@
     "season": "1953/54",
     "event_type": "founding",
     "description_es": "El texto atribuye a Gabriel Hanot un papel central en la propuesta de una competición continental de clubes.",
-    "original_text": "",
+    "original_text": "European Cup founding father Gabriel Hanot - 'Before we declare that Wolverhampton are invincible, let them go to Moscow and Budapest - And there are other internationally renowned clubs: Milan and Real Madrid to name but two - A club world championship, or at least a European one - larger, more meaningful and more prestigious than the Mitropa Cup and more original than a competition for national teams - should be launched'",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   },
   {
     "event_key": "rob_fm24_ucl_1952_53_28",
@@ -384,11 +398,11 @@
     "season": "1952/53",
     "event_type": "historical_context",
     "description_es": "Los amistosos de Wolverhampton Wanderers frente a grandes clubes extranjeros, incluido Honvéd, aparecen como contexto histórico previo a la Copa de Europa.",
-    "original_text": "",
+    "original_text": "The summer of 1953 saw Wolverhampton Wanderers play a series of friendlies against foreign opposition such as Racing Club of Argentina, Spartak Moscow of the Soviet Union, among others, before meeting Honvéd of Hungary in a game televised live on the BBC - Wolves won Honvéd the game 3-2, which led their manager Stan Cullis and the British press to proclaim them as 'Champions of the World'.",
     "source_dataset": "Rob's History Update 2024 v4.00 · Capturas FM24 (03-11-2026)",
     "evidence_type": "screenshot",
     "verification_status": "source_extracted",
     "is_cancellation": false,
-    "notes": "Síntesis en español del texto en inglés mostrado por Rob; revisar contra texto original del XML si se desea transcripción exacta. En filas narrativas 'No se celebró la competición' es un marcador de ausencia de final en esa fila, NO un hecho de cancelación."
+    "notes": "Resumen en español y transcripción manual en inglés de la captura original de Rob. Texto pendiente de cotejo literal; hechos pendientes de verificación externa. Una fila narrativa no significa cancelación."
   }
 ]
