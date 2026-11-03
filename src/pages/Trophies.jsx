@@ -17,6 +17,7 @@ import {estimateTrophyReputation,REPUTATION_METHOD} from "@/utils/trophyResearch
 import TrophyDetailVisual from "@/components/trophies/TrophyDetailVisual";
 import TrophyHistoricalEditor from "@/components/trophies/TrophyHistoricalEditor";
 import TrophyImageManager from "@/components/trophies/TrophyImageManager";
+import TrophyImageReviewQueue from "@/components/trophies/TrophyImageReviewQueue";
 import TrophyArchiveOverview from "@/components/trophies/TrophyArchiveOverview";
 import TrophyReviewCenter from "@/components/trophies/TrophyReviewCenter";
 import {expandTrophyVisualCards,isFifaClubWorldCup,fifaCwcVariantForSeason} from "@/utils/trophyVisualVariants";
@@ -189,9 +190,10 @@ export default function Trophies(){
   if(current?.id){await base44.entities.Trophy.update(current.id,imageData);}
   else{
    const others={source_id:String(draft.source_id),name:String(draft.name||"Trofeo sin identificar"),trophy_type:TROPHY_TYPES.includes(draft.trophy_type)?draft.trophy_type:"Team Trophy",category:draft.category||"",identification_status:draft.identification_status==="Pending"?"Pending":draft.identification_status==="Verified"?"Verified":"Manual",is_active:true};
-   await base44.entities.Trophy.create({...others,...imageData});
+   const created=await base44.entities.Trophy.create({...others,...imageData});
+   setDraft(old=>({...old,...imageData,id:created?.id||old.id,trophy_type:others.trophy_type}));
   }
-  setDraft(old=>({...old,...imageData,id:old.id||current?.id||old.id}));
+  if(current?.id)setDraft(old=>({...old,...imageData,id:current.id}));
   await qc.invalidateQueries({queryKey:TROPHY_KEY});
  };
  const startHonour=()=>{setDetailTab("Editar");setEditorPane("honours");if(!selected?.id){setError("Guarda primero la ficha del trofeo para registrar sus ganadores.");return;}setError("");setHonourDraft(emptyHonour(selected));setRecipientQuery("");};
@@ -355,9 +357,9 @@ export default function Trophies(){
     </div>
     <TrophySyncWorkbench key={syncPhase} standalone initialPhase={syncPhase} catalog={catalog} trophies={rows(trophyQuery.data)} honours={honours}/>
    </div>}
-   {section==="review"&&<TrophyReviewCenter honours={honours} honoursLoading={honourQuery.isLoading} honoursError={honourQuery.isError}
+   {section==="review"&&<><TrophyImageReviewQueue catalog={all} manifest={imageManifest} onOpen={open}/><TrophyReviewCenter honours={honours} honoursLoading={honourQuery.isLoading} honoursError={honourQuery.isError}
     catalog={all} catalogReady={!catalogLoading&&!catalogError&&!trophyQuery.isLoading&&!trophyQuery.isError} imageManifest={imageManifest} onOpenTrophy={open}
-    onSync={()=>{setSyncPhase("players");setSection("sync");}}/>}
+    onSync={()=>{setSyncPhase("players");setSection("sync");}}/></>}
   </div>
 
   {draft&&<div className="mf-modal-overlay fixed inset-0 z-[9997] flex items-center justify-center bg-slate-950/40 p-3 backdrop-blur-[2px]" onMouseDown={e=>{if(e.target===e.currentTarget)close();}}>
