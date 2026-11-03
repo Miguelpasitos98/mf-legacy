@@ -9,6 +9,7 @@ import {archiveOverview,searchArchiveRows} from "@/utils/trophyArchiveOverview";
 import TrophyRankingCard from "@/components/trophies/TrophyRankingCard";
 import ClubHonoursGroupCard from "@/components/trophies/ClubHonoursGroupCard";
 import ClubTrophyHistory from "@/components/trophies/ClubTrophyHistory";
+import TrophyFm24PalmaresArchive from "@/components/trophies/TrophyFm24PalmaresArchive";
 
 const MODES=[["equipos","Equipos",Shield],["competiciones","Competiciones",Trophy],["jugadores","Jugadores",Users]];
 const small="text-[10px] font-bold uppercase tracking-[.13em] text-slate-400";
@@ -21,6 +22,7 @@ function TrophyPhoto({trophy,manifest,season,size="large"}){
 export default function TrophyArchiveOverview({honours=[],catalog=[],imageManifest,onOpenTrophy,onSync}){
  const navigate=useNavigate();
  const [mode,setMode]=useState("equipos"),[search,setSearch]=useState(""),[visible,setVisible]=useState(24);
+ const [source,setSource]=useState("verified");
  const [seasonFilter,setSeasonFilter]=useState("all");
  const [selectedClubId,setSelectedClubId]=useState("");
  const teamQuery=useQuery({...completeRecordQueryOptions(base44.entities.Team,["mf-legacy","teams"]),enabled:mode==="equipos",retry:false});
@@ -48,6 +50,11 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
   onBack={()=>setSelectedClubId("")} onOpenTrophy={onOpenTrophy} onSync={onSync}
  />;
  return <section className="space-y-3 pb-6">
+  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2" aria-label="Fuentes del palmarés">
+   <button type="button" aria-pressed={source==="verified"} onClick={()=>setSource("verified")} className={"rounded-lg px-4 py-2.5 text-[11px] font-bold "+(source==="verified"?"bg-[#003399] text-white":"text-slate-600 hover:bg-slate-50")}>Palmarés verificado</button>
+   <button type="button" aria-pressed={source==="fm24"} onClick={()=>setSource("fm24")} className={"rounded-lg px-4 py-2.5 text-[11px] font-bold "+(source==="fm24"?"bg-[#003399] text-white":"text-slate-600 hover:bg-slate-50")}>Palmarés histórico FM24</button>
+  </div>
+  {source==="fm24"?<TrophyFm24PalmaresArchive catalog={catalog} imageManifest={imageManifest} onOpenTrophy={onOpenTrophy} onSync={onSync}/> : <>
   <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:px-4" aria-label="Resumen del palmarés">
    {[[Medal,"Títulos verificados",summary.verifiedCount],[Trophy,"Competiciones",summary.competitions.length],[Shield,"Clubes campeones",summary.clubs.length],[CalendarDays,"Pendientes",pending]].map(([Icon,label,value])=><div key={label} className="flex min-w-0 items-center gap-2 text-[11px]">
     <Icon size={14} className="shrink-0 text-slate-400"/><span className="text-slate-500">{label}</span><strong className="tabular-nums text-slate-900">{value.toLocaleString("es-ES")}</strong>
@@ -131,5 +138,6 @@ export default function TrophyArchiveOverview({honours=[],catalog=[],imageManife
    </button>
   </div>}
   <p className="flex items-center gap-1.5 text-[10px] text-slate-400"><Info size={12}/> Los totales reflejan únicamente títulos guardados y verificados en MF Legacy. Un club puede ganar varios títulos en la misma temporada. Los créditos de jugadores requieren confirmación individual.</p>
+  </>}
  </section>;
 }
