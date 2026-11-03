@@ -53,6 +53,22 @@ export async function retryMutation(write){
     }
   }
 }
+export function withEntityRetries(entities){
+  const cache=new Map();
+  return new Proxy(entities,{get(target,name){
+    if(cache.has(name))return cache.get(name);
+    const entity=target[name];
+    if(!entity||typeof entity!=="object")return entity;
+    const wrapped=new Proxy(entity,{get(resource,key){
+      const method=resource[key];
+      if(typeof method!=="function")return method;
+      const retry=["filter","list","get","count","aggregate"].includes(key)?retryRead:
+        ["create","bulkCreate","update","updateMany"].includes(key)?retryMutation:null;
+      return (...args)=>retry?retry(()=>method.apply(resource,args)):method.apply(resource,args);
+    }});
+    cache.set(name,wrapped);return wrapped;
+  }});
+}
 export function metricPlan(item,player,existing,teamLink={}) {
   if(item.is_national_team===false&&requiresNationalScope(item.competition,item.fotmob_tournament_id))throw Error("El torneo es de selecciones; no se atribuye a un club.");
   if(!/^\d{1,15}$/.test(str(item.fotmob_team_id))||!str(item.competition)||!str(item.metric_name))throw Error("Falta identidad de competición/equipo/métrica.");
@@ -364,4 +380,3 @@ export async function applyVerifiedHistoricals(db,job,{dryRun=false,maxScopes=In
   result.pending=Math.max(0,pending.length-result.applied);
   return result;
 }
-

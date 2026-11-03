@@ -1,5 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk";
-import {completionPatch} from "../../shared/importReview.js";
+import {completionPatch,withEntityRetries} from "../../shared/importReview.js";
 
 const reply=(x,status=200)=>Response.json(x,{status,headers:{"Cache-Control":"no-store"}});
 const fail=(msg,status=400)=>reply({ok:false,error:msg},status);
@@ -79,7 +79,7 @@ export default async function(req) {
     if(text.length>240000)return fail("Solicitud demasiado grande.",413);
     const body=JSON.parse(text);
     const client=createClientFromRequest(req);
-    const db=client.asServiceRole.entities;
+    const db=withEntityRetries(client.asServiceRole.entities);
     const action=str(body.action);
     if(action.startsWith("repair-")){
       const {repairRequest}=await import("../../shared/importRepair.js");
@@ -108,6 +108,12 @@ export default async function(req) {
     if(!/^[a-f0-9]{24}$/i.test(str(body.job_id)))return fail("ID de trabajo incorrecto.");
     const job=await db.ImportJob.get(str(body.job_id));
     if(!job)return fail("Trabajo no encontrado.",404);
+    if(action==="recover"){
+      if(["review","completed"].includes(job.status))return reply({ok:true,status:job.status,reconcile:true});
+      if(job.status!=="running"||job.claim_id!==str(body.claim_id))return fail("El trabajo tiene otra concesión; no se modifica.",409);
+      await db.ImportJob.update(job.id,{status:"queued",claim_id:"",lease_expires_at:"",requested_at:new Date(Date.now()+30000).toISOString(),phase:"Fallo transitorio: reanudar diario y conciliar candidatos",last_error:str(body.error).slice(0,350)});
+      return reply({ok:true,status:"queued",reconcile:false});
+    }
     if(action==="reconcile"){
       if(!["review","completed"].includes(job.status))return fail("La extracción sigue en curso.",409);
       const lock=crypto.randomUUID(),now=new Date().toISOString();

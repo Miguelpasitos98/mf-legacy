@@ -1,5 +1,5 @@
 import {createClientFromRequest} from "npm:@base44/sdk";
-import {metricPlan,seasonPlan,compatibleSeasonPlan,valuationPlan,reviewedCurrentTeamLink,completionPatch,persistImportPlan} from "../../shared/importReview.js";
+import {metricPlan,seasonPlan,compatibleSeasonPlan,valuationPlan,reviewedCurrentTeamLink,completionPatch,persistImportPlan,withEntityRetries} from "../../shared/importReview.js";
 export {metricPlan,seasonPlan,valuationPlan,reviewedCurrentTeamLink};
 const str=x=>String(x??"").trim();
 const rows=x=>Array.isArray(x)?x:x?.items||x?.data||x?.entities||[];
@@ -242,7 +242,7 @@ export default async function(req) {
     if(!user || user.role!=="admin")return bad("Solo administradores.",403);
     const data=await req.json();
     const action=str(data.action),candidateId=str(data.candidate_id);
-    const db=sdk.asServiceRole.entities;
+    const db=withEntityRetries(sdk.asServiceRole.entities);
     if(action.startsWith("repair-")){
       const {repairRequest}=await import("../../shared/importRepair.js");
       return reply(await repairRequest(db,data,user.id));

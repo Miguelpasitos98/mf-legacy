@@ -670,6 +670,19 @@ def run_once(root: Path, max_candidates=6000, job_id=None) -> bool:
         return True
     except Exception as exc:
         print("Falló el trabajo "+jid+": "+str(exc)[:250],file=sys.stderr,flush=True)
+        transient=isinstance(exc,(TimeoutError,ConnectionError)) or bool(re.search(r'HTTP (?:429|50[0234])|rate limit|timed out|timeout|connection (?:reset|aborted)',str(exc),re.I))
+        if transient:
+            try:
+                recovered=call("recover",job_id=jid,claim_id=claim,error=str(exc)[:300])
+                if recovered.get("reconcile"):
+                    while True:
+                        result=call("reconcile",job_id=jid)
+                        if not result.get("has_more") or not result.get("applied"):break
+                return True
+            except Exception as recovery_error:
+                print("Reanudación transitoria pendiente: "+str(recovery_error)[:160],file=sys.stderr,flush=True)
+                # Preserve the lease/journal for explicit or expired-lease resume.
+                raise
         try:
             call("fail",job_id=jid,claim_id=claim,error=type(exc).__name__+": "+str(exc)[:300])
         except Exception:
