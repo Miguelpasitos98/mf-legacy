@@ -50,6 +50,7 @@ export default function Managers(){
  const [dnaJsonInput,setDnaJsonInput]=useState("");
  const [dnaDraftReady,setDnaDraftReady]=useState(false);
  const [scopeSuggestion,setScopeSuggestion]=useState(null);
+ const [dateGeneralReviewed,setDateGeneralReviewed]=useState(false);
  const [tacticalWarnings,setTacticalWarnings]=useState([]);
  const dnaIdentityRef=useRef("");
  const [tab,setTab]=useState("identity");
@@ -98,7 +99,7 @@ export default function Managers(){
  useEffect(()=>{
   setManagerDraft(selected?{...MANAGER_BLANK,...selected}:{...MANAGER_BLANK});
   setProfileId("");setTab(newManagerTabRef.current===String(selected?.id)?"dna":"identity");
-  newManagerTabRef.current="";setDnaDraftReady(false);setScopeSuggestion(null);setTacticalWarnings([]);setShowDNAPrompt(false);setDnaJsonInput("");setDnaContext("");setCareerDraft(null);setCareerSelected({});setNotice("");setError("");
+  newManagerTabRef.current="";setDnaDraftReady(false);setScopeSuggestion(null);setDateGeneralReviewed(false);setTacticalWarnings([]);setShowDNAPrompt(false);setDnaJsonInput("");setDnaContext("");setCareerDraft(null);setCareerSelected({});setNotice("");setError("");
  },[selected?.id]);
  useEffect(()=>{
   const profilesOfSelected=profiles.filter(p=>String(p.manager_id)===String(selected?.id||""));
@@ -157,7 +158,7 @@ export default function Managers(){
    setProfileId("__new__");
    const newDraft={...PROFILE_BLANK,...item.profile,is_default:false};
    if(item.id==="general")newDraft.name="Filosofía general";
-   setProfileDraft(newDraft);setRoleText(item.roleText);setDnaDraftReady(true);
+   setProfileDraft(newDraft);setRoleText(item.roleText);setDnaDraftReady(true);setDateGeneralReviewed(false);
    setScopeSuggestion({scope:newDraft.profile_scope,origin:"structured",period_start:newDraft.period_start,period_end:newDraft.period_end,season:newDraft.season});
    setNotice("Modelo «"+newDraft.name+"» cargado como borrador NUEVO. Puedes editarlo y guardar solo este ADN desde abajo.");
  };
@@ -212,6 +213,7 @@ export default function Managers(){
      if(!window.confirm("La propuesta reemplazará los parámetros y los perfiles por posición del borrador abierto. El registro guardado no se modificará hasta pulsar Guardar ADN táctico. ¿Continuar?"))return false;
    }
    setProfileDraft(prev=>previewManagerTacticalDraft(prev,parsed));
+   setDateGeneralReviewed(false);
    const context=effectiveProfileContext(profileDraft,parsed);
    setScopeSuggestion(context);
    setRoleText(parsed.roleText);
@@ -341,12 +343,15 @@ export default function Managers(){
   const found=managerProfiles.find(p=>String(p.id)===String(id));
   setProfileId(found?.id||"__new__");setProfileDraft(found?{...PROFILE_BLANK,...found}:{...PROFILE_BLANK});
   setRoleText(found?decodeRoleText(found.player_role_priorities):{});
-  setDnaDraftReady(false);setScopeSuggestion(null);setError("");setNotice("");
+  setDnaDraftReady(false);setScopeSuggestion(null);setDateGeneralReviewed(false);setError("");setNotice("");
  };
  const saveProfile=async event=>{
   event.preventDefault();if(!selected||isAdmin!==true||busy)return;
   setBusy(true);setError("");setNotice("");
   try{
+   if(dnaDraftReady&&scopeSuggestion?.origin==="invalid_dates"&&
+      profileScope(profileDraft)==="general"&&!dateGeneralReviewed)
+     throw Error("La IA devolvió fechas incompatibles. Elige «Periodo» o «Temporada» y completa campañas verificables, o confirma expresamente que deseas guardar este ADN como filosofía general.");
    const payload=cleanProfile(profileDraft,selected.id,roleText);
    let savedId=profileId;
    if(profileId && profileId!=="__new__"){
@@ -365,7 +370,7 @@ export default function Managers(){
    const refreshed=await refresh();
    const current=refreshed.profiles.find(p=>String(p.id)===String(savedId));
    setProfileId(String(savedId));if(current){setProfileDraft({...PROFILE_BLANK,...current});setRoleText(decodeRoleText(current.player_role_priorities));}
-   setDnaDraftReady(false);setScopeSuggestion(null);setNotice("ADN táctico guardado. No se han recalculado ni modificado jugadores.");
+   setDnaDraftReady(false);setScopeSuggestion(null);setDateGeneralReviewed(false);setNotice("ADN táctico guardado. No se han recalculado ni modificado jugadores.");
   }catch(e){setError(e.message||"No se pudo guardar el perfil táctico.")}
   finally{setBusy(false)}
  };
@@ -554,10 +559,16 @@ export default function Managers(){
          <ul className="mt-2 list-disc pl-4 space-y-1">{tacticalWarnings.map((w,i)=><li key={i}>{w.field}: «{w.original}» → «{w.fallback}» (provisional). {w.reason}.</li>)}</ul>
        </div>}
        {dnaDraftReady&&<div role="status" className="rounded-lg bg-emerald-50 p-3 border border-emerald-200 text-sm">
-         <p className="font-bold text-emerald-800">Periodo interpretado: {profileScopeLabel(profileDraft)}</p>
+         <p className={scopeSuggestion?.origin==="invalid_dates"?"font-bold text-amber-800":"font-bold text-emerald-800"}>Periodo interpretado: {profileScopeLabel(profileDraft)}</p>
          {scopeSuggestion?.origin==="explicit_notes"&&<p className="mt-1 text-xs text-emerald-700">Identificado a partir del apartado «ETAPA REPRESENTADA» del JSON anterior. Confirma el club y las fechas antes de guardar.</p>}
          {scopeSuggestion?.origin==="existing_preserved"&&<p className="mt-1 text-xs text-blue-700">El JSON no aportaba fechas fiables, así que se han conservado las fechas que ya habías indicado.</p>}
          {scopeSuggestion?.origin==="not_specified"&&<p className="mt-1 text-xs text-amber-700">El JSON no identifica una etapa concreta. Se ha propuesto «Filosofía general»; revisa el análisis antes de aceptarlo.</p>}
+         {scopeSuggestion?.origin==="invalid_dates"&&<div role="alert" className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 space-y-2">
+          <strong>Fechas del periodo pendientes de revisar.</strong> La IA no ha proporcionado temporadas exactas compatibles. El JSON se ha conservado, incluyendo las fechas originales en las observaciones.
+          <p>Para guardar una etapa histórica, selecciona «Periodo» o «Temporada específica» y escribe las campañas válidas. Si el análisis realmente representa toda su filosofía, puedes confirmarlo explícitamente:</p>
+          <label className="flex items-start gap-2 font-semibold"><input type="checkbox" checked={dateGeneralReviewed} onChange={e=>setDateGeneralReviewed(e.target.checked)} className="mt-0.5" disabled={!canWrite}/>He revisado las fechas y confirmo que deseo guardar el análisis como filosofía general, sin asignarle un periodo no verificado.</label>
+         </div>}
+
          <p className="text-xs text-emerald-700 mt-1">Nombre propuesto: <strong>{profileDraft.name}</strong>. Todos los campos son editables; todavía no se ha guardado.</p>
        </div>}
      </div>
