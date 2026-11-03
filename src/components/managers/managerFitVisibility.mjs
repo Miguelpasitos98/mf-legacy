@@ -4,6 +4,7 @@
  * The fallback never turns position fit into a tactical performance score.
  */
 export const managerFitScore=(row,scoreMode)=>{
+ if(scoreMode==="deep")return row?.deep?.score??null;
  if(scoreMode==="role")return row?.roleFit?.score??null;
  if(scoreMode==="historical")return row?.historical?.score??null;
  if(scoreMode==="attributes")return row?.advanced?.score??null;
@@ -24,7 +25,11 @@ export function visibleManagerFitCandidates(rows=[],{
   // modes, regardless of the sorting preference.
   if(!fallback&&left===null&&right!==null)return 1;
   if(!fallback&&right===null&&left!==null)return -1;
-  if(!fallback&&sortMode==="coverage"&&scoreMode==="role"){
+  if(!fallback&&sortMode==="coverage"&&(scoreMode==="role"||scoreMode==="deep")){
+   if(scoreMode==="deep"){
+    const coverageDelta=(b.deep?.functions?.coverage??0)-(a.deep?.functions?.coverage??0);
+    if(coverageDelta)return coverageDelta;
+   }
    const coverageDelta=(b.roleFit?.coverage??0)-(a.roleFit?.coverage??0);
    if(coverageDelta)return coverageDelta;
    const confidenceDelta=(confidenceOrder[b.roleFit?.confidence]||0)-(confidenceOrder[a.roleFit?.confidence]||0);
