@@ -151,7 +151,7 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
    </div>
   </div>}
   {tab==="Ediciones"&&<div className="space-y-5 p-4 md:p-6">
-   <TrophyHistoricalArchive mode="editions" trophySourceId={trophy.source_id} editions={historicalEditions} events={historicalEvents} loading={robEditionsQuery.isLoading} error={robEditionsQuery.isError}/>
+   <TrophyHistoricalArchive mode="editions" trophySourceId={trophy.source_id} editions={historicalEditions} events={historicalEvents} teams={teamsQuery.data||[]} loading={robEditionsQuery.isLoading} error={robEditionsQuery.isError}/>
    <div className="border-t border-slate-200 pt-4"><p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Separado del archivo de Rob · palmarés de MF LEGACY</p></div>
    <div className="flex flex-wrap items-center justify-between gap-2">
     <div>{heading("Ediciones y ganadores",ordered.length+" adjudicaciones registradas · "+summary.verifiedCount+" verificadas")}</div>
