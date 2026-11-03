@@ -10,6 +10,7 @@ const norm = normalizeTrophyName;
 
 // Audited anchors. Match exact names or source IDs, never broad substrings.
 const ANCHORS = [
+ {id:'2000289984',names:['Superliga Africana','African Football League'],score:132,scope:'international',basis:'Competición continental oficial de clubes CAF/FIFA; gran relevancia africana, historia reciente y menor difusión mundial que las grandes copas continentales.',url:'https://www.cafonline.com/en/news/caf-president-dr-motsepe-launches-the-african-football-league-trophy/'},
  {id:'2000335360',names:['Corinthian Bowl (1906-1913)'],score:66,country:'Suecia',basis:'Copa sueca histórica celebrada entre 1906 y 1913, de gran valor patrimonial pero escasa notoriedad fuera del país.',url:'https://globalsportsarchive.com/en/soccer/competition/corinthian-bowl-1906/10099'},
  {id:'2000335356',names:['Bass Charity Vase'],score:74,country:'Inglaterra',friendly:true,basis:'Trofeo benéfico amistoso inglés disputado desde 1890; gran tradición local y notoriedad internacional limitada.',url:'https://www.lcfc.com/media-article/The-Bass-Charity-Vase-A-History'},
  {names:['Youdan Football Cup','Youdan Cup'],score:105,country:'Inglaterra',region:'Sheffield',basis:'Primer torneo documentado por un trofeo de fútbol (1867); notable importancia patrimonial, difusión histórica limitada.',url:'https://www.guinnessworldrecords.com/world-records/75075-oldest-competition-for-a-trophy-in-football-soccer'},
@@ -62,12 +63,12 @@ export const trophyResearchAnchor = trophy => byId.get(String(trophy?.source_id|
 const REGIONAL=/(?:\b(?:county|district|regional|amateur|provincial|distrital|municipal|bezirksliga|kreis(?:liga|pokal)|oberliga|gauliga|verbandsliga|landesliga|eccellenza|promozione|torneo(?:\s+provincial)?|comarcal|tercera|third division|fourth division|5th|fifth|4th|sixth|u ?1[5789]|u ?2[013]|sub ?1[5789]|sub ?2[013])\b)/;
 const WOMEN=/(?:\b(?:women|woman|femenin[ao]|frauen|womens|woman's|femme|ladies|nws[l]|wsl)\b)/;
 const FRIENDLY=/(?:\b(?:amistoso|friendly|invitation(?:al)?|memorial|preseason|pre season|summer|trofeo|trofeu|emirates cup|audi cup|teresa herrera|carranza|gamper)\b)/;
-const LEAGUE=/(?:\b(?:liga|league|ligue|division|divisie|divisao|bundesliga|serie [abcd]|laliga|superliga|campeonato|championat|championnat|primera|premier|premiership|championship|meisterschaft|ligan|ligue 1|k[1-9] league)\b)/;
-const CUP=/(?:\b(?:copa|cup|pokal|coupe|taca|taça|trophy|trofeo|challenge|shield)\b)/;
+const LEAGUE=/(?:\b(?:liga|league|ligue|division|divisie|divisao|bundesliga|serie [abcd]|laliga|superliga|campeonato|championat|championnat|promozione|eccellenza|verbandsliga|oberliga|bezirksliga|landesliga|second category|segunda categoria|ascenso nacional|primera|premier|premiership|championship|meisterschaft|ligan|ligue 1|k[1-9] league)\b)/;
+const CUP=/(?:\b(?:copa|cup|pokal|verbandspokal|coppa|coupe|taca|taça|trophy|trofeo|challenge|shield)\b)/;
 const SUPERCUP=/(?:\b(?:supercopa|supercup|super cup|supercoppa|supertaca|supertaça|community shield|charity shield)\b)/;
 const AGE=/(?:\b(?:u ?1[5789]|u ?2[013]|sub ?1[5789]|sub ?2[013]|under ?1[5789]|under ?2[013]|youth|juvenil|academy|reserves|reserve|primavera)\b)/;
 const WORLD=/(?:\b(?:fifa|world cup|copa del mundo|copa mundial|mundial de clubes|club world cup|intercontinental|confederations cup)\b)/;
-const CONFED=/(?:\b(?:uefa|conmebol|concacaf|caf|afc |ofc |libertadores|sudamericana|eurocopa|copa america|copa oro|gold cup|champions league|europa league|conference league|asian cup|african cup|copa latina|latin cup|copa de ferias|copa de europa|recopa de europa)\b)/;
+const CONFED=/(?:\b(?:uefa|conmebol|concacaf|caf|afc |ofc |libertadores|sudamericana|eurocopa|copa america|copa oro|champions league|europa league|conference league|asian cup|african cup|copa latina|latin cup|copa de ferias|coppa delle alpi|central american cup|caribbean cup|caribbean club shield|african super league|superliga africana|north american nations league|copa interamericana|copa de europa|recopa de europa)\b)/;
 const ELITE_COUNTRIES=['inglaterra','espana','alemania','italia','francia','brasil','argentina'];
 
 export function estimateTrophyReputation(trophy={}) {
@@ -204,6 +205,7 @@ export function recommendedTrophyCategory(trophy={}) {
  const anchor=trophyResearchAnchor(trophy);
  if(anchor?.friendly)return 'Other';
  if(n==='copa campeonato')return 'League';
+ if(n==='superliga africana'||n==='african football league')return 'International';
  if(trophy.trophy_type==='Individual Trophy')return 'Individual Award';
  if(SUPERCUP.test(n))return 'Supercup';
  if(WORLD.test(n)||CONFED.test(n))return 'International';
