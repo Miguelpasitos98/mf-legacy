@@ -4,7 +4,7 @@ import {Database,ShieldCheck,RefreshCw} from "lucide-react";
 const fmt=v=>v===null||v===undefined||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("es-ES",{maximumFractionDigits:2});
 const errorOf=e=>e?.response?.data?.error||e?.message||"No se pudo consultar el archivo histórico";
 
-export default function UnderstatMissingImport({player,linked,fotmobId,workerBusy=false,onApplied}){
+export default function UnderstatMissingImport({player,linked,fotmobId,workerBusy=false,jobRevision="",onApplied}){
  const [plan,setPlan]=useState(null);
  const [candidate,setCandidate]=useState("");
  const [approved,setApproved]=useState(false);
@@ -19,6 +19,14 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
   autoScan.current="";
   setPlan(null);setCandidate("");setApproved(false);setBusy("");setMessage("");setError("");setBatchProgress(null);
  },[player?.id,fotmobId]);
+ // A queued/running worker changes the historical season snapshot. Once its
+ // status changes to review/completed, discard the old audit and rescan.
+ // A different player's job does not invalidate this selected player.
+ useEffect(()=>{
+  current.current+=1;
+  autoScan.current="";
+  setPlan(null);setBusy("");setError("");setMessage("");setBatchProgress(null);
+ },[jobRevision]);
  const eligible=Boolean(player?.id&&linked&&fotmobId&&!workerBusy);
  const context={
   player_id:player?.id,fotmob_player_id:fotmobId,
@@ -126,7 +134,7 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
    <span className="text-[11px] text-slate-500">Archivo verificado · temporadas completas hasta 2024/25 · no necesita Understat.com</span>
   </div>
   {!linked&&player&&<p className="text-xs text-amber-800">Confirma primero el ID FotMob del jugador en IMPORT. No se usa el nombre como vínculo automático.</p>}
-  {workerBusy&&<p className="text-xs text-amber-800">Hay una importación activa de este jugador; esta revisión se habilitará al terminar.</p>}
+  {workerBusy&&<p className="text-xs text-amber-800">Hay una importación activa de este jugador. El diagnóstico se actualizará automáticamente cuando terminen sus bloques de extracción; no tienes que pulsar nada.</p>}
   {plan&&<>
    {plan.status==="needs_identity_confirmation"&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
     <p className="text-xs text-amber-900">No hay suficientes temporadas coincidentes para validar automáticamente su ID Understat. Comprueba las opciones antes de autorizar una nueva temporada.</p>
