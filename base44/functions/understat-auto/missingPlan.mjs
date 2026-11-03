@@ -53,8 +53,8 @@ export function missingMetrics(existing,incoming){
  return (incoming||[]).filter(m=>{
   const key=norm(m.name),prior=indexed.get(key);
   // Existing values, including genuine zero, always take precedence.
-  if(prior&&val(prior.value)!==null)return false;
-  if((collisionAliases[key]||[]).some(alias=>val(indexed.get(alias)?.value)!==null))return false;
+  if(prior&&(val(prior.value)!==null||val(prior.per90)!==null))return false;
+  if((collisionAliases[key]||[]).some(alias=>val(indexed.get(alias)?.value)!==null||val(indexed.get(alias)?.per90)!==null))return false;
   if(key==="xgchain"||key==="xgbuildup"){
    if(val(indexed.get(key)?.value)!==null)return false;
   }
@@ -69,7 +69,10 @@ export function planHistoricalMissing(archiveMap,records,options={}){
   understat_id,club_samples:[...new Set(rows.map(r=>r.team).filter(Boolean))].slice(0,5),
   season_count:[...new Set(rows.map(r=>r.season))].length
  }));
- const inferred=deriveRates(archiveMap,records);
+ // Understat-only seasons are not independent evidence of a FotMob identity.
+ const independent=records.filter(r=>String(r?.source||'').toLowerCase()!=='understat'&&
+   !String(r?.external_record_id||'').startsWith('understat:'));
+ const inferred=deriveRates(archiveMap,independent);
  let id=inferred.status==="verified"?inferred.understat_id:"";
  const manualId=txt(options.understat_id);
  const manual=options.confirm_identity===true&&manualId&&archiveMap.has(manualId);
