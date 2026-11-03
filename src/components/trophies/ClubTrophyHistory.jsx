@@ -121,7 +121,7 @@ export default function ClubTrophyHistory({teamId,team,honours=[],catalog=[],man
    {history.competitions.length?<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
     {history.competitions.map(entry=><button key={entry.source_id} type="button" onClick={()=>showChronology(entry.source_id)}
      className="group flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:border-blue-300 hover:shadow-md">
-     <Picture src={trophyImageUrl(entry.trophy,manifest)} size="h-24 w-24"/>
+     <Picture src={trophyImageUrl(entry.trophy,manifest,entry.latest)} size="h-24 w-24"/>
      <div className="min-w-0 flex-1">
       <p className={low}>Competición</p>
       <p className="mt-1 line-clamp-2 text-[12px] font-black leading-5 text-slate-800">{entry.name}</p>
@@ -143,7 +143,7 @@ export default function ClubTrophyHistory({teamId,team,honours=[],catalog=[],man
       <p className="mt-1 text-[11px] text-slate-500">{group.count} {group.count===1?"título":"títulos"}</p>
       <div className="mt-3 flex flex-wrap gap-1.5">{group.editions.slice(0,5).map(h=>
        <div key={h.id||h.trophy_source_id} title={h.trophy.name} className="rounded-lg border border-slate-100 bg-slate-50 p-1">
-        <Picture src={trophyImageUrl(h.trophy,manifest)} size="h-12 w-12"/>
+        <Picture src={trophyImageUrl(h.trophy,manifest,h.season)} size="h-12 w-12"/>
        </div>)}</div>
      </button>)}</div>
    </div>}
@@ -168,14 +168,14 @@ export default function ClubTrophyHistory({teamId,team,honours=[],catalog=[],man
        <span className="ml-3 text-[11px] text-slate-500">{group.editions.length} {group.editions.length===1?"título":"títulos"}</span>
       </span>
       <span className="flex items-center gap-1.5">{group.editions.slice(0,4).map(h=>
-       <Picture key={h.id||h.trophy_source_id} src={trophyImageUrl(h.trophy,manifest)} size="h-9 w-9"/>)}</span>
+       <Picture key={h.id||h.trophy_source_id} src={trophyImageUrl(h.trophy,manifest,h.season)} size="h-9 w-9"/>)}</span>
       {expanded===group.season?<ChevronUp size={16} className="text-slate-400"/>:<ChevronDown size={16} className="text-slate-400"/>}
      </button>
      {expanded===group.season&&<div className="grid gap-3 border-t border-slate-100 bg-[#f8fafd] p-3 md:grid-cols-2 xl:grid-cols-3">
       {group.editions.map(h=><div key={h.id||h.trophy_source_id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
        <button type="button" onClick={()=>showEdition(h)} aria-label={"Abrir edición "+h.trophy.name+" "+h.season}
         className="flex w-full gap-3 rounded-lg p-1 text-left transition hover:bg-blue-50">
-        <Picture src={trophyImageUrl(h.trophy,manifest)} size="h-[76px] w-[76px]"/>
+        <Picture src={trophyImageUrl(h.trophy,manifest,h.season)} size="h-[76px] w-[76px]"/>
         <span className="min-w-0 flex-1">
          <span className="line-clamp-2 text-xs font-black leading-5 text-slate-900">{h.trophy.name}</span>
          <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-emerald-700"><CheckCircle2 size={12}/> Campeón verificado</span>
@@ -224,7 +224,7 @@ export default function ClubTrophyHistory({teamId,team,honours=[],catalog=[],man
      </div>
      <div className="mt-3 flex gap-1.5 overflow-x-auto border-t border-slate-100 pt-2">
       {p.editions.map(h=><button key={h.id||h.trophy_source_id} type="button" onClick={()=>openTrophy(h.trophy_source_id)} title={h.trophy.name+" · "+h.season}
-       className="shrink-0 rounded-lg bg-[#f7f9fc]"><Picture src={trophyImageUrl(h.trophy,manifest)} size="h-12 w-12"/></button>)}
+       className="shrink-0 rounded-lg bg-[#f7f9fc]"><Picture src={trophyImageUrl(h.trophy,manifest,h.season)} size="h-12 w-12"/></button>)}
      </div>
     </article>)}
    </div>}
