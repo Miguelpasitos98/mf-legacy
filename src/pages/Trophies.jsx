@@ -16,14 +16,16 @@ import TrophyCountryPicker from "@/components/trophies/TrophyCountryPicker";
 import {estimateTrophyReputation,REPUTATION_METHOD} from "@/utils/trophyResearch";
 import TrophyDetailVisual from "@/components/trophies/TrophyDetailVisual";
 import TrophyHistoricalEditor from "@/components/trophies/TrophyHistoricalEditor";
+import TrophyImageManager from "@/components/trophies/TrophyImageManager";
 import TrophyArchiveOverview from "@/components/trophies/TrophyArchiveOverview";
 import TrophyReviewCenter from "@/components/trophies/TrophyReviewCenter";
 import {expandTrophyVisualCards,isFifaClubWorldCup,fifaCwcVariantForSeason} from "@/utils/trophyVisualVariants";
 import {TROPHY_CSV_URL,TROPHY_TYPES,TROPHY_CATEGORIES,parseTrophyCatalog,mergeTrophyCatalog,trophyImageUrl,normaliseSearch} from "@/utils/trophyCatalog";
+import {statusOf,trophyImageShouldHide} from "@/utils/trophyImages";
 
 const TROPHY_KEY=["mf-legacy","trophies","definitions"];
 const HONOURS_KEY=["mf-legacy","trophies","honours"];
-const emptyTrophy=()=>({source_id:"",name:"",trophy_type:"",category:"",country:"",country_id:"",country_resolution:"pending",region:"",reputation:"",reputation_method:REPUTATION_METHOD,reputation_basis:"",research_source_url:"",organizer:"",competition_id:"",description:"",image_url:"",identification_status:"Manual",is_active:true});
+const emptyTrophy=()=>({source_id:"",name:"",trophy_type:"",category:"",country:"",country_id:"",country_resolution:"pending",region:"",reputation:"",reputation_method:REPUTATION_METHOD,reputation_basis:"",research_source_url:"",organizer:"",competition_id:"",description:"",image_url:"",image_override_url:"",image_status:"auto",image_source_type:"catalog",image_source_reference:"",image_notes:"",image_last_reviewed_at:"",identification_status:"Manual",is_active:true});
 const emptyHonour=(trophy)=>({season:"",recipient_type:trophy?.trophy_type==="Individual Trophy"?"Player":"Team",recipient_id:"",recipient_name:"",award_rank:"",goals:"",edition_label:"",verified:false,source_url:"",notes:""});
 const rows=result=>Array.isArray(result)?result:(result?.items||result?.data||[]);
 const input="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
@@ -31,9 +33,9 @@ const label="mb-1.5 block text-[11px] font-bold uppercase tracking-[.12em] text-
 
 function TrophyArtwork({trophy,manifest,className="h-24 w-full",onError}){
  const [bad,setBad]=useState(false);
- useEffect(()=>setBad(false),[trophy?.source_id,trophy?.image_url,trophy?.visual_variant_id]);
+ useEffect(()=>setBad(false),[trophy?.source_id,trophy?.image_url,trophy?.image_override_url,trophy?.image_status,trophy?.visual_variant_id]);
  return <div className={"flex items-center justify-center overflow-hidden "+className}>
-   {bad?<Trophy size={42} strokeWidth={1.1} className="text-slate-300"/>:<img loading="lazy" src={trophyImageUrl(trophy,manifest)} alt="" className="h-full w-full object-contain drop-shadow-[0_8px_10px_rgba(15,23,42,0.10)]" onError={()=>{setBad(true);onError?.();}}/>}
+   {bad||trophyImageShouldHide(trophy)?<Trophy size={42} strokeWidth={1.1} className="text-slate-300"/>:<img loading="lazy" src={trophyImageUrl(trophy,manifest)} alt="" className="h-full w-full object-contain drop-shadow-[0_8px_10px_rgba(15,23,42,0.10)]" onError={()=>{setBad(true);onError?.();}}/>}
  </div>;
 }
 function Metric({value,label:caption,icon:Icon}){
@@ -174,12 +176,23 @@ export default function Trophies(){
   setSaving(true);
   try{
    if(draft.reputation!==""&&draft.reputation!=null&&!Number.isFinite(Number(draft.reputation))){setError("La reputación debe ser un número de 0 a 200.");return;}
-   const payload={source_id,name,trophy_type:draft.trophy_type,category:draft.category||"",country:draft.country||"",organizer:draft.organizer||"",competition_id:draft.competition_id||"",description:draft.description||"",image_url:draft.image_url||"",source_name:draft.source_name||"",identification_status:draft.identification_status==="Pending"?"Pending":draft.identification_status==="Manual"?"Manual":"Verified",is_active:draft.is_active!==false,notes:draft.notes||"",country_id:draft.country_id||"",country_resolution:draft.country_resolution||"pending",region:draft.region||"",reputation:draft.reputation===""||draft.reputation==null?null:Math.min(200,Math.max(0,Math.round(Number(draft.reputation)))),reputation_basis:draft.reputation_basis||"",reputation_method:draft.reputation_method||REPUTATION_METHOD,research_source_url:draft.research_source_url||""};
+   const payload={source_id,name,trophy_type:draft.trophy_type,category:draft.category||"",country:draft.country||"",organizer:draft.organizer||"",competition_id:draft.competition_id||"",description:draft.description||"",image_url:draft.image_url||"",image_override_url:draft.image_override_url||"",image_status:statusOf(draft),image_source_type:draft.image_source_type||"catalog",image_source_reference:draft.image_source_reference||"",image_notes:draft.image_notes||"",image_last_reviewed_at:draft.image_last_reviewed_at||"",source_name:draft.source_name||"",identification_status:draft.identification_status==="Pending"?"Pending":draft.identification_status==="Manual"?"Manual":"Verified",is_active:draft.is_active!==false,notes:draft.notes||"",country_id:draft.country_id||"",country_resolution:draft.country_resolution||"pending",region:draft.region||"",reputation:draft.reputation===""||draft.reputation==null?null:Math.min(200,Math.max(0,Math.round(Number(draft.reputation)))),reputation_basis:draft.reputation_basis||"",reputation_method:draft.reputation_method||REPUTATION_METHOD,research_source_url:draft.research_source_url||""};
    if(draft.id)await base44.entities.Trophy.update(draft.id,payload);
    else await base44.entities.Trophy.create(payload);
    await qc.invalidateQueries({queryKey:TROPHY_KEY});setDraft(null);setSelectedId("");setNewRecord(false);
   }catch(e){setError("No se pudo guardar en Base44: "+(e?.message||e));}
   finally{setSaving(false);}
+ };
+ const saveImage=async imageData=>{
+  if(!draft?.source_id)throw Error("Guarda antes el ID original del trofeo.");
+  const current=rows(trophyQuery.data).find(row=>String(row.source_id)===String(draft.source_id));
+  if(current?.id){await base44.entities.Trophy.update(current.id,imageData);}
+  else{
+   const others={source_id:String(draft.source_id),name:String(draft.name||"Trofeo sin identificar"),trophy_type:TROPHY_TYPES.includes(draft.trophy_type)?draft.trophy_type:"Team Trophy",category:draft.category||"",identification_status:draft.identification_status==="Pending"?"Pending":draft.identification_status==="Verified"?"Verified":"Manual",is_active:true};
+   await base44.entities.Trophy.create({...others,...imageData});
+  }
+  setDraft(old=>({...old,...imageData,id:old.id||current?.id||old.id}));
+  await qc.invalidateQueries({queryKey:TROPHY_KEY});
  };
  const startHonour=()=>{setDetailTab("Editar");setEditorPane("honours");if(!selected?.id){setError("Guarda primero la ficha del trofeo para registrar sus ganadores.");return;}setError("");setHonourDraft(emptyHonour(selected));setRecipientQuery("");};
  const saveHonour=async e=>{
@@ -384,7 +397,7 @@ export default function Trophies(){
        <DetailsField title="Criterio de reputación" wide><textarea className={input+" min-h-16 py-2"} value={draft.reputation_basis||""} onChange={e=>setDraft(v=>({...v,reputation_basis:e.target.value}))} placeholder={estimateTrophyReputation(draft).basis}/></DetailsField>
        <DetailsField title="Organizador"><input className={input} value={draft.organizer||""} onChange={e=>setDraft(v=>({...v,organizer:e.target.value}))} placeholder="FIFA, UEFA, federación…"/></DetailsField>
        <DetailsField title="ID de competición"><input className={input} value={draft.competition_id||""} onChange={e=>setDraft(v=>({...v,competition_id:e.target.value}))} placeholder="Opcional · League ID"/></DetailsField>
-       <DetailsField title="Imagen (URL opcional)" wide><input className={input} value={draft.image_url||""} onChange={e=>setDraft(v=>({...v,image_url:e.target.value}))} placeholder={trophyImageUrl({source_id:draft.source_id})}/></DetailsField>
+       <div className="sm:col-span-2"><TrophyImageManager key={String(draft.source_id||"new")} trophy={draft} manifest={imageManifest} onSave={saveImage} disabled={saving}/></div>
        <DetailsField title="Fuente de investigación (opcional)" wide><input className={input} type="url" value={draft.research_source_url||""} onChange={e=>setDraft(v=>({...v,research_source_url:e.target.value}))} placeholder="https://federación o club oficial…"/></DetailsField>
        <DetailsField title="Descripción" wide><textarea className={input+" min-h-20 py-2"} value={draft.description||""} onChange={e=>setDraft(v=>({...v,description:e.target.value}))} placeholder="Historia, relevancia o características del trofeo…"/></DetailsField>
        <DetailsField title="Notas privadas" wide><textarea className={input+" min-h-16 py-2"} value={draft.notes||""} onChange={e=>setDraft(v=>({...v,notes:e.target.value}))} placeholder="Pendientes de investigación…"/></DetailsField>
