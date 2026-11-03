@@ -5,7 +5,8 @@ export const normalizeHistoricalSeason=value=>{
  const match=raw.match(/^(\d{4})\/(\d{2}|\d{4})$/);
  if(!match)return null;
  const start=Number(match[1]);
- const end=Number(match[2].length===4?match[2]:String(start).slice(0,2)+match[2]);
+ const shortYear=Number(match[2]);
+ const end=match[2].length===4?Number(match[2]):Math.floor(start/100)*100+shortYear+(shortYear<=start%100?100:0);
  if(end!==start+1)return null;
  return String(start)+"/"+String(end).slice(-2);
 };
