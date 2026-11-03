@@ -8,7 +8,7 @@ const csv=[
  "id,player_name,season,team_title,league,time,xGChain,xGBuildup,goals,assists,xG,xA,npxG,shots,key_passes,npg,yellow_cards,red_cards,games",
  "44,Example Player,2016/17,Arsenal,EPL,2400,21,12,15,7,18,6,14,105,50,13,2,0,30",
  "44,Example Player,2017/18,Arsenal,EPL,2600,24,15,18,9,19,8,15,100,45,16,3,0,35",
- "44,Example Player,2018/19,Arsenal,EPL,2300,19,13,14,5,17,13,95,37,12,1,0,29"
+ "44,Example Player,2018/19,Arsenal,EPL,2300,19,13,14,5,17,7,13,95,37,12,1,0,29"
 ].join("\n");
 const job={id:"aaaaaaaaaaaaaaaaaaaaaaaa",player_id:"bbbbbbbbbbbbbbbbbbbbbbbb",
  player_name:"Example Player",fotmob_player_id:"777",sources:["understat","fotmob"],
