@@ -210,6 +210,22 @@ export default async function(req) {
           await db.ImportJob.update(job.id,{phase:"Automático: "+automatic.applied+" candidatos compatibles incorporados; "+automatic.pending+" pendientes de revisión"});
         }catch(e){console.error("Aplicación automática conservadora pendiente",e);}
       }
+      // Completar automáticamente goles, asistencias y xG/xA de las ligas
+      // históricas que FotMob todavía no haya cubierto. El archivo Understat
+      // es inmutable y se verifica con SHA-256. No sustituye valores nativos.
+      let archiveRecovery=null;
+      try{
+        const {runHistoricalArchiveBackfill}=await import("./understatArchiveBackfill.js");
+        archiveRecovery=await runHistoricalArchiveBackfill(db,job);
+        if(archiveRecovery.metrics_added>0){
+          const previous=await db.ImportJob.get(job.id);
+          await db.ImportJob.update(job.id,{
+            source_results:{...(previous.source_results||source_results),understat_archive:{
+              status:"complete",note:"Recuperación automática: "+archiveRecovery.metrics_added+" estadísticas añadidas en "+archiveRecovery.rows_updated+" registros de liga. No se modifica FotMob.",
+              counts:{metrics_added:archiveRecovery.metrics_added,rows_updated:archiveRecovery.rows_updated}}}
+          });
+        }
+      }catch(e){console.error("Recuperación histórica adicional pendiente: "+String(e.message||e).slice(0,220));}
       // Avanzar entre temporadas pendientes sin volver a solicitar todo el
       // historial. Un bloque es de hasta ocho consultas; se detiene si FotMob
       // rechaza o limita el acceso, si no hay respuestas útiles o al llegar
@@ -245,7 +261,7 @@ export default async function(req) {
         }catch(e){console.error("No se pudo encolar el siguiente bloque FotMob",e);}
       }
       return reply({ok:true,status:counts?"review":"completed",candidates:counts,
-        automatic,next_job_id,coverage:source_results.fotmob?.coverage||null});
+        automatic,archiveRecovery,next_job_id,coverage:source_results.fotmob?.coverage||null});
     }
     if(action==="fail") {
       await db.ImportJob.update(job.id,{status:"failed",phase:"Error de extracción",last_error:str(body.error).slice(0,350),finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
