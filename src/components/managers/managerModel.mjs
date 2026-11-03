@@ -1,3 +1,4 @@
+import {normalizeManagerBirthDate} from "./managerBirthDate.mjs";
 import {normalizeExplicitSeason} from "./managerSeasonNormalization.mjs";
 import {normalizeFormationDescription} from "./managerFormationNormalization.mjs";
 export const DNA_AXES = [
@@ -54,7 +55,7 @@ export const cleanManager = raw => {
  if(photo&&!/^https?:\/\//i.test(photo))throw Error("La fotografía debe tener una URL http(s).");
  return {
    name,display_name:String(raw.display_name||"").trim(),country_id:String(raw.country_id||"").trim(),nationality:String(raw.nationality||"").trim(),
-   date_of_birth:String(raw.date_of_birth||"").trim(),photo_url:photo,
+   date_of_birth:normalizeManagerBirthDate(raw.date_of_birth),photo_url:photo,
    manager_kind:raw.manager_kind==="fictional"?"fictional":"real",
    biography:String(raw.biography||"").trim(),notes:String(raw.notes||"").trim(),
    source_url:source,source_status:["manual","verified","pending"].includes(raw.source_status)?raw.source_status:"manual",

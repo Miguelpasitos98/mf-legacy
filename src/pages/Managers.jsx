@@ -3,6 +3,7 @@ import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {Search,Plus,Save,Sparkles,Copy,UserRoundCog,SlidersHorizontal,ShieldCheck,ArrowUpRight,BookOpen} from "lucide-react";
 import ManagerPortrait from "@/components/managers/ManagerPortrait";
+import {displayManagerBirthDate,normalizeManagerBirthDate} from "@/components/managers/managerBirthDate.mjs";
 import ManagerNationalityPicker from "@/components/managers/ManagerNationalityPicker";
 import {resolveManagerCountry,buildManagerBiographyPrompt,parseBiographyResponse} from "@/components/managers/managerBiography.mjs";
 import {buildManagerTacticalPrompt,parseManagerTacticalResponse,previewManagerTacticalDraft,effectiveProfileContext} from "@/components/managers/managerTacticalAI.mjs";
@@ -441,7 +442,21 @@ export default function Managers(){
        <ManagerNationalityPicker countries={countries} country={chosenCountry} onChange={changeCountry} disabled={!canWrite}/>
        {!chosenCountry&&managerDraft.nationality&&<p className="text-xs text-amber-700 mt-1">Nombre anterior: {managerDraft.nationality}. Selecciona el país para vincularlo.</p>}
       </div>
-      <div><label className={label}>Nacimiento</label><input type="date" className={input} value={managerDraft.date_of_birth||""} onChange={e=>updateManager("date_of_birth",e.target.value)} disabled={!canWrite}/></div>
+      <div>
+       <label className={label} htmlFor="manager-birth-date">Nacimiento</label>
+       <input id="manager-birth-date" type="text" inputMode="numeric" autoComplete="bday"
+        placeholder="DD/MM/AAAA · ej. 02/02/1970" maxLength={12} className={input}
+        value={displayManagerBirthDate(managerDraft.date_of_birth)}
+        onChange={e=>updateManager("date_of_birth",e.target.value)}
+        onBlur={()=>{
+         const raw=managerDraft.date_of_birth;
+         if(!String(raw||"").trim())return;
+         try{updateManager("date_of_birth",normalizeManagerBirthDate(raw))}
+         catch{/* Preserve the text so the user can correct it; save validates it. */}
+        }}
+        disabled={!canWrite}/>
+       <p className="mt-1 text-[11px] text-slate-500">Pega directamente la fecha DD/MM/AAAA. Se guardará en formato YYYY-MM-DD automáticamente.</p>
+      </div>
       <div><label className={label}>Tipo de entrenador</label><select className={input} value={managerDraft.manager_kind} onChange={e=>updateManager("manager_kind",e.target.value)} disabled={!canWrite}><option value="real">Real</option><option value="fictional">Ficticio / creado por mí</option></select></div>
       <div><label className={label}>Estado de la información</label><select className={input} value={managerDraft.source_status} onChange={e=>updateManager("source_status",e.target.value)} disabled={!canWrite}><option value="manual">Manual / sin verificar</option><option value="pending">Pendiente de verificar</option><option value="verified">Verificado con fuente</option></select></div>
       <div><label className={label}>URL de fotografía</label><input className={input} type="url" value={managerDraft.photo_url} onChange={e=>updateManager("photo_url",e.target.value)} placeholder="https://..." disabled={!canWrite}/></div>
