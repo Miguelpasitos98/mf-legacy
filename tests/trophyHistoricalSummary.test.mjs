@@ -35,8 +35,8 @@ test("Historical data does not create verified TrophyHonour claims",()=>{
  const ui=fs.readFileSync(new URL("../src/components/trophies/TrophyDetailVisual.jsx",import.meta.url),"utf8");
  assert.match(ui,/Finales documentadas/);
  assert.match(ui,/Clubes campeones · Rob/);
- assert.match(ui,/Palmarés contrastado de MF LEGACY/);
+ assert.match(ui,/Archivo histórico de Rob \/ FM24/);
  assert.match(ui,/Finales extraídas de Rob/);
  assert.match(ui,/Clasificación provisional según Rob/);
- assert.match(ui,/Las finales históricas no suman títulos oficiales/);
+ assert.match(ui,/sin verificar oficialmente/);
 });
