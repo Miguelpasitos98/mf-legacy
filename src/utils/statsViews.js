@@ -69,8 +69,14 @@ export const metricsValue=(r,name)=>{
  if(["appearances","rating","team_matches"].includes(name))return statNum(r[name]);
  if(name==="goalsconcededwhileonpitch")return statNum(goalkeeperConcededMetric(r)?.value);
  const aliases={goals:["goals","goles","understatgoals"],assists:["assists","asistencias","understatassists"],xg:["xg","expectedgoals","understatxg"],xa:["xa","expectedassists","understatxa"],xgexclpenalty:["xgexclpenalty","nonpenaltyxg","npxg","understatnpxg"],shots:["shots","tiros","understatshots"],tackles:["tackles","entradas"],recoveries:["recoveries","recuperaciones"],shotsontarget:["shotsontarget","tirosapuerta"],goals_prevented:["goalsprevented","goals_prevented","golesevitados"],goalsconcededwhileonpitch:["goalsconcededwhileonpitch","golesencajadosencampo"],duelswonvariante2:["duelswon%","duelswonpercentage"],aerialswonvariante2:["aerialswon%","aerialswonpercentage"],dribbles:["dribbles","successfuldribbles","dribblescompleted","dribbleswon"],dispossessed:["dispossessed","timesdispossessed"],dribblessuccessrate:["dribblessuccessrate","dribblessuccess%"],passaccuracy:["passaccuracy"],longballaccuracy:["longballaccuracy"],crossaccuracy:["crossaccuracy"],groundduelswon:["groundduelswon"],groundduelscontested:["groundduelscontested"]};
- const candidate=(r.metrics||[]).find(m=>(aliases[name]||[name]).some(alias=>metricNorm(alias)===metricNorm(m.name)));
- return candidate?statNum(candidate.value):null;
+ // FotMob/native names take precedence over Understat fallbacks regardless of
+ // import order. Only use the verified Understat league figure if native is absent.
+ for(const alias of aliases[name]||[name]){
+  const candidate=(r.metrics||[]).find(m=>metricNorm(alias)===metricNorm(m.name));
+  const value=statNum(candidate?.value);
+  if(value!==null)return value;
+ }
+ return null;
 };
 export const aggregate=(records,keys=["goals","assists","xg","xa","shots"])=>{
  const output={};for(const key of keys){
