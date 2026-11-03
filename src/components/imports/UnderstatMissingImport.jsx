@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from "react";
 import {base44} from "@/api/base44Client";
 import {Database,ShieldCheck,RefreshCw} from "lucide-react";
+import {rateLimitDetails} from "@/utils/importRateLimit";
 const fmt=v=>v===null||v===undefined||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("es-ES",{maximumFractionDigits:2});
 const errorOf=e=>e?.response?.data?.error||e?.message||"No se pudo consultar el archivo histórico";
 
@@ -11,13 +12,14 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
  const [busy,setBusy]=useState("");
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
+ const [cooldownUntil,setCooldownUntil]=useState(0);
  const [batchProgress,setBatchProgress]=useState(null);
  const current=useRef(0);
  const autoScan=useRef("");
  useEffect(()=>{
   current.current+=1;
   autoScan.current="";
-  setPlan(null);setCandidate("");setApproved(false);setBusy("");setMessage("");setError("");setBatchProgress(null);
+  setPlan(null);setCandidate("");setApproved(false);setBusy("");setMessage("");setError("");setBatchProgress(null);setCooldownUntil(0);
  },[player?.id,fotmobId]);
  // A queued/running worker changes the historical season snapshot. Once its
  // status changes to review/completed, discard the old audit and rescan.
@@ -33,7 +35,7 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
   ...(candidate&&approved?{understat_id:candidate,confirm_identity:true}:{})
  };
  const preview=async({automatic=false}={})=>{
-  if(!eligible||busy)return;
+  if(!eligible||busy||cooldownUntil>Date.now())return;
   const request=++current.current;
   setBusy("preview");setMessage("");setError("");
   try{
@@ -43,18 +45,36 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
    setPlan(data);
    if(data.status==="verified"&&!candidate)setCandidate(String(data.understat_id));
    if(data.status==="needs_identity_confirmation")setMessage(data.reason);
-  }catch(e){if(request===current.current)setError(errorOf(e));}
+  }catch(e){
+   if(request!==current.current)return;
+   const limit=rateLimitDetails(e);
+   if(limit){
+    setCooldownUntil(Date.now()+limit.seconds*1000);
+    setMessage(limit.message);
+   }else setError(errorOf(e));
+  }
   finally{if(request===current.current)setBusy("");}
  };
+ // A single deferred retry, not an immediate loop against Base44's quota.
+ useEffect(()=>{
+  if(!cooldownUntil)return;
+  const delay=Math.max(1000,cooldownUntil-Date.now());
+  const timer=setTimeout(()=>{
+   if(Date.now()<cooldownUntil)return;
+   autoScan.current="";
+   setCooldownUntil(0);
+  },delay+100);
+  return ()=>clearTimeout(timer);
+ },[cooldownUntil]);
  // Understat is part of the selected IMPORT sources: automatically inspect
  // historical gaps when a confirmed FotMob identity becomes available.
  useEffect(()=>{
-  if(!eligible||busy||plan)return;
+  if(!eligible||busy||plan||cooldownUntil>Date.now())return;
   const key=player?.id+"|"+fotmobId;
   if(autoScan.current===key)return;
   autoScan.current=key;
   preview({automatic:true});
- },[eligible,player?.id,fotmobId,plan,busy]);
+ },[eligible,player?.id,fotmobId,plan,busy,cooldownUntil]);
  const apply=async(item)=>{
   if(!eligible||busy||!plan)return;
   if(plan.status==="manually_confirmed"&&!approved){setError("Confirma primero la identidad Understat.");return}
@@ -71,7 +91,11 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
    await onApplied?.();
    const fresh=await base44.functions.invoke("understat-auto",{action:"preview-missing",...context});
    if(fresh?.data?.ok)setPlan(fresh.data);
-  }catch(e){setError(errorOf(e));}
+  }catch(e){
+   const limit=rateLimitDetails(e);
+   if(limit){setCooldownUntil(Date.now()+limit.seconds*1000);setError(limit.message+" Comprueba el diagnóstico antes de reintentar para evitar duplicados.");}
+   else setError(errorOf(e));
+  }
   finally{setBusy("");}
  };
  const applyAll=async()=>{
@@ -97,7 +121,15 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
      else summary.unchanged++;
      summary.metrics+=Number(data.metrics_added)||0;
     }catch(e){
-     summary.errors.push({season:item.season,team:item.team,reason:errorOf(e)});
+     const limit=rateLimitDetails(e);
+     summary.errors.push({season:item.season,team:item.team,reason:limit?.message||errorOf(e)});
+     if(limit){
+      setCooldownUntil(Date.now()+limit.seconds*1000);
+      setMessage("Base44 ha impuesto una pausa: se han conservado los cambios anteriores y las propuestas restantes permanecen pendientes. Actualizaré el diagnóstico cuando el cupo se libere.");
+      summary.processed++;
+      setBatchProgress({...summary,errors:[...summary.errors]});
+      break;
+     }
     }
     summary.processed++;
     if(current.current===request)setBatchProgress({...summary,errors:[...summary.errors]});
@@ -126,13 +158,14 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
    </div>
   </div>
   <div className="flex flex-wrap gap-2 items-center">
-   <button type="button" disabled={!eligible||!!busy} onClick={()=>preview()}
+   <button type="button" disabled={!eligible||!!busy||cooldownUntil>Date.now()} onClick={()=>preview()}
     className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">
     {busy==="preview"?<RefreshCw className="animate-spin" size={14}/>:<Database size={14}/>}
-    {busy==="preview"?"Analizando archivo histórico…":plan?"Actualizar diagnóstico":"Buscar temporadas y estadísticas ausentes"}
+    {busy==="preview"?"Analizando archivo histórico…":cooldownUntil>Date.now()?"Diagnóstico en pausa por Base44":plan?"Actualizar diagnóstico":"Buscar temporadas y estadísticas ausentes"}
    </button>
    <span className="text-[11px] text-slate-500">Archivo verificado · temporadas completas hasta 2024/25 · no necesita Understat.com</span>
   </div>
+  {cooldownUntil>Date.now()&&<p role="status" className="rounded-lg bg-amber-50 border border-amber-200 p-2 text-xs text-amber-800">Pausa automática por límite de consultas de Base44. No vuelvas a pulsar repetidamente: el diagnóstico se reintentará una sola vez después del intervalo indicado por el servidor.</p>}
   {!linked&&player&&<p className="text-xs text-amber-800">Confirma primero el ID FotMob del jugador en IMPORT. No se usa el nombre como vínculo automático.</p>}
   {workerBusy&&<p className="text-xs text-amber-800">Hay una importación activa de este jugador. El diagnóstico se actualizará automáticamente cuando terminen sus bloques de extracción; no tienes que pulsar nada.</p>}
   {plan&&<>
