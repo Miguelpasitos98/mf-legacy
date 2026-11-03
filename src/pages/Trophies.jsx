@@ -321,7 +321,7 @@ export default function Trophies(){
    {catalogError&&<div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><AlertCircle size={16}/><span>{catalogError} Puedes importarlo manualmente con «Importar CSV».</span></div>}
    {(trophyQuery.isError||honourQuery.isError)&&<div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[11px] text-slate-500">El catálogo puede consultarse; la base de fichas o ganadores aún no está disponible. Los cambios requieren las entidades Trophy y TrophyHonour sincronizadas en Base44.</div>}
    {teamFilter&&honourQuery.isLoading&&<div className="mt-3 text-xs text-slate-500">Consultando los títulos del equipo…</div>}
-   {viewMode==="clubs"?<TrophyClubCatalogView teams={rows(teamsQuery.data)} honours={honours} catalog={all} manifest={imageManifest} onOpen={open} Card={TrophyCard} allowedIds={allowedClubSourceIds} loading={teamsQuery.isLoading} error={teamsQuery.isError}/>:
+   {viewMode==="clubs"?<TrophyClubCatalogView teams={rows(teamsQuery.data)} honours={honours} catalog={all} manifest={imageManifest} onOpen={open} Card={TrophyCard} allowedIds={allowedClubSourceIds} loading={teamsQuery.isLoading} error={teamsQuery.isError} query={query}/>:
    <>
     {(viewMode==="reputation"||viewMode==="scope")&&<p className="mt-3 text-[11px] leading-4 text-slate-500">{viewMode==="reputation"?"Reputación editorial de MF LEGACY (0–200), estimada cuando no existe valoración individual.":"Ámbito aproximado según competición, organizador y país vinculado; los casos dudosos permanecen sin determinar."}</p>}
     {selectableGroupView&&grouped.length>0&&<div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
