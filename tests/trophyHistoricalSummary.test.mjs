@@ -38,5 +38,5 @@ test("Historical data does not create verified TrophyHonour claims",()=>{
  assert.match(ui,/Palmarés contrastado de MF LEGACY/);
  assert.match(ui,/Finales extraídas de Rob/);
  assert.match(ui,/Clasificación provisional según Rob/);
- assert.match(ui,/Los datos procedentes de Rob/);
+ assert.match(ui,/Las finales históricas no suman títulos oficiales/);
 });
