@@ -172,17 +172,19 @@ export function normalizeResearchScope(data,{onWarning}={}){
   season:["season","single_season","temporada","campaign","campana"]
  };
  const normalized=cleanEnumToken(data?.profile_scope);
- if(!normalized&&!validSeason(data?.season)&&!validSeason(data?.period_start)){
-   // Legacy JSON supplies no structured scope. Preserve ETAPA REPRESENTADA.
+ const hasSeason=Boolean(String(data?.season||"").trim());
+ const hasPeriod=Boolean(String(data?.period_start||"").trim()||String(data?.period_end||"").trim());
+ if(!normalized&&!hasSeason&&!hasPeriod){
+   // Legacy JSON with only a documented ETAPA REPRESENTADA heading.
    return null;
  }
  for(const [canonical,items] of Object.entries(aliases))if(items.includes(normalized))return canonical;
- // Explicit valid dates can recover a period or a single season without
- // inventing calendar boundaries.
- const fallback=validSeason(data?.season)?"season":
-   validSeason(data?.period_start)&&validSeason(data?.period_end)&&data.period_start<data.period_end?"period":"general";
+ // For missing/unknown scope, prefer the explicit field family so the
+ // downstream context resolver can validate dates AND surface a warning.
+ // Never silently demote a broken period to "general" here.
+ const fallback=hasPeriod?"period":hasSeason?"season":"general";
  onWarning?.({field:"profile_scope",original:rawEnumLabel(data?.profile_scope),fallback,
-   reason:"alcance desconocido; se ha usado únicamente la información temporal explícita disponible"});
+   reason:"alcance ausente o desconocido; se deduce únicamente qué campos de fechas se proporcionaron; las fechas se validan por separado"});
  return fallback;
 }
 export const formatTacticalWarnings=warnings=>(warnings||[]).length?

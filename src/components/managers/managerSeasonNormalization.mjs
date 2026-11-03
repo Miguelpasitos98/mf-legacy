@@ -10,8 +10,9 @@ export function normalizeExplicitSeason(value){
  const clean=(match?match[1]:raw).trim().replace(/[‐‑‒–—−]/g,"-");
  const m=clean.match(/^((?:19|20)\d{2})\s*[/.\-]\s*((?:19|20)\d{2}|\d{2})$/);
  if(!m)return "";
- const start=Number(m[1]),end=m[2].length===2?
-   (Math.floor(start/100)*100+Number(m[2])):Number(m[2]);
+ const start=Number(m[1]);
+ const shortEnd=Math.floor(start/100)*100+Number(m[2]);
+ const end=m[2].length===2?(shortEnd<start?shortEnd+100:shortEnd):Number(m[2]);
  const season=m[1]+"/"+end;
  return validSeason(season)?season:"";
 }
