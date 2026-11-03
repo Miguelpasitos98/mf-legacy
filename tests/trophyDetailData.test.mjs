@@ -52,10 +52,10 @@ test("Visual tabs are integrated, with legacy editing still accessible and defau
  const page=readFileSync(new URL("../src/pages/Trophies.jsx",import.meta.url),"utf8");
  const view=readFileSync(new URL("../src/components/trophies/TrophyDetailVisual.jsx",import.meta.url),"utf8");
  assert.match(page,/setDetailTab\("Resumen"\)/);
- assert.match(page,/newRecord\?\["Editar"\]:\["Resumen","Ediciones","Clubes","Jugadores","Editar"\]/);
+ assert.match(page,/newRecord\?\["Editar"\]:\["Resumen","Ediciones","Historia","Clubes","Jugadores","Editar"\]/);
  assert.match(page,/detailTab==="Editar"\?<div className="grid/);
  assert.match(page,/<TrophyDetailVisual/);
- for(const tab of ["Resumen","Ediciones","Clubes","Jugadores"])
+ for(const tab of ["Resumen","Ediciones","Historia","Clubes","Jugadores"])
   assert.ok(view.includes('tab==="'+tab+'"'));
  assert.match(view,/trophyPlayerRanking\(honours,creditsQuery\.data\|\|\[\],playersQuery\.data\|\|\[\]\)/);
 });
