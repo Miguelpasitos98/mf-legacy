@@ -80,6 +80,7 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
    {scoreMode==="role"&&<p className="mt-1.5 text-[10px] text-slate-600">
     <strong>{item.roleFit.breakdown.length}/{item.roleFit.requested} métricas</strong> ·
     {" "}{item.roleFit.evaluatedFunctions??0}/{item.roleFit.requestedFunctions??0} funciones evaluadas ·
+    {" "}{item.roleFit.minimumPeers??"—"} comparables mínimo ·
     {" "}Confianza {CONFIDENCE[item.roleFit.confidence]?.toLowerCase()||"sin determinar"}
    </p>}
    {score===null&&<p className="mt-1 text-[10px] text-slate-500">Ordenación auxiliar por adecuación posicional, sin convertirla en nota {label}.</p>}

@@ -4,6 +4,8 @@ import {TACTICAL_REQUIREMENT_RULES,V4_ROLE_METRICS,V4_METRIC_LABELS,UNMEASURED_R
 // measured in the selected historical season. No hidden AI or score imputation.
 const normalize=text=>String(text||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 const contains=(text,term)=>(" "+text+" ").includes(" "+normalize(term)+" ");
+const MIN_COMPARABLE_MINUTES=450; // five full-match equivalents, where known
+const MIN_PEERS_FOR_MEDIUM_CONFIDENCE=20;
 export function deriveRoleRequirements(profile,role){
  let raw="";
  try{
@@ -45,6 +47,10 @@ export function evaluateRoleRequirements(metrics,peers,role,profile,{playerId=nu
    if(!peer||typeof peer.value!=="number"||!Number.isFinite(peer.value)||peer.value<0)return false;
    if(hasSource&&peer.source&&peer.source!==source)return false;
    if(scope&&peer.scope&&peer.scope!==scope)return false;
+   // A short cameo is an unstable season-rate denominator. Understat
+   // season-global rows without minutes remain present but their scope is
+   // explicitly marked and will affect confidence.
+   if(typeof peer.minutes==="number"&&peer.minutes<MIN_COMPARABLE_MINUTES)return false;
    return true;
   });
   const population=comparable.map(x=>x[key].value).sort((a,b)=>a-b);
@@ -76,9 +82,11 @@ export function evaluateRoleRequirements(metrics,peers,role,profile,{playerId=nu
  const score=breakdown.length>=2&&validFamilies.length?
   Math.round(validFamilies.reduce((sum,family)=>sum+family.score,0)/validFamilies.length):null;
  const mixedGlobal=breakdown.some(x=>x.scope?.includes("temporada global"))&&breakdown.some(x=>!x.scope?.includes("temporada global"));
- const lowerMinutes=breakdown.some(x=>x.minutes!==null&&x.minutes<450);
+ const lowerMinutes=breakdown.some(x=>x.minutes!==null&&x.minutes<MIN_COMPARABLE_MINUTES);
+ const minimumPeers=breakdown.length?Math.min(...breakdown.map(x=>x.peerCount)):0;
+ const smallCohort=minimumPeers<MIN_PEERS_FOR_MEDIUM_CONFIDENCE;
  const confidence=score===null?"insufficient":
-  mixedGlobal||lowerMinutes?"low":
+  mixedGlobal||lowerMinutes||smallCohort?"low":
   coverage>=75&&breakdown.length>=3&&validFamilies.length>=2?"medium":"low";
  const limitation=requirements.unmatched
   ?"El rol no expresa requisitos vinculables con seguridad a los indicadores históricos disponibles."
@@ -86,11 +94,13 @@ export function evaluateRoleRequirements(metrics,peers,role,profile,{playerId=nu
   :"Las funciones del ADN tienen el mismo peso; sus indicadores son proxies de actividad, no observan directamente las decisiones tácticas ni garantizan adaptación.";
  const caveats=[
   mixedGlobal?"Incluye una fuente Understat de alcance global distinto de las métricas FotMob.":null,
-  lowerMinutes?"Algún indicador procede de menos de 450 minutos observados; la confianza se reduce.":null
+  lowerMinutes?"Algún indicador procede de menos de 450 minutos observados; la confianza se reduce.":null,
+  score!==null&&smallCohort?"La muestra mínima es de "+minimumPeers+" comparables externos; se requieren 20 para confianza media.":null
  ].filter(Boolean);
  return {score,coverage,breakdown,requested:candidates.length,
   requirements:requirements.matched.map(r=>r.label),requirementBreakdown,
   evaluatedFunctions:validFamilies.length,requestedFunctions:requirementBreakdown.length,
+  minimumPeers,
   unmatched:requirements.unmatched,unmeasuredTraits:requirements.unmeasuredTraits,
   metricDiagnostics,missing:metricDiagnostics.filter(item=>item.status!=="measured"),
   confidence,limitation:limitation+(caveats.length?" "+caveats.join(" "):"")};

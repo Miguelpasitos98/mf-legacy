@@ -257,7 +257,7 @@ export default function ManagerFit(){
        </div>)}
       </div>
      </div>}
-     <p className="text-xs text-slate-600">Cobertura de requisitos {scoutingReport.coverage}% · Confianza {scoutingReport.confidence} · {scoutingReport.unmeasured} indicadores no evaluados</p>
+     <p className="text-xs text-slate-600">Cobertura de requisitos {scoutingReport.coverage}% · Confianza {scoutingReport.confidence} · {scoutingReport.minimumPeers||"—"} comparables externos como mínimo · {scoutingReport.unmeasured} indicadores no evaluados</p>
      <div className="grid md:grid-cols-2 gap-3">
       <div className="rounded-xl border bg-white p-3"><h4 className="text-sm font-bold text-emerald-800">Fortalezas observadas (P70+)</h4>
        {scoutingReport.strengths.length?<ul className="mt-2 space-y-1 text-xs">{scoutingReport.strengths.map(m=><li key={m.key}>{SCOUT_METRIC_NAMES[m.key]||m.key}: <b>P{m.percentile}</b> · {m.source||"Fuente no indicada"} · {m.peerCount} comparables</li>)}</ul>:<p className="text-xs text-slate-500 mt-2">Sin indicadores evaluados en P70 o superior.</p>}

@@ -71,9 +71,11 @@ test("less than 450 observed minutes reduces confidence, never substitutes a new
  // In this fixture all proxies have the same source and scope; otherwise
  // mixed Understat-global/FotMob evidence would already cap confidence at low.
  const metrics={...data(20),chain:{...data(20).chain,source:"FotMob",scope:null,minutes:1200}};
- const comparable=peers.map(row=>({...row,chain:{...row.chain,source:"FotMob",scope:null,minutes:1200}}));
+ const comparable=Array.from({length:25},(_,i)=>({...data(i+1),__playerId:"compare"+i,
+  chain:{...data(i+1).chain,source:"FotMob",scope:null,minutes:1200}}));
  const normal=evaluateRoleRequirements(metrics,comparable,"ST",profile);
  assert.equal(normal.confidence,"medium");
+ assert.equal(normal.minimumPeers,25);
  const lowMinutes={...metrics,xg:{...metrics.xg,minutes:140}};
  const restricted=evaluateRoleRequirements(lowMinutes,comparable,"ST",profile);
  assert.equal(restricted.score,normal.score);
@@ -114,4 +116,26 @@ test("cards, reports and page expose function-level evidence, sorting and increm
  assert.match(page,/Orden de resultados V4/);
  assert.match(page,/setResultLimit\(n=>Math\.min\(500,n\+48\)\)/);
  assert.match(page,/compatibles sin puntuación/);
+});
+
+
+test("ten to nineteen independent peers permit a score but only LOW confidence",()=>{
+ const result=evaluateRoleRequirements(data(20),peers,"ST",profile);
+ assert.notEqual(result.score,null);
+ assert.equal(result.minimumPeers,15);
+ assert.equal(result.confidence,"low");
+ assert.match(result.limitation,/20 para confianza media/);
+});
+test("peer minutes under 450 do not artificially satisfy the ten-comparable threshold",()=>{
+ const mixed=Array.from({length:12},(_,i)=>({
+  ...data(i+1),__playerId:"under"+i,
+  xa:{...data(i+1).xa,minutes:i<5?120:1100},
+  chancesCreated:{...data(i+1).chancesCreated,minutes:i<5?120:1100},
+  xg:{...data(i+1).xg,minutes:i<5?120:1100},
+  shot:{...data(i+1).shot,minutes:i<5?120:1100}
+ }));
+ const result=evaluateRoleRequirements(data(20),mixed,"ST",profile);
+ assert.equal(result.score,null);
+ assert.equal(result.metricDiagnostics.find(x=>x.key==="xa").peerCount,7);
+ assert.equal(result.metricDiagnostics.find(x=>x.key==="xa").status,"insufficient_peers");
 });

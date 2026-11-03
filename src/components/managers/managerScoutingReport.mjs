@@ -27,6 +27,7 @@ export function buildScoutingReport(player,role,profile,season,roleResult,histor
   identifiedRequirements:roleResult?.requirements||[],
   metricDiagnostics:roleResult?.metricDiagnostics||[],
   functionBreakdown:roleResult?.requirementBreakdown||[],
+  minimumPeers:roleResult?.minimumPeers??0,
   unmeasuredTraits:roleResult?.unmeasuredTraits||[],
   missingMetricReasons:roleResult?.missing||[],
   historicalScore:historical?.score??null,attributeScore:attributeResult?.score??null,
