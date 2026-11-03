@@ -169,9 +169,11 @@ test("The country picker is a searchable keyboard accessible combobox",()=>{
  assert.match(picker,/event.key==="Escape"/);
  assert.match(picker,/filterCountryOptions\(options,search\)/);
 });
-test("Trophies UI exposes both filters, an unclassified option and a full reset",()=>{
+test("Compact Trophies toolbar keeps search visible and offers expandable country/team filters and reset",()=>{
  const source=readFileSync(new URL("../src/pages/Trophies.jsx",import.meta.url),"utf8");
- assert.match(source,/País de la competición/);
+ assert.match(source,/Buscar trofeo, país o ID/);
+ assert.match(source,/aria-expanded=\{showFilters\}/);
+ assert.match(source,/showFilters&&<div id="trophy-advanced-filters"/);
  assert.match(source,/CountrySearchPicker/);
  assert.match(source,/TeamSearchPicker teams=\{rows\(teamsQuery.data\)\}/);
  assert.match(source,/countryTrophyIdsFromSections/);
