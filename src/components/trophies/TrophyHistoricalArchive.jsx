@@ -18,12 +18,13 @@ function Source({count}){
   <span className="text-[10px] font-semibold text-amber-700">{count} registros</span>
  </div>;
 }
-function Person({name,role}){
- return <div className="min-w-0"><p className="truncate text-xs font-bold text-slate-800" title={name||"Desconocido"}>{name||"—"}</p><span className="text-[9px] font-medium uppercase tracking-wider text-slate-400">{role}</span></div>;
+function Person({name,role,team}){
+ return <div className="flex min-w-0 items-center gap-2">{team?.logo&&<img src={team.logo} loading="lazy" alt="" className="h-7 w-7 shrink-0 object-contain"/>}<div className="min-w-0"><p className="truncate text-xs font-bold text-slate-800" title={name||"Desconocido"}>{name||"—"}</p><span className="text-[9px] font-medium uppercase tracking-wider text-slate-400">{role}</span></div></div>;
 }
-export default function TrophyHistoricalArchive({mode="editions",editions=[],events=[],loading=false,error=false,trophySourceId=""}){
+export default function TrophyHistoricalArchive({mode="editions",editions=[],events=[],teams=[],loading=false,error=false,trophySourceId=""}){
  const [filter,setFilter]=useState("");
  const [openRows,setOpenRows]=useState({});
+ const teamMap=useMemo(()=>new Map(raw(teams).map(team=>[String(team.id),team])),[teams]);
  const finals=useMemo(()=>raw(editions).filter(r=>r.trophy_source_id===String(trophySourceId)).sort((a,b)=>(b.edition_year||0)-(a.edition_year||0)),[editions,trophySourceId]);
  const narratives=useMemo(()=>raw(events).filter(r=>r.trophy_source_id===String(trophySourceId)).sort((a,b)=>String(b.season).localeCompare(String(a.season),"es",{numeric:true})),[events,trophySourceId]);
  const data=mode==="events"?narratives:finals;
@@ -55,8 +56,8 @@ export default function TrophyHistoricalArchive({mode="editions",editions=[],eve
     </div>
     {displayed.map(row=><div key={row.edition_key} className="grid grid-cols-[75px_minmax(0,1fr)] gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0 md:grid-cols-[72px_minmax(125px,1fr)_minmax(125px,1fr)_minmax(160px,1.2fr)] md:items-center md:gap-3">
      <span className="inline-flex h-fit items-center gap-1 whitespace-nowrap text-[11px] font-black tabular-nums text-[#003399]"><CalendarDays size={12}/>{row.season}</span>
-     <Person name={row.champion_name} role="Campeón"/>
-     <div className="col-start-2 md:col-auto"><Person name={row.runner_up_name} role="Subcampeón"/></div>
+     <Person name={row.champion_name} role="Campeón" team={teamMap.get(String(row.champion_team_id||""))}/>
+     <div className="col-start-2 md:col-auto"><Person name={row.runner_up_name} role="Subcampeón" team={teamMap.get(String(row.runner_up_team_id||""))}/></div>
      <div className="col-start-2 flex min-w-0 items-start gap-1.5 text-[11px] text-slate-500 md:col-auto"><MapPin size={12} className="mt-0.5 shrink-0"/><span><span className="font-semibold text-slate-700">{row.stadium_name||"Sede pendiente"}</span><br/>{unique([row.city,row.country]).join(" · ")}</span></div>
     </div>)}
    </div>:<div className="space-y-2">{displayed.map(row=><article key={row.event_key} className="rounded-xl border border-slate-200 bg-white">
