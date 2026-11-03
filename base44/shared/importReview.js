@@ -21,7 +21,14 @@ export function reviewedCurrentTeamLink(player,team,item){
   if(!empty(team.fotmob_id)&&str(team.fotmob_id)!==str(item.fotmob_team_id))return {};
   return {team_id:team.id};
 }
-const competitionKey=x=>({"super lig":"super lig","super league turkey":"super lig","ligue 1 uber eats":"ligue 1","english premier league":"premier league"}[norm(x)]||norm(x));
+const competitionKey=x=>({
+  "super lig":"super lig","super league turkey":"super lig",
+  "ligue 1 uber eats":"ligue 1","english premier league":"premier league",
+  // Understat's official historical label and FotMob's competition label
+  // are the same national league: avoid duplicate rows on later FotMob import.
+  "laliga":"la liga","la liga":"la liga","la liga ea sports":"la liga",
+  "la liga santander":"la liga"
+}[norm(x)]||norm(x));
 async function allRows(entity,query) {
   const out=[];
   for(let skip=0;skip<10000;skip+=500){
