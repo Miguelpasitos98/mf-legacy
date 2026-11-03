@@ -1,0 +1,1033 @@
+{
+  "format": "mf_legacy_fm24_team_palmares_v1",
+  "team": {
+    "id": "6abfe24fa22b69c2bc1bccad",
+    "name": "Real Madrid CF"
+  },
+  "source_type": "fm24_screenshot",
+  "source_name": "Rob's History Update FM24 v4.00 · Palmarés de Real Madrid CF",
+  "source_files": [
+    "image(20261103-194519).png",
+    "image(20261103-194551).png",
+    "image(20261103-194605).png"
+  ],
+  "time_interpretation": "calendar_year_as_displayed",
+  "verified": false,
+  "competitions": [
+    {
+      "raw_name": "UEFA Champions League",
+      "source_order": 1,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1998,
+            2000,
+            2002,
+            2014,
+            2016,
+            2017,
+            2018,
+            2022
+          ]
+        },
+        {
+          "rank": "winner",
+          "years": [
+            1956,
+            1957,
+            1958,
+            1959,
+            1960,
+            1966
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1962,
+            1964,
+            1981
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Mundialito de clubes",
+      "source_order": 2,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            2014,
+            2016,
+            2017,
+            2018,
+            2022
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "LaLiga EA Sports",
+      "source_order": 3,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1932,
+            1933,
+            1954,
+            1955,
+            1957,
+            1958,
+            1961,
+            1962,
+            1963,
+            1964,
+            1965,
+            1967,
+            1968,
+            1969,
+            1972,
+            1975,
+            1976,
+            1978,
+            1979,
+            1980,
+            1986,
+            1987,
+            1988,
+            1989,
+            1990,
+            1995,
+            1997,
+            2001,
+            2003,
+            2007,
+            2008,
+            2012,
+            2017,
+            2020,
+            2022
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1929,
+            1934,
+            1935,
+            1936,
+            1942,
+            1945,
+            1959,
+            1960,
+            1966,
+            1981,
+            1983,
+            1984,
+            1992,
+            1993,
+            1999,
+            2005,
+            2006,
+            2009,
+            2010,
+            2011,
+            2013,
+            2015,
+            2016,
+            2021,
+            2023
+          ]
+        },
+        {
+          "rank": "third",
+          "years": [
+            1949,
+            1952,
+            1953,
+            1956,
+            1982,
+            1991,
+            2002,
+            2014,
+            2018,
+            2019
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Recopa de Europa",
+      "source_order": 4,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "runner_up",
+          "years": [
+            1971,
+            1983
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "UEFA Super Cup",
+      "source_order": 5,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            2002,
+            2014,
+            2016,
+            2017,
+            2022
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1998,
+            2000,
+            2018
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "UEFA Europa League",
+      "source_order": 6,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1985,
+            1986
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Copa Intercontinental",
+      "source_order": 7,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1960,
+            1998,
+            2002
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1966,
+            2000
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Copa del Rey",
+      "source_order": 8,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1905,
+            1906,
+            1907,
+            1908,
+            1917,
+            1980,
+            1982,
+            1989,
+            1993,
+            2011,
+            2014,
+            2023
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1903,
+            1916,
+            1918,
+            1924,
+            1929,
+            1930,
+            1979,
+            1983,
+            1990,
+            1992,
+            2002,
+            2004,
+            2013
+          ]
+        },
+        {
+          "rank": "winner",
+          "years": [
+            1946,
+            1947,
+            1962,
+            1970,
+            1974,
+            1975
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1940,
+            1943,
+            1958,
+            1960,
+            1961,
+            1965,
+            1968
+          ]
+        },
+        {
+          "rank": "winner",
+          "years": [
+            1934,
+            1936
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1933
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Latin Cup",
+      "source_order": 9,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1955,
+            1957
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Supercopa de España",
+      "source_order": 10,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1988,
+            1989,
+            1990,
+            1993,
+            1997,
+            2001,
+            2003,
+            2008,
+            2012,
+            2017,
+            2020,
+            2022
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1982,
+            1995,
+            2007,
+            2011,
+            2014,
+            2023
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Pequeña Copa del Mundo",
+      "source_order": 11,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1952,
+            1956
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Copa Iberoamericana",
+      "source_order": 12,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1994
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Copa Eva Duarte",
+      "source_order": 13,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1947
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Campeonato Regional Centro",
+      "source_order": 14,
+      "capture_index": 1,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1905,
+            1906,
+            1907,
+            1908,
+            1913,
+            1916,
+            1917,
+            1918,
+            1920,
+            1922,
+            1923,
+            1924,
+            1926,
+            1927,
+            1928,
+            1929,
+            1930,
+            1931,
+            1932,
+            1933,
+            1934,
+            1935,
+            1936
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1904,
+            1925,
+            1940
+          ]
+        },
+        {
+          "rank": "third",
+          "years": [
+            1909
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "UEFA Youth League",
+      "source_order": 15,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            2020
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "MLS All-Star Game",
+      "source_order": 16,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            2017
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Copa de la Liga española",
+      "source_order": 17,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1985
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1983
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Santiago Bernabéu",
+      "source_order": 18,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1981,
+            1983,
+            1984,
+            1985,
+            1987,
+            1989,
+            1991,
+            1994,
+            1995,
+            1996,
+            1997,
+            1998,
+            1999,
+            2000,
+            2003,
+            2005,
+            2006,
+            2007,
+            2008,
+            2009,
+            2010,
+            2011,
+            2012,
+            2013,
+            2015,
+            2016,
+            2017,
+            2018
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1980,
+            1986,
+            1988,
+            1990,
+            1992,
+            1993,
+            2001,
+            2002,
+            2004
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Festa d'Elx",
+      "source_order": 19,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1984,
+            1985,
+            1999
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1981
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Ciudad de Zaragoza",
+      "source_order": 20,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "runner_up",
+          "years": [
+            2005
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Colombino",
+      "source_order": 21,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1970,
+            1984,
+            1989
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1969
+          ]
+        },
+        {
+          "rank": "third",
+          "years": [
+            1971
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Cidade de Vigo",
+      "source_order": 22,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1981,
+            1982
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1992
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Naranja",
+      "source_order": 23,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1990,
+            2003
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Costa del Sol",
+      "source_order": 24,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1976
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1963
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Euskadi Asergace",
+      "source_order": 25,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1994,
+            1995,
+            1996
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Ciutat de Barcelona Trophy",
+      "source_order": 26,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1983,
+            1985,
+            1988
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1984,
+            1986,
+            1990,
+            1996
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Teresa Herrera",
+      "source_order": 27,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1949,
+            1953,
+            1966,
+            1976,
+            1978,
+            1979,
+            1980,
+            1994,
+            2013
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1995,
+            2001,
+            2007
+          ]
+        },
+        {
+          "rank": "third",
+          "years": [
+            1977,
+            1983,
+            1986,
+            1989,
+            1998
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Conde de Fenosa",
+      "source_order": 28,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1973
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Memorial Jesús Gil y Gil",
+      "source_order": 29,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            2005
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            2006
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Concepción Arenal",
+      "source_order": 30,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1977,
+            1984
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Ciudad de Santander",
+      "source_order": 31,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1991,
+            1992,
+            1993
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Ciudad de Palma",
+      "source_order": 32,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1975,
+            1980,
+            1983,
+            1990
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1978
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Ciudad de La Línea",
+      "source_order": 33,
+      "capture_index": 2,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1981,
+            1982,
+            1986,
+            1994,
+            2000
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1990
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Ramón de Carranza",
+      "source_order": 34,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1958,
+            1959,
+            1960,
+            1966,
+            1970,
+            1982
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1967,
+            1969,
+            1975,
+            1992
+          ]
+        },
+        {
+          "rank": "third",
+          "years": [
+            1964,
+            1968,
+            1994,
+            2007
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Emirates Cup",
+      "source_order": 35,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "runner_up",
+          "years": [
+            2008
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Tournoi de Paris",
+      "source_order": 36,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "runner_up",
+          "years": [
+            1957
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Russian Railways Cup",
+      "source_order": 37,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "runner_up",
+          "years": [
+            2007
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "World Football Challenge",
+      "source_order": 38,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            2011,
+            2012
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Taça Ibérica",
+      "source_order": 39,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "runner_up",
+          "years": [
+            2000
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Trofeo Luigi Berlusconi",
+      "source_order": 40,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "runner_up",
+          "years": [
+            1993
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Coupe Mohammed V",
+      "source_order": 41,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            1966
+          ]
+        },
+        {
+          "rank": "runner_up",
+          "years": [
+            1964
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Eusébio Cup",
+      "source_order": 42,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "runner_up",
+          "years": [
+            2012
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Audi Cup",
+      "source_order": 43,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "runner_up",
+          "years": [
+            2015
+          ]
+        },
+        {
+          "rank": "third",
+          "years": [
+            2019
+          ]
+        }
+      ]
+    },
+    {
+      "raw_name": "Franz Beckenbauer Cup",
+      "source_order": 44,
+      "capture_index": 3,
+      "placements": [
+        {
+          "rank": "winner",
+          "years": [
+            2010
+          ]
+        }
+      ]
+    }
+  ]
+}
