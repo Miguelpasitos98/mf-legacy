@@ -9,6 +9,7 @@ const footballNav = [
     { label: "STADIUMS", path: "/schedule" },
     { label: "KITS", path: "/news" },
     { label: "STATS", path: "/stats" },
+    { label: "UNDERSTAT", path: "/understat-explorer" },
     { label: "IMPORT", path: "/import-center" },
     { label: "CATÁLOGO", path: "/identity-catalog" },
     { label: "POSESIÓN", path: "/possession" },
