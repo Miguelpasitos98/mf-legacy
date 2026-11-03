@@ -4,6 +4,7 @@ import {Trophy,Medal,Shield,ShieldCheck,CalendarDays,Users,ArrowUpRight,Plus,Che
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {trophyImageUrl} from "@/utils/trophyCatalog";
+import {FIFA_CWC_VISUAL_VARIANTS,isFifaClubWorldCup,CLASSIC_CWC_CREDIT,CLASSIC_CWC_SOURCE} from "@/utils/trophyVisualVariants";
 import {trophyEditionRows,trophyDetailSummary,trophyClubRanking,trophyPlayerRanking} from "@/utils/trophyDetailData";
 
 const sectionLabel="text-[10px] font-black uppercase tracking-[.14em] text-slate-400";
@@ -54,7 +55,7 @@ function Edition({honour,teamMap,playerMap,onVerify,busy=false}){
   </div>
  </article>;
 }
-export default function TrophyDetailVisual({trophy,manifest,tab,honours=[],onAdd,onVerify,honourSaving=false}){
+export default function TrophyDetailVisual({trophy,manifest,tab,honours=[],onAdd,onVerify,onSelectVisualVariant,honourSaving=false}){
  const summary=useMemo(()=>trophyDetailSummary(honours),[honours]);
  const clubs=useMemo(()=>trophyClubRanking(honours),[honours]);
  const ordered=useMemo(()=>trophyEditionRows(honours),[honours]);
@@ -72,7 +73,7 @@ export default function TrophyDetailVisual({trophy,manifest,tab,honours=[],onAdd
   <div className="pointer-events-none absolute -right-20 top-2 h-56 w-56 rounded-full border border-white/10"/>
   <div className="relative flex items-center gap-5">
    <div className="flex h-32 w-28 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/95 p-2 shadow-xl sm:h-40 sm:w-36">
-    <img src={trophyImageUrl(trophy,manifest)} alt="" className="h-full w-full object-contain drop-shadow-lg" onError={e=>{e.currentTarget.style.display="none";e.currentTarget.nextElementSibling?.classList.remove("hidden");}}/>
+    <img key={trophy.visual_variant_id||"main"} src={trophyImageUrl(trophy,manifest)} alt="" className="h-full w-full object-contain drop-shadow-lg" onError={e=>{e.currentTarget.style.display="none";e.currentTarget.nextElementSibling?.classList.remove("hidden");}}/>
     <Trophy size={56} className="hidden text-slate-300"/>
    </div>
    <div className="min-w-0 flex-1">
@@ -92,6 +93,22 @@ export default function TrophyDetailVisual({trophy,manifest,tab,honours=[],onAdd
  return <div className="min-h-0 flex-1 overflow-y-auto bg-[#f7f9fc]">
   {tab==="Resumen"&&<div className="space-y-5 p-4 md:p-6">
    {hero}
+   {isFifaClubWorldCup(trophy)&&<section className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4" aria-label="Diseños históricos del Mundial de Clubes FIFA">
+    <h4 className="text-sm font-black text-slate-900">Dos trofeos FIFA, una misma competición</h4>
+    <p className="mt-1 text-[11px] leading-5 text-slate-500">El diseño histórico y el actual son dos copas diferentes. Ambos permanecen vinculados al mismo ID de Football Manager, 121092, y no duplican títulos ni ganadores.</p>
+    <div className="mt-3 grid grid-cols-2 gap-3">
+     {FIFA_CWC_VISUAL_VARIANTS.map(variant=><button type="button" key={variant.id} aria-pressed={trophy.visual_variant_id===variant.id}
+      onClick={()=>onSelectVisualVariant?.(variant.id)}
+      className={"flex min-w-0 flex-col items-center rounded-xl border p-2.5 text-center transition "+(trophy.visual_variant_id===variant.id?"border-[#003399] bg-blue-50":"border-slate-200 bg-slate-50 hover:border-blue-300")}>
+      <div className="flex h-32 w-full items-center justify-center rounded-lg bg-white sm:h-36">
+       <img src={trophyImageUrl({...trophy,visual_variant_id:variant.id},manifest)} alt={variant.name} loading="lazy" className="h-full max-w-full object-contain p-2"/>
+      </div>
+      <strong className="mt-2 text-xs text-slate-900">{variant.label}</strong>
+      <span className="text-[10px] text-slate-500">{variant.to?variant.from+"–"+variant.to:"Desde "+variant.from}</span>
+     </button>)}
+    </div>
+    <p className="mt-3 text-[10px] text-slate-500">Ilustración del trofeo clásico: <a href={CLASSIC_CWC_SOURCE} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#003399] hover:underline">{CLASSIC_CWC_CREDIT}</a>. Sin modificaciones.</p>
+   </section>}
    <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
     <Tile icon={Medal} label="Ediciones verificadas" value={summary.verifiedCount}/>
     <Tile icon={ShieldCheck} label="Clubes campeones" value={summary.clubCount}/>
