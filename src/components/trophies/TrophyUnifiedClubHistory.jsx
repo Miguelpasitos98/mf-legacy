@@ -1,5 +1,5 @@
 import React,{useMemo,useState} from "react";
-import {CheckCircle2,BookOpen,Shield,ChevronDown,ChevronUp,Info,Medal,Search,Filter,CalendarDays} from "lucide-react";
+import {CheckCircle2,BookOpen,Shield,ChevronDown,ChevronUp,Info,Medal,Search,CalendarDays} from "lucide-react";
 import {unifiedTrophyClubHistory} from "@/utils/trophyUnifiedHistory";
 
 const meta={
@@ -98,6 +98,6 @@ export default function TrophyUnifiedClubHistory({honours=[],palmares=[],edition
    })}
   </div>
   {compact&&groups.length>visible.length&&<div className="border-t border-slate-100 px-4 py-3"><button type="button" onClick={()=>setExpandedAll(true)} className="flex w-full items-center justify-center gap-1 rounded-lg bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-[#003399] hover:bg-blue-50">Ver todos los {groups.length} clubes <ChevronDown size={14}/></button></div>}
-  <footer className="flex gap-2 border-t border-slate-100 bg-[#FAFBFD] px-4 py-3 text-[10px] leading-4 text-slate-500"><Info size={13} className="mt-0.5 shrink-0"/> Los resultados provisionales no se convierten automáticamente en títulos acreditados ni se asignan a jugadores. Pulsa sobre un año para consultar su estado al pasar el cursor.</footer>
+  <footer className="flex gap-2 border-t border-slate-100 bg-[#FAFBFD] px-4 py-3 text-[10px] leading-4 text-slate-500"><Info size={13} className="mt-0.5 shrink-0"/> Los resultados provisionales no se convierten automáticamente en títulos acreditados ni se asignan a jugadores. Pasa el cursor sobre cada año para consultar su procedencia.</footer>
  </section>;
 }
