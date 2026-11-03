@@ -12,7 +12,7 @@ test("Queued items do not incorrectly warn that the PC worker is offline while a
 });
 test("Worker actually processes claims serially, submitting candidates in batches",()=>{
  assert.match(worker,/while True:\s*try:\s*found=run_once/);
- assert.match(worker,/for i in range\(0,total,15\):/);
- assert.match(worker,/call\("submit",job_id=jid,claim_id=claim,candidates=candidates\[i:i\+15\]\)/);
+ assert.match(worker,/for i in range\(0,total,25\):/);
+ assert.match(worker,/call\("submit",job_id=jid,claim_id=claim,candidates=candidates\[i:i\+25\]\)/);
  assert.match(worker,/call\("finish",job_id=jid,claim_id=claim,source_results=states\)/);
 });

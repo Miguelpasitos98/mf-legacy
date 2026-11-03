@@ -2,6 +2,11 @@ import {allRows,applyVerifiedHistoricals,completionPatch,verifiedIdentity,retryM
 const str=x=>String(x??"").trim();
 const now=()=>new Date().toISOString();
 const publicRun=r=>({id:r.id,mode:r.mode,status:r.status,cursor:r.cursor,total:r.targets.length,counts:r.counts,last_error:r.last_error||""});
+async function advanceRun(db,run,report){
+  const counts={...run.counts,jobs:run.cursor+1,compatible:run.counts.compatible+(report.applied||0),added:run.counts.added+(report.added_values||0),unchanged:run.counts.unchanged+(report.unchanged_values||0),conflicts:run.counts.conflicts+(report.conflicts?.length||0),errors:run.counts.errors+(report.errors?.length||0)};
+  const current=await db.ImportRepairRun.get(run.id);
+  return db.ImportRepairRun.update(run.id,{cursor:run.cursor+1,counts,status:run.cursor+1===run.targets.length?"completed":current.status==="paused"?"paused":"ready",last_error:""});
+}
 // Persistent runs process one job at a time. Sporting writes and candidate
 // acknowledgements are idempotent; a crash repeats the current job safely.
 export async function repairRequest(db,data,actor){
@@ -54,8 +59,21 @@ export async function repairRequest(db,data,actor){
   await retryMutation(()=>db.ImportRepairRun.updateMany({id:run.id,$or:[{lock_until:{$exists:false}},{lock_until:null},{lock_until:""},{lock_until:{$lt:now()}}]},{$set:{lock_id:lock,lock_until:until}}));
   if((await db.ImportRepairRun.get(run.id)).lock_id!==lock)throw Error("Otra reparación está procesando este lote.");
   try{
+    // Read after acquiring the lease: another step may have advanced while
+    // this request was acquiring its lock.
+    run=await db.ImportRepairRun.get(run.id);
+    if(["paused","completed"].includes(run.status))return {ok:true,run:publicRun(run)};
     const target=run.targets[run.cursor];
     if(!target){run=await db.ImportRepairRun.update(run.id,{status:"completed",finished_at:now()});return {ok:true,run:publicRun(run)};}
+    const itemKey=run.id+":"+(target.job_id||target.player_id);
+    const saved=await allRows(db.ImportRepairItem,{item_key:itemKey});
+    if(saved.length>1)throw Error("Informe duplicado; no se avanza el cursor.");
+    // A committed report is the durable checkpoint for this batch. A crash
+    // before the cursor commit must retain its original additions/counts.
+    if(saved.length){
+      run=await advanceRun(db,run,saved[0].report);
+      return {ok:true,run:publicRun(run),report:saved[0].report};
+    }
     if(!target.job_id){
       const report={applied:0,pending:null,added_values:0,unchanged_values:0,conflicts:[],errors:[{reason:"Sin trabajos previos: requiere recuperación de fuente y vinculación verificada"}],scopes:[]};
       const key=run.id+":"+target.player_id,existing=await allRows(db.ImportRepairItem,{item_key:key});
@@ -79,10 +97,8 @@ export async function repairRequest(db,data,actor){
     const record={run_id:run.id,item_key:key,job_id:job.id,player_id:job.player_id,report,checked_at:now()};
     if(previous.length>1)throw Error("Informe duplicado; no se avanza el cursor.");
     if(previous.length)await db.ImportRepairItem.update(previous[0].id,record);else await db.ImportRepairItem.create(record);
-    const counts={...run.counts,jobs:run.cursor+1,compatible:run.counts.compatible+report.applied,added:run.counts.added+report.added_values,unchanged:run.counts.unchanged+report.unchanged_values,conflicts:run.counts.conflicts+report.conflicts.length,errors:run.counts.errors+report.errors.length};
     // A pause requested while this job was executing takes effect after it.
-    const current=await db.ImportRepairRun.get(run.id);
-    run=await db.ImportRepairRun.update(run.id,{cursor:run.cursor+1,counts,status:run.cursor+1===run.targets.length?"completed":current.status==="paused"?"paused":"ready",last_error:""});
+    run=await advanceRun(db,run,report);
     return {ok:true,run:publicRun(run),report};
   }catch(error){await db.ImportRepairRun.update(run.id,{last_error:String(error.message||error)});throw error;}
   finally{if((await db.ImportRepairRun.get(run.id)).lock_id===lock)await db.ImportRepairRun.update(run.id,{lock_id:"",lock_until:""});}

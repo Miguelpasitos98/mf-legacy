@@ -38,6 +38,18 @@ test("application cannot start before a completed simulation",async()=>{
   const {db}=fixture();const {run}=await repairRequest(db,{action:"repair-create"},"admin");
   await assert.rejects(()=>repairRequest(db,{action:"repair-apply",run_id:run.id},"admin"),/simulación/);
 });
+test("a crash after persisting the batch report preserves its original counts on resume",async()=>{
+  const {db,data}=fixture();const {run}=await repairRequest(db,{action:"repair-create"},"admin");
+  await repairRequest(db,{action:"repair-step",run_id:run.id},"admin");
+  const apply=await repairRequest(db,{action:"repair-apply",run_id:run.id},"admin");
+  const completed=await repairRequest(db,{action:"repair-step",run_id:apply.run.id},"admin");
+  const stats=JSON.stringify(data.PlayerSeasonStats);
+  await db.ImportRepairRun.update(apply.run.id,{cursor:0,status:"ready",counts:{jobs:0,compatible:0,added:0,unchanged:0,conflicts:0,errors:0}});
+  const resumed=await repairRequest(db,{action:"repair-step",run_id:apply.run.id},"admin");
+  assert.deepEqual(resumed.run.counts,completed.run.counts);
+  assert.equal(resumed.run.counts.added,1);
+  assert.equal(JSON.stringify(data.PlayerSeasonStats),stats);
+});
 test("STATS players without any import job are included in the global report",async()=>{
   const {db,data}=fixture();data.PlayerSeasonStats.push({id:"old",player_id:"no-job"});
   const {run,players_without_jobs}=await repairRequest(db,{action:"repair-create"},"admin");
