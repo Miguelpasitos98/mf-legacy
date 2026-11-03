@@ -22,7 +22,7 @@ const yearKey=(teamId,name,rank,year)=>[String(teamId),norm(name),rank,String(ye
 export const palmaresBatchId=batch=>"fm24_"+String(batch.team?.id||"unknown")+"_"+(batch.source_type||"screenshot");
 export function validatePalmaresBatch(data){
  if(data?.format!==PALMARES_FORMAT)throw Error("Formato incorrecto: se esperaba "+PALMARES_FORMAT);
- if(!data.team?.id||!data.team?.name||!Array.isArray(data.competitions)||!data.competitions.length)throw Error("Faltan equipo, ID de Team o competiciones.");
+ if(!data.team?.name||!Array.isArray(data.competitions)||!data.competitions.length)throw Error("Faltan el nombre del equipo o las competiciones.");
  const issues=[],seen=new Set();let rows=0;
  for(const [i,c] of data.competitions.entries()){
   if(!String(c.raw_name||"").trim()||!Array.isArray(c.placements)||!c.placements.length)throw Error("Competición "+(i+1)+" sin nombre o sin resultados.");
@@ -83,7 +83,7 @@ export function matchPalmaresTrophy(name,catalog=[],years=[]){
 export function previewPalmaresBatch(batch,catalog=[],teamRecords=[]){
  const {competitions,entries}=validatePalmaresBatch(batch);
  const team=teamRecords.find(t=>String(t.id)===String(batch.team.id));
- if(!team)throw Error("El Team.id de la captura no existe en Base44. Selecciona o registra antes el club correcto.");
+ if(!team)throw Error("Debes seleccionar el equipo correcto de Teams antes de vincular resultados.");
  const groups=batch.competitions.map((c,i)=>({
   index:i,raw_name:c.raw_name,source_note:c.source_note||"",count:c.placements.reduce((n,p)=>n+p.years.length,0),
   ...matchPalmaresTrophy(c.raw_name,catalog,c.placements.flatMap(p=>p.years))
@@ -105,7 +105,7 @@ export function materializePalmaresEntries(batch,groups){
    trophy_id:["auto_linked","manual_linked"].includes(status)?String(trophy?.id||""):"",
    trophy_name_raw:comp.raw_name,trophy_name_matched:["auto_linked","manual_linked"].includes(status)?String(trophy?.name||""):"",
    source_order:index+1,source_segment:Number(comp.capture_index||0),
-   rank:part.rank,calendar_year:year,edition_label:String(year),original_year_text:String(year),
+   rank:part.rank,calendar_year:year,edition_label:String(year),original_year_text:String(year)+(comp.year_annotations?.[part.rank+":"+year]?" ("+comp.year_annotations[part.rank+":"+year]+")":""),
    source_type:batch.source_type,source_files:(batch.source_files||[]).join(" | "),
    source_note:String(comp.source_note||""),
    match_status:status,match_confidence:Number(decision?.confidence||0),review_reason:String(decision?.reason||""),
