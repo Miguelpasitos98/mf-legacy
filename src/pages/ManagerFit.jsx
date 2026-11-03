@@ -13,6 +13,7 @@ import {profileScopeLabel} from "@/components/managers/managerModel.mjs";
 import {visibleManagerFitCandidates} from "@/components/managers/managerFitVisibility.mjs";
 import {managerScoutingPool,managerScoutingCandidateIds} from "@/components/managers/managerScoutingPool.mjs";
 import {DEEP_FIT_PRESETS,DEEP_COMPONENT_LABELS,evaluateDeepFit} from "@/components/managers/managerFitDeep.mjs";
+import {managerFitTemporalScope} from "@/components/managers/managerFitTemporalScope.mjs";
 const all=async(entity,query={})=>{
  const output=[];
  for(let skip=0;skip<100000;skip+=200){
@@ -97,6 +98,7 @@ export default function ManagerFit(){
  },[players,role,seasonStats,understatRows,season]);
  const historicalPeerMetrics=useMemo(()=>[...historicalIndex.values()],[historicalIndex]);
  const roleRequirements=useMemo(()=>deriveRoleRequirements(profile,role),[profile,role]);
+ const temporalContext=useMemo(()=>managerFitTemporalScope(profile,season),[profile,season]);
  const candidates=useMemo(()=>managerScoutingPool(players),[players]);
  const candidateIds=useMemo(()=>managerScoutingCandidateIds(players),[players]);
  const resultLimit=showAllResults?Number.POSITIVE_INFINITY:48;
@@ -180,6 +182,7 @@ export default function ManagerFit(){
     <div className="flex flex-wrap items-start justify-between gap-2">
      <div><h3 className="text-sm font-black text-blue-950">Deep Fit · Laboratorio de encaje táctico</h3>
       <p className="mt-1 text-xs text-slate-700">Una función del ADN debe ser evaluable tanto en las estadísticas históricas V4 como en los atributos FM26. La nota conjunta es experimental: no predice el rendimiento ni cambia tu bolsa.</p>
+      <p className="mt-1 text-[11px] text-slate-600">Datos FM26 actuales frente a registros históricos de {season}. No se asume que los atributos del videojuego fueran idénticos en temporadas anteriores.</p>
      </div>
      <span className="rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-blue-900">{profileScopeLabel(profile)} · {season}</span>
     </div>
@@ -199,6 +202,9 @@ export default function ManagerFit(){
        className="mt-1 block w-full accent-blue-800"/>}
      </label>)}
     </div>
+    <p className={"rounded-lg border px-3 py-2 text-[11px] "+(temporalContext.status==="counterfactual"?"border-amber-200 bg-amber-50 text-amber-900":"border-slate-200 bg-white text-slate-700")}>
+     <strong>{temporalContext.label}.</strong> {temporalContext.warning}
+    </p>
     <p className="text-[11px] text-slate-600">Se normalizan los pesos que elijas; si falta el estilo FM26, ese peso se redistribuye entre factores disponibles. Datos reales V4 y atributos funcionales FM26 son obligatorios. CA, valor de mercado, fama y precio no entran en la nota.</p>
    </section>}
    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 rounded-xl border bg-slate-50 p-3">
@@ -304,6 +310,11 @@ export default function ManagerFit(){
        <strong className="text-sm text-blue-900">{scoutingDeep.score===null?"Sin nota conjunta":scoutingDeep.score+"/100 · Confianza "+(scoutingDeep.confidence==="medium"?"media":"baja")}</strong>
       </div>
       <p className="text-xs text-slate-600">{scoutingDeep.explanation} Requisitos compartidos entre fuentes: {scoutingDeep.sharedFunctions.length}.</p>
+      {scoutingDeep.sensitivityRange&&<div className="rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2 text-xs text-indigo-900">
+       <strong>Sensibilidad de ponderaciones: {scoutingDeep.sensitivityRange.min}–{scoutingDeep.sensitivityRange.max}/100.</strong>
+       {" "}Equilibrado {scoutingDeep.sensitivity.balanced} · Datos reales {scoutingDeep.sensitivity.historical} · Funciones FM26 {scoutingDeep.sensitivity.tactical}.
+       Este intervalo es una prueba de sensibilidad entre escenarios, NO un intervalo estadístico de confianza.
+      </div>}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">{scoutingDeep.components.map(component=>
        <div key={component.key} className="rounded-lg bg-slate-50 p-2">
         <p className="min-h-[34px] text-[11px] font-semibold text-slate-700">{DEEP_COMPONENT_LABELS[component.key]}</p>

@@ -3,26 +3,32 @@ import {Activity,BarChart3,ChevronDown,ChevronUp,ClipboardList,Info,Layers3,User
 import PlayerPortrait from "@/components/teams/PlayerPortrait";
 import {v4MissingMetricExplanations} from "./managerV4MetricExplanation.mjs";
 import {V4_METRIC_LABELS} from "./managerRoleRules.mjs";
+import {DEEP_COMPONENT_LABELS} from "./managerFitDeep.mjs";
 
 const CONFIDENCE={medium:"Media",low:"Baja",insufficient:"Sin datos suficientes"};
-const modeName={role:"Encaje por ADN V4",historical:"Histórico V3",attributes:"FM26 orientativo V2",position:"Adecuación posicional V1"};
+const modeName={deep:"Deep Fit · Datos reales + FM26",role:"Encaje por ADN V4",historical:"Histórico V3",attributes:"FM26 orientativo V2",position:"Adecuación posicional V1"};
 const modeDescription={
+ deep:"Cruce experimental: exige al menos una misma función del ADN con datos históricos V4 y atributos FM26. El índice solo se calcula cuando ambas fuentes tienen evidencia suficiente. El CA no puntúa.",
  role:"Requiere requisitos reconocibles del ADN, al menos dos métricas observadas y diez jugadores comparables por indicador.",
  historical:"Compara estadísticas de la misma temporada entre jugadores del mismo rol.",
  attributes:"Estima ajuste con atributos FM26 y señales generales del ADN; no es rendimiento histórico.",
  position:"Solo valora compatibilidad con la posición, no encaje con el entrenador."
 };
-export const scoutingScore=(item,mode)=>mode==="role"?item?.roleFit?.score??null:mode==="historical"?item?.historical?.score??null:mode==="attributes"?item?.advanced?.score??null:item?.fit??null;
-export const scoutingCoverage=(item,mode)=>mode==="role"?item?.roleFit?.coverage??0:mode==="historical"?item?.historical?.coverage??0:mode==="attributes"?item?.advanced?.coverage??0:null;
+export const scoutingScore=(item,mode)=>mode==="deep"?item?.deep?.score??null:mode==="role"?item?.roleFit?.score??null:mode==="historical"?item?.historical?.score??null:mode==="attributes"?item?.advanced?.score??null:item?.fit??null;
+export const scoutingCoverage=(item,mode)=>mode==="deep"?item?.deep?.functions?.coverage??0:mode==="role"?item?.roleFit?.coverage??0:mode==="historical"?item?.historical?.coverage??0:mode==="attributes"?item?.advanced?.coverage??0:null;
 export function ManagerScoutingSummary({scoreMode,visibility,roleRequirements,statsLoading,statsError,season}){
  const available=visibility.scoredCount||0,compatible=visibility.compatibleCount||0;
  const noV4Criteria=scoreMode==="role"&&!roleRequirements?.matched?.length;
  const hasDescription=Boolean(roleRequirements?.text?.trim());
  const pending=statsLoading;
- const status=scoreMode==="role"?(noV4Criteria?"ADN del rol sin indicadores históricos evaluables":available?"V4 parcialmente evaluable":"Datos insuficientes para puntuar V4"):
+ const status=scoreMode==="deep"?(available?"Cruce histórico + FM26 disponible":"No hay cruce suficiente entre ambas fuentes"):
+ scoreMode==="role"?(noV4Criteria?"ADN del rol sin indicadores históricos evaluables":available?"V4 parcialmente evaluable":"Datos insuficientes para puntuar V4"):
  scoreMode==="historical"?(available?"Histórico calculado":"Sin muestra histórica suficiente"):
  scoreMode==="attributes"?(available?"Estimaciones FM26 disponibles":"Atributos FM26 insuficientes"):"Solo posición";
- const statusText=noV4Criteria?(hasDescription?
+ const statusText=scoreMode==="deep"?(
+  available?"Deep Fit cruza las métricas reales de la campaña con los atributos FM26 vinculados a las funciones de este ADN. Consulta cada fuente por separado; no es una predicción.":
+  "No hay suficientes datos V4 y atributos FM26 medidos para la misma función del ADN. Prueba V4 o V2 por separado. No se rellena ninguna nota conjunta automáticamente."):
+ noV4Criteria?(hasDescription?
   "El entrenador solicita «"+roleRequirements.text+"», pero no hay indicadores históricos suficientemente directos para ese rasgo, o falta reconocer alguna expresión. Esto NO significa que los jugadores carezcan de estadísticas. V4 no puede asignarles una nota táctica con esta descripción.":
   "El ADN guardado no contiene descripción específica para este rol. Completa el perfil del entrenador antes de calcular un encaje V4."):
  pending?"Comprobando métricas de "+season+"…":
@@ -65,8 +71,8 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
  const score=typeof measured==="number"&&Number.isFinite(measured)?measured:null;
  const coverage=scoutingCoverage(item,scoreMode);
  const isPositional=scoreMode==="position";
- const label=isPositional?"Encaje posicional":scoreMode==="attributes"?"Estimación FM26":scoreMode==="role"?"Encaje V4":"Histórico V3";
- const evidence=scoreMode==="role"?item.roleFit:scoreMode==="historical"?item.historical:scoreMode==="attributes"?item.advanced:null;
+ const label=isPositional?"Encaje posicional":scoreMode==="deep"?"Deep Fit":scoreMode==="attributes"?"Estimación FM26":scoreMode==="role"?"Encaje V4":"Histórico V3";
+ const evidence=scoreMode==="deep"?item.deep:scoreMode==="role"?item.roleFit:scoreMode==="historical"?item.historical:scoreMode==="attributes"?item.advanced:null;
  const v4Missing=scoreMode==="role"?v4MissingMetricExplanations(item.roleFit):[];
  return <article className="flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition hover:border-blue-200 hover:shadow-md">
   <div className="flex min-w-0 gap-3">
@@ -89,6 +95,18 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
     {scoreMode!=="position"&&<span className="text-[10px] text-slate-500">{scoreMode==="role"&&item.roleFit?.requested===0?"Cobertura no aplicable":"Cobertura "+coverage+"%"}</span>}
    </div>
    {scoreMode!=="position"&&<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-[#3a6eae]" style={{width:Math.max(0,Math.min(100,coverage))+"%"}}/></div>}
+   {scoreMode==="deep"&&<div className="mt-1.5 space-y-1">
+    <p className="text-[10px] text-slate-700"><strong>Funciones coincidentes:</strong> {item.deep.sharedFunctions.length} ·
+     {" "}Confianza {CONFIDENCE[item.deep.confidence]?.toLowerCase()||"sin determinar"}</p>
+    <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+     {item.deep.components.map(component=><span key={component.key} className="flex justify-between gap-2 text-[10px] text-slate-600">
+      <span className="truncate">{DEEP_COMPONENT_LABELS[component.key]}</span>
+      <strong className="tabular-nums text-slate-800">{component.score===null?"—":component.score}</strong>
+     </span>)}
+    </div>
+    {item.deep.score!==null&&item.deep.sensitivityRange&&<p className="text-[10px] text-indigo-800">Variación por escenarios: {item.deep.sensitivityRange.min}–{item.deep.sensitivityRange.max}/100 (no es margen de error)</p>}
+    {item.deep.score===null&&<p className="text-[10px] leading-4 text-amber-900">{item.deep.missing[0]||"Sin suficientes fuentes para combinar."}</p>}
+   </div>}
    {scoreMode==="role"&&item.roleFit?.requested>0&&<p className="mt-1.5 text-[10px] text-slate-600">
     <strong>{item.roleFit.breakdown.length}/{item.roleFit.requested} métricas</strong> ·
     {" "}{item.roleFit.evaluatedFunctions??0}/{item.roleFit.requestedFunctions??0} funciones evaluadas ·
@@ -145,6 +163,14 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
     {!item.roleFit.metricDiagnostics?.length&&<p>El ADN no contiene requisitos asociados con seguridad a métricas observadas. No es una ausencia general de datos del jugador.</p>}
     {!!item.roleFit.unmeasuredTraits?.length&&<p><strong>Sin medida histórica directa:</strong> {item.roleFit.unmeasuredTraits.join(" · ")}</p>}
    </div>}
+   {scoreMode==="deep"&&<div className="space-y-2">
+    <p><strong>Cómo se construye Deep Fit:</strong> el histórico V4 y los atributos FM26 deben coincidir en una función explícita del ADN. Los pesos ajustables se normalizan entre fuentes existentes. El CA y el valor del futbolista quedan fuera.</p>
+    {item.deep.functions.families.map(family=><div key={family.id} className="rounded-lg border border-slate-100 p-2">
+     <p className="font-semibold">{family.label}: {family.score===null?"No evaluable":family.score+"/100"} · {family.found}/{family.requested} atributos FM26</p>
+     <div className="flex flex-wrap gap-1 mt-1">{family.evidence.map(attribute=><span key={attribute.key} className="rounded bg-slate-50 px-2 py-1">{attribute.label}: {attribute.raw??"—"}/20</span>)}</div>
+    </div>)}
+    {item.deep.caution.map(text=><p key={text} className="text-amber-900">{text}</p>)}
+   </div>}
    {scoreMode==="historical"&&<p><strong>Histórico:</strong> {item.historical.breakdown.length?item.historical.breakdown.map(m=>m.key+" P"+m.percentile).join(" · "):"Sin indicadores históricos evaluables"}</p>}
    {scoreMode==="attributes"&&<p>Posición {item.advanced.position??"—"} · Atributos {item.advanced.attributes??"—"} · ADN {item.advanced.style??"—"}</p>}
    {scoreMode==="position"&&<p>{item.evidence}</p>}
@@ -159,6 +185,7 @@ export function ManagerMethodsPanel(){
  return <details className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
   <summary className="cursor-pointer font-bold text-slate-800">Metodología y limitaciones de V4, V3, FM26 y posición</summary>
   <div className="mt-3 space-y-2 leading-5">
+   <p><strong>Deep Fit (experimental):</strong> nunca sustituye a V4 ni a FM26. Exige al menos una función explícita compartida entre estadísticas reales de la campaña y atributos FM26; compara fuentes diferentes mediante cuatro factores ponderables (V4, función FM26, estilo FM26 y posición FM26). Los pesos sin datos se redistribuyen, pero V4 y las funciones FM26 siguen siendo obligatorios. Una sensibilidad entre tres ponderaciones no es un intervalo de confianza. La época del entrenador y la temporada del jugador pueden no coincidir: en ese caso el ejercicio es contrafactual.</p>
    <p><strong>V4.1 · Requisitos del ADN:</strong> identifica funciones descritas explícitamente por el entrenador y calcula un percentil para cada indicador comprobable. Después promedia los indicadores disponibles dentro de cada función y da el mismo peso a cada función evaluada. Se requieren al menos dos indicadores distintos y diez compañeros comparables externos por métrica (cuando se conoce el ID). La cobertura indica la fracción medida, no la calidad del futbolista. Fuentes y alcance deben ser comparables; pocos minutos reducen la confianza.</p>
    <p><strong>V3 · Histórico:</strong> percentiles de una misma temporada y rol. No miden directamente la adaptación a la filosofía del entrenador.</p>
    <p><strong>V2 · FM26:</strong> estimación a partir de posición, atributos del videojuego y parámetros generales de ADN. No sustituye mediciones históricas y mantiene el CA independiente.</p>

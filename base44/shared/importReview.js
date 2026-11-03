@@ -16,17 +16,23 @@ export function reviewedCurrentTeamLink(player,team,item){
 }
 const competitionKey=x=>({"super lig":"super lig","super league turkey":"super lig","ligue 1 uber eats":"ligue 1","english premier league":"premier league"}[norm(x)]||norm(x));
 async function allRows(entity,query) {
-  // Read two stable pages at a time to avoid throttling (429) while also
-  // limiting sequential round-trips over large candidate sets.
   const out=[];
-  for(let skip=0;skip<10000;skip+=200){
-    const pages=await Promise.all([0,100].map(n=>entity.filter(query,"id",100,skip+n)));
-    for(const response of pages){
-      const page=rows(response);out.push(...page);
-      if(page.length<100)return out;
-    }
+  for(let skip=0;skip<10000;skip+=500){
+    const page=rows(await retryRead(()=>entity.filter(query,"id",500,skip)));
+    out.push(...page);
+    if(page.length<500)return out;
   }
   throw Error("Demasiados registros para resolver la identidad con seguridad.");
+}
+async function retryRead(read){
+  for(let attempt=0;attempt<4;attempt++){
+    try{return await read();}catch(e){
+      const status=e.status||e.response?.status,message=String(e.message||e);
+      if(attempt===3||!(status===429||status>=500||/rate limit|retry after/i.test(message)))throw e;
+      const seconds=Number(message.match(/retry after\s+(\d+)/i)?.[1]);
+      await new Promise(resolve=>setTimeout(resolve,Math.max(seconds||0,2**attempt)*1000+100));
+    }
+  }
 }
 export function metricPlan(item,player,existing,teamLink={}) {
   if(!/^\d{1,15}$/.test(str(item.fotmob_team_id))||!str(item.competition)||!str(item.metric_name))throw Error("Falta identidad de competición/equipo/métrica.");
@@ -333,3 +339,4 @@ export async function applyVerifiedHistoricals(db,job,{dryRun=false,maxScopes=In
   result.pending=Math.max(0,pending.length-result.applied);
   return result;
 }
+

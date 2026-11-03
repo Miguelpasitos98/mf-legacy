@@ -146,6 +146,15 @@ export function evaluateDeepFit({
   !weightsUsed||weightsUsed.historical<=0||weightsUsed.functions<=0?
    "Los pesos de datos reales y atributos de funciones deben ser mayores de cero.":null
  ].filter(Boolean);
+ const sensitivity=prerequisites?Object.fromEntries(Object.entries(DEEP_FIT_PRESETS).map(([name,preset])=>{
+  const normalized=normalizeDeepWeights(preset);
+  const present=components.filter(component=>component.score!==null&&normalized?.[component.key]>0);
+  const total=present.reduce((sum,component)=>sum+normalized[component.key],0);
+  return [name,total>0?Math.round(present.reduce((sum,component)=>sum+component.score*normalized[component.key],0)/total):null];
+ })):Object.fromEntries(Object.keys(DEEP_FIT_PRESETS).map(key=>[key,null]));
+ const sensitivityValues=Object.values(sensitivity).filter(value=>value!==null);
+ const sensitivityRange=sensitivityValues.length?
+  {min:Math.min(...sensitivityValues),max:Math.max(...sensitivityValues)}:null;
  const caution=[
   disagreement!==null&&disagreement>25?"Las señales históricas y los atributos FM26 difieren más de 25 puntos; revisar cada fuente.":null,
   roleFit?.confidence==="low"?"Confianza limitada de la muestra estadística V4.":null,
@@ -156,7 +165,7 @@ export function evaluateDeepFit({
   components:components.map(x=>({...x,weight:weightsUsed?.[x.key]??0,
     effectiveWeight:score!==null&&x.score!==null&&weightSum>0?
       Math.round(100*(weightsUsed?.[x.key]||0)/weightSum):0})),
-  disagreement,missing,caution,
+  disagreement,missing,caution,sensitivity,sensitivityRange,
   explanation:score===null?"No se genera una nota combinada sin evidencia histórica y del videojuego para al menos una misma función del ADN.":
    "Índice experimental de ajuste: combina percentiles históricos V4, atributos tácticos FM26, estilo y posición. No es una predicción de rendimiento ni un cálculo del CA."};
 }
