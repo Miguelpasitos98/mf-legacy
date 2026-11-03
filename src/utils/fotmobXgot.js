@@ -5,7 +5,7 @@ const numeric=x=>x===null||x===undefined||x===""?null:Number.isFinite(Number(x))
 export const xgotMetric=record=>(record?.metrics||[]).find(m=>
   ["xgot","expectedgoalsontarget"].includes(norm(m?.name)) &&
   /fotmob/i.test(String(m?.source||record?.source||"")) &&
-  !["unverified","pending","rejected"].includes(String(m?.verification_status||"").toLowerCase()) &&
+  ["verified","verificado","auto_verified"].includes(String(m?.verification_status||record?.verification_status||"").toLowerCase()) &&
   String(m?.unit||"total")!=="percentage"
 );
 export function xgotObservations(records,fotmobId=""){

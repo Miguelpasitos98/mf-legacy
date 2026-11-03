@@ -25,7 +25,7 @@ export const recordKey = (r) => {
 const metricAliases = {
   "goals":"goals","goles":"goals","assists":"assists","asistencias":"assists",
   "expectedgoals":"xg","xg":"xg","expectedassists":"xa","xa":"xa",
-  "xgot":"xgot","shots":"shots","tiros":"shots","shotsontarget":"shots_on_target",
+  "xgot":"xgot","expectedgoalsontarget":"xgot","expectedgoalsontargetxgot":"xgot","shots":"shots","tiros":"shots","shotsontarget":"shots_on_target",
   "tackles":"tackles","entradas":"tackles","interceptions":"interceptions",
   "recoveries":"recoveries","yellowcards":"yellow_cards","redcards":"red_cards",
   "minutes":"minutes","minutesplayed":"minutes","matches":"appearances","appearances":"appearances",
@@ -64,6 +64,20 @@ export function normalizeRecord(item) {
   const competition = asText(item.competition || item.league);
   if (!p || !season || !competition) throw Error("Falta ID FotMob, temporada o competición.");
   const metrics = cleanMetrics(item.metrics);
+  // Some FotMob exports expose xGOT at the top level; never treat xG as xGOT.
+  const topLevelXgot=asNum(item.xgot ?? item.xGOT ?? item.expected_goals_on_target);
+  if(topLevelXgot!==null && topLevelXgot>=0 && !metrics.some(m=>metricAliases[normalizeLabel(m.name)]==="xgot")) {
+    metrics.push({name:"xGOT",value:topLevelXgot,per90:null,percentile:null,source:"fotmob"});
+  }
+  // Preserve provider values; only calculate the missing rate when FotMob
+  // supplies its total and the corresponding minutes in this same record.
+  for(const metric of metrics){
+    if(metricAliases[normalizeLabel(metric.name)]!=="xgot")continue;
+    metric.name="xGOT";
+    if(metric.per90!==null&&metric.per90!==undefined)continue;
+    const minutes=asNum(item.minutes ?? item.minutes_played ?? metricValue(metrics,"Minutes played"));
+    if(minutes>0&&metric.value>=0)metric.per90=metric.value*90/minutes;
+  }
   // team_matches es el total disputado por EL EQUIPO, no las apariciones del jugador.
   const rawTeamMatches=item.team_matches;
   const teamMatches=asNum(rawTeamMatches);
