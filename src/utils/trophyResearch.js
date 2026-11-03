@@ -45,7 +45,7 @@ const ANCHORS = [
  {names:['Ligue 1'],score:164,country:'Francia',basis:'Primera división francesa.'},
  {names:['UEFA Europa League'],score:167,scope:'international',basis:'Segunda competición europea principal de clubes.'},
  {names:['UEFA Super Cup'],score:155,scope:'international',basis:'Supercopa europea oficial.'},
- {names:['FIFA Women's World Cup'],score:185,scope:'international',basis:'Principal campeonato mundial femenino de selecciones.'}
+ {names:["FIFA Women's World Cup"],score:185,scope:'international',basis:'Principal campeonato mundial femenino de selecciones.'}
 ];
 const byId = new Map(ANCHORS.filter(a=>a.id).map(a=>[String(a.id),a]));
 const byName = new Map(ANCHORS.flatMap(a=>(a.names||[]).map(name=>[norm(name),a])));
