@@ -39,7 +39,8 @@ export default async function(req){
     if(!job)return reply({ok:false,error:'Trabajo no encontrado'},404);
     if(['queued','running'].includes(job.status))return reply({ok:true,status:'waiting_job',job_id:jobId});
     if(!['review','completed'].includes(job.status))return reply({ok:true,status:'not_finished',job_id:jobId});
-    if(!(job.sources||[]).includes('understat'))return reply({ok:true,status:'not_requested',job_id:jobId});
+    // The final continuation block may only list FotMob even though the root
+    // job included Understat. Audit the resulting player history regardless.
     const playerId=txt(job.player_id),pid=txt(job.fotmob_player_id);
     if(!/^[a-f0-9]{24}$/i.test(playerId)||!/^[0-9]{1,15}$/.test(pid))
       return reply({ok:true,status:'unlinked',job_id:jobId});
@@ -65,10 +66,26 @@ export default async function(req){
        linkRows.some(l=>approved.has(txt(l.verification).toLowerCase()))&&
        !backRows.some(l=>txt(l.player_id)!==playerId)&&
        !saved.some(r=>txt(r.fotmob_player_id)&&txt(r.fotmob_player_id)!==pid)){
-      const plan=planHistoricalMissing(readArchive(await archiveText(),player.name),saved);
+      // An explicitly approved Understat observation already on the player's
+      // STATS record is sufficient to recover the previously reviewed source
+      // identity on future scans, even without two FotMob seasons.
+      const priorIds=new Set();
+      for(const row of saved){
+        for(const m of row.metrics||[]){
+          const p=m?.provenance;
+          if(p?.provider==='understat_archive'&&p.sha256===ARCHIVE_SHA256&&
+              /^\d+$/.test(txt(p.player_id)))priorIds.add(txt(p.player_id));
+        }
+      }
+      const archive=readArchive(await archiveText(),player.name);
+      const verifiedOptions=priorIds.size===1&&archive.has([...priorIds][0])?
+        {understat_id:[...priorIds][0],confirm_identity:true}:{};
+      const plan=planHistoricalMissing(archive,saved,verifiedOptions);
       const count=plan.proposals?.length||0;
       audit={
-        status:plan.status==='verified'?(count?'pending':'no_detected_gaps'):
+        status:['verified','manually_confirmed'].includes(plan.status)?
+          (count?'pending':'no_detected_gaps'):
+          !archive.size?'not_covered':
           plan.status==='needs_identity_confirmation'?'needs_identity_confirmation':'needs_review',
         proposals:count,
         new_seasons:(plan.proposals||[]).filter(x=>x.action==='create').length,
@@ -76,7 +93,8 @@ export default async function(req){
         excluded:(plan.skipped||[]).length,
         checked_at:new Date().toISOString(),source_revision:ARCHIVE_SHA256,
         understat_id:plan.understat_id||'',
-        note:plan.status==='verified'?'Archivo histórico contrastado contra STATS (solo ligas cubiertas)':plan.reason||'Identidad o cobertura pendiente'
+        note:['verified','manually_confirmed'].includes(plan.status)?
+          'Archivo histórico contrastado contra STATS (solo ligas cubiertas)':plan.reason||'Identidad o cobertura pendiente'
       };
     }else if(saved.length>=350){
       audit={...audit,status:'needs_review',note:'Más de 349 filas STATS; requiere diagnóstico manual'};
