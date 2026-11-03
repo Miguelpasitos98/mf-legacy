@@ -27,6 +27,7 @@ const competitionKey=x=>({
   // Understat's official historical label and FotMob's competition label
   // are the same national league: avoid duplicate rows on later FotMob import.
   "laliga":"la liga","la liga":"la liga","la liga ea sports":"la liga",
+  "laliga ea sports":"la liga","laliga santander":"la liga",
   "la liga santander":"la liga"
 }[norm(x)]||norm(x));
 async function allRows(entity,query) {
