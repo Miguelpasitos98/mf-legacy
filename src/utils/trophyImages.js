@@ -7,7 +7,7 @@ export const isImageUrl=value=>{
  const url=text(value);
  if(!url)return false;
  if(url.startsWith("/")&&!url.startsWith("//"))return !/[\s<>]/.test(url);
- try{const parsed=new URL(url);return ["https:","http:"].includes(parsed.protocol)&&Boolean(parsed.hostname);}catch{return false;}
+ try{const parsed=new URL(url);return parsed.protocol==="https:"&&Boolean(parsed.hostname);}catch{return false;}
 };
 export const overrideFor=trophy=>{
  const src=text(trophy?.image_override_url);
