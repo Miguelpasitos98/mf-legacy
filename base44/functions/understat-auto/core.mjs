@@ -70,6 +70,53 @@ export function readArchive(csv,playerName){
  }
  return players;
 }
+
+// Replenish missing *league-only* STATS fields from the same verified archive.
+// This never treats Understat totals as FotMob observations, and it never
+// creates a player/season or assumes a club match based on name alone.
+export function deriveStatsBackfill(players,stats){
+ const identity=deriveRates(players,stats);
+ if(identity.status!=='verified')return {status:identity.status,understat_id:null,entries:[],skipped:[]};
+ const archive=players.get(identity.understat_id)||[];
+ const labels=[['goals','Understat Goals'],['assists','Understat Assists'],
+   ['xG','Understat xG'],['xA','Understat xA'],
+   ['npxG','Understat npxG'],['shots','Understat Shots']];
+ const counts=new Map();
+ for(const source of archive){
+  const scope=[source.season,source.league,teamKey(source.team)].join('|');
+  counts.set(scope,(counts.get(scope)||0)+1);
+ }
+ const entries=[],skipped=[];
+ for(const source of archive){
+  if(!source.league||!source.season||Number(source.season.slice(0,4))>LAST_COMPLETE_SEASON_START)continue;
+  const scope=[source.season,source.league,teamKey(source.team)].join('|');
+  if(counts.get(scope)!==1){skipped.push({season:source.season,reason:'Registro de club duplicado en el archivo'});continue;}
+  const found=stats.filter(s=>s.id&&s.season===source.season&&
+   leagueKey(s.competition)===source.league&&teamKey(s.team_name)===teamKey(source.team)&&s.is_national_team!==true);
+  if(found.length!==1){skipped.push({season:source.season,reason:'Club, liga o temporada sin vinculación única en STATS'});continue;}
+  if(!(source.minutes>0)||source.chain===null||source.buildup===null||source.chain<0||source.buildup<0||source.buildup>source.chain){
+   skipped.push({season:source.season,reason:'Observación Understat incompleta o incoherente'});continue;
+  }
+  const provenance={provider:'understat_archive',player_id:identity.understat_id,
+    archive_url:ARCHIVE_URL,sha256:ARCHIVE_SHA256,scope:'league_team_season'};
+  const metrics=[];
+  for(const [field,name] of labels){
+   const value=source.stats?.[field];
+   if(value===null||value===undefined||!Number.isFinite(value)||value<0)continue;
+   if(['goals','assists','shots'].includes(field)&&!Number.isInteger(value))continue;
+   metrics.push({name,value,per90:value*90/source.minutes,unit:'total',
+     source:'understat',source_url:ARCHIVE_URL,verification_status:'verified',provenance});
+  }
+  if(!metrics.length)continue;
+  metrics.push({name:'Understat minutes',value:source.minutes,unit:'total',
+    source:'understat',source_url:ARCHIVE_URL,verification_status:'verified',provenance});
+  entries.push({id:found[0].id,season:source.season,
+    competition:found[0].competition,team_name:found[0].team_name,
+    metrics});
+ }
+ return {status:'verified',understat_id:identity.understat_id,entries,skipped};
+}
+
 export function deriveRates(players,stats){
  // Identity is accepted ONLY when source ID is unique AND at least two distinct
  // exact season + domestic competition + club matches exist in FotMob history.
