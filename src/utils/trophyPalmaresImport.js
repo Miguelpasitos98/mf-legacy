@@ -23,7 +23,7 @@ export const palmaresBatchId=batch=>"fm24_"+String(batch.team?.id||"unknown")+"_
 export function validatePalmaresBatch(data){
  if(data?.format!==PALMARES_FORMAT)throw Error("Formato incorrecto: se esperaba "+PALMARES_FORMAT);
  if(!data.team?.name||!Array.isArray(data.competitions)||!data.competitions.length)throw Error("Faltan el nombre del equipo o las competiciones.");
- const issues=[],seen=new Set();let rows=0;
+ const issues=[],seen=new Set(),positionByYear=new Map();let rows=0;
  for(const [i,c] of data.competitions.entries()){
   if(!String(c.raw_name||"").trim()||!Array.isArray(c.placements)||!c.placements.length)throw Error("Competición "+(i+1)+" sin nombre o sin resultados.");
   for(const p of c.placements){
@@ -33,6 +33,10 @@ export function validatePalmaresBatch(data){
     const key=yearKey(data.team.id,c.raw_name,p.rank,year);
     if(seen.has(key))issues.push("Resultado repetido en el archivo: "+c.raw_name+" "+p.rank+" "+year);
     seen.add(key);rows++;
+    const editionKey=[norm(c.raw_name),year].join("|");
+    const previous=positionByYear.get(editionKey);
+    if(previous&&previous!==p.rank)issues.push("El mismo club figura en distintos puestos de "+c.raw_name+" en "+year);
+    positionByYear.set(editionKey,p.rank);
    }
   }
  }
@@ -50,7 +54,7 @@ function catalogMatchIndex(catalog){
 }
 const only=map=>map&&map.size===1?[...map.values()][0]:null;
 const historicBounds=name=>{const x=String(name||"").match(/\((\d{4})\s*[-–]\s*(\d{4})\)/);return x?[Number(x[1]),Number(x[2])]:null;};
-const historicalRangeCheck=(name,trophy,years=[])=>{const bounds=historicBounds(trophy?.name);if(bounds&&years.some(y=>y<bounds[0]||y>bounds[1]))return "Años del archivo fuera del rango de la ficha histórica ("+bounds.join("–")+"): comprobar si se trata de otra edición o variante.";return "";};
+const historicalRangeCheck=(name,trophy,years=[])=>{const bounds=historicBounds(trophy?.name);if(bounds&&years.some(y=>y<bounds[0]||y>bounds[1]))return "Años del archivo fuera del rango de la ficha histórica ("+bounds.join("–")+"): comprobar si se trata de otra edición o variante.";if(trophy?.identification_status==="Pending")return "El ID del trofeo figura pendiente de identificación; confirmar manualmente.";return "";};
 export function matchPalmaresTrophy(name,catalog=[],years=[]){
  const key=norm(name),idx=catalogMatchIndex(catalog);
  const direct=idx.get(key);
