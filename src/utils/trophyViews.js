@@ -10,8 +10,8 @@ const TIERS=[
  {key:"rep180",title:"180–200 · Élite mundial",min:180,max:200,rank:0},
  {key:"rep150",title:"150–179 · Prestigio internacional",min:150,max:179,rank:1},
  {key:"rep120",title:"120–149 · Alta relevancia",min:120,max:149,rank:2},
- {key:"rep90",title:"90–119 · Reconocimiento nacional",min:90,max:119,rank:3},
- {key:"rep60",title:"60–89 · Tradición regional",min:60,max:89,rank:4},
+ {key:"rep90",title:"90–119 · Reconocidos",min:90,max:119,rank:3},
+ {key:"rep60",title:"60–89 · Tradición futbolística",min:60,max:89,rank:4},
  {key:"rep0",title:"0–59 · Locales y minoritarios",min:0,max:59,rank:5}
 ];
 const scope=(key,title,rank,detail)=>({key,title,rank,detail});
@@ -61,7 +61,7 @@ function countryGroup(trophy,leagues,countries){
 }
 export function trophyViewGroups(items,view,leagues=[],countries=[],sortMode="name"){
  if(view==="gallery")return groupTrophies(items,leagues,countries,sortMode);
- if(view==="reputation")return groupedBy(items,reputationTier,{sortItems:byReputation});
+ if(view==="reputation")return groupedBy(items,reputationTier,{sortItems:sortMode==="reputation_asc"?(a,b)=>byReputation(b,a):byReputation,sortGroups:sortMode==="reputation_asc"?(a,b)=>b.rank-a.rank:(a,b)=>a.rank-b.rank});
  if(view==="scope")return groupedBy(items,t=>trophyScope(t,leagues,countries),{sortItems:byReputation});
  if(view==="countries")return groupedBy(items,t=>countryGroup(t,leagues,countries),{
   sortItems:sortMode==="reputation_asc"?(a,b)=>byReputation(b,a):sortMode==="reputation_desc"?byReputation:byName,
