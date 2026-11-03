@@ -189,10 +189,11 @@ class Catalogs:
   for person in people:
    rows=dataset.records(self.root,person['understat_player_id']);matches=[]
    for row in rows:
-    if norm(row['name'])!=norm(bundle['player']['name']):continue
-    raw=row['canonical'];tid=dataset.LEAGUES.get(row['league'])
-    career=[x for x in bundle['career'] if x.get('season')==row['season'] and str(x.get('fotmob_tournament_id'))==tid and contextual_team_match(row['team'],x.get('team_name'),tid,x.get('fotmob_team_id'))]
-    if len({str(x.get('fotmob_team_id')) for x in career})==1 and career:matches.append({'season':row['season'],'team':row['team'],'fotmob_team_id':career[0]['fotmob_team_id']})
+    if norm(row.get('name'))!=norm(bundle['player']['name']):continue
+    season=row.get('season');tid=dataset.LEAGUES.get(row.get('league'))
+    if not season or not tid or not row.get('team'):continue
+    career=[x for x in bundle['career'] if x.get('season')==season and str(x.get('fotmob_tournament_id'))==tid and contextual_team_match(row.get('team'),x.get('team_name'),tid,x.get('fotmob_team_id'))]
+    if len({str(x.get('fotmob_team_id')) for x in career})==1 and career:matches.append({'season':season,'team':row.get('team'),'fotmob_team_id':career[0]['fotmob_team_id']})
    if len({(m['season'],m['fotmob_team_id']) for m in matches})>=2:verified.append((person,matches))
   if len(verified)!=1:raise ValueError('Understat: nombre y trayectoria no resuelven una identidad única con dos temporadas')
   person,matches=verified[0];uid=person['understat_player_id']
