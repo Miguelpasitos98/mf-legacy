@@ -1,3 +1,4 @@
+import {normalizeExplicitSeason} from "./managerSeasonNormalization.mjs";
 import {normalizeFormationDescription} from "./managerFormationNormalization.mjs";
 export const DNA_AXES = [
   { key:"possession", label:"Control del balón", low:"Juego directo", high:"Posesión" },
@@ -65,9 +66,12 @@ export const cleanProfile = (raw,managerId,roleText={}) => {
  const name=String(raw.name||"").trim();
  if(name.length<2)throw Error("Escribe un nombre para el perfil táctico.");
  const scope=profileScope(raw);
- const season=String(raw.season||"").trim();
- const periodStart=String(raw.period_start||"").trim();
- const periodEnd=String(raw.period_end||"").trim();
+ const rawSeason=String(raw.season||"").trim();
+ const rawStart=String(raw.period_start||"").trim();
+ const rawEnd=String(raw.period_end||"").trim();
+ const season=normalizeExplicitSeason(rawSeason)||rawSeason;
+ const periodStart=normalizeExplicitSeason(rawStart)||rawStart;
+ const periodEnd=normalizeExplicitSeason(rawEnd)||rawEnd;
  const club=String(raw.reference_club||"").trim().slice(0,160);
  if(scope==="season"&&!validSeason(season))throw Error("El perfil de temporada necesita una campaña válida (ej. 2019/2020).");
  if(scope==="period"&&(!validSeason(periodStart)||!validSeason(periodEnd)||periodStart>periodEnd))

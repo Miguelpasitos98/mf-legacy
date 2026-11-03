@@ -1,4 +1,7 @@
-import {validSeason} from "./managerModel.mjs";
+// Kept independent of managerModel so the manual editor and AI parser can
+// reuse this without circular module imports.
+const validSeason=s=>/^(?:19|20)\d{2}\/(?:19|20)\d{2}$/.test(s)&&
+ Number(s.slice(5))===Number(s.slice(0,4))+1;
 
 const text=v=>typeof v==="string"?v.trim():"";
 export function normalizeExplicitSeason(value){
