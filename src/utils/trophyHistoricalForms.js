@@ -18,7 +18,7 @@ export function buildHistoricalEditionPayload({draft,trophy,teams=[],countries=[
  const runner=String(draft.runner_up_name||"").trim();
  if(!champion||!runner)throw Error("Debes indicar el campeón y el subcampeón.");
  if(champion.toLocaleLowerCase("es")===runner.toLocaleLowerCase("es"))throw Error("Campeón y subcampeón deben ser equipos distintos.");
- const teamId=(id,name)=>teams.some(t=>String(t.id)===String(id)&&String(t.name)===String(name))?String(id):"";
+ const teamId=(id)=>teams.some(t=>String(t.id)===String(id))?String(id):"";
  const country=countries.find(c=>String(c.name).toLocaleLowerCase("es")===String(draft.country||"").trim().toLocaleLowerCase("es"));
  const data={
   trophy_id:String(trophy.id),trophy_source_id:String(trophy.source_id),
