@@ -53,6 +53,39 @@
     },
     "notes": {
       "type": "string"
+    },
+    "country_id": {
+      "type": "string",
+      "description": "ID can\u00f3nico Country.id. Vac\u00edo en t\u00edtulos de \u00e1mbito internacional o cuando no se puede identificar con certeza; nunca usar c\u00f3digo ISO como identificador."
+    },
+    "region": {
+      "type": "string",
+      "description": "\u00c1mbito regional o localidad hist\u00f3rica dentro de un pa\u00eds cuando se conozca; no reemplaza Country.id."
+    },
+    "reputation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 200,
+      "description": "Reputaci\u00f3n editorial MF LEGACY (0\u2013200): notoriedad, alcance, historia y prestigio cultural/deportivo. No es puntuaci\u00f3n oficial de FM ni verificaci\u00f3n hist\u00f3rica."
+    },
+    "reputation_basis": {
+      "type": "string",
+      "description": "Breve explicaci\u00f3n del criterio del valor de reputaci\u00f3n; estimaci\u00f3n, no hecho hist\u00f3rico."
+    },
+    "reputation_method": {
+      "type": "string",
+      "description": "Versi\u00f3n del modelo editorial de reputaci\u00f3n y/o revisi\u00f3n manual."
+    },
+    "country_resolution": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "inferred",
+        "pending",
+        "international",
+        "manual"
+      ],
+      "description": "C\u00f3mo se determin\u00f3 el pa\u00eds: verified=fuente oficial; inferred=nombre/patr\u00f3n claro pero no verificado; pending=sin asignar; international=no aplica pa\u00eds \u00fanico; manual=seleccionado por administrador."
     }
   },
   "required": [
