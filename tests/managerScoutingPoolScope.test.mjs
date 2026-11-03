@@ -68,7 +68,7 @@ test("MANAGER FIT filters candidates strictly but keeps statistical comparison f
  assert.match(page,/rankPlayers\(candidates,role,profile/);
  assert.match(page,/historicalRoleCandidates\(players,role\)/);
  assert.match(page,/managerScoutingCandidateIds\(players\)/);
- assert.match(page,/player&&candidateIds\.has\(String\(player\.id\)\)/);
+ assert.match(page,/if\(!player\|\|!candidateIds\.has\(String\(player\.id\)\)\)return null/);
  assert.match(page,/const scoutingPlayer=candidates\.find\(/);
  assert.match(page,/\/players\?view=candidates/);
  assert.match(page,/setShowAllResults\(true\)/);
