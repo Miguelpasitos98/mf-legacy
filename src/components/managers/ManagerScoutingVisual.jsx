@@ -96,6 +96,7 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
    </div>
    {scoreMode!=="position"&&<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-[#3a6eae]" style={{width:Math.max(0,Math.min(100,coverage))+"%"}}/></div>}
    {scoreMode==="deep"&&<div className="mt-1.5 space-y-1">
+    {item.deep.score===null&&<p className="text-[10px] text-indigo-900"><strong>Preselección de funciones FM26:</strong> {item.deep.preliminaryScore===null?"—":item.deep.preliminaryScore+"/100"} · Solo videojuego, no Deep Fit combinado</p>}
     <p className="text-[10px] text-slate-700"><strong>Funciones coincidentes:</strong> {item.deep.sharedFunctions.length} ·
      {" "}Confianza {CONFIDENCE[item.deep.confidence]?.toLowerCase()||"sin determinar"}</p>
     <div className="grid grid-cols-2 gap-x-3 gap-y-1">
@@ -165,6 +166,7 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
    </div>}
    {scoreMode==="deep"&&<div className="space-y-2">
     <p><strong>Cómo se construye Deep Fit:</strong> el histórico V4 y los atributos FM26 deben coincidir en una función explícita del ADN. Los pesos ajustables se normalizan entre fuentes existentes. El CA y el valor del futbolista quedan fuera.</p>
+    {item.deep.fmOnlyTraits.families.length>0&&<p className="text-xs font-bold text-slate-700">Otros requisitos no medibles históricamente: {item.deep.fmOnlyTraits.families.map(x=>x.label+" ("+(x.score===null?"—":x.score+"/100 FM26")+")").join(" · ")}</p>}
     {item.deep.functions.families.map(family=><div key={family.id} className="rounded-lg border border-slate-100 p-2">
      <p className="font-semibold">{family.label}: {family.score===null?"No evaluable":family.score+"/100"} · {family.found}/{family.requested} atributos FM26</p>
      <div className="flex flex-wrap gap-1 mt-1">{family.evidence.map(attribute=><span key={attribute.key} className="rounded bg-slate-50 px-2 py-1">{attribute.label}: {attribute.raw??"—"}/20</span>)}</div>

@@ -73,6 +73,18 @@ export const FUNCTION_FM_ATTRIBUTES={
  defensive:["technical.entradas","technical.marcaje","mental.anticipacion","mental.colocacion"],
  passing_possession:["technical.pases","technical.control","mental.decisiones"]
 };
+// When V4 cannot measure a coaching trait, FM26 can still describe the
+// VIDEO-GAME player's ability. These observations remain outside the real
+// statistical V4 and never count as overlapping historical evidence.
+export const FM_ONLY_TRAIT_ATTRIBUTES={
+ "Fuerza y presencia física sin medida directa":["physical.fuerza","physical.alcance_de_salto","mental.valentia"],
+ "Conducciones del central sin medida histórica específica":["technical.regate","technical.control","technical.tecnica"],
+ "Inteligencia y ocupación posicional sin medición histórica":["mental.colocacion","mental.decisiones","mental.anticipacion"],
+ "Velocidad y aceleración sin medición histórica":["physical.velocidad","physical.aceleracion"],
+ "Liderazgo y personalidad sin medición histórica":["mental.liderazgo","mental.concentracion","mental.determinacion","mental.trabajo_de_equipo"],
+ "Movimientos y ocupación de espacios no observados":["mental.movimiento","mental.anticipacion","mental.trabajo_de_equipo"],
+ "Resistencia y esfuerzo físico no medidos directamente":["physical.resistencia","mental.sacrificio","mental.trabajo_de_equipo"]
+};
 const scoreAttribute=(player,key)=>{
  const [family,attribute]=key.split(".");
  const value=player?.stats?.[family]?.[attribute];
@@ -101,6 +113,22 @@ export function assessCoachFunctionsFM26(player,role,profile){
   coverage:requested?Math.round(found/requested*100):0,
   unmeasuredTraits:requirements.unmeasuredTraits};
 }
+export function assessFMOnlyCoachTraits(player,role,profile){
+ const requirements=deriveRoleRequirements(profile,role);
+ const rules=requirements.unmeasuredTraitRules||[];
+ const families=rules.map(rule=>{
+  const keys=FM_ONLY_TRAIT_ATTRIBUTES[rule.label]||[];
+  const evidence=keys.map(key=>({key,label:FM_ATTRIBUTE_LABELS[key]||key,raw:scoreAttribute(player,key)}));
+  const measured=evidence.filter(item=>item.raw!==null);
+  const valid=measured.length>=2&&measured.length>=Math.ceil(keys.length/2);
+  return {label:rule.label,id:rule.label,score:valid?
+   Math.round(100*measured.reduce((sum,x)=>sum+x.raw,0)/measured.length/20):null,
+   requested:keys.length,found:measured.length,evidence};
+ });
+ const valid=families.filter(x=>x.score!==null);
+ return {score:valid.length?Math.round(valid.reduce((sum,x)=>sum+x.score,0)/valid.length):null,
+  families,validTraits:valid.length};
+}
 export function normalizeDeepWeights(value=DEEP_FIT_PRESETS.balanced){
  const keys=Object.keys(DEEP_FIT_PRESETS.balanced);
  const result={};
@@ -115,6 +143,7 @@ export function evaluateDeepFit({
  player,role,profile,roleFit,advanced,weights=DEEP_FIT_PRESETS.balanced,season=""
 }={}){
  const functions=assessCoachFunctionsFM26(player,role,profile);
+ const fmOnlyTraits=assessFMOnlyCoachTraits(player,role,profile);
  const historicalScore=roleFit?.score??null;
  const positionScore=advanced?.position??null;
  const styleScore=advanced?.styleDimensions?.length?advanced?.style??null:null;
@@ -161,7 +190,9 @@ export function evaluateDeepFit({
   styleScore===null?"Sin factor de estilo FM26 medible; su peso no se imputa.":null,
   functions.unmeasuredTraits.length?"Hay rasgos solicitados por el entrenador sin medida histórica directa.":null
  ].filter(Boolean);
- return {score,confidence,functions,sharedFunctions:sharedFamilies.map(x=>x.id),
+ return {score,confidence,functions,fmOnlyTraits,
+  preliminaryScore:functions.score??fmOnlyTraits.score,
+  sharedFunctions:sharedFamilies.map(x=>x.id),
   components:components.map(x=>({...x,weight:weightsUsed?.[x.key]??0,
     effectiveWeight:score!==null&&x.score!==null&&weightSum>0?
       Math.round(100*(weightsUsed?.[x.key]||0)/weightSum):0})),

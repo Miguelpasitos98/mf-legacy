@@ -35,6 +35,10 @@ export function visibleManagerFitCandidates(rows=[],{
    const confidenceDelta=(confidenceOrder[b.roleFit?.confidence]||0)-(confidenceOrder[a.roleFit?.confidence]||0);
    if(confidenceDelta)return confidenceDelta;
   }
+  if(scoreMode==="deep"&&(fallback||sortMode==="functions"||(!fallback&&left===null&&right===null&&sortMode!=="position"))){
+   const functionalDelta=(b.deep?.preliminaryScore??-1)-(a.deep?.preliminaryScore??-1);
+   if(functionalDelta)return functionalDelta;
+  }
   if(sortMode==="position"||fallback){
    const positionDelta=(b.fit??-1)-(a.fit??-1);
    if(positionDelta)return positionDelta;

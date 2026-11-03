@@ -233,7 +233,11 @@ export default function ManagerFit(){
    </div>
    <ManagerScoutingSummary scoreMode={scoreMode} visibility={visibility} roleRequirements={roleRequirements} statsLoading={statsLoading} statsError={statsError} season={season}/>
    {visibility.fallback&&!statsLoading&&<p role="status" className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-slate-700">
-    Los resultados se presentan por <strong>adecuación posicional</strong> porque este modo todavía no puede asignar puntuación con la evidencia disponible. No se ha inventado ninguna nota táctica.
+    {scoreMode==="deep"?<>
+     El cruce entre fuentes todavía no permite calcular una nota Deep Fit. Los candidatos se ordenan como <strong>preselección funcional FM26</strong> cuando el ADN dispone de atributos medibles; después por adecuación posicional. No se confunden estas notas del videojuego con rendimiento histórico.
+    </>:<>
+     Los resultados se presentan por <strong>adecuación posicional</strong> porque este modo todavía no puede asignar puntuación con la evidencia disponible. No se ha inventado ninguna nota táctica.
+    </>}
    </p>}
    {!loading&&!statsLoading&&!visibility.fallback&&visibility.unscoredCount>0&&visibility.scoredCount>0&&!showUnknown&&<p className="text-xs text-slate-500">Hay {visibility.unscoredCount} jugadores compatibles sin evaluación. Activa «Incluir encaje no evaluable» para mostrarlos.</p>}
    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
@@ -242,6 +246,7 @@ export default function ManagerFit(){
       className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">
       <option value="score">Mayor encaje en el modo</option>
       {(scoreMode==="role"||scoreMode==="deep")&&<option value="coverage">Mayor cobertura de requisitos {scoreMode==="deep"?"FM26":"V4"}</option>}
+      {scoreMode==="deep"&&<option value="functions">Mayor aptitud funcional FM26</option>}
       <option value="position">Mayor adecuación posicional FM26</option>
      </select>
     </label>
@@ -280,6 +285,8 @@ export default function ManagerFit(){
       {[
        ["Deep Fit combinado",r=>r.deep.score===null?"—":r.deep.score+"/100"],
        ["Funciones ADN en FM26",r=>r.deep.functions.score===null?"—":r.deep.functions.score+"/100"],
+       ["Preselección funcional FM26",r=>r.deep.preliminaryScore===null?"—":r.deep.preliminaryScore+"/100"],
+       ["Rasgos FM26 sin medida histórica",r=>r.deep.fmOnlyTraits.score===null?"—":r.deep.fmOnlyTraits.score+"/100"],
        ["Confianza Deep Fit",r=>r.deep.confidence],
        ["Encaje rol V4",r=>r.roleFit.score===null?"—":r.roleFit.score+"/100"],
        ["Cobertura del rol",r=>r.roleFit.coverage+"%"],
@@ -330,6 +337,14 @@ export default function ManagerFit(){
          <div className="flex flex-wrap gap-1">{family.evidence.map(attribute=><span key={attribute.key} className="rounded-md bg-slate-50 px-2 py-1 text-[11px] text-slate-700">{attribute.label} <strong>{attribute.raw??"—"}/20</strong></span>)}</div>
         </div>):<p className="text-xs text-amber-900">El ADN del entrenador no describe funciones vinculables a estos atributos.</p>}
       </div>
+      {!!scoutingDeep.fmOnlyTraits.families.length&&<div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 space-y-2">
+       <h5 className="text-xs font-bold text-amber-950">Rasgos solicitados sin medida histórica · Evaluación SOLO FM26</h5>
+       {scoutingDeep.fmOnlyTraits.families.map(f=><div key={f.label} className="rounded-lg bg-white p-2">
+        <div className="flex justify-between gap-2 text-xs"><strong>{f.label}</strong><strong>{f.score===null?"—":f.score+"/100 FM26"}</strong></div>
+        <p className="mt-1 text-[11px] text-slate-700">{f.evidence.map(x=>x.label+" "+(x.raw??"—")+"/20").join(" · ")}</p>
+       </div>)}
+       <p className="text-[11px] text-amber-900">Estos rasgos ayudan a preseleccionar candidatos, pero NO se añaden como estadísticas observadas ni compensan datos históricos ausentes.</p>
+      </div>}
       {!!scoutingDeep.missing.length&&<div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900"><strong>Qué impide calcular el encaje combinado:</strong>{scoutingDeep.missing.map(x=><p key={x} className="mt-1">{x}</p>)}</div>}
       {!!scoutingDeep.caution.length&&<div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600"><strong>Advertencias de interpretación:</strong>{scoutingDeep.caution.map(x=><p key={x} className="mt-1">{x}</p>)}</div>}
      </section>}

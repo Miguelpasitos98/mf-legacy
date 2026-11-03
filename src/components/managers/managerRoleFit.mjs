@@ -11,14 +11,15 @@ export function deriveRoleRequirements(profile,role){
  try{
   const parsed=typeof profile?.player_role_priorities==="string"?JSON.parse(profile.player_role_priorities):profile?.player_role_priorities;
   raw=typeof parsed?.[role]==="string"?parsed[role]:"";
- }catch{return {text:"",matched:[],unmatched:true,unmeasuredTraits:[],metricKeys:[]};}
+ }catch{return {text:"",matched:[],unmatched:true,unmeasuredTraits:[],unmeasuredTraitRules:[],metricKeys:[]};}
  const value=normalize(raw);
  const supported=new Set(V4_ROLE_METRICS[role]||[]);
  const matched=TACTICAL_REQUIREMENT_RULES.filter(rule=>rule.roles.includes(role)&&rule.terms.some(term=>contains(value,term))
   &&rule.metrics.some(metric=>supported.has(metric)));
- const unmeasuredTraits=UNMEASURED_ROLE_TRAITS.filter(rule=>rule.roles.includes(role)&&rule.terms.some(term=>contains(value,term))).map(r=>r.label);
+ const unmeasuredTraitRules=UNMEASURED_ROLE_TRAITS.filter(rule=>rule.roles.includes(role)&&rule.terms.some(term=>contains(value,term)));
+ const unmeasuredTraits=unmeasuredTraitRules.map(r=>r.label);
  const metricKeys=[...new Set(matched.flatMap(rule=>rule.metrics))].filter(metric=>supported.has(metric));
- return {text:raw,matched,unmatched:matched.length===0,unmeasuredTraits,metricKeys};
+ return {text:raw,matched,unmatched:matched.length===0,unmeasuredTraits,unmeasuredTraitRules,metricKeys};
 }
 /**
  * V4.1: measure only independent same-season observations.
