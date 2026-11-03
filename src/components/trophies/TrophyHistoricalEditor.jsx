@@ -3,7 +3,7 @@ import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {CalendarDays,Plus,Save,X,Pencil,Search,Trophy,BookOpen,MapPin,Info,CheckCircle2,ChevronDown} from "lucide-react";
-import {normalizeHistoricalSeason,findHistoricalDuplicate,buildHistoricalEditionPayload,historicalEventDefaults,buildHistoricalEventPayload} from "@/utils/trophyHistoricalForms";
+import {findHistoricalDuplicate,buildHistoricalEditionPayload,historicalEventDefaults,buildHistoricalEventPayload} from "@/utils/trophyHistoricalForms";
 
 const rows=value=>Array.isArray(value)?value:(value?.data||value?.items||[]);
 const txt=value=>String(value||"").trim();
