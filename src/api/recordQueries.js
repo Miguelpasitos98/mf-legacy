@@ -19,7 +19,9 @@ export function recordQueryOptions(name){
   if(!RECORD_KEYS[name])throw Error("Entidad sin caché registrada: "+name);
   return completeRecordQueryOptions(base44.entities[name],RECORD_KEYS[name],baseOptions);
 }
-export const statsSnapshotOptions=()=>completeStatsQueryOptions(base44.entities.PlayerSeasonStats,STATS_SNAPSHOT_KEY,baseOptions);
+// ImportJob finishes on the external Python worker, outside this browser's React Query cache.
+// Always revalidate STATS when the view mounts, even if the cached snapshot is under 30 minutes old.
+export const statsSnapshotOptions=()=>completeStatsQueryOptions(base44.entities.PlayerSeasonStats,STATS_SNAPSHOT_KEY,{...baseOptions,refetchOnMount:"always"});
 export async function refreshStatsDataset(client){
   // Mark raw inputs stale before the single derived rebuild. Concurrent users
   // of each key share one in-flight promise instead of downloading twice.
