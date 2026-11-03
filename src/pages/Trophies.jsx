@@ -10,7 +10,7 @@ import TrophySyncWorkbench from "@/components/trophies/TrophySyncWorkbench";
 import TeamSearchPicker from "@/components/trophies/TeamSearchPicker";
 import CountrySearchPicker from "@/components/trophies/CountrySearchPicker";
 import TrophyCountryPicker from "@/components/trophies/TrophyCountryPicker";
-import {estimateTrophyReputation,REPUTATION_METHOD,normalizeTrophyName} from "@/utils/trophyResearch";
+import {estimateTrophyReputation,REPUTATION_METHOD} from "@/utils/trophyResearch";
 import TrophyDetailVisual from "@/components/trophies/TrophyDetailVisual";
 import TrophyArchiveOverview from "@/components/trophies/TrophyArchiveOverview";
 import TrophyReviewCenter from "@/components/trophies/TrophyReviewCenter";
