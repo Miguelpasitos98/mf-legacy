@@ -11,12 +11,13 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
  const [busy,setBusy]=useState("");
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
+ const [batchProgress,setBatchProgress]=useState(null);
  const current=useRef(0);
  const autoScan=useRef("");
  useEffect(()=>{
   current.current+=1;
   autoScan.current="";
-  setPlan(null);setCandidate("");setApproved(false);setBusy("");setMessage("");setError("");
+  setPlan(null);setCandidate("");setApproved(false);setBusy("");setMessage("");setError("");setBatchProgress(null);
  },[player?.id,fotmobId]);
  const eligible=Boolean(player?.id&&linked&&fotmobId&&!workerBusy);
  const context={
@@ -65,6 +66,49 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
   }catch(e){setError(errorOf(e));}
   finally{setBusy("");}
  };
+ const applyAll=async()=>{
+  if(!eligible||busy||!plan||!["verified","manually_confirmed"].includes(plan.status)||!plan.proposals?.length)return;
+  if(plan.status==="manually_confirmed"&&!approved){setError("Confirma la identidad Understat antes de incorporar todas las temporadas.");return}
+  // Snapshot the exact reviewed proposals and identity; each server operation
+  // independently rechecks the current record and immutable source revision.
+  const proposals=[...plan.proposals],request=++current.current;
+  const identity={...context};
+  const summary={total:proposals.length,processed:0,created:0,completed:0,metrics:0,unchanged:0,errors:[]};
+  setBusy("all");setError("");setMessage("");setBatchProgress({...summary});
+  try{
+   for(const item of proposals){
+    if(current.current!==request)break;
+    try{
+     const {data}=await base44.functions.invoke("understat-auto",{
+      action:"apply-missing",...identity,row_key:item.key,
+      source_revision:plan.source_revision,confirm_apply:true
+     });
+     if(!data?.ok)throw Error(data?.error||"No se pudo incorporar la propuesta");
+     if(data.status==="created")summary.created++;
+     else if(data.status==="completed")summary.completed++;
+     else summary.unchanged++;
+     summary.metrics+=Number(data.metrics_added)||0;
+    }catch(e){
+     summary.errors.push({season:item.season,team:item.team,reason:errorOf(e)});
+    }
+    summary.processed++;
+    if(current.current===request)setBatchProgress({...summary,errors:[...summary.errors]});
+   }
+   if(current.current!==request)return;
+   setMessage("Importación terminada: "+summary.created+" temporadas nuevas, "+summary.completed+
+    " temporadas completadas y "+summary.metrics+" métricas incorporadas. "+
+    (summary.errors.length?summary.errors.length+" propuestas pendientes de revisión.":"Sin errores."));
+   if(summary.created+summary.completed>0)await onApplied?.();
+   try{
+    const {data}=await base44.functions.invoke("understat-auto",{action:"preview-missing",...identity});
+    if(current.current===request&&data?.ok)setPlan(data);
+   }catch(e){
+    if(current.current===request)setError("Los cambios se han guardado, pero no se pudo actualizar el diagnóstico: "+errorOf(e));
+   }
+  }finally{
+   if(current.current===request)setBusy("");
+  }
+ };
  return <section className="rounded-xl border border-blue-200 bg-[#f5f8fd] p-3 space-y-3" data-understat-missing-import="true">
   <div className="flex items-start gap-2">
    <Database className="mt-0.5 shrink-0 text-[#003399]" size={18}/>
@@ -102,6 +146,22 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
     <p className="text-xs text-emerald-800 flex items-center gap-2"><ShieldCheck size={15}/>
      Identidad {plan.identity_auto?"verificada con temporadas y clubes":"confirmada manualmente"} · ID Understat {plan.understat_id} · {(plan.proposals||[]).length} propuestas
     </p>
+    {plan.proposals?.length>0&&<div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+     <div className="text-xs text-slate-700">
+      <strong>{plan.proposals.length} propuestas listas</strong> · {plan.proposals.filter(x=>x.action==="create").length} temporadas nuevas · {plan.proposals.filter(x=>x.action==="complete").length} por completar.
+      <p className="mt-1 text-[11px] text-slate-500">Cada propuesta se verifica antes de guardarse; las que tengan conflictos se omiten y se notifican.</p>
+     </div>
+     <button type="button" disabled={!eligible||!!busy||(plan.status==="manually_confirmed"&&!approved)} onClick={applyAll}
+      className="rounded-lg bg-[#003399] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-40">
+      {busy==="all"?"Completando…":"Completar todas ("+plan.proposals.length+")"}
+     </button>
+    </div>}
+    {batchProgress&&<div role="status" className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700">
+     <p className="font-semibold">Procesadas {batchProgress.processed} de {batchProgress.total} propuestas · {batchProgress.metrics} estadísticas añadidas</p>
+     <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-blue-600 transition-all" style={{width:(batchProgress.total?Math.min(100,100*batchProgress.processed/batchProgress.total):0)+"%"}}/></div>
+     {batchProgress.errors?.length>0&&<details className="mt-2 text-amber-800"><summary>Propuestas pendientes ({batchProgress.errors.length})</summary>
+      {batchProgress.errors.map((item,i)=><p key={i} className="mt-1">{item.season} · {item.team}: {item.reason}</p>)}</details>}
+    </div>}
     {plan.proposals?.length?<div className="max-h-[380px] overflow-y-auto space-y-2">
      {plan.proposals.map(item=><div key={item.key} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3">
       <div className="min-w-0 flex-1">
