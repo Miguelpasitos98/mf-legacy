@@ -90,6 +90,44 @@
     "research_source_url": {
       "type": "string",
       "description": "URL de evidencia externa que respalda nombre, pa\u00eds o historia de la competici\u00f3n; independiente de la reputaci\u00f3n subjetiva."
+    },
+    "image_override_url": {
+      "type": "string",
+      "description": "Imagen manual prioritaria sobre cualquier fuente autom\u00e1tica, respetada en todo MF LEGACY"
+    },
+    "image_status": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "provisional",
+        "verified",
+        "wrong",
+        "missing"
+      ],
+      "description": "Estado de revisi\u00f3n de la imagen, separado de la identidad del trofeo"
+    },
+    "image_source_type": {
+      "type": "string",
+      "enum": [
+        "catalog",
+        "fm24",
+        "github",
+        "manual_upload",
+        "url"
+      ],
+      "description": "Procedencia de la imagen activa o candidata"
+    },
+    "image_source_reference": {
+      "type": "string",
+      "description": "URL de origen o referencia de derechos/identidad de la imagen"
+    },
+    "image_notes": {
+      "type": "string",
+      "description": "Motivo de revisi\u00f3n o nota sobre la correspondencia del trofeo"
+    },
+    "image_last_reviewed_at": {
+      "type": "string",
+      "description": "Fecha ISO de la \u00faltima revisi\u00f3n de la imagen"
     }
   },
   "required": [
