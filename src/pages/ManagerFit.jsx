@@ -32,6 +32,8 @@ export default function ManagerFit(){
  const [search,setSearch]=useState("");
  const [minCA,setMinCA]=useState(0);
  const [showUnknown,setShowUnknown]=useState(false);
+ const [resultSort,setResultSort]=useState("score");
+ const [resultLimit,setResultLimit]=useState(48);
  const [scoreMode,setScoreMode]=useState("role");
  const [season,setSeason]=useState(()=>params.get("season")||"2025/2026");
  const [seasonStats,setSeasonStats]=useState([]);
@@ -88,8 +90,9 @@ export default function ManagerFit(){
  },[players,role,seasonStats,understatRows,season]);
  const historicalPeerMetrics=useMemo(()=>[...historicalIndex.values()],[historicalIndex]);
  const roleRequirements=useMemo(()=>deriveRoleRequirements(profile,role),[profile,role]);
+ useEffect(()=>setResultLimit(48),[role,profileId,season,scoreMode,search,minCA,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage,showUnknown]);
  const visibility=useMemo(()=>{
-  if(!profile)return {rows:[],fallback:false,compatibleCount:0,scoredCount:0,unscoredCount:0,shownCount:0};
+  if(!profile)return {rows:[],fallback:false,compatibleCount:0,scoredCount:0,unscoredCount:0,shownCount:0,displayCount:0};
   const rows=rankPlayers(players,role,profile,{search,minCA,showUnknown:true})
    .map(item=>({...item,valuation:valuationForSeason(valuationRows,item.player.id,season),
      advanced:managerFitAttributes(item.player,role,profile),
@@ -98,9 +101,9 @@ export default function ManagerFit(){
   const eligible=filterScoutingCandidates(rows,{season,
     minAge:minAge===""?null:Number(minAge),maxAge:maxAge===""?null:Number(maxAge),
     maxValueM:maxValueM===""?null:Number(maxValueM),knownValueOnly,minimumCoverage,coverageMode:scoreMode});
-  return visibleManagerFitCandidates(eligible,{scoreMode,showUnknown});
+  return visibleManagerFitCandidates(eligible,{scoreMode,showUnknown,sortMode:resultSort,limit:resultLimit});
  },[players,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics,
-    valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage]);
+    valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage,resultSort,resultLimit]);
  const results=visibility.rows;
  const comparedRows=useMemo(()=>{
   if(!profile||!comparedIds.length)return [];
@@ -146,7 +149,7 @@ export default function ManagerFit(){
      {key:"attributes",title:"V2 · Atributos FM26",note:"Estimación del videojuego"},
      {key:"position",title:"V1 · Posición",note:"Adecuación básica"}
     ].map(model=><button key={model.key} type="button" aria-pressed={scoreMode===model.key}
-     onClick={()=>setScoreMode(model.key)}
+     onClick={()=>{setScoreMode(model.key);setResultSort("score")}}
      className={"rounded-xl border px-3 py-3 text-left transition "+(scoreMode===model.key?"border-[#003399] bg-[#003399] text-white shadow-sm":"border-slate-200 bg-slate-50 text-slate-900 hover:border-blue-200 hover:bg-white")}>
       <span className="block text-[12px] font-extrabold">{model.title}</span>
       <span className={"mt-1 block text-[10px] leading-4 "+(scoreMode===model.key?"text-blue-100":"text-slate-500")}>{model.note}</span>
@@ -174,6 +177,21 @@ export default function ManagerFit(){
     Los resultados se presentan por <strong>adecuación posicional</strong> porque este modo todavía no puede asignar puntuación con la evidencia disponible. No se ha inventado ninguna nota táctica.
    </p>}
    {!loading&&!statsLoading&&!visibility.fallback&&visibility.unscoredCount>0&&visibility.scoredCount>0&&!showUnknown&&<p className="text-xs text-slate-500">Hay {visibility.unscoredCount} jugadores compatibles sin evaluación. Activa «Incluir encaje no evaluable» para mostrarlos.</p>}
+   <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
+    <label className="flex items-center gap-2 text-[11px] font-semibold text-slate-700">Ordenar resultados
+     <select aria-label="Orden de resultados V4" value={resultSort} onChange={e=>setResultSort(e.target.value)}
+      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs">
+      <option value="score">Mayor encaje en el modo</option>
+      {scoreMode==="role"&&<option value="coverage">Mayor cobertura de requisitos V4</option>}
+      <option value="position">Mayor adecuación posicional FM26</option>
+     </select>
+    </label>
+    {visibility.unscoredCount>0&&scoreMode!=="position"&&
+     <button type="button" onClick={()=>setShowUnknown(v=>!v)}
+      className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold text-blue-800 hover:bg-blue-50">
+      {showUnknown?"Ocultar jugadores sin nota":"Ver "+visibility.unscoredCount+" compatibles sin puntuación"}
+     </button>}
+   </div>
    {statsLoading&&<p role="status" className="text-xs font-semibold text-blue-700">Cargando métricas históricas de {season}…</p>}
    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
     {results.map(item=><ScoutingCandidateCard key={item.player.id} item={item} scoreMode={scoreMode}
@@ -184,6 +202,13 @@ export default function ManagerFit(){
      onCompare={()=>setComparedIds(prev=>toggleCandidate(prev,item.player.id))}
      onReport={()=>setScoutingPlayerId(String(item.player.id))}/>)}
    </div>
+   {!loading&&visibility.displayCount>visibility.shownCount&&<div className="flex flex-col items-center gap-2 border-t border-slate-100 pt-4">
+    <span className="text-xs text-slate-500">Mostrando {visibility.shownCount} de {visibility.displayCount} jugadores del filtro actual.</span>
+    <button type="button" onClick={()=>setResultLimit(n=>Math.min(500,n+48))}
+     disabled={resultLimit>=500} className="rounded-lg border border-blue-200 bg-blue-50 px-5 py-2.5 text-xs font-bold text-blue-900 hover:bg-blue-100 disabled:opacity-50">
+     {resultLimit>=500?"Límite de 500 resultados":"Mostrar otros "+Math.min(48,visibility.displayCount-visibility.shownCount)+" jugadores"}
+    </button>
+   </div>}
    <ManagerMethodsPanel/>
    <section className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-3 md:p-4 space-y-3" aria-label="Comparador de fichajes">
      <div className="flex flex-wrap justify-between items-start gap-2"><div><h3 className="font-black">Comparador de candidatos · V7</h3><p className="text-xs text-slate-600">{comparedIds.length}/{MAX_COMPARE} seleccionados · Misma temporada, rol y ADN del entrenador.</p></div><button type="button" className="text-xs font-bold rounded-lg border px-3 py-2 bg-white" onClick={()=>setComparedIds([])} disabled={!comparedIds.length}>Limpiar selección</button></div>
