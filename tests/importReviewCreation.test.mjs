@@ -119,3 +119,15 @@ test("full-season preview, verification and approval create exactly one row",asy
   assert.equal((await post("approve-season",{confirm_source_reviewed:true})).status,200);
   assert.equal(ctx.creates,1);assert.equal(ctx.stats[0].metrics.length,2);
 });
+
+test("FotMob reuses an Understat-created LaLiga season rather than duplicating it",()=>{
+ const original={id:"historical",external_record_id:"understat:44:2020-2021:laliga:real-sociedad",
+  player_id:pid,fotmob_player_id:item.fotmob_player_id,season:"2020/2021",competition:"LaLiga EA Sports",
+  team_name:"Real Sociedad",source:"understat",metrics:[{name:"xG Chain",value:12,source:"understat"}]};
+ const incoming={...item,season:"2020/2021",competition:"LaLiga",team_name:"Real Sociedad",fotmob_team_id:"8000",metric_name:"xGOT",value:4.4};
+ const plan=metricPlan(incoming,player,[original]);
+ assert.equal(plan.operation,"update");
+ assert.equal(plan.target_id,"historical");
+ assert.equal(plan.record.metrics.find(m=>m.name==="xG Chain").value,12);
+ assert.equal(plan.record.metrics.find(m=>m.name==="xGOT").value,4.4);
+});
