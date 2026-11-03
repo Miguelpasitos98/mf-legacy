@@ -1,6 +1,6 @@
 {
   "meta": {
-    "created_at": "2026-11-03T15:07:27.014Z",
+    "created_at": "2026-11-03T15:09:25.438Z",
     "input_records": 598,
     "country_records": 118,
     "method": "mf_legacy_reputation_editorial_v1_2026_11",
@@ -9,7 +9,7 @@
     "unresolved_country": 366,
     "anchored": 27,
     "groups": {
-      "reputation": 48,
+      "reputation": 47,
       "country": 45,
       "category": 5,
       "region": 7,
@@ -19,7 +19,7 @@
   "reputation_groups": [
     {
       "data": {
-        "reputation": 104,
+        "reputation": 76,
         "reputation_basis": "Copa: estimación de reconocimiento general a falta de investigación individual.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -209,7 +209,7 @@
     },
     {
       "data": {
-        "reputation": 54,
+        "reputation": 49,
         "reputation_basis": "Estimación por el alcance y tipo de competición expresado en el nombre.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -298,7 +298,7 @@
     },
     {
       "data": {
-        "reputation": 117,
+        "reputation": 88,
         "reputation_basis": "Liga: estimación por nivel y alcance, sujeta a investigación de la competición.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -351,6 +351,10 @@
         "2000038391",
         "82079395",
         "80000565",
+        "71076389",
+        "71076388",
+        "71076387",
+        "71076386",
         "59007627",
         "45031906",
         "41004312",
@@ -360,10 +364,16 @@
         "13211681",
         "13211624",
         "12031135",
+        "7920294",
+        "7560277",
         "5632240",
         "5624534",
         "5624530",
+        "5314305",
+        "5314304",
+        "5314303",
         "788825",
+        "463481",
         "222981",
         "215815",
         "150990",
@@ -374,7 +384,7 @@
     },
     {
       "data": {
-        "reputation": 75,
+        "reputation": 59,
         "reputation_basis": "Ámbito regional, divisional inferior o juvenil indicado por el nombre; notoriedad estimada.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -421,20 +431,26 @@
         "2000335005",
         "2000335004",
         "2000335003",
+        "2000116068",
+        "2000075293",
+        "2000075273",
         "2000073336",
         "2000073330",
+        "2000029415",
         "75041656",
         "71045303",
         "51013989",
         "51013961",
         "36149658",
         "14028754",
+        "309703",
+        "309691",
         "108573"
       ]
     },
     {
       "data": {
-        "reputation": 100,
+        "reputation": 76,
         "reputation_basis": "Supercopa, valoración inicial por su difusión normalmente inferior a la liga o copa principal.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -482,7 +498,7 @@
     },
     {
       "data": {
-        "reputation": 61,
+        "reputation": 55,
         "reputation_basis": "Torneo amistoso o de exhibición: estima notoriedad histórica, no oficialidad.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -524,7 +540,35 @@
     },
     {
       "data": {
-        "reputation": 54,
+        "reputation": 59,
+        "reputation_basis": "Competición juvenil o de reserva: notoriedad estimada, no juzga su calidad deportiva.",
+        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
+      },
+      "ids": [
+        "2000282451",
+        "2000217716",
+        "2000217713",
+        "2000217625",
+        "95041312",
+        "95041309",
+        "77055538",
+        "51064383",
+        "51064382",
+        "51064381",
+        "43344160",
+        "43344143",
+        "43344142",
+        "43344139",
+        "14188246",
+        "5781023",
+        "219424",
+        "157149",
+        "102"
+      ]
+    },
+    {
+      "data": {
+        "reputation": 49,
         "reputation_basis": "Ámbito regional, divisional inferior o juvenil indicado por el nombre; notoriedad estimada.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -551,57 +595,7 @@
     },
     {
       "data": {
-        "reputation": 75,
-        "reputation_basis": "Competición juvenil o de reserva: notoriedad estimada, no juzga su calidad deportiva.",
-        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
-      },
-      "ids": [
-        "2000282451",
-        "2000217716",
-        "2000217713",
-        "2000217625",
-        "95041312",
-        "95041309",
-        "77055538",
-        "51064383",
-        "51064382",
-        "51064381",
-        "43344160",
-        "43344143",
-        "14188246",
-        "5781023",
-        "219424",
-        "157149",
-        "102"
-      ]
-    },
-    {
-      "data": {
-        "reputation": 105,
-        "reputation_basis": "Liga: estimación por nivel y alcance, sujeta a investigación de la competición.",
-        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
-      },
-      "ids": [
-        "71076389",
-        "71076388",
-        "71076387",
-        "71076386",
-        "7920294",
-        "7560277",
-        "5314305",
-        "5314304",
-        "5314303",
-        "463481",
-        "314732",
-        "314731",
-        "313213",
-        "309685",
-        "107187"
-      ]
-    },
-    {
-      "data": {
-        "reputation": 128,
+        "reputation": 101,
         "reputation_basis": "Liga: estimación por nivel y alcance, sujeta a investigación de la competición.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -624,7 +618,7 @@
     },
     {
       "data": {
-        "reputation": 115,
+        "reputation": 89,
         "reputation_basis": "Copa: estimación de reconocimiento general a falta de investigación individual.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -645,27 +639,7 @@
     },
     {
       "data": {
-        "reputation": 148,
-        "reputation_basis": "Liga: estimación por nivel y alcance, sujeta a investigación de la competición.",
-        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
-      },
-      "ids": [
-        "2000148115",
-        "40026090",
-        "23388432",
-        "23078275",
-        "23063354",
-        "13194869",
-        "131287",
-        "85",
-        "84",
-        "75",
-        "74"
-      ]
-    },
-    {
-      "data": {
-        "reputation": 146,
+        "reputation": 136,
         "reputation_basis": "Alcance continental o interconfederativo aparente; identidad pendiente de comprobación.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -684,22 +658,26 @@
     },
     {
       "data": {
-        "reputation": 65,
-        "reputation_basis": "Ámbito regional, divisional inferior o juvenil indicado por el nombre; notoriedad estimada.",
+        "reputation": 137,
+        "reputation_basis": "Liga: estimación por nivel y alcance, sujeta a investigación de la competición.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
       "ids": [
-        "2000116068",
-        "2000075293",
-        "2000075273",
-        "2000029415",
-        "309703",
-        "309691"
+        "40026090",
+        "23388432",
+        "23078275",
+        "23063354",
+        "13194869",
+        "131287",
+        "85",
+        "84",
+        "75",
+        "74"
       ]
     },
     {
       "data": {
-        "reputation": 88,
+        "reputation": 73,
         "reputation_basis": "Competición juvenil o de reserva: notoriedad estimada, no juzga su calidad deportiva.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -713,7 +691,21 @@
     },
     {
       "data": {
-        "reputation": 65,
+        "reputation": 90,
+        "reputation_basis": "Liga: estimación por nivel y alcance, sujeta a investigación de la competición.",
+        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
+      },
+      "ids": [
+        "314732",
+        "314731",
+        "313213",
+        "309685",
+        "107187"
+      ]
+    },
+    {
+      "data": {
+        "reputation": 62,
         "reputation_basis": "Estimación por el alcance y tipo de competición expresado en el nombre.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -726,7 +718,7 @@
     },
     {
       "data": {
-        "reputation": 148,
+        "reputation": 137,
         "reputation_basis": "Copa: estimación de reconocimiento general a falta de investigación individual.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -737,24 +729,13 @@
     },
     {
       "data": {
-        "reputation": 170,
+        "reputation": 162,
         "reputation_basis": "Alcance mundial sugerido por denominación; identidad pendiente de comprobación.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
       "ids": [
         "2000335091",
         "2000321669"
-      ]
-    },
-    {
-      "data": {
-        "reputation": 65,
-        "reputation_basis": "Competición juvenil o de reserva: notoriedad estimada, no juzga su calidad deportiva.",
-        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
-      },
-      "ids": [
-        "43344142",
-        "43344139"
       ]
     },
     {
@@ -899,6 +880,16 @@
     },
     {
       "data": {
+        "reputation": 138,
+        "reputation_basis": "Liga: estimación por nivel y alcance, sujeta a investigación de la competición.",
+        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
+      },
+      "ids": [
+        "2000148115"
+      ]
+    },
+    {
+      "data": {
         "reputation": 151,
         "reputation_basis": "Competición oficial europea de clubes.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
@@ -909,7 +900,7 @@
     },
     {
       "data": {
-        "reputation": 111,
+        "reputation": 89,
         "reputation_basis": "Supercopa, valoración inicial por su difusión normalmente inferior a la liga o copa principal.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -919,7 +910,7 @@
     },
     {
       "data": {
-        "reputation": 54,
+        "reputation": 49,
         "reputation_basis": "Competición juvenil o de reserva: notoriedad estimada, no juzga su calidad deportiva.",
         "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
       },
@@ -2246,38 +2237,37 @@
       "International": 1
     },
     "scores": {
-      "54": 99,
-      "61": 33,
-      "65": 12,
-      "75": 68,
+      "49": 99,
+      "55": 33,
+      "59": 76,
+      "62": 4,
+      "73": 5,
+      "76": 220,
       "77": 1,
       "84": 1,
       "86": 1,
-      "88": 5,
+      "88": 77,
+      "89": 13,
+      "90": 5,
       "94": 2,
       "96": 1,
       "98": 2,
-      "100": 40,
+      "100": 1,
+      "101": 14,
       "102": 1,
-      "104": 181,
-      "105": 15,
-      "111": 1,
       "112": 1,
       "114": 1,
-      "115": 12,
-      "117": 67,
-      "128": 14,
-      "137": 1,
+      "136": 10,
+      "137": 13,
+      "138": 1,
       "139": 1,
       "143": 1,
-      "146": 10,
-      "148": 13,
       "151": 1,
       "158": 1,
+      "162": 2,
       "163": 1,
       "168": 1,
       "169": 1,
-      "170": 2,
       "180": 1,
       "183": 1,
       "184": 2,
