@@ -17,8 +17,8 @@ const clubs={
  'manchester utd':'manchester united','man utd':'manchester united',
  'spurs':'tottenham','tottenham hotspur':'tottenham'
 };
-const teamKey=x=>clubs[normalized(x)]||normalized(x);
-const leagueKey=x=>{
+export const teamKey=x=>clubs[normalized(x)]||normalized(x);
+export const leagueKey=x=>{
  const n=normalized(x);
  if(['epl','premier league','english premier league'].includes(n))return 'epl';
  if(['la liga','laliga','la liga ea sports','la liga santander','la liga ea sports'].includes(n))return 'laliga';
@@ -51,7 +51,7 @@ export function readArchive(csv,playerName){
  const headers=cells(lines[0]),required=['id','player_name','season','team_title','league','time','xGChain','xGBuildup'];
  if(required.some(k=>!headers.includes(k)))throw Error('Columnas Understat no reconocidas');
  const indices=Object.fromEntries(required.map(k=>[k,headers.indexOf(k)]));
- const sourceMetrics=['goals','assists','xG','xA','npxG','shots'];
+ const sourceMetrics=['goals','assists','xG','xA','npxG','shots','key_passes','npg','yellow_cards','red_cards','games'];
  const metricIndices=Object.fromEntries(sourceMetrics.map(k=>[k,headers.indexOf(k)]));
  const players=new Map(),target=normalized(playerName);
  for(let i=1;i<lines.length;i++){
