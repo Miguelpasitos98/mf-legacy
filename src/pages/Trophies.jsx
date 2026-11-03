@@ -111,7 +111,11 @@ export default function Trophies(){
  const honourCounts=useMemo(()=>{const m=new Map();for(const a of honours){const k=String(a.trophy_source_id||"");m.set(k,(m.get(k)||0)+1);}return m;},[honours]);
  // The country groups are the same ones used by the gallery: no guessed nationality from club names.
  const countrySections=useMemo(()=>groupTrophies(all,rows(leaguesQuery.data),rows(countriesQuery.data)),[all,leaguesQuery.data,countriesQuery.data]);
- const countryOptions=useMemo(()=>countrySections.filter(group=>group.kind==="country").map(group=>({value:group.key,label:group.title,count:group.items.length})).sort((a,b)=>a.label.localeCompare(b.label,"es")),[countrySections]);
+ const countryOptions=useMemo(()=>{
+  const byKey=new Map(countrySections.filter(g=>g.kind==="country").map(group=>[group.key,{value:group.key,label:group.title,count:group.items.length}]));
+  for(const country of countryRecords){const key="country:"+normaliseSearch(country.name);const option=byKey.get(key);byKey.set(key,{value:key,label:country.name,count:option?.count||0,flag:country.flag||"",code:country.code||""});}
+  return [...byKey.values()].sort((a,b)=>a.label.localeCompare(b.label,"es"));
+ },[countrySections,countryRecords]);
  const countryTrophyIds=useMemo(()=>countryTrophyIdsFromSections(countrySections,countryFilter),[countrySections,countryFilter]);
  // A team's filter means verified trophies actually awarded to that exact Base44 Team.
  const verifiedTeamTrophies=useMemo(()=>verifiedTeamTrophyIds(honours,teamFilter),[honours,teamFilter]);
@@ -130,8 +134,8 @@ export default function Trophies(){
   if(countryTrophyIds&&!countryTrophyIds.has(String(t.source_id)))return false;
   if(teamFilter&&!verifiedTeamTrophies.has(String(t.source_id)))return false;
   const q=normaliseSearch(query);
-  return !q||normaliseSearch([t.name,t.source_name,t.source_id,t.country,t.organizer,t.category].join(" ")).includes(q);
- }).sort((a,b)=>a.name.localeCompare(b.name,"es",{numeric:true})),[visualCatalog,tab,type,category,query,countryTrophyIds,teamFilter,verifiedTeamTrophies]);
+  return !q||normaliseSearch([t.name,t.source_name,t.source_id,t.country,countryMap.get(String(t.country_id||""))?.name,t.region,t.organizer,t.category].join(" ")).includes(q);
+ }).sort((a,b)=>a.name.localeCompare(b.name,"es",{numeric:true})),[visualCatalog,tab,type,category,query,countryTrophyIds,teamFilter,verifiedTeamTrophies,countryMap]);
  const grouped=useMemo(()=>groupTrophies(filtered,rows(leaguesQuery.data),rows(countriesQuery.data),sortMode),[filtered,leaguesQuery.data,countriesQuery.data,sortMode]);
  const teamSelectionName=rows(teamsQuery.data).find(t=>String(t.id)===String(teamFilter))?.name||"";
  
@@ -255,8 +259,7 @@ export default function Trophies(){
    {teamFilter&&honourQuery.isLoading&&<div className="mt-3 text-xs text-slate-500">Consultando los títulos del equipo…</div>}
    {filtered.length>0?<div className="mt-4 space-y-7">{grouped.map(group=><section key={group.key}>
      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
-      <div className="flex items-baseline gap-2"><h2 className="text-sm font-black uppercase tracking-[.08em] text-slate-900">{group.title}</h2><span className="text-[10px] font-medium text-slate-400">{group.items.length} trofeos</span></div>
-      {group.kind==="country"&&<span className="text-[10px] text-slate-400">{group.reputation!=null?"Reputación de liga: "+group.reputation:"Sin reputación de liga registrada"}</span>}
+      <div className="flex items-center gap-2">{group.kind==="country"&&countryRecords.find(c=>normaliseSearch(c.name)===normaliseSearch(group.title))?.flag&&<img loading="lazy" src={countryRecords.find(c=>normaliseSearch(c.name)===normaliseSearch(group.title)).flag} alt="" className="h-4 w-6 rounded-sm border border-slate-100 object-cover"/>}<h2 className="text-sm font-black uppercase tracking-[.08em] text-slate-900">{group.title}</h2><span className="text-[10px] font-medium text-slate-400">{group.items.length} trofeos</span></div>}
      </div>
      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{group.items.slice(0,expandedGroups[group.key]?group.items.length:24).map(t=><TrophyCard key={t.visual_variant_id||t.source_id} trophy={t} manifest={imageManifest} country={countryMap.get(String(t.country_id||""))}
       count={isFifaClubWorldCup(t)&&t.visual_variant_id?honours.filter(h=>h.verified===true&&String(h.trophy_source_id)===String(t.source_id)&&fifaCwcVariantForSeason(h.season)?.id===t.visual_variant_id).length:honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
