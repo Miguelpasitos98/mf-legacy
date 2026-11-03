@@ -4,6 +4,7 @@ import {Trophy,Medal,Shield,ShieldCheck,CalendarDays,Users,ArrowUpRight,Plus,Che
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {trophyImageUrl} from "@/utils/trophyCatalog";
+import {estimateTrophyReputation} from "@/utils/trophyResearch";
 import {FIFA_CWC_VISUAL_VARIANTS,isFifaClubWorldCup,CLASSIC_CWC_CREDIT,CLASSIC_CWC_SOURCE} from "@/utils/trophyVisualVariants";
 import {trophyEditionRows,trophyDetailSummary,trophyClubRanking,trophyPlayerRanking} from "@/utils/trophyDetailData";
 
@@ -55,8 +56,10 @@ function Edition({honour,teamMap,playerMap,onVerify,busy=false}){
   </div>
  </article>;
 }
-export default function TrophyDetailVisual({trophy,manifest,tab,honours=[],onAdd,onVerify,onSelectVisualVariant,honourSaving=false}){
+export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,honours=[],onAdd,onVerify,onSelectVisualVariant,honourSaving=false}){
  const summary=useMemo(()=>trophyDetailSummary(honours),[honours]);
+ const editorial=estimateTrophyReputation(trophy);
+ const linkedCountry=(countries||[]).find(country=>String(country.id)===String(trophy.country_id||""))||null;
  const clubs=useMemo(()=>trophyClubRanking(honours),[honours]);
  const ordered=useMemo(()=>trophyEditionRows(honours),[honours]);
  const isIndividual=trophy.trophy_type==="Individual Trophy";
@@ -77,11 +80,12 @@ export default function TrophyDetailVisual({trophy,manifest,tab,honours=[],onAdd
     <Trophy size={56} className="hidden text-slate-300"/>
    </div>
    <div className="min-w-0 flex-1">
-    <p className="mb-2 text-[10px] font-bold uppercase tracking-[.19em] text-blue-200">{trophy.country||trophy.organizer||"MF LEGACY · TROPHY ARCHIVE"}</p>
+    <p className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.19em] text-blue-200">{linkedCountry?.flag&&<img src={linkedCountry.flag} loading="lazy" alt={"Bandera de "+linkedCountry.name} className="h-4 w-6 rounded-sm object-cover"/>}{linkedCountry?.name|| (trophy.country_resolution==="international"?"Internacional":trophy.country||trophy.organizer||"MF LEGACY · TROPHY ARCHIVE")}{trophy.region?" · "+trophy.region:""}</p>
     <h3 className="break-words text-2xl font-black leading-tight tracking-tight sm:text-3xl">{trophy.name}</h3>
     <p className="mt-2 text-[11px] text-white/65">{[trophy.trophy_type,trophy.category].filter(Boolean).join(" · ")||"Trofeo en catalogación"}</p>
     <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px]">
      <span className="rounded-md border border-white/20 bg-white/10 px-2 py-1">ID {trophy.source_id}</span>
+     <span className="rounded-md border border-white/20 bg-white/10 px-2 py-1" title={"Valoración editorial, no oficial de Football Manager. "+editorial.basis}>Reputación {editorial.score}/200{editorial.estimated?" · estimada":""}</span>
      {summary.verifiedCount>0&&<span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-1 text-emerald-100"><CheckCircle2 size={11}/>{summary.verifiedCount} ediciones verificadas</span>}
     </div>
    </div>
@@ -116,6 +120,7 @@ export default function TrophyDetailVisual({trophy,manifest,tab,honours=[],onAdd
     <Tile icon={CalendarDays} label="Última edición" value={summary.newest||"—"}/>
    </div>
    {trophy.description&&<p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-relaxed text-slate-600">{trophy.description}</p>}
+   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600"><span><strong className="text-slate-800">Reputación editorial: {editorial.score}/200.</strong> {editorial.basis}</span>{trophy.research_source_url&&<a href={trophy.research_source_url} target="_blank" rel="noreferrer" className="font-bold text-blue-700 underline-offset-2 hover:underline">Fuente histórica</a>}</div>
    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.55fr_1fr]">
     <section>
      {heading("Últimos ganadores","Ediciones registradas en MF Legacy")}
