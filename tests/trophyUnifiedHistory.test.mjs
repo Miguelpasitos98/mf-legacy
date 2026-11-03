@@ -64,7 +64,7 @@ test("Trophy detail uses the same unified component for Resume, Editions, Clubs;
  assert.match(widget,/Campeonatos/);
  assert.match(widget,/Subcampeonatos/);
  assert.match(widget,/Terceros puestos/);
- assert.match(widget,/Verificados/);
+ assert.match(widget,/Contrastados/);
  assert.match(widget,/Archivo/);
  assert.match(widget,/YearBadge/);
 });
