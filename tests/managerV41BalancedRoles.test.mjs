@@ -114,7 +114,8 @@ test("cards, reports and page expose function-level evidence, sorting and increm
  assert.match(card,/450 minutos|V4\.1/);
  assert.match(page,/Ajuste por funciones exigidas en el ADN \(V4\.1\)/);
  assert.match(page,/Orden de resultados V4/);
- assert.match(page,/setResultLimit\(n=>Math\.min\(500,n\+48\)\)/);
+ assert.match(page,/setShowAllResults\(true\)/);
+ assert.match(page,/const resultLimit=showAllResults\?Number\.POSITIVE_INFINITY:48/);
  assert.match(page,/compatibles sin puntuación/);
 });
 
