@@ -35,7 +35,7 @@ function Counter({value,label,icon:Icon,tone=""}){
 function PhotoOfTrophy({trophy,manifest}){
  const [bad,setBad]=useState(false);
  return <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f6f8fc]">
-  {!bad&&trophy?<img src={trophyImageUrl(trophy,manifest)} loading="lazy" alt="" onError={()=>setBad(true)} className="h-full w-full object-contain p-1"/>:<Trophy size={22} className="text-slate-300"/>}
+  {!bad&&trophy&&trophyImageUrl(trophy,manifest)?<img src={trophyImageUrl(trophy,manifest)} loading="lazy" alt="" onError={()=>setBad(true)} className="h-full w-full object-contain p-1"/>:<Trophy size={22} className="text-slate-300"/>}
  </span>;
 }
 export default function TrophyReviewCenter({honours=[],honoursLoading=false,honoursError=false,catalog=[],catalogReady=false,imageManifest,onSync}){
