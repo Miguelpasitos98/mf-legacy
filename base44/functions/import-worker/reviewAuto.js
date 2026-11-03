@@ -172,6 +172,21 @@ export async function applyVerifiedHistoricals(db,job) {
     byScope.get(key).push(c);
   }
   const teams=await allRows(db.Team,{});
+  // Read the player once. Querying every competition separately caused the
+  // auto-review to stall midway through large historical jobs (3,000+ candidates).
+  const statsSnapshot=await allRows(db.PlayerSeasonStats,{player_id:job.player_id});
+  const seasonRows=season=>statsSnapshot.filter(r=>r.season===season);
+  const saveSeason=async plan=>{
+    if(plan.operation==="create"){
+      const created=await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
+      statsSnapshot.push(created);
+      result.created_stats++;
+    }else if(plan.operation==="update"){
+      const updated=await db.PlayerSeasonStats.update(plan.target_id,plan.record);
+      const i=statsSnapshot.findIndex(r=>r.id===plan.target_id);
+      if(i>=0)statsSnapshot[i]=updated||{...statsSnapshot[i],...plan.record};
+    }
+  };
   const club=v=>norm(v).replace(/^(fc|cf) /,"").replace(/ (fc|cf)$/,"");
   for(const group of byScope.values()){
     const first=group[0],prov=first.provenance||{};
@@ -182,12 +197,9 @@ export async function applyVerifiedHistoricals(db,job) {
       (!t.fotmob_id||str(t.fotmob_id)===str(first.fotmob_team_id)));
     if(matching.length!==1)continue;
     try{
-      const existing=await allRows(db.PlayerSeasonStats,{player_id:job.player_id,season:first.season});
+      const existing=seasonRows(first.season);
       const plan=seasonPlan(group,player,existing,{team_id:matching[0].id});
-      if(plan.operation==="create"){
-        await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
-        result.created_stats++;
-      }else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
+      await saveSeason(plan);
       await db.ImportCandidate.updateMany({id:{$in:group.map(c=>c.id)},job_id:job.id,review_status:"pending"},
         {$set:{review_status:"applied",review_note:"Autoaplicado: Understat contrastado, club único y temporada cerrada"}});
       result.applied+=group.length;
@@ -222,7 +234,7 @@ export async function applyVerifiedHistoricals(db,job) {
     if(matching.length>1||(matching.length===0&&alreadyAttributed))continue;
     const teamLink=matching.length===1?{team_id:matching[0].id}:{};
     try{
-      const existing=await allRows(db.PlayerSeasonStats,{player_id:job.player_id,season:first.season});
+      const existing=seasonRows(first.season);
       // Una cifra conflictiva (p. ej. minutos Understat frente a FotMob) NO
       // debe bloquear las demás métricas oficiales de la misma competición.
       // Validar cada candidato contra el lote virtual y mantener conflictos pendientes.
@@ -240,10 +252,7 @@ export async function applyVerifiedHistoricals(db,job) {
         continue;
       }
       const plan=seasonPlan(safe,player,existing,teamLink);
-      if(plan.operation==="create"){
-        await db.PlayerSeasonStats.create({...plan.record,verification_status:"verified",review_status:"approved"});
-        result.created_stats++;
-      }else if(plan.operation==="update")await db.PlayerSeasonStats.update(plan.target_id,plan.record);
+      await saveSeason(plan);
       await db.ImportCandidate.updateMany({id:{$in:safe.map(c=>c.id)},job_id:job.id,review_status:"pending"},
         {$set:{review_status:"applied",review_note:"Autoaplicado: identidad verificada; valores conflictivos conservados aparte"}});
       result.applied+=safe.length;
