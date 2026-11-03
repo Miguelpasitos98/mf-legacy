@@ -19,7 +19,7 @@ import Stadiums from "@/pages/Stadiums";
 import StadiumDetail from "@/pages/StadiumDetail";
 import Players from "@/pages/Players";
 import Stats from "@/pages/Stats";
-import UnderstatExplorer from "@/pages/UnderstatExplorer";
+import { Navigate } from "react-router-dom";
 import ImportHistory from "@/pages/ImportHistory";
 import ImportUnified from "@/pages/ImportUnified";
 import ImportCenter from "@/pages/ImportCenter";
@@ -74,7 +74,7 @@ const AuthenticatedApp = () => {
         <Route path="/schedule/stadium/:stadiumKey" element={<StadiumDetail />} />
         <Route path="/players" element={<Players />} />
         <Route path="/stats" element={<Stats />} />
-        <Route path="/understat-explorer" element={<UnderstatExplorer />} />
+        <Route path="/understat-explorer" element={<Navigate to="/import-center" replace />} />
         <Route path="/possession" element={<TeamPossession />} />
         <Route path="/countries" element={<Countries />} />
         <Route path="/import-histories" element={<ImportHistory />} />

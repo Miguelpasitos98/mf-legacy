@@ -10,7 +10,7 @@ import {RECORD_KEYS} from "@/api/recordQueries";
 import {readCompleteRecords} from "@/utils/entityRecords";
 import { AlertTriangle, Database, RefreshCw, ShieldCheck, Search } from "lucide-react";
 import HistoricalReview from "@/components/imports/HistoricalReview";
-import UnderstatLivePanel from "@/components/imports/UnderstatLivePanel";
+import UnderstatMissingImport from "@/components/imports/UnderstatMissingImport";
 import {historyCanRetry} from "@/utils/importHistoryReview";
 import {importProgressSummary} from "@/utils/importCoverage";
 import {groupImportJobs,visibleImportGroups} from "@/utils/importJobGroups";
@@ -232,26 +232,6 @@ export default function ImportCenter(){
       await refresh({forceCandidates:true});
     }catch(e){setError(reason(e));}finally{setBusy(false);}
   };
-  const enrichUnderstat=async()=>{
-    if(!player||!linked||busy||playerRunning)return;
-    setBusy(true);setError("");setNotice("");
-    try{
-      const response=await base44.functions.invoke("understat-auto",{
-        action:"enrich",player_id:player.id,fotmob_player_id:fotmob
-      });
-      const data=response?.data||{};
-      if(!data.ok)throw Error(data.error||"No se pudo recuperar Understat");
-      const updated=(data.saved||0)+(data.updated||0);
-      const blocked=(data.skipped||[]).length;
-      setNotice(data.status==="verified"
-        ?"Understat histórico: "+(data.stats_updated||0)+" registros de STATS completados con "+(data.stats_metrics_added||0)+
-         " estadísticas nuevas (goles, asistencias, xG/xA, npxG, tiros). "+updated+
-         " temporadas de Chain/Buildup actualizadas; "+blocked+" entradas sin vinculación o cobertura completa. No se sobrescriben datos FotMob."
-        :"Understat: "+(data.reason||"No hay datos históricos con identidad inequívoca."));
-      if(updated||data.stats_updated)await invalidateApplied();
-    }catch(e){setError("Consulta Understat: "+reason(e));}
-    finally{setBusy(false);}
-  };
   const scanCache=async()=>{
     if(!player||!linked)return;
     setBusy(true);setError("");setNotice("");
@@ -313,12 +293,8 @@ export default function ImportCenter(){
         <div className="grid grid-cols-2 gap-2">{SOURCES.map(s=><label className="flex items-center gap-2 text-sm" key={s.id}><input type="checkbox" checked={selectedSources.includes(s.id)} onChange={e=>setSelectedSources(v=>e.target.checked?[...v,s.id]:v.filter(x=>x!==s.id))}/>{s.label}</label>)}</div>
         <button disabled={!canStartHistory} onClick={()=>operate("start",{player_id:player.id,sources:selectedSources})} className="w-full py-3 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">{usingCatalogueSuggestion?"Confirmar ID del catálogo y recuperar historial":"Recuperar historial disponible"}</button>
         <button disabled={coordinator!=="ready"||!player||!linked||!selectedSources.length||busy} onClick={scanCache} className="w-full py-2 rounded-lg border border-[#003399] text-[#003399] bg-white font-semibold disabled:opacity-40">Reutilizar datos ya guardados</button>
-        <button type="button" disabled={!player||!linked||busy||playerRunning}
-          onClick={enrichUnderstat} className="w-full py-2 rounded-lg border border-blue-200 bg-blue-50 text-[#003399] font-semibold disabled:opacity-40">
-          Completar estadísticas históricas en STATS (Understat)
-        </button>
-        <p className="text-[11px] text-slate-500">Completa goles, asistencias, xG, xA, npxG y tiros en las ligas verificadas hasta 2024/25, además de Chain/Buildup. Funciona con trabajos FotMob en cola; si el trabajador ya está escribiendo ese jugador, se espera a que finalice. No sustituye estadísticas FotMob ni cubre copas o selecciones.</p>
-        <UnderstatLivePanel player={player} linked={linked} fotmobId={fotmob} onApplied={invalidateApplied}/>
+        {selectedSources.includes("understat")&&<UnderstatMissingImport player={player} linked={linked} fotmobId={fotmob}
+          workerBusy={active||busy} onApplied={invalidateApplied}/>}
         {active&&<p className="text-xs text-amber-800">Este jugador ya tiene un trabajo en cola o ejecución.</p>}
         <Link to="/import-native" className="inline-block text-xs text-[#003399] underline">Importar observaciones estructuradas archivadas (alternativa sin Studio)</Link>
         <p className="text-xs text-slate-500">Primera importación: el trabajador de tu PC consulta el perfil y las temporadas disponibles con los límites configurados. Understat usa ligas compatibles y cachés/archivos públicos. FIFA/FC usa revisiones de Career Mode anteriores al lanzamiento; mercado usa valoraciones fechadas dentro de cada temporada. No se altera FM26.</p>
@@ -328,7 +304,7 @@ export default function ImportCenter(){
         <p className="text-xs text-slate-600">El motor web ya normaliza y crea temporadas desde registros estructurados. La obtención directa de datos nuevos requiere fuentes con acceso autorizado.</p>
         <div className="flex items-start gap-3 text-sm"><ShieldCheck className="text-[#003399] shrink-0"/><p>La información se guarda inicialmente como candidata. Solo se aplica cuando hay evidencia e identificación exacta.</p></div>
         <div className="flex items-start gap-3 text-sm"><Database className="text-[#003399] shrink-0"/><p>La sincronización conserva las entradas verificadas, correcciones manuales y diferencias entre competiciones.</p></div>
-        <p className="text-xs text-slate-600">Cero es un valor válido; una métrica ausente no se convierte en cero. La recuperación Understat de archivo histórico verificado solo completa tasas independientes que estén vacías; los otros candidatos siguen sujetos a revisión.</p>
+        <p className="text-xs text-slate-600">Cero es un valor válido; una métrica ausente no se convierte en cero. Understat histórico permite revisar nuevas temporadas de liga o completar estadísticas ausentes, aprobando cada propuesta individualmente. Los valores FotMob existentes y las correcciones manuales se mantienen.</p>
         <a href="https://github.com/Miguelpasitos98/mf-legacy/tree/main/worker" target="_blank" rel="noopener noreferrer" className="block text-sm text-[#003399] underline">Trabajador local de Studio (respaldo para extracciones nuevas)</a>
         <Link to="/import-unified" className="text-sm text-slate-600 underline">Importador JSON anterior (opcional)</Link>
         <p className="text-xs text-slate-600">El motor web permite crear primeras temporadas. El trabajador local sigue disponible como respaldo para consultas puntuales sujetas a los permisos del proveedor.</p>
