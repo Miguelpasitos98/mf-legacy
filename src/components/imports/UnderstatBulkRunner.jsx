@@ -8,7 +8,8 @@ const KEY="mf-legacy-understat-bulk-verified-v1";
 const read=()=>{
  try{
   const state=JSON.parse(window.sessionStorage.getItem(KEY)||"null");
-  if(state&&Array.isArray(state.jobs))return {...state,status:"paused",active:""};
+  if(state&&Array.isArray(state.jobs))
+    return {...state,status:state.status==="complete"?"complete":"paused",active:""};
  }catch(e){/* Empty on browsers that prohibit storage. */}
  return null;
 };
@@ -28,7 +29,10 @@ export default function UnderstatBulkRunner({groups,audits,onAudit,onComplete}){
  const mounted=useRef(true);
  const busy=useRef(false);
  const [reviewOpen,setReviewOpen]=useState(false);
- useEffect(()=>()=>{mounted.current=false;cancel.current=true},[]);
+ useEffect(()=>{
+  mounted.current=true;
+  return ()=>{mounted.current=false;cancel.current=true};
+ },[]);
  const update=next=>{
   save(next);
   if(mounted.current)setBatch(next);

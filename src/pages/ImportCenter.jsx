@@ -11,6 +11,7 @@ import {readCompleteRecords} from "@/utils/entityRecords";
 import { AlertTriangle, Database, RefreshCw, Search } from "lucide-react";
 import HistoricalReview from "@/components/imports/HistoricalReview";
 import UnderstatMissingImport from "@/components/imports/UnderstatMissingImport";
+import UnderstatBulkRunner from "@/components/imports/UnderstatBulkRunner";
 import {historyCanRetry} from "@/utils/importHistoryReview";
 import {importProgressSummary} from "@/utils/importCoverage";
 import {groupImportJobs,visibleImportGroups} from "@/utils/importJobGroups";
@@ -66,6 +67,7 @@ export default function ImportCenter(){
   const [expandedPlayers,setExpandedPlayers]=useState({});
   const [technicalHistory,setTechnicalHistory]=useState({});
   const [understatAudits,setUnderstatAudits]=useState({});
+  const [understatBatchVersion,setUnderstatBatchVersion]=useState(0);
   const [understatFilter,setUnderstatFilter]=useState("all");
   currentJob.current=selectedJob;
   const player=selectedPlayer?.id===selection?selectedPlayer:players.find(p=>p.id===selection);
@@ -351,7 +353,7 @@ export default function ImportCenter(){
       <section className="min-w-0 self-start rounded-xl border border-slate-200 bg-white p-4 md:p-5" data-understat-right-panel>
         {selectedSources.includes("understat")?
           <UnderstatMissingImport player={player} linked={linked} fotmobId={fotmob}
-            workerBusy={active||busy} jobRevision={selectedUnderstatRevision}
+            workerBusy={active||busy} jobRevision={selectedUnderstatRevision+"|batch:"+understatBatchVersion}
             onApplied={afterUnderstatApplied}/>:
           <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
             <div className="flex items-center gap-2 font-semibold text-[#003399]"><Database size={18}/>Understat histórico</div>
@@ -366,11 +368,16 @@ export default function ImportCenter(){
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-lg font-bold text-[#0d315b]">Importaciones</h2>
           <p className="mt-1 text-xs text-slate-500">{groupedJobs.length} jugadores · {jobs.length} trabajos recientes, agrupados por jugador</p></div>
-        {groupedJobs.length>8&&<button type="button" onClick={()=>setShowJobHistory(v=>!v)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#003399]">{showJobHistory?"Ocultar historial antiguo":"Ver historial completo"}</button>}
+        <div className="flex flex-wrap items-center gap-2">
+          <UnderstatBulkRunner groups={groupedJobs} audits={understatAudits}
+            onAudit={(jobId,audit)=>setUnderstatAudits(old=>({...old,[jobId]:audit}))}
+            onComplete={async()=>{setUnderstatBatchVersion(v=>v+1);await invalidateApplied();await refresh();}}/>
+          {groupedJobs.length>8&&<button type="button" onClick={()=>setShowJobHistory(v=>!v)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-[#003399]">{showJobHistory?"Ocultar historial antiguo":"Ver historial completo"}</button>}
+        </div>
       </div>
       <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3" data-understat-queue-status>
         <p className="text-xs font-semibold text-[#0d315b]">Seguimiento automático de Understat · por jugador</p>
-        <p className="mt-1 text-[11px] text-slate-600">Al terminar el último bloque, Studio comprueba las temporadas que faltan y guarda el diagnóstico. Los trabajos anteriores sin diagnóstico se pueden revisar individualmente, sin consultar en masa a todos los jugadores.</p>
+        <p className="mt-1 text-[11px] text-slate-600">Al terminar el último bloque, Studio comprueba las temporadas que faltan y guarda el diagnóstico. Para los trabajos anteriores, utiliza «Analizar y completar Understat»: recorre jugadores de uno en uno, incorpora únicamente datos verificados y señala lo que requiere revisión.</p>
         <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
           <span className="rounded-md bg-white px-2 py-1 text-blue-800">En proceso: {auditCounts.active}</span>
           <span className="rounded-md bg-white px-2 py-1 text-amber-900">Por completar: {auditCounts.pending} ({auditCounts.proposals} propuestas)</span>
