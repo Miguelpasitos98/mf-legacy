@@ -8,7 +8,7 @@
  * a flat 4-4-2. No unverified tactical claim is inferred from an unknown tag.
  */
 const isString=v=>typeof v==="string"&&v.trim().length>0;
-export function normalizeFormationDescription(raw){
+function normalizeSingleFormation(raw){
  if(!isString(raw))throw Error("Formación ausente o no textual: "+JSON.stringify(raw));
  const original=raw.trim();
  const normalized=original.normalize("NFKC")
@@ -42,5 +42,38 @@ export function normalizeFormationDescription(raw){
    "La formación numérica se conserva; la variante descriptiva queda en las notas, porque no está representada en el esquema de posiciones."
  }:null;
  return {formation,original,variant:qualifier,warning};
+}
+
+/**
+ * One AI response may describe alternate tactical systems, e.g.
+ * "4-3-3 / 4-4-2 (rombo)". Those are two valid systems, not one shape.
+ * Storage has one formation field; we choose the first valid one and keep
+ * all alternative representations and original text in the warning/notes.
+ */
+export function normalizeFormationDescription(raw){
+ if(!isString(raw))throw Error("Formación ausente o no textual: "+JSON.stringify(raw));
+ const original=raw.trim();
+ const alternatives=original.split(/\s+\/\s+|\s*\|\s*|\s*;\s*|\s*[→⇒]\s*|\s+\b(?:o|or|y|and)\b\s+|\s*,\s*(?=\d[\d\s./-]*\d)/i)
+  .map(x=>x.trim()).filter(Boolean);
+ if(alternatives.length<=1)return normalizeSingleFormation(raw);
+ const parsed=[],invalid=[];
+ for(const alternative of alternatives){
+  try{parsed.push(normalizeSingleFormation(alternative))}
+  catch(error){invalid.push({original:alternative,reason:error.message})}
+ }
+ if(!parsed.length)throw Error("La formación no es válida: "+JSON.stringify(original)+
+  ". Ninguna de las alternativas describe una distribución de diez jugadores.");
+ const principal=parsed[0];
+ const other=parsed.slice(1);
+ const reason=[
+  "La IA ha indicado varios sistemas. El primero válido se propone como formación principal; los demás se conservan como alternativas, sin fusionarlos ni atribuirles porcentajes de uso.",
+  ...other.map(x=>"Alternativa: "+x.original+" (representación "+x.formation+")."),
+  ...invalid.map(x=>"Alternativa sin validar: "+x.original+" ("+x.reason+").")
+ ].join(" ");
+ return {
+  ...principal,original,alternatives:other.map(x=>({original:x.original,formation:x.formation,variant:x.variant})),
+  invalidAlternatives:invalid,
+  warning:{field:"formation",original,fallback:principal.formation,reason}
+ };
 }
 export const normalizeManagerFormation=raw=>normalizeFormationDescription(raw).formation;
