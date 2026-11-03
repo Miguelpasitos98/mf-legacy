@@ -87,3 +87,23 @@ test("normalization caching distinguishes percentages and never caches numeric v
  for(let i=0;i<4200;i++)metricName("custom "+i);
  assert.equal(metricName("Dúels won %"),"duelswonpercent");
 });
+
+test("a STATS view remount revalidates a fresh cache after an external Python import",async()=>{
+ const client=new QueryClient();let reads=0;
+ const options=completeStatsQueryOptions({list:async()=>page([row("revision-"+(++reads))])},
+   ["stats","external-refresh"],{staleTime:30*60*1000,refetchOnMount:"always"});
+ const observe=async()=>{
+   const observer=new QueryObserver(client,options);
+   const done=new Promise((resolve,reject)=>{
+     const cancel=observer.subscribe(result=>{
+       if(result.isError){cancel();reject(result.error);}
+       else if(result.isSuccess&&!result.isFetching){cancel();resolve(flattenStatsPages(result.data));}
+     });
+   });
+   return done;
+ };
+ assert.equal((await observe())[0].id,"revision-1");
+ assert.equal((await observe())[0].id,"revision-2");
+ assert.equal(reads,2);
+ client.clear();
+});
