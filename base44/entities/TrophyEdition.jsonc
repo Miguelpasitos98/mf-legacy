@@ -1,0 +1,113 @@
+{
+  "name": "TrophyEdition",
+  "type": "object",
+  "properties": {
+    "edition_key": {
+      "type": "string",
+      "description": "Clave estable trophy_source_id + temporada (un registro de final por edici\u00f3n; idempotencia en el importador)"
+    },
+    "trophy_id": {
+      "type": "string",
+      "description": "ID interno de Trophy"
+    },
+    "trophy_source_id": {
+      "type": "string",
+      "description": "Identificador Trophy.source_id original"
+    },
+    "season": {
+      "type": "string",
+      "description": "Temporada f\u00fatbol AAAA/AA; 1955/56 por ejemplo"
+    },
+    "edition_year": {
+      "type": "integer",
+      "description": "A\u00f1o natural de la final; 1956 para 1955/56"
+    },
+    "competition_name_at_time": {
+      "type": "string",
+      "description": "Denominaci\u00f3n de la competici\u00f3n aplicable a esta temporada"
+    },
+    "champion_name": {
+      "type": "string",
+      "description": "Nombre interpretado del ganador seg\u00fan Rob"
+    },
+    "champion_raw": {
+      "type": "string",
+      "description": "Nombre tal cual aparec\u00eda en captura FM24"
+    },
+    "champion_team_id": {
+      "type": "string",
+      "description": "Team.id \u00fanicamente si hay correspondencia un\u00edvoca comprobada"
+    },
+    "runner_up_name": {
+      "type": "string",
+      "description": "Nombre interpretado subcampe\u00f3n"
+    },
+    "runner_up_raw": {
+      "type": "string",
+      "description": "Texto literal FM24"
+    },
+    "runner_up_team_id": {
+      "type": "string",
+      "description": "Team.id solo cuando la identidad se compruebe"
+    },
+    "stadium_name": {
+      "type": "string",
+      "description": "Sede tal como se muestra en captura"
+    },
+    "stadium_id": {
+      "type": "string",
+      "description": "Stadium.id verificado si procede"
+    },
+    "city": {
+      "type": "string"
+    },
+    "country": {
+      "type": "string"
+    },
+    "country_id": {
+      "type": "string",
+      "description": "Country.id si se ha validado con el registro"
+    },
+    "final_score": {
+      "type": "string",
+      "description": "Marcador si aparece expl\u00edcitamente en captura; no inferir"
+    },
+    "source_dataset": {
+      "type": "string",
+      "description": "Procedencia de Rob's History Update FM24"
+    },
+    "evidence_type": {
+      "type": "string",
+      "description": "screenshot|fmf_xml|federation"
+    },
+    "evidence_note": {
+      "type": "string",
+      "description": "Segmento/captura de procedencia y advertencias"
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "source_extracted",
+        "externally_verified",
+        "needs_review"
+      ],
+      "default": "source_extracted"
+    },
+    "is_officially_verified": {
+      "type": "boolean",
+      "default": false,
+      "description": "No implica verificaci\u00f3n por federaci\u00f3n hasta revisi\u00f3n independiente"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "edition_key",
+    "trophy_id",
+    "trophy_source_id",
+    "season",
+    "champion_name",
+    "runner_up_name"
+  ]
+}
