@@ -44,7 +44,7 @@ function TrophyCard({trophy,manifest,open,count,country}){
  return <button type="button" onClick={open} className="group relative flex min-h-[195px] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-[#003399]/30 hover:shadow-[0_12px_35px_rgba(20,35,65,.09)]">
    <div className="relative flex h-32 items-center justify-center bg-gradient-to-b from-[#F8F9FC] to-white px-5 pt-3">
     <TrophyArtwork trophy={trophy} manifest={manifest} className="h-[110px] w-full"/>
-    {trophy.identification_status==="Pending"&&<span className="absolute right-2 top-2 rounded-md bg-amber-50 px-1.5 py-1 text-[9px] font-bold text-amber-700">PENDIENTE</span>}
+    {trophy.identification_status==="Pending"&&<span className="absolute right-2 top-2 rounded-md bg-amber-50 px-1.5 py-1 text-[9px] font-bold text-amber-700" title="La correspondencia entre imagen, nombre e ID de FM24 necesita revisión">REVISAR ID</span>}
     {trophy.id&&<span className="absolute left-2 top-2 rounded-md bg-blue-50 px-1.5 py-1 text-[9px] font-bold text-blue-800">FICHA</span>}
     {trophy.visual_variant_years&&<span className="absolute bottom-1.5 left-2 rounded-md bg-slate-900/75 px-1.5 py-0.5 text-[9px] font-bold text-white">{trophy.visual_variant_years}</span>}
    </div>
@@ -221,7 +221,7 @@ export default function Trophies(){
    <div className="hidden shrink-0 items-center gap-2 lg:flex"><span className="text-[10px] font-black uppercase tracking-[.15em] text-slate-400">Biblioteca</span></div>
    <div className="mf-trophy-filters min-w-0 flex-1 rounded-xl border border-slate-200 bg-[#F8F9FC] px-2.5 py-2">
     <div className="flex flex-wrap items-center justify-between gap-1.5">
-     <div className="flex gap-1 overflow-x-auto">{[["verified","Identificados"],["all","Todos"],["pending","Pendientes"],["registered","Con ficha"]].map(([k,v])=><button key={k} type="button" className={cls(tab===k)} onClick={()=>setTab(k)}>{v}</button>)}</div>
+     <div className="flex gap-1 overflow-x-auto">{[["verified","Identificados"],["all","Todos"],["pending","Revisar ID"],["registered","Con ficha"]].map(([k,v])=><button key={k} type="button" className={cls(tab===k)} onClick={()=>setTab(k)}>{v}</button>)}</div>
      <span className="text-[11px] font-semibold tabular-nums text-slate-400">{filtered.length.toLocaleString("es-ES")} resultados</span>
     </div>
     <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -310,6 +310,7 @@ export default function Trophies(){
        <DetailsField title="ID original"><input className={input} value={draft.source_id||""} disabled={!newRecord} onChange={e=>setDraft(v=>({...v,source_id:e.target.value}))} required/></DetailsField>
        <DetailsField title="Trophy Type *"><select className={input} required value={draft.trophy_type||""} onChange={e=>setDraft(v=>({...v,trophy_type:e.target.value}))}><option value="">Seleccionar tipo</option>{TROPHY_TYPES.map(v=><option value={v} key={v}>{v}</option>)}</select></DetailsField>
        <DetailsField title="Nombre oficial" wide><input className={input} value={draft.name||""} required onChange={e=>setDraft(v=>({...v,name:e.target.value}))}/></DetailsField>
+       <DetailsField title="Estado de identificación"><select className={input} value={draft.identification_status||"Pending"} onChange={e=>{const v=e.target.value;if(v==="Verified"&&draft.identification_status!=="Verified"&&!window.confirm("Confirma solo después de contrastar la identidad y el ID del trofeo en FM24 o con su documentación original. ¿Marcar como verificado?"))return;setDraft(current=>({...current,identification_status:v}));}}><option value="Pending">Pendiente · revisar ID</option><option value="Verified">Identificado · comprobado</option><option value="Manual">Ficha manual</option></select></DetailsField>
        <DetailsField title="Categoría"><select className={input} value={draft.category||""} onChange={e=>setDraft(v=>({...v,category:e.target.value}))}><option value="">Sin clasificar</option>{TROPHY_CATEGORIES.map(v=><option key={v} value={v}>{v}</option>)}</select></DetailsField>
        <DetailsField title="País · vinculado a Country">
         <TrophyCountryPicker countries={countryRecords} value={draft.country_id||""} scope={draft.country_resolution||"pending"}
