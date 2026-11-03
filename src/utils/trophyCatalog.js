@@ -1,4 +1,5 @@
 import {fifaCwcVariantImageUrl} from "./trophyVisualVariants.js";
+import {overrideFor,trophyImageShouldHide} from "./trophyImages.js";
 // Catalog synchronized with the published My-Legacy trophy library (2,180 IDs).
 // Identity is always source_id, never translated names or image filenames.
 export const TROPHY_CSV_URL="https://raw.githubusercontent.com/Miguelpasitos98/My-Legacy/main/Trofeos%20identificados/catalogo.csv";
@@ -14,6 +15,8 @@ export const trophySourceImageUrl=sourcePath=>{
  return TROPHY_IMAGE_REPO+path.split("/").map(encodeURIComponent).join("/");
 };
 export const trophyImageUrl=(trophy,manifest,season)=>{
+ const manual=overrideFor(trophy);if(manual)return manual;
+ if(trophyImageShouldHide(trophy))return "";
  const historic=fifaCwcVariantImageUrl(trophy,season);if(historic)return historic;
  const custom=safe(trophy?.image_url);if(custom)return custom;
  const id=safe(trophy?.source_id);

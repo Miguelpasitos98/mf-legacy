@@ -79,7 +79,7 @@ test("deep cannot silently replace missing V4 with FM26 attributes or make up an
 test("deep needs real overlapping evidence for the same ADN function",()=>{
  const onlyBall=calc({roleFit:{...roleFit,requirementBreakdown:[{id:"aDifferentRule",score:90}]}});
  assert.equal(onlyBall.score,null);
- assert.match(onlyBall.missing.join(" "),/misma función/i);
+ assert.match(onlyBall.missing.join(" "),/función táctica evaluable/i);
  const noAttributes=calc({player:{...player,stats:{technical:{pases:18}}}});
  assert.equal(noAttributes.score,null);
  assert.ok(noAttributes.missing.some(x=>/FM26 suficientes/.test(x)));
