@@ -76,7 +76,7 @@ export default function PalmaresButton({ownerType,ownerId,compact=false,dark=fal
           const trophy=definitions.get(String(h.trophy_source_id))||{source_id:h.trophy_source_id,name:h.trophy_source_id};
           return <div key={[h.id,type].join(":")} className="w-[165px] shrink-0 snap-start rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-3">
            <div className="flex h-24 items-center justify-center">
-            <img loading="lazy" src={trophyImageUrl(trophy,imageQuery.data)} alt="" className="max-h-20 max-w-full object-contain"
+            <img loading="lazy" src={trophyImageUrl(trophy,imageQuery.data,h.season)} alt="" className="max-h-20 max-w-full object-contain"
              onError={e=>{e.currentTarget.style.display="none";e.currentTarget.nextElementSibling?.classList.remove("hidden");}}/>
             <Trophy className="hidden text-slate-300" size={30}/>
            </div>
