@@ -292,14 +292,44 @@ export default function Trophies(){
    {catalogError&&<div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800"><AlertCircle size={16}/><span>{catalogError} Puedes importarlo manualmente con «Importar CSV».</span></div>}
    {(trophyQuery.isError||honourQuery.isError)&&<div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[11px] text-slate-500">El catálogo puede consultarse; la base de fichas o ganadores aún no está disponible. Los cambios requieren las entidades Trophy y TrophyHonour sincronizadas en Base44.</div>}
    {teamFilter&&honourQuery.isLoading&&<div className="mt-3 text-xs text-slate-500">Consultando los títulos del equipo…</div>}
-   {filtered.length>0?<div className="mt-4 space-y-7">{grouped.map(group=><section key={group.key}>
+   {viewMode==="clubs"?<TrophyClubCatalogView teams={rows(teamsQuery.data)} honours={honours} catalog={all} manifest={imageManifest} onOpen={open} Card={TrophyCard} allowedIds={allowedClubSourceIds} loading={teamsQuery.isLoading} error={teamsQuery.isError}/>:
+   <>
+    {selectableGroupView&&grouped.length>0&&<div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <div><p className="text-xs font-black text-slate-800">{viewMode==="leagues"?"Ligas por país":"Trofeos por país"}</p><p className="mt-0.5 text-[10px] text-slate-400">Pulsa un país para ver sus {viewMode==="leagues"?"ligas":"trofeos"}. Cada competición conserva su ficha original.</p></div>
+      {focusedGroup&&<button type="button" onClick={()=>setFocusedGroup("")} className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-semibold text-[#003399]">Cambiar país</button>}
+     </div>
+     <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      {(showAllViewGroups?grouped:grouped.slice(0,18)).map(group=>{
+       const country=countryRecords.find(c=>normaliseSearch(c.name)===normaliseSearch(group.title));
+       const isSelected=focusedGroup===group.key;
+       return <button key={group.key} type="button" aria-pressed={isSelected} onClick={()=>{setFocusedGroup(isSelected?"":group.key);setExpandedGroups({});}}
+        className={"flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition "+(isSelected?"border-blue-300 bg-blue-50 text-[#003399]":"border-slate-200 bg-slate-50/50 text-slate-600 hover:border-blue-200 hover:bg-white")}>
+        {country?.flag?<img src={country.flag} alt="" loading="lazy" className="h-4 w-6 shrink-0 rounded-sm object-cover"/>:<Globe2 size={14} className="shrink-0 text-slate-400"/>}
+        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">{group.title}</span>
+        <span className="shrink-0 rounded bg-white px-1.5 py-0.5 text-[10px] font-black tabular-nums text-slate-500">{group.items.length}</span>
+       </button>;
+      })}
+     </div>
+     {grouped.length>18&&<button type="button" onClick={()=>setShowAllViewGroups(v=>!v)} className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-[#003399] hover:underline">{showAllViewGroups?"Mostrar menos":"Mostrar los "+grouped.length+" grupos"}<ChevronDown size={13} className={showAllViewGroups?"rotate-180":""}/></button>}
+    </div>}
+    {selectableGroupView&&!focusedGroup&&grouped.length>0&&<div className="mt-3 rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-xs text-slate-500">Selecciona uno de los grupos para explorar sus competiciones.</div>}
+    {visibleModeGroups.length>0&&<div className="mt-4 space-y-7">{visibleModeGroups.map(group=><section key={group.key}>
      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
-      <div className="flex items-center gap-2">{group.kind==="country"&&countryRecords.find(c=>normaliseSearch(c.name)===normaliseSearch(group.title))?.flag&&<img loading="lazy" src={countryRecords.find(c=>normaliseSearch(c.name)===normaliseSearch(group.title)).flag} alt="" className="h-4 w-6 rounded-sm border border-slate-100 object-cover"/>}<h2 className="text-sm font-black uppercase tracking-[.08em] text-slate-900">{group.title}</h2><span className="text-[10px] font-medium text-slate-400">{group.items.length} trofeos</span></div>
+      <div className="flex min-w-0 items-center gap-2">
+       {countryRecords.find(c=>normaliseSearch(c.name)===normaliseSearch(group.title))?.flag&&<img loading="lazy" src={countryRecords.find(c=>normaliseSearch(c.name)===normaliseSearch(group.title)).flag} alt="" className="h-4 w-6 shrink-0 rounded-sm border border-slate-100 object-cover"/>}
+       <h2 className="truncate text-sm font-black uppercase tracking-[.06em] text-slate-900">{group.title}</h2>
+       <span className="shrink-0 text-[10px] font-medium text-slate-400">{group.items.length} trofeos</span>
+      </div>
+      {group.detail&&<span className="hidden text-[10px] text-slate-400 md:inline">{group.detail}</span>}
      </div>
      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">{group.items.slice(0,expandedGroups[group.key]?group.items.length:24).map(t=><TrophyCard key={t.visual_variant_id||t.source_id} trophy={t} manifest={imageManifest} country={countryMap.get(String(t.country_id||""))}
       count={isFifaClubWorldCup(t)&&t.visual_variant_id?honours.filter(h=>h.verified===true&&String(h.trophy_source_id)===String(t.source_id)&&fifaCwcVariantForSeason(h.season)?.id===t.visual_variant_id).length:honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
      {group.items.length>24&&<button type="button" onClick={()=>setExpandedGroups(current=>({...current,[group.key]:!current[group.key]}))} className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{expandedGroups[group.key]?"Mostrar menos":"Ver todos los "+group.items.length+" trofeos"}</button>}
-    </section>)}</div>:!catalogLoading&&!honourQuery.isLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">{teamFilter?"No hay títulos ganados y verificados para este equipo con los filtros actuales. Esto no significa que el equipo no tenga otros títulos.":"No hay trofeos con estos filtros."}</div>}
+    </section>)}</div>}
+    {!catalogLoading&&filtered.length===0&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">No hay trofeos con estos filtros.</div>}
+    {!catalogLoading&&viewMode==="leagues"&&filtered.length>0&&grouped.length===0&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">No hay competiciones clasificadas como liga en estos filtros. Puedes revisar la categoría de los trofeos pendientes desde Editar.</div>}
+   </>}
    </>}
    {section==="palmares"&&<TrophyArchiveOverview
      honours={honours} catalog={all} imageManifest={imageManifest}
