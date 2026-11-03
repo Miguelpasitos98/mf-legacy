@@ -70,7 +70,12 @@ test('Team winners are deduplicated by trophy; verified honours and provisional 
 test('Catalog view selection and search integrated in Trophies without duplicate teams widgets',()=>{
  const page=readFileSync(new URL('../src/pages/Trophies.jsx',import.meta.url),'utf8');
  const club=readFileSync(new URL('../src/components/trophies/TrophyClubCatalogView.jsx',import.meta.url),'utf8');
- assert.match(page,/role="tablist" aria-label="Vistas de la biblioteca de trofeos"/);
+ const sidebar=readFileSync(new URL("../src/components/Sidebar.jsx",import.meta.url),"utf8");
+ assert.match(sidebar,/aria-label="Vistas de trofeos"/);
+ assert.match(sidebar,/TROPHY_SIDEBAR_VIEWS/);
+ assert.match(sidebar,/handleTrophyViewChange/);
+ assert.match(page,/useSearchParams/);
+ assert.doesNotMatch(page,/aria-label="Vistas de la biblioteca de trofeos"/);
  assert.match(page,/TrophyClubCatalogView/);
  assert.match(page,/visibleModeGroups/);
  assert.match(page,/setTab\("all"\)/);
