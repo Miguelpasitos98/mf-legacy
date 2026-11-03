@@ -68,10 +68,14 @@ test("different statistical sources or Understat scopes cannot inflate the sampl
  assert.equal(chain.peerCount,7);
 });
 test("less than 450 observed minutes reduces confidence, never substitutes a new score",()=>{
- const normal=evaluateRoleRequirements(data(20),peers,"ST",profile);
+ // In this fixture all proxies have the same source and scope; otherwise
+ // mixed Understat-global/FotMob evidence would already cap confidence at low.
+ const metrics={...data(20),chain:{...data(20).chain,source:"FotMob",scope:null,minutes:1200}};
+ const comparable=peers.map(row=>({...row,chain:{...row.chain,source:"FotMob",scope:null,minutes:1200}}));
+ const normal=evaluateRoleRequirements(metrics,comparable,"ST",profile);
  assert.equal(normal.confidence,"medium");
- const lowMinutes={...data(20),xg:{...data(20).xg,minutes:140}};
- const restricted=evaluateRoleRequirements(lowMinutes,peers,"ST",profile);
+ const lowMinutes={...metrics,xg:{...metrics.xg,minutes:140}};
+ const restricted=evaluateRoleRequirements(lowMinutes,comparable,"ST",profile);
  assert.equal(restricted.score,normal.score);
  assert.equal(restricted.confidence,"low");
  assert.match(restricted.limitation,/450 minutos/);

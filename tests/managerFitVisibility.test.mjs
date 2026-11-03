@@ -64,7 +64,7 @@ test("coverage filter uses current analysis mode instead of unrelated V4 data",(
 });
 test("Manager Fit UI distinguishes positional fallback and historical evidence instead of hiding players",()=>{
  const ui=fs.readFileSync("src/pages/ManagerFit.jsx","utf8");
- assert.match(ui,/visibleManagerFitCandidates\(eligible,\{scoreMode,showUnknown\}\)/);
+ assert.match(ui,/visibleManagerFitCandidates\(eligible,\{scoreMode,showUnknown,sortMode:resultSort,limit:resultLimit\}\)/);
  assert.match(ui,/visibility\.fallback/);
  assert.match(ui,/adecuación posicional/);
  assert.match(ui,/visibility\.compatibleCount/);
