@@ -66,7 +66,7 @@ export default function TrophyEditionDetail({edition,team,teamId,manifest,onBack
    <div className="pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full border border-white/15"/>
    <div className="relative flex flex-wrap items-center gap-5">
     <div className="flex h-44 w-36 shrink-0 items-center justify-center rounded-2xl bg-white/95 p-3 shadow-xl md:h-52 md:w-44">
-     <Photo src={trophyImageUrl(trophy,manifest)} type="trophy" size="h-full w-full"/>
+     <Photo src={trophyImageUrl(trophy,manifest,edition.season)} type="trophy" size="h-full w-full"/>
     </div>
     <div className="min-w-0 flex-1">
      <p className="text-[10px] font-bold uppercase tracking-[.18em] text-blue-200">MF LEGACY · EDICIÓN HISTÓRICA</p>
