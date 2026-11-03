@@ -1,4 +1,4 @@
-import React,{useEffect,useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
 import {base44} from "@/api/base44Client";
 import {Database,ShieldCheck,RefreshCw} from "lucide-react";
 const fmt=v=>v===null||v===undefined||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("es-ES",{maximumFractionDigits:2});
@@ -11,7 +11,11 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
  const [busy,setBusy]=useState("");
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
+ const current=useRef(0);
+ const autoScan=useRef("");
  useEffect(()=>{
+  current.current+=1;
+  autoScan.current="";
   setPlan(null);setCandidate("");setApproved(false);setBusy("");setMessage("");setError("");
  },[player?.id,fotmobId]);
  const eligible=Boolean(player?.id&&linked&&fotmobId&&!workerBusy);
@@ -19,18 +23,29 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
   player_id:player?.id,fotmob_player_id:fotmobId,
   ...(candidate&&approved?{understat_id:candidate,confirm_identity:true}:{})
  };
- const preview=async()=>{
+ const preview=async({automatic=false}={})=>{
   if(!eligible||busy)return;
+  const request=++current.current;
   setBusy("preview");setMessage("");setError("");
   try{
    const {data}=await base44.functions.invoke("understat-auto",{action:"preview-missing",...context});
+   if(request!==current.current)return;
    if(!data?.ok)throw Error(data?.error||"No se pudo obtener la vista previa");
    setPlan(data);
    if(data.status==="verified"&&!candidate)setCandidate(String(data.understat_id));
    if(data.status==="needs_identity_confirmation")setMessage(data.reason);
-  }catch(e){setError(errorOf(e));}
-  finally{setBusy("");}
+  }catch(e){if(request===current.current)setError(errorOf(e));}
+  finally{if(request===current.current)setBusy("");}
  };
+ // Understat is part of the selected IMPORT sources: automatically inspect
+ // historical gaps when a confirmed FotMob identity becomes available.
+ useEffect(()=>{
+  if(!eligible||busy||plan)return;
+  const key=player?.id+"|"+fotmobId;
+  if(autoScan.current===key)return;
+  autoScan.current=key;
+  preview({automatic:true});
+ },[eligible,player?.id,fotmobId,plan,busy]);
  const apply=async(item)=>{
   if(!eligible||busy||!plan)return;
   if(plan.status==="manually_confirmed"&&!approved){setError("Confirma primero la identidad Understat.");return}
@@ -55,14 +70,14 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
    <Database className="mt-0.5 shrink-0 text-[#003399]" size={18}/>
    <div>
     <h3 className="text-sm font-bold text-[#003399]">Understat histórico · completar lo que falta</h3>
-    <p className="mt-1 text-xs text-slate-600">Una fuente adicional de IMPORT: detecta temporadas de liga ausentes y estadísticas vacías. No sustituye datos existentes ni inventa xGOT.</p>
+    <p className="mt-1 text-xs text-slate-600">Se analiza automáticamente al seleccionar un jugador con ID FotMob confirmado. Detecta temporadas de liga ausentes y estadísticas vacías. No sustituye datos existentes ni inventa xGOT.</p>
    </div>
   </div>
   <div className="flex flex-wrap gap-2 items-center">
-   <button type="button" disabled={!eligible||!!busy} onClick={preview}
+   <button type="button" disabled={!eligible||!!busy} onClick={()=>preview()}
     className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">
     {busy==="preview"?<RefreshCw className="animate-spin" size={14}/>:<Database size={14}/>}
-    {plan?"Volver a comprobar temporadas":"Buscar temporadas y estadísticas ausentes"}
+    {busy==="preview"?"Analizando archivo histórico…":plan?"Actualizar diagnóstico":"Buscar temporadas y estadísticas ausentes"}
    </button>
    <span className="text-[11px] text-slate-500">Archivo verificado · temporadas completas hasta 2024/25 · no necesita Understat.com</span>
   </div>
@@ -80,7 +95,7 @@ export default function UnderstatMissingImport({player,linked,fotmobId,workerBus
     </label>
     <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={approved} onChange={e=>setApproved(e.target.checked)} className="mt-0.5"/>
       Confirmo que este ID Understat pertenece al jugador seleccionado y he revisado los clubes de su histórico.</label>
-    <button type="button" disabled={!eligible||!!busy||!candidate||!approved} onClick={preview}
+    <button type="button" disabled={!eligible||!!busy||!candidate||!approved} onClick={()=>preview()}
       className="rounded-md border border-blue-300 px-3 py-2 text-xs font-semibold text-[#003399] disabled:opacity-40">Mostrar propuestas para el ID confirmado</button>
    </div>}
    {["verified","manually_confirmed"].includes(plan.status)&&<div className="space-y-2">
