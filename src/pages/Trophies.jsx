@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from "react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
-import {Search,Trophy,Plus,ChevronRight,X,Save,Image as ImageIcon,Filter,AlertCircle,Trash2,Upload,Medal,Users,Link2,RotateCcw} from "lucide-react";
+import {Search,Trophy,Plus,ChevronRight,ChevronDown,X,Save,Filter,AlertCircle,Trash2,Upload,Medal,Users,Link2,RotateCcw} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {useLeaguesQuery,useCountriesQuery,useTeamsQuery} from "@/hooks/useSharedData";
@@ -22,7 +22,6 @@ const HONOURS_KEY=["mf-legacy","trophies","honours"];
 const emptyTrophy=()=>({source_id:"",name:"",trophy_type:"",category:"",country:"",country_id:"",country_resolution:"pending",region:"",reputation:"",reputation_method:REPUTATION_METHOD,reputation_basis:"",research_source_url:"",organizer:"",competition_id:"",description:"",image_url:"",identification_status:"Manual",is_active:true});
 const emptyHonour=(trophy)=>({season:"",recipient_type:trophy?.trophy_type==="Individual Trophy"?"Player":"Team",recipient_id:"",recipient_name:"",award_rank:"",goals:"",edition_label:"",verified:false,source_url:"",notes:""});
 const rows=result=>Array.isArray(result)?result:(result?.items||result?.data||[]);
-const cls=(active)=>"whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition "+(active?"bg-[#003399] text-white":"text-slate-500 hover:bg-slate-100 hover:text-slate-900");
 const input="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#003399] focus:ring-2 focus:ring-[#003399]/10";
 const label="mb-1.5 block text-[11px] font-bold uppercase tracking-[.12em] text-slate-500";
 
@@ -73,6 +72,7 @@ export default function Trophies(){
  const [type,setType]=useState("all");
  const [category,setCategory]=useState("all");
  const [sortMode,setSortMode]=useState("name");
+ const [showFilters,setShowFilters]=useState(false);
  const [countryFilter,setCountryFilter]=useState("all");
  const [teamFilter,setTeamFilter]=useState("");
  const [expandedGroups,setExpandedGroups]=useState({});
@@ -116,6 +116,8 @@ export default function Trophies(){
   for(const country of countryRecords){const key="country:"+normaliseSearch(country.name);const option=byKey.get(key);byKey.set(key,{value:key,label:country.name,count:option?.count||0,flag:country.flag||"",code:country.code||""});}
   return [...byKey.values()].sort((a,b)=>a.label.localeCompare(b.label,"es"));
  },[countrySections,countryRecords]);
+ const activeFilterCount=[type!=="all",category!=="all",countryFilter!=="all",Boolean(teamFilter)].filter(Boolean).length;
+ const clearFilters=()=>{setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");setSortMode("name");};
  const countryTrophyIds=useMemo(()=>countryTrophyIdsFromSections(countrySections,countryFilter),[countrySections,countryFilter]);
  // A team's filter means verified trophies actually awarded to that exact Base44 Team.
  const verifiedTeamTrophies=useMemo(()=>verifiedTeamTrophyIds(honours,teamFilter),[honours,teamFilter]);
@@ -217,39 +219,54 @@ export default function Trophies(){
       className={"rounded-lg px-4 py-2 text-[11px] font-bold transition "+(section===key?"bg-[#003399] text-white shadow-sm":"text-slate-500 hover:bg-white/70 hover:text-slate-900")}>{name}</button>)}
    </nav>
   </header>
-  {section==="catalog"&&<div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-200/80 bg-white px-4 py-2 md:px-6">
-   <div className="hidden shrink-0 items-center gap-2 lg:flex"><span className="text-[10px] font-black uppercase tracking-[.15em] text-slate-400">Biblioteca</span></div>
-   <div className="mf-trophy-filters min-w-0 flex-1 rounded-xl border border-slate-200 bg-[#F8F9FC] px-2.5 py-2">
-    <div className="flex flex-wrap items-center justify-between gap-1.5">
-     <div className="flex gap-1 overflow-x-auto">{[["verified","Identificados"],["all","Todos"],["pending","Revisar ID"],["registered","Con ficha"]].map(([k,v])=><button key={k} type="button" className={cls(tab===k)} onClick={()=>setTab(k)}>{v}</button>)}</div>
-     <span className="text-[11px] font-semibold tabular-nums text-slate-400">{filtered.length.toLocaleString("es-ES")} resultados</span>
+  {section==="catalog"&&<div className="relative z-20 shrink-0 border-b border-slate-200 bg-white px-4 py-2 md:px-7">
+   <div className="flex w-full flex-wrap items-center gap-2">
+    <div aria-label="Estado del catálogo" className="flex max-w-full shrink-0 items-center gap-0.5 overflow-x-auto rounded-lg bg-slate-100/80 p-0.5">
+     {[["all","Todos"],["verified","Identificados"],["pending","Revisar ID"],["registered","Con ficha"]].map(([key,title])=>
+      <button key={key} type="button" aria-pressed={tab===key} onClick={()=>setTab(key)} className={"shrink-0 rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition "+(tab===key?"bg-[#003399] text-white shadow-sm":"text-slate-500 hover:bg-white hover:text-slate-800")}>{title}</button>)}
     </div>
-    <div className="mt-1.5 flex flex-wrap gap-1.5">
-     <label className="relative min-w-[210px] flex-1"><Search size={16} className="absolute left-3 top-3 text-slate-400"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nombre, país o ID original…" className={input+" h-8 pl-9 text-xs"}/></label>
-     <label className="relative min-w-[155px]"><Filter size={13} className="pointer-events-none absolute left-2.5 top-3.5 text-slate-400"/><select value={type} onChange={e=>setType(e.target.value)} className={input+" h-8 pl-8 text-xs"}><option value="all">Todos los tipos</option>{TROPHY_TYPES.map(v=><option key={v} value={v}>{v}</option>)}</select></label>
-     <select value={category} onChange={e=>setCategory(e.target.value)} className={input+" h-8 min-w-[145px] w-auto text-xs"}><option value="all">Todas las categorías</option>{TROPHY_CATEGORIES.map(v=><option key={v} value={v}>{v}</option>)}</select>
-     <select aria-label="Ordenar trofeos" value={sortMode} onChange={e=>setSortMode(e.target.value)} className={input+" h-8 min-w-[155px] w-auto text-xs"}><option value="name">Ordenar por nombre</option><option value="reputation_desc">Reputación: mayor</option><option value="reputation_asc">Reputación: menor</option></select>
-     {(query||type!=="all"||category!=="all"||countryFilter!=="all"||teamFilter)&&<button type="button" onClick={()=>{setQuery("");setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");}} className="rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500" aria-label="Limpiar todos los filtros" title="Limpiar todos los filtros"><RotateCcw size={15}/></button>}
-    </div>
-    <div className="mt-2 grid grid-cols-1 items-end gap-2 sm:grid-cols-2">
-     <div className="min-w-0">
-      <span className="mb-1 block text-[10px] font-bold text-slate-500">País de la competición</span>
-      <CountrySearchPicker
-       options={[{value:"all",label:"Todos los países"},...countryOptions,
-        {value:"international",label:"Internacionales · FIFA y confederaciones"},
-        {value:"unclassified",label:"Sin país confirmado"}]}
-       value={countryFilter} onChange={setCountryFilter}/>
-     </div>
-     <div className="min-w-0">
-      <span className="mb-1 block text-[10px] font-bold text-slate-500">Equipo · títulos ganados verificados</span>
-      <TeamSearchPicker teams={rows(teamsQuery.data)} value={teamFilter} onChange={setTeamFilter}
-       loading={teamsQuery.isLoading} error={teamsQuery.isError} ariaLabel="Filtrar trofeos por equipo campeón"
-       placeholder={teamsQuery.isError?"No se pudieron cargar los equipos":"Buscar equipo…"} />
-     </div>
-    </div>
-    {teamFilter&&<p className="mt-1.5 text-[10px] text-slate-500">Mostrando solo las competiciones ganadas por {teamSelectionName||"el equipo seleccionado"} con campeón verificado; no incluye participaciones ni títulos sin registrar.</p>}
+    <label className="relative min-w-[190px] flex-[1_1_280px]">
+     <Search size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+     <input aria-label="Buscar trofeos" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar trofeo, país o ID…" className={input+" h-9 pl-9 pr-9 text-xs"}/>
+     {query&&<button type="button" onClick={()=>setQuery("")} aria-label="Borrar búsqueda" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X size={13}/></button>}
+    </label>
+    <button type="button" aria-expanded={showFilters} aria-controls="trophy-advanced-filters" onClick={()=>setShowFilters(v=>!v)}
+     className={"inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-semibold transition "+(showFilters||activeFilterCount?"border-blue-200 bg-blue-50 text-[#003399]":"border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}>
+     <Filter size={14}/><span>Filtros</span>{activeFilterCount>0&&<span className="grid min-w-[17px] place-items-center rounded bg-[#003399] px-1 py-0.5 text-[10px] leading-none text-white">{activeFilterCount}</span>}
+     <ChevronDown size={13} className={"transition-transform "+(showFilters?"rotate-180":"")}/>
+    </button>
+    {activeFilterCount>0&&!showFilters&&<button type="button" onClick={clearFilters} aria-label="Restablecer filtros" title="Limpiar filtros" className="grid h-9 w-8 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-800"><RotateCcw size={14}/></button>}
+    <span role="status" className="ml-auto shrink-0 text-[11px] font-medium tabular-nums text-slate-400">{filtered.length.toLocaleString("es-ES")} resultados</span>
+    <label title="Importar catálogo CSV" className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50" aria-label="Importar catálogo CSV">
+     <Upload size={15}/><span className="sr-only">Importar catálogo CSV</span><input type="file" accept=".csv,text/csv" className="hidden" onChange={importLocal}/>
+    </label>
+    <button type="button" onClick={create} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#003399] px-3 text-[11px] font-bold text-white transition hover:bg-[#002977]"><Plus size={15}/> Nuevo trofeo</button>
    </div>
-   <div className="flex shrink-0 items-center gap-1.5"><label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50"><Upload size={14}/> Importar CSV<input type="file" accept=".csv,text/csv" className="hidden" onChange={importLocal}/></label><button type="button" onClick={create} className="inline-flex items-center gap-1.5 rounded-lg bg-[#003399] px-2.5 py-2 text-[11px] font-bold text-white hover:bg-[#002977]"><Plus size={14}/> Nuevo trofeo</button></div>
+   {showFilters&&<div id="trophy-advanced-filters" className="mt-2 rounded-lg border border-slate-200 bg-[#F8F9FC] p-3">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(140px,.75fr)_minmax(150px,.85fr)_minmax(190px,1.1fr)_minmax(190px,1.1fr)_minmax(160px,.85fr)]">
+     <label className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">Tipo</span>
+      <select value={type} onChange={e=>setType(e.target.value)} className={input+" h-9 text-xs"}><option value="all">Todos los tipos</option>{TROPHY_TYPES.map(v=><option key={v} value={v}>{v}</option>)}</select>
+     </label>
+     <label className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">Categoría</span>
+      <select value={category} onChange={e=>setCategory(e.target.value)} className={input+" h-9 text-xs"}><option value="all">Todas</option>{TROPHY_CATEGORIES.map(v=><option key={v} value={v}>{v}</option>)}</select>
+     </label>
+     <div className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">País</span>
+      <CountrySearchPicker options={[{value:"all",label:"Todos los países"},...countryOptions,{value:"international",label:"Internacionales · confederaciones"},{value:"unclassified",label:"Sin país confirmado"}]} value={countryFilter} onChange={setCountryFilter}/>
+     </div>
+     <div className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">Club campeón</span>
+      <TeamSearchPicker teams={rows(teamsQuery.data)} value={teamFilter} onChange={setTeamFilter} loading={teamsQuery.isLoading} error={teamsQuery.isError} ariaLabel="Filtrar por club campeón verificado" placeholder="Buscar club…"/>
+     </div>
+     <label className="min-w-0"><span className="mb-1 block text-[10px] font-semibold text-slate-500">Orden</span>
+      <select aria-label="Ordenar trofeos" value={sortMode} onChange={e=>setSortMode(e.target.value)} className={input+" h-9 text-xs"}>
+       <option value="name">Nombre (A–Z)</option><option value="reputation_desc">Mayor reputación</option><option value="reputation_asc">Menor reputación</option>
+      </select>
+     </label>
+    </div>
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+     <p className="text-[10px] text-slate-400">{teamFilter?"Solo títulos verificados de "+(teamSelectionName||"este club"):"El filtro de club solo muestra títulos ganados y verificados."}</p>
+     <button type="button" disabled={!activeFilterCount&&sortMode==="name"} onClick={clearFilters} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-slate-500 hover:bg-slate-200/70 disabled:cursor-default disabled:opacity-40"><RotateCcw size={12}/> Restablecer</button>
+    </div>
+   </div>}
   </div>}
   <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3 md:px-7">
    {section==="catalog"&&<>
@@ -265,7 +282,6 @@ export default function Trophies(){
       count={isFifaClubWorldCup(t)&&t.visual_variant_id?honours.filter(h=>h.verified===true&&String(h.trophy_source_id)===String(t.source_id)&&fifaCwcVariantForSeason(h.season)?.id===t.visual_variant_id).length:honourCounts.get(String(t.source_id))||0} open={()=>open(t)}/>)}</div>
      {group.items.length>24&&<button type="button" onClick={()=>setExpandedGroups(current=>({...current,[group.key]:!current[group.key]}))} className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-[#003399] hover:bg-slate-50">{expandedGroups[group.key]?"Mostrar menos":"Ver todos los "+group.items.length+" trofeos"}</button>}
     </section>)}</div>:!catalogLoading&&!honourQuery.isLoading&&<div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-xs text-slate-500">{teamFilter?"No hay títulos ganados y verificados para este equipo con los filtros actuales. Esto no significa que el equipo no tenga otros títulos.":"No hay trofeos con estos filtros."}</div>}
-   <div className="my-6 flex items-center gap-2 text-[10px] text-slate-400"><ImageIcon size={13}/> Imágenes del catálogo GitHub y del archivo FM24: <code>public/assets/trophies/ID.png</code>. Los trofeos sin imagen muestran un icono neutro. Los datos originales se conservan.</div>
    </>}
    {section==="palmares"&&<TrophyArchiveOverview
      honours={honours} catalog={all} imageManifest={imageManifest}
