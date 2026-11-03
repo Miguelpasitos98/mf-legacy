@@ -163,3 +163,42 @@ test("UI offers presets, sources, scenario sensitivity, compare and report with 
  assert.match(card,/item\.deep\.sharedFunctions/);
  assert.match(card,/Deep Fit \(experimental\)/);
 });
+
+test("FM26-only traits can preselect players when real stats cannot measure coach demands",()=>{
+ const physicalProfile={player_role_priorities:JSON.stringify({CB:"Physical presence"})};
+ const physicallyStrong={...player,stats:{physical:{fuerza:17,alcance_de_salto:16},
+  mental:{valentia:15}}};
+ const result=evaluateDeepFit({player:physicallyStrong,role:"CB",profile:physicalProfile,
+  roleFit:{score:null,confidence:"insufficient",requirementBreakdown:[]},
+  advanced:{position:100},season:"2025/2026"});
+ assert.equal(result.score,null,"FM-only traits must NEVER become a combined Deep score");
+ assert.equal(result.functions.score,null);
+ assert.ok(result.fmOnlyTraits.score>=70);
+ assert.equal(result.preliminaryScore,result.fmOnlyTraits.score);
+ assert.equal(result.sharedFunctions.length,0);
+});
+test("FM-only functional preselection ranks players by skill evidence, not by fame, CA or position when unscored",()=>{
+ const p={player_role_priorities:JSON.stringify({CB:"Physical presence"})};
+ const make=(id,strength)=>({
+  player:{id,name:id},fit:100,quality:id==="elite"?200:100,
+  deep:evaluateDeepFit({
+   player:{stats:{physical:{fuerza:strength,alcance_de_salto:strength},mental:{valentia:strength}}},
+   role:"CB",profile:p,roleFit:{score:null,requirementBreakdown:[]},advanced:{position:100}
+  })
+ });
+ const rows=[make("elite",9),make("selectedSmallerLeague",17)];
+ const result=visibleManagerFitCandidates(rows,{scoreMode:"deep",showUnknown:false});
+ assert.equal(result.fallback,true);
+ assert.equal(result.scoredCount,0);
+ assert.deepEqual(result.rows.map(x=>x.player.id),["selectedSmallerLeague","elite"]);
+ assert.ok(result.rows.every(x=>x.deep.score===null));
+});
+test("recognizable speed/leadership/game movement is measured only as FM26, never smuggled into historical V4",()=>{
+ const speedProfile={player_role_priorities:JSON.stringify({CB:"Central rápido"})};
+ const racer={...player,stats:{physical:{velocidad:16,aceleracion:17}}};
+ const result=evaluateDeepFit({player:racer,role:"CB",profile:speedProfile,
+  roleFit:{score:null},advanced:{position:100}});
+ assert.equal(result.score,null);
+ assert.equal(result.fmOnlyTraits.validTraits,1);
+ assert.ok(result.preliminaryScore>70);
+});
