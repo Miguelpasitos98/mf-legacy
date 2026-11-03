@@ -54,6 +54,30 @@ test("Filtering group names, records and title source works without deleting emp
  const filtered=groupTrophiesByTeamReputation({teams,catalog,honours,editions,allowedIds:new Set(["league"])});
  assert.equal(filtered.find(g=>g.id==="R").items.length,1);
 });
+test("Accepted archive champions appear as the same trophies as verified cards without duplicate editions",()=>{
+ const palmares=[
+  {entry_key:"L1",team_id:"B",trophy_source_id:"league",rank:"winner",calendar_year:2025,match_status:"manual_linked"},
+  {entry_key:"L2",team_id:"R",trophy_source_id:"league",rank:"winner",calendar_year:2023,match_status:"auto_linked"},
+  {entry_key:"L3",team_id:"R",trophy_source_id:"league",rank:"winner",calendar_year:2022,match_status:"auto_linked"},
+  {entry_key:"L4",team_id:"R",trophy_source_id:"league",rank:"runner_up",calendar_year:2021,match_status:"manual_linked"},
+  {entry_key:"L5",team_id:"R",trophy_source_id:"league",rank:"winner",calendar_year:2020,match_status:"needs_review"}
+ ];
+ const groups=groupTrophiesByTeamReputation({teams,catalog,honours,editions,palmares});
+ const barca=groups.find(g=>g.id==="B").items.find(x=>x.trophy.source_id==="league");
+ assert.equal(barca.verifiedCount,2);
+ assert.equal(barca.totalWins,2);
+ const madrid=groups.find(g=>g.id==="R").items.find(x=>x.trophy.source_id==="league");
+ assert.equal(madrid.historicalCount,2);
+ assert.equal(madrid.totalWins,2);
+ assert.equal(madrid.runnerUpCount,1);
+});
+test("Club catalog keeps image ID review separate from accepted historical trophy counts",()=>{
+ const page=readFileSync(new URL("../src/components/trophies/TrophyClubCatalogView.jsx",import.meta.url),"utf8");
+ assert.match(page,/count=\{item.totalWins\}/);
+ assert.match(page,/item.totalWins>0/);
+ assert.doesNotMatch(page,/FM24 provisional/);
+ assert.match(page,/Las coincidencias de identidad pendientes no se incluyen/);
+});
 test("Gallery defaults to highest trophy reputation but optional name sorting remains",()=>{
  const page=readFileSync(new URL("../src/pages/Trophies.jsx",import.meta.url),"utf8");
  assert.match(page,/const \[sortMode,setSortMode\]=useState\("reputation_desc"\)/);
