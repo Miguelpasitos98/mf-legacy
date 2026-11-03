@@ -1,6 +1,6 @@
 import React,{useMemo,useState} from "react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
-import {AlertCircle,BookOpenCheck,CheckCircle2,ChevronDown,FileJson,Link2,Search,ShieldAlert,Upload,Download,RefreshCcw,Unlink2} from "lucide-react";
+import {BookOpenCheck,ChevronDown,FileJson,Link2,Search,ShieldAlert,Upload,Download,RefreshCcw,Unlink2} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {previewPalmaresBatch,materializePalmaresEntries,palmaresImportPlan,validatePalmaresBatch} from "@/utils/trophyPalmaresImport";
