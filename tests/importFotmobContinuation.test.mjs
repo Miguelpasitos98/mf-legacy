@@ -9,6 +9,8 @@ source=source.replace('import { createClientFromRequest } from "npm:@base44/sdk"
   "const createClientFromRequest=()=>globalThis.__workerContinuationClient;");
 source=source.replace('const {applyVerifiedHistoricals}=await import("./reviewAuto.js");',
   "const applyVerifiedHistoricals=async()=>({applied:0});");
+source=source.replace('const {runHistoricalArchiveBackfill}=await import("./understatArchiveBackfill.js");',
+  "const runHistoricalArchiveBackfill=async()=>({status: 'skipped', metrics_added:0, rows_updated:0});");
 const {default:worker}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
 const jobId="aaaaaaaaaaaaaaaaaaaaaaaa",pid="bbbbbbbbbbbbbbbbbbbbbbbb",claim="claimed-token";
 function setup({attempt=0,networkRequests=8,sources=["fotmob"]}={}) {
