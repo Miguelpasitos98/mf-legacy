@@ -244,7 +244,15 @@ export default async function(req){
    source_revision:ARCHIVE_SHA256,
    last_full_season:'2024/2025',verified_season_rates:result.rates.length});
  }catch(e){
-  console.error('understat-auto failed',String(e?.message||e).slice(0,300));
-  return reply({ok:false,error:'No se completó la consulta Understat: '+String(e?.message||e).slice(0,220)},502);
+  const message=String(e?.message||e);
+  const throttled=e?.status===429||/rate limit exceeded|entity_list allows|retry after/i.test(message);
+  if(throttled){
+   const after=Math.max(30,Math.min(600,(Number(message.match(/retry after\s+(\d+)s?/i)?.[1])||60)+3));
+   console.warn('Understat audit deferred by Base44 quota; seconds',after);
+   return reply({ok:false,code:'ENTITY_RATE_LIMIT',retry_after_seconds:after,
+    error:'Límite de consultas de Base44 alcanzado temporalmente. No se han sobrescrito estadísticas. Reintento disponible después de '+after+'s.'},429);
+  }
+  console.error('understat-auto failed',message.slice(0,300));
+  return reply({ok:false,error:'No se completó la consulta Understat: '+message.slice(0,220)},502);
  }
 }

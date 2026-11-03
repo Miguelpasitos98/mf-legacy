@@ -291,7 +291,10 @@ export default async function(req) {
       // Always store the next historical-recovery decision in the same job.
       // It survives closing IMPORT and is consumed by the per-player queue.
       // Audit failures do not roll back or block an otherwise finished import.
-      if((job.sources||[]).some(s=>s==='understat'||s==='fotmob')){
+      // Continuation blocks still belong to the same unfinished player.
+      // Only audit the final block to reduce entity reads and avoid an
+      // intermediate 'complete' status while more FotMob data is queued.
+      if(!next_job_id&&(job.sources||[]).some(s=>s==='understat'||s==='fotmob')){
         try{
           const {auditHistoricalArchiveGap}=await import('./understatArchiveBackfill.js');
           const before=await db.ImportJob.get(job.id);
@@ -303,8 +306,25 @@ export default async function(req) {
             });
           }
         }catch(e){
-          console.warn('Understat gap audit pending for job',job.id,
-            String(e?.message||e).slice(0,180));
+          // The audit is optional; record a durable pending state when the
+          // per-app list quota is exceeded. Never repeat the DB requests now.
+          const error=str(e?.message||e);
+          console.warn('Understat gap audit pending for job',job.id,error.slice(0,180));
+          if(/rate limit exceeded|retry after|entity_list allows/i.test(error)){
+            const wait=Math.max(30,Number(error.match(/retry after\s+(\d+)s/i)?.[1])||60);
+            try{
+              const latest=await db.ImportJob.get(job.id);
+              if(['review','completed'].includes(latest?.status)){
+                await db.ImportJob.update(job.id,{
+                  source_results:{...(latest.source_results||{}),understat_gap_audit:{
+                    status:'deferred_rate_limit',checked_at:new Date().toISOString(),
+                    retry_after_seconds:wait,job_phase:latest.phase,
+                    note:'Límite de consultas Base44. Datos guardados intactos; diagnóstico pendiente de reintento.'
+                  }}
+                });
+              }
+            }catch(_){}
+          }
         }
       }
       return reply({ok:true,status:finalPatch.status,candidates:counts,
