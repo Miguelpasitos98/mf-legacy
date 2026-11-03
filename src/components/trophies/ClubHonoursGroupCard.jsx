@@ -12,10 +12,10 @@ function Crest({team}){
   <Shield size={28} strokeWidth={1.4} className="text-slate-300"/>}
  </span>;
 }
-function SmallTrophy({trophy,manifest}){
+function SmallTrophy({trophy,manifest,season}){
  const [failed,setFailed]=useState(false);
  return <span className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-lg bg-white p-1">
-  {!failed?<img src={trophyImageUrl(trophy,manifest)} alt="" loading="lazy" className="h-full w-full object-contain" onError={()=>setFailed(true)}/>:
+  {!failed?<img src={trophyImageUrl(trophy,manifest,season)} alt="" loading="lazy" className="h-full w-full object-contain" onError={()=>setFailed(true)}/>:
    <Trophy size={23} strokeWidth={1.4} className="text-slate-300"/>}
  </span>;
 }
@@ -48,7 +48,7 @@ export default function ClubHonoursGroupCard({item,team,manifest,trophiesById,on
       aria-label={trophy.name+", ganado "+count+(count===1?" vez":" veces")}
       title={"Abrir "+trophy.name}
       className="group flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-[#f8fafc] px-2 py-1.5 text-left transition hover:border-blue-300 hover:bg-blue-50">
-      <SmallTrophy trophy={trophy} manifest={manifest}/>
+      <SmallTrophy trophy={trophy} manifest={manifest} season={item.trophyLatestSeason?.get(sourceId)}/>
       <span className="min-w-0 flex-1">
        <span className="line-clamp-2 text-[11px] font-bold leading-4 text-slate-800 group-hover:text-[#003399]">{trophy.name}</span>
       </span>
