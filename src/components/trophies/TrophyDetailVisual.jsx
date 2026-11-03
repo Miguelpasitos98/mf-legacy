@@ -7,6 +7,7 @@ import {trophyImageUrl} from "@/utils/trophyCatalog";
 import {estimateTrophyReputation} from "@/utils/trophyResearch";
 import {FIFA_CWC_VISUAL_VARIANTS,isFifaClubWorldCup,CLASSIC_CWC_CREDIT,CLASSIC_CWC_SOURCE} from "@/utils/trophyVisualVariants";
 import {trophyEditionRows,trophyDetailSummary,trophyClubRanking,trophyPlayerRanking} from "@/utils/trophyDetailData";
+import TrophyHistoricalArchive from "@/components/trophies/TrophyHistoricalArchive";
 
 const sectionLabel="text-[10px] font-black uppercase tracking-[.14em] text-slate-400";
 const verifiedTag="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-emerald-700";
@@ -56,7 +57,7 @@ function Edition({honour,teamMap,playerMap,onVerify,busy=false}){
   </div>
  </article>;
 }
-export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,honours=[],onAdd,onVerify,onSelectVisualVariant,honourSaving=false}){
+export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,honours=[],onAdd,onVerify,onNavigate,onSelectVisualVariant,honourSaving=false}){
  const summary=useMemo(()=>trophyDetailSummary(honours),[honours]);
  const editorial=estimateTrophyReputation(trophy);
  const linkedCountry=(countries||[]).find(country=>String(country.id)===String(trophy.country_id||""))||null;
@@ -68,6 +69,13 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
  const teamsQuery=useQuery({...completeRecordQueryOptions(base44.entities.Team,["mf-legacy","teams"]),enabled:needsTeams,retry:false});
  const playersQuery=useQuery({...completeRecordQueryOptions(base44.entities.Player,["mf-legacy","players"]),enabled:needsPlayers,retry:false});
  const creditsQuery=useQuery({...completeRecordQueryOptions(base44.entities.PlayerTrophyCredit,["mf-legacy","trophies","credits"]),enabled:tab==="Jugadores",retry:false});
+ const needHistory=["Resumen","Ediciones","Historia"].includes(tab);
+ const robEditionsQuery=useQuery({...completeRecordQueryOptions(base44.entities.TrophyEdition,["mf-legacy","trophies","historical-editions"]),enabled:needHistory,retry:false});
+ const robEventsQuery=useQuery({...completeRecordQueryOptions(base44.entities.TrophyHistoricalEvent,["mf-legacy","trophies","historical-events"]),enabled:needHistory,retry:false});
+ const historicalEditions=useMemo(()=>Array.isArray(robEditionsQuery.data)?robEditionsQuery.data:[],[robEditionsQuery.data]);
+ const historicalEvents=useMemo(()=>Array.isArray(robEventsQuery.data)?robEventsQuery.data:[],[robEventsQuery.data]);
+ const editionCount=historicalEditions.filter(e=>String(e.trophy_source_id)===String(trophy.source_id)).length;
+ const eventCount=historicalEvents.filter(e=>String(e.trophy_source_id)===String(trophy.source_id)).length;
  const teamMap=useMemo(()=>new Map((teamsQuery.data||[]).map(t=>[String(t.id),t])),[teamsQuery.data]);
  const playerMap=useMemo(()=>new Map((playersQuery.data||[]).map(p=>[String(p.id),p])),[playersQuery.data]);
  const players=useMemo(()=>trophyPlayerRanking(honours,creditsQuery.data||[],playersQuery.data||[]),[honours,creditsQuery.data,playersQuery.data]);
@@ -119,6 +127,7 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
     <Tile icon={Clock3} label="Por comprobar" value={summary.pendingCount}/>
     <Tile icon={CalendarDays} label="Última edición" value={summary.newest||"—"}/>
    </div>
+   {(editionCount>0||eventCount>0)&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3"><div><p className="text-xs font-bold text-blue-900">Archivo histórico de Rob / FM24</p><p className="mt-0.5 text-[11px] text-blue-700">{editionCount} finales · {eventCount} acontecimientos · sin verificar oficialmente</p></div><div className="flex gap-2"><button type="button" onClick={()=>onNavigate?.("Ediciones")} className="rounded-lg bg-[#003399] px-3 py-2 text-[11px] font-semibold text-white">Ver finales</button><button type="button" onClick={()=>onNavigate?.("Historia")} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-[11px] font-semibold text-blue-800">Ver historia</button></div></div>}
    {trophy.description&&<p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-relaxed text-slate-600">{trophy.description}</p>}
    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600"><span><strong className="text-slate-800">Reputación editorial: {editorial.score}/200.</strong> {editorial.basis}</span>{trophy.research_source_url&&<a href={trophy.research_source_url} target="_blank" rel="noreferrer" className="font-bold text-blue-700 underline-offset-2 hover:underline">Fuente histórica</a>}</div>
    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.55fr_1fr]">
@@ -141,7 +150,9 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
     </section>
    </div>
   </div>}
-  {tab==="Ediciones"&&<div className="space-y-4 p-4 md:p-6">
+  {tab==="Ediciones"&&<div className="space-y-5 p-4 md:p-6">
+   <TrophyHistoricalArchive mode="editions" trophySourceId={trophy.source_id} editions={historicalEditions} events={historicalEvents} loading={robEditionsQuery.isLoading} error={robEditionsQuery.isError}/>
+   <div className="border-t border-slate-200 pt-4"><p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Separado del archivo de Rob · palmarés de MF LEGACY</p></div>
    <div className="flex flex-wrap items-center justify-between gap-2">
     <div>{heading("Ediciones y ganadores",ordered.length+" adjudicaciones registradas · "+summary.verifiedCount+" verificadas")}</div>
     <button type="button" onClick={onAdd} className="inline-flex items-center gap-1.5 rounded-lg bg-[#003399] px-3 py-2 text-[11px] font-bold text-white"><Plus size={14}/> Añadir edición</button>
@@ -149,6 +160,7 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
    {ordered.length?<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{ordered.map(h=><Edition key={h.id} honour={h} teamMap={teamMap} playerMap={playerMap} onVerify={onVerify} busy={honourSaving}/>)}</div>:
     <EmptyState title="Sin ediciones todavía" description="Puedes registrar la temporada, el campeón y su fuente oficial desde Editar." action="Añadir edición" onAction={onAdd}/>}
   </div>}
+  {tab==="Historia"&&<div className="space-y-4 p-4 md:p-6"><TrophyHistoricalArchive mode="events" trophySourceId={trophy.source_id} editions={historicalEditions} events={historicalEvents} loading={robEventsQuery.isLoading} error={robEventsQuery.isError}/></div>}
   {tab==="Clubes"&&<div className="space-y-4 p-4 md:p-6">
    {heading("Clasificación histórica de clubes","Una victoria por club y edición verificada")}
    {clubs.length?<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
