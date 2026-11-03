@@ -64,8 +64,6 @@ export default function ImportCenter(){
   const [expandedPlayers,setExpandedPlayers]=useState({});
   const [technicalHistory,setTechnicalHistory]=useState({});
   const [understatAudits,setUnderstatAudits]=useState({});
-  const auditRequests=useRef(new Set());
-  const auditRetryAfter=useRef(new Map());
   const [understatFilter,setUnderstatFilter]=useState("all");
   currentJob.current=selectedJob;
   const player=selectedPlayer?.id===selection?selectedPlayer:players.find(p=>p.id===selection);
@@ -108,7 +106,7 @@ export default function ImportCenter(){
   },[]);
   useEffect(()=>{
     refresh();
-    const timer=setInterval(()=>{if(document.visibilityState==="visible")refresh();},15000);
+    const timer=setInterval(()=>{if(document.visibilityState==="visible")refresh();},30000);
     return ()=>clearInterval(timer);
   },[refresh]);
   useEffect(()=>{setCandidateRows([]);setCandidatesLoading(Boolean(selectedJob));setPreview(null);setReviewedGroups({});},[selectedJob]);
@@ -177,55 +175,19 @@ export default function ImportCenter(){
         understatFilter==="no_gaps"?kind==="no_gaps":
         understatFilter==="active"?kind==="active":true;
     });
-  // Run source-specific audits for settled jobs, including previous queue
-  // entries when the user opens the complete history. This never imports data.
-  useEffect(()=>{
-    const candidates=visibleGroups.filter(g=>g.sources.includes("understat")&&!g.active&&
-      ["review","completed"].includes(g.latest?.status)).filter(g=>{
-       const job=g.latest;
-       if(understatAuditOf(g,understatAudits))return false;
-       if(auditRequests.current.has(job.id))return false;
-       if((auditRetryAfter.current.get(job.id)||0)>Date.now())return false;
-       return true;
-      }).slice(0,2);
-    for(const g of candidates){
-      const jobId=g.latest.id;
-      auditRequests.current.add(jobId);
-      base44.functions.invoke("understat-auto",{action:"audit-job",job_id:jobId})
-        .then(({data})=>{
-          if(data?.status==="audited"&&data?.audit)
-            setUnderstatAudits(old=>({...old,[jobId]:data.audit}));
-          else if(data?.status==="waiting_job")
-            auditRetryAfter.current.set(jobId,Date.now()+15000);
-          else
-            auditRetryAfter.current.set(jobId,Date.now()+60000);
-        })
-        .catch(()=>{
-          auditRetryAfter.current.set(jobId,Date.now()+45000);
-        })
-        .finally(()=>{
-          auditRequests.current.delete(jobId);
-          // Always ask React to consider the next visible player once a slot
-          // is free; it will not refetch already audited jobs.
-          setUnderstatAudits(old=>({...old}));
-        });
-    }
-  },[jobs,showJobHistory,understatFilter,understatAudits]);
+  // No global client sweep of historical jobs: the worker writes its own
+  // Understat audit at completion. Historical jobs can be checked individually
+  // via the player review link, avoiding a burst of hundreds of entity reads.
   const selectedJobChain=jobs.filter(j=>j.player_id===selection);
   const selectedUnderstatRevision=selectedJobChain.map(j=>
     [j.id,j.status,j.finished_at||"",j.phase||""].join(":")).sort().join("|");
   const afterUnderstatApplied=async()=>{
     await invalidateApplied();
+    // Mark previous source gap audit as superseded. The current player's
+    // preview recalculates its own plan after each applied batch.
     const related=groupedJobs.find(g=>g.playerId===selection);
-    if(related?.latest?.id&&["review","completed"].includes(related.latest.status)){
-      try{
-        const {data}=await base44.functions.invoke("understat-auto",{
-          action:"audit-job",job_id:related.latest.id
-        });
-        if(data?.status==="audited"&&data.audit)
-          setUnderstatAudits(old=>({...old,[related.latest.id]:data.audit}));
-      }catch(e){console.warn("Understat audit could not refresh",e);}
-    }
+    if(related?.latest?.id)
+      setUnderstatAudits(old=>({...old,[related.latest.id]:null}));
     await refresh();
   };
   const openUnderstatFor=async(g)=>{
@@ -398,7 +360,7 @@ export default function ImportCenter(){
       </div>
       <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3" data-understat-queue-status>
         <p className="text-xs font-semibold text-[#0d315b]">Seguimiento automático de Understat · por jugador</p>
-        <p className="mt-1 text-[11px] text-slate-600">Al finalizar una importación, se vuelve a comprobar qué temporadas y estadísticas faltan. Los diagnósticos quedan guardados en el historial; no se aplican datos sin autorización.</p>
+        <p className="mt-1 text-[11px] text-slate-600">Al terminar el último bloque, Studio comprueba las temporadas que faltan y guarda el diagnóstico. Los trabajos anteriores sin diagnóstico se pueden revisar individualmente, sin consultar en masa a todos los jugadores.</p>
         <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
           <span className="rounded-md bg-white px-2 py-1 text-blue-800">En proceso: {auditCounts.active}</span>
           <span className="rounded-md bg-white px-2 py-1 text-amber-900">Por completar: {auditCounts.pending} ({auditCounts.proposals} propuestas)</span>
