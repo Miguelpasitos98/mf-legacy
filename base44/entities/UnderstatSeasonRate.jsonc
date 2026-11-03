@@ -36,6 +36,18 @@
     "source_scope": {
       "type": "string",
       "description": "Alcance original de Understat; no equivale a todas las competiciones."
+    },
+    "understat_player_id": {
+      "type": "string",
+      "description": "ID del jugador en Understat verificado contra temporadas y clubes FotMob"
+    },
+    "source_url": {
+      "type": "string",
+      "description": "URL de la ficha original del jugador en Understat"
+    },
+    "provider_minutes": {
+      "type": "number",
+      "description": "Minutos de Understat usados para calcular las tasas; independientes de FotMob"
     }
   },
   "required": [
