@@ -2,6 +2,7 @@ import React,{useMemo,useState} from "react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {BookOpenCheck,ChevronDown,FileJson,Link2,Search,ShieldAlert,Upload,Download,RefreshCcw,Unlink2} from "lucide-react";
 import {base44} from "@/api/base44Client";
+import TeamSearchPicker from "./TeamSearchPicker";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {previewPalmaresBatch,materializePalmaresEntries,palmaresImportPlan,validatePalmaresBatch} from "@/utils/trophyPalmaresImport";
 
@@ -32,7 +33,7 @@ function TrophyChoice({group,catalog,onChoose}){
   </select>
  </div>;
 }
-export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[],defaultTeamId=""}){
+export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[]}){
  const qc=useQueryClient();
  const existingQuery=useQuery({...completeRecordQueryOptions(base44.entities.TrophyPalmaresEntry,QUERY),retry:false});
  const existing=useMemo(()=>rows(existingQuery.data),[existingQuery.data]);
@@ -46,10 +47,12 @@ export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[],defau
   try{return previewPalmaresBatch(batch,catalog,teams);}
   catch(e){return {error:e.message};}
  },[batch,catalog,teams]);
- const readBatch=(data)=>{
-  validatePalmaresBatch(data);
-  const view=previewPalmaresBatch(data,catalog,teams);
-  setBatch(data);setGroups(view.groups);setShowAll(false);setFilter("");setNotice("");setError("");
+ const readBatch=(input)=>{
+  validatePalmaresBatch(input);
+  const sameName=teams.filter(t=>slug(t.name)===slug(input.team.name));
+  const selected=teams.find(t=>String(t.id)===String(input.team.id))||(sameName.length===1?sameName[0]:null);
+  const data={...input,team:{...input.team,id:selected?.id||"",name:selected?.name||input.team.name}};
+  setBatch(data);setGroups(selected?previewPalmaresBatch(data,catalog,teams).groups:[]);setShowAll(false);setFilter("");setNotice("");setError("");
  };
  const loadExample=async()=>{
   setError("");setNotice("");
@@ -64,6 +67,13 @@ export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[],defau
   const file=event.target.files?.[0];event.target.value="";if(!file)return;
   try{if(file.size>2*1024*1024)throw Error("El JSON supera 2 MB.");readBatch(JSON.parse(await file.text()));}
   catch(e){setError("No se pudo abrir el JSON: "+(e?.message||e));}
+ };
+ const chooseTeam=id=>{
+  const team=teams.find(t=>String(t.id)===String(id));
+  if(!team||!batch)return;
+  const next={...batch,team:{...batch.team,id:team.id,name:team.name}};
+  const preview=previewPalmaresBatch(next,catalog,teams);
+  setBatch(next);setGroups(preview.groups);setError("");setNotice("Equipo vinculado a "+team.name+". Comprueba las propuestas antes de importar.");
  };
  const decide=(index,trophy)=>{
   setGroups(previous=>previous.map(g=>g.index===index?{...g,trophy,status:trophy?"manual_linked":"needs_review",confidence:trophy?100:0,reason:trophy?"Vinculación seleccionada manualmente":"Sin vinculación"}:g));
@@ -145,6 +155,7 @@ export default function TrophyPalmaresImportWorkbench({catalog=[],teams=[],defau
      <label className={outline+" cursor-pointer"}><Upload size={13}/> Subir JSON<input type="file" accept=".json,application/json" onChange={upload} className="sr-only"/></label>
     </div>
    </div>
+   {batch&&<div className="mt-3 max-w-[460px] border-t border-slate-100 pt-3"><p className="mb-1.5 text-[11px] font-bold text-slate-700">Club de destino en Teams · obligatorio</p><TeamSearchPicker fieldId="fm24-palmares-import-team" teams={teams} value={batch.team.id||""} onChange={chooseTeam} ariaLabel="Elegir equipo de destino para importación FM24" placeholder="Buscar y seleccionar el equipo existente…"/></div>}
    {batch&&loaded&&!loaded.error&&<div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
     <span className="rounded-lg bg-blue-50 px-2 py-1 text-xs font-bold text-[#003399]">{batch.team.name}</span>
     <span className="text-[11px] text-slate-500">{loaded.competitions} competiciones · {loaded.entries} registros · {suggested} coincidencias automáticas · {manual} vinculadas manualmente · {requiresReview} por revisar</span>
