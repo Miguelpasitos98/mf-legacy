@@ -4,6 +4,7 @@ import {Trophy,Medal,Shield,ShieldCheck,CalendarDays,Users,ArrowUpRight,Plus,Che
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {trophyImageUrl} from "@/utils/trophyCatalog";
+import {trophyImageShouldHide} from "@/utils/trophyImages";
 import {estimateTrophyReputation} from "@/utils/trophyResearch";
 import {FIFA_CWC_VISUAL_VARIANTS,isFifaClubWorldCup,CLASSIC_CWC_CREDIT,CLASSIC_CWC_SOURCE} from "@/utils/trophyVisualVariants";
 import {trophyEditionRows,trophyDetailSummary,trophyClubRanking,trophyPlayerRanking} from "@/utils/trophyDetailData";
@@ -91,8 +92,8 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
   <div className="pointer-events-none absolute -right-20 top-2 h-56 w-56 rounded-full border border-white/10"/>
   <div className="relative flex items-center gap-5">
    <div className="flex h-32 w-28 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/95 p-2 shadow-xl sm:h-40 sm:w-36">
-    <img key={trophy.visual_variant_id||"main"} src={trophyImageUrl(trophy,manifest)} alt="" className="h-full w-full object-contain drop-shadow-lg" onError={e=>{e.currentTarget.style.display="none";e.currentTarget.nextElementSibling?.classList.remove("hidden");}}/>
-    <Trophy size={56} className="hidden text-slate-300"/>
+    {!trophyImageShouldHide(trophy)&&<img key={trophy.visual_variant_id||"main"} src={trophyImageUrl(trophy,manifest)} alt="" className="h-full w-full object-contain drop-shadow-lg" onError={e=>{e.currentTarget.style.display="none";e.currentTarget.nextElementSibling?.classList.remove("hidden");}}/>}
+    <Trophy size={56} className={(trophyImageShouldHide(trophy)?"":"hidden ")+"text-slate-300"}/>
    </div>
    <div className="min-w-0 flex-1">
     <p className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.19em] text-blue-200">{linkedCountry?.flag&&<img src={linkedCountry.flag} loading="lazy" alt={"Bandera de "+linkedCountry.name} className="h-4 w-6 rounded-sm object-cover"/>}{linkedCountry?.name|| (trophy.country_resolution==="international"?"Internacional":trophy.country||trophy.organizer||"MF LEGACY · TROPHY ARCHIVE")}{trophy.region?" · "+trophy.region:""}</p>
