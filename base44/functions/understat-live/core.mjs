@@ -11,6 +11,9 @@ export const norm = v => txt(v).replace(/[ØøŁłĐđÐðÞþÆæŒœß]/g, ch 
 })[ch] || ch).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const clubs = {
   "atletico de madrid":"atletico madrid","atletico madrid":"atletico madrid",
+  "fc barcelona":"barcelona","barcelona fc":"barcelona",
+  "real madrid cf":"real madrid","villarreal cf":"villarreal",
+  "valencia cf":"valencia","fc bayern munich":"bayern munich",
   "manchester utd":"manchester united","man utd":"manchester united",
   "tottenham hotspur":"tottenham","spurs":"tottenham",
   "psg":"paris saint germain","paris sg":"paris saint germain",
