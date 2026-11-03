@@ -62,7 +62,7 @@ export const trophyResearchAnchor = trophy => byId.get(String(trophy?.source_id|
 const REGIONAL=/(?:\b(?:county|district|regional|amateur|provincial|distrital|municipal|bezirksliga|kreis(?:liga|pokal)|oberliga|gauliga|verbandsliga|landesliga|eccellenza|promozione|torneo(?:\s+provincial)?|comarcal|tercera|third division|fourth division|5th|fifth|4th|sixth|u ?1[5789]|u ?2[013]|sub ?1[5789]|sub ?2[013])\b)/;
 const WOMEN=/(?:\b(?:women|woman|femenin[ao]|frauen|womens|woman's|femme|ladies|nws[l]|wsl)\b)/;
 const FRIENDLY=/(?:\b(?:amistoso|friendly|invitation(?:al)?|memorial|preseason|pre season|summer|trofeo|trofeu|emirates cup|audi cup|teresa herrera|carranza|gamper)\b)/;
-const LEAGUE=/(?:\b(?:liga|league|ligue|division|divisie|divisao|bundesliga|serie a|primera|premier|premiership|championship|meisterschaft|ligan|ligue 1|k[1-9] league)\b)/;
+const LEAGUE=/(?:\b(?:liga|league|ligue|division|divisie|divisao|bundesliga|serie [abcd]|laliga|superliga|campeonato|championat|championnat|primera|premier|premiership|championship|meisterschaft|ligan|ligue 1|k[1-9] league)\b)/;
 const CUP=/(?:\b(?:copa|cup|pokal|coupe|taca|taça|trophy|trofeo|challenge|shield)\b)/;
 const SUPERCUP=/(?:\b(?:supercopa|supercup|super cup|supercoppa|supertaca|supertaça|community shield|charity shield)\b)/;
 const AGE=/(?:\b(?:u ?1[5789]|u ?2[013]|sub ?1[5789]|sub ?2[013]|under ?1[5789]|under ?2[013]|youth|juvenil|academy|reserves|reserve|primavera)\b)/;
@@ -203,6 +203,7 @@ export function recommendedTrophyCategory(trophy={}) {
  const n=norm(trophy.name||trophy.source_name);
  const anchor=trophyResearchAnchor(trophy);
  if(anchor?.friendly)return 'Other';
+ if(n==='copa campeonato')return 'League';
  if(trophy.trophy_type==='Individual Trophy')return 'Individual Award';
  if(SUPERCUP.test(n))return 'Supercup';
  if(WORLD.test(n)||CONFED.test(n))return 'International';
