@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState} from "react";
+import {useNavigate,useSearchParams} from "react-router-dom";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
-import {Search,Trophy,Plus,ChevronRight,ChevronDown,X,Save,Filter,AlertCircle,Trash2,Upload,Medal,Users,Link2,RotateCcw,LayoutGrid,Star,Globe2,Flag,Shield} from "lucide-react";
+import {Search,Trophy,Plus,ChevronRight,ChevronDown,X,Save,Filter,AlertCircle,Trash2,Upload,Medal,Users,Link2,RotateCcw,Globe2} from "lucide-react";
 import {base44} from "@/api/base44Client";
 import {completeRecordQueryOptions} from "@/utils/entityRecords";
 import {useLeaguesQuery,useCountriesQuery,useTeamsQuery} from "@/hooks/useSharedData";
@@ -22,7 +23,6 @@ import {TROPHY_CSV_URL,TROPHY_TYPES,TROPHY_CATEGORIES,parseTrophyCatalog,mergeTr
 
 const TROPHY_KEY=["mf-legacy","trophies","definitions"];
 const HONOURS_KEY=["mf-legacy","trophies","honours"];
-const CATALOG_VIEWS=[["gallery","Galería",LayoutGrid],["reputation","Reputación",Star],["scope","Ámbito",Globe2],["leagues","Ligas",Trophy],["countries","Países",Flag],["clubs","Clubes",Shield]];
 const emptyTrophy=()=>({source_id:"",name:"",trophy_type:"",category:"",country:"",country_id:"",country_resolution:"pending",region:"",reputation:"",reputation_method:REPUTATION_METHOD,reputation_basis:"",research_source_url:"",organizer:"",competition_id:"",description:"",image_url:"",identification_status:"Manual",is_active:true});
 const emptyHonour=(trophy)=>({season:"",recipient_type:trophy?.trophy_type==="Individual Trophy"?"Player":"Team",recipient_id:"",recipient_name:"",award_rank:"",goals:"",edition_label:"",verified:false,source_url:"",notes:""});
 const rows=result=>Array.isArray(result)?result:(result?.items||result?.data||[]);
@@ -64,6 +64,10 @@ function DetailsField({title,children,wide}){
  return <div className={wide?"sm:col-span-2":""}><label className={label}>{title}</label>{children}</div>;
 }
 export default function Trophies(){
+ const navigate=useNavigate();
+ const [searchParams]=useSearchParams();
+ const rawTrophyView=searchParams.get("view");
+ const viewMode=TROPHY_CATALOG_VIEW_MODES.includes(rawTrophyView)?rawTrophyView:"gallery";
  const qc=useQueryClient();
  const [catalog,setCatalog]=useState([]);
  const [imageManifest,setImageManifest]=useState(null);
@@ -77,7 +81,6 @@ export default function Trophies(){
  const [category,setCategory]=useState("all");
  const [sortMode,setSortMode]=useState("name");
  const [showFilters,setShowFilters]=useState(false);
- const [viewMode,setViewMode]=useState("gallery");
  const [focusedGroup,setFocusedGroup]=useState("");
  const [showAllViewGroups,setShowAllViewGroups]=useState(false);
  const [countryFilter,setCountryFilter]=useState("all");
@@ -125,7 +128,8 @@ export default function Trophies(){
   return [...byKey.values()].sort((a,b)=>a.label.localeCompare(b.label,"es"));
  },[countrySections,countryRecords]);
  const activeFilterCount=[type!=="all",category!=="all",countryFilter!=="all",Boolean(teamFilter&&viewMode!=="clubs")].filter(Boolean).length;
- const selectView=mode=>{if(!TROPHY_CATALOG_VIEW_MODES.includes(mode))return;setViewMode(mode);setFocusedGroup("");setShowAllViewGroups(false);setExpandedGroups({});if(mode!=="gallery")setTab("all");if(mode==="clubs")setTeamFilter("");};
+ const selectView=mode=>{if(!TROPHY_CATALOG_VIEW_MODES.includes(mode))return;navigate({pathname:"/trophies",search:"?view="+mode});};
+ useEffect(()=>{setFocusedGroup("");setShowAllViewGroups(false);setExpandedGroups({});setTab("all");setTeamFilter("");},[viewMode]);
  const clearFilters=()=>{setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");setSortMode("name");};
  const countryTrophyIds=useMemo(()=>countryTrophyIdsFromSections(countrySections,countryFilter),[countrySections,countryFilter]);
  // A team's filter means verified trophies actually awarded to that exact Base44 Team.
@@ -280,12 +284,6 @@ export default function Trophies(){
      <button type="button" disabled={!activeFilterCount&&sortMode==="name"} onClick={clearFilters} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold text-slate-500 hover:bg-slate-200/70 disabled:cursor-default disabled:opacity-40"><RotateCcw size={12}/> Restablecer</button>
     </div>
    </div>}
-  </div>}
-  {section==="catalog"&&<div role="tablist" aria-label="Vistas de la biblioteca de trofeos" className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-4 py-1.5 md:px-7">
-   {CATALOG_VIEWS.map(([key,title,Icon])=><button key={key} role="tab" type="button" aria-selected={viewMode===key} onClick={()=>selectView(key)}
-    className={"inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[11px] font-bold transition "+(viewMode===key?"bg-[#003399] text-white shadow-sm":"text-slate-500 hover:bg-slate-100 hover:text-slate-900")}>
-    <Icon size={13}/>{title}
-   </button>)}
   </div>}
   <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3 md:px-7">
    {section==="catalog"&&<>

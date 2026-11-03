@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LayoutGrid, Star, Globe2, Trophy, Flag, Shield } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 const ALL_PLAYERS_ICON =
@@ -69,6 +69,15 @@ export const VIEW_OPTIONS = [
   },
 ];
 
+export const TROPHY_SIDEBAR_VIEWS = [
+  {id:"gallery",label:"Galería de trofeos",icon:LayoutGrid},
+  {id:"reputation",label:"Por reputación",icon:Star},
+  {id:"scope",label:"Por ámbito",icon:Globe2},
+  {id:"leagues",label:"Por ligas",icon:Trophy},
+  {id:"countries",label:"Por países",icon:Flag},
+  {id:"clubs",label:"Por clubes",icon:Shield},
+];
+
 export default function Sidebar({
   open,
   visible = true,
@@ -85,6 +94,9 @@ export default function Sidebar({
     location.pathname === "/players" ||
     location.pathname.startsWith("/players/");
 
+  const isTrophiesPage=location.pathname==="/trophies"||location.pathname.startsWith("/trophies/");
+  const trophyViewParam=searchParams.get("view");
+  const trophyActiveView=TROPHY_SIDEBAR_VIEWS.some(option=>option.id===trophyViewParam)?trophyViewParam:"gallery";
   const rawView = searchParams.get("view");
   const activeView = VIEW_OPTIONS.some((option) => option.id === rawView)
     ? rawView
@@ -102,6 +114,10 @@ export default function Sidebar({
     }
   };
 
+  const handleTrophyViewChange=view=>{
+    navigate({pathname:"/trophies",search:"?view="+view});
+    if(open)onToggle();
+  };
   return (
     <motion.aside
       initial={false}
@@ -198,7 +214,29 @@ export default function Sidebar({
         </nav>
       )}
 
-      {open && !isPlayersPage && (
+      {open && isTrophiesPage && (
+        <nav className="absolute left-1/2 top-1/2 flex max-h-[calc(100%-20px)] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2.5 overflow-y-auto py-1" aria-label="Vistas de trofeos">
+          {TROPHY_SIDEBAR_VIEWS.slice(0,3).map(option=>{
+            const Icon=option.icon,isActive=trophyActiveView===option.id;
+            return <button key={option.id} type="button" onClick={()=>handleTrophyViewChange(option.id)} aria-current={isActive?"page":undefined}
+              aria-label={option.label} title={option.label}
+              className={"flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white transition-all duration-200 "+(isActive?"bg-white/[0.14] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]":"hover:bg-white/[0.08]")}>
+              <Icon size={22} strokeWidth={1.7}/>
+            </button>;
+          })}
+          <button type="button" onClick={onToggle} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white" aria-label="Cerrar menú"><X size={20}/></button>
+          {TROPHY_SIDEBAR_VIEWS.slice(3).map(option=>{
+            const Icon=option.icon,isActive=trophyActiveView===option.id;
+            return <button key={option.id} type="button" onClick={()=>handleTrophyViewChange(option.id)} aria-current={isActive?"page":undefined}
+              aria-label={option.label} title={option.label}
+              className={"flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white transition-all duration-200 "+(isActive?"bg-white/[0.14] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]":"hover:bg-white/[0.08]")}>
+              <Icon size={22} strokeWidth={1.7}/>
+            </button>;
+          })}
+        </nav>
+      )}
+
+      {open && !isPlayersPage && !isTrophiesPage && (
         <button type="button" onClick={onToggle} className="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center" style={{ color: accentColor }} aria-label="Cerrar menú"><X size={20} /></button>
       )}
 
