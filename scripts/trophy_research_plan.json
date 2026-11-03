@@ -1,19 +1,19 @@
 {
   "meta": {
-    "created_at": "2026-11-03T15:09:25.438Z",
+    "created_at": "2026-11-03T15:10:42.186Z",
     "input_records": 598,
     "country_records": 118,
     "method": "mf_legacy_reputation_editorial_v1_2026_11",
-    "assigned_country": 214,
+    "assigned_country": 226,
     "international": 18,
-    "unresolved_country": 366,
-    "anchored": 27,
+    "unresolved_country": 354,
+    "anchored": 32,
     "groups": {
-      "reputation": 47,
-      "country": 45,
+      "reputation": 52,
+      "country": 46,
       "category": 5,
-      "region": 7,
-      "sources": 9
+      "region": 9,
+      "sources": 13
     }
   },
   "reputation_groups": [
@@ -28,9 +28,7 @@
         "2000335400",
         "2000335397",
         "2000335395",
-        "2000335383",
         "2000335382",
-        "2000335375",
         "2000335374",
         "2000335372",
         "2000335371",
@@ -223,7 +221,6 @@
         "2000335388",
         "2000335387",
         "2000335386",
-        "2000335377",
         "2000335366",
         "2000335362",
         "2000335361",
@@ -393,7 +390,6 @@
         "2000335402",
         "2000335399",
         "2000335398",
-        "2000335384",
         "2000335230",
         "2000335045",
         "2000335044",
@@ -506,7 +502,6 @@
         "2000335401",
         "2000335396",
         "2000335373",
-        "2000335355",
         "2000335354",
         "2000335353",
         "2000335342",
@@ -736,6 +731,56 @@
       "ids": [
         "2000335091",
         "2000321669"
+      ]
+    },
+    {
+      "data": {
+        "reputation": 110,
+        "reputation_basis": "Copa inglesa amateur de larga tradición (1893–1974), con finales muy concurridas.",
+        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
+      },
+      "ids": [
+        "2000335384"
+      ]
+    },
+    {
+      "data": {
+        "reputation": 105,
+        "reputation_basis": "Primer torneo documentado por un trofeo de fútbol (1867); notable importancia patrimonial, difusión histórica limitada.",
+        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
+      },
+      "ids": [
+        "2000335383"
+      ]
+    },
+    {
+      "data": {
+        "reputation": 77,
+        "reputation_basis": "Torneo amistoso internacional veraniego organizado históricamente en Suiza.",
+        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
+      },
+      "ids": [
+        "2000335377"
+      ]
+    },
+    {
+      "data": {
+        "reputation": 85,
+        "reputation_basis": "Copa escocesa histórica de corta duración, recordada en el fútbol de clubes nacional.",
+        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
+      },
+      "ids": [
+        "2000335375"
+      ]
+    },
+    {
+      "data": {
+        "reputation": 60,
+        "reputation_basis": "Torneo de verano local de larga tradición y limitada notoriedad fuera de España.",
+        "reputation_method": "mf_legacy_reputation_editorial_v1_2026_11"
+      },
+      "ids": [
+        "2000335355"
       ]
     },
     {
@@ -1050,25 +1095,13 @@
         "2000335396",
         "2000335395",
         "2000335385",
-        "2000335384",
-        "2000335383",
-        "2000335377",
         "2000335376",
-        "2000335375",
         "2000335374",
         "2000335373",
         "2000335372",
-        "2000335367",
         "2000335366",
-        "2000335362",
-        "2000335361",
         "2000335360",
-        "2000335359",
-        "2000335358",
-        "2000335357",
         "2000335356",
-        "2000335355",
-        "2000335354",
         "2000335353",
         "2000335352",
         "2000335351",
@@ -1513,6 +1546,9 @@
         "2000335399",
         "2000335398",
         "2000335397",
+        "2000335384",
+        "2000335383",
+        "2000335367",
         "2000335230",
         "2000335180",
         "2000335170",
@@ -1558,6 +1594,8 @@
         "country_resolution": "inferred"
       },
       "ids": [
+        "2000335355",
+        "2000335354",
         "2000335201",
         "2000335199",
         "2000335060",
@@ -1674,6 +1712,36 @@
     },
     {
       "data": {
+        "country_id": "6ac61e259d8ef1aa75b0145f",
+        "country": "Escocia",
+        "country_resolution": "inferred"
+      },
+      "ids": [
+        "2000335375",
+        "2000335371",
+        "2000335187",
+        "2000097052",
+        "61089738",
+        "61089737"
+      ]
+    },
+    {
+      "data": {
+        "country_id": "6ac56923becde4338730a1b0",
+        "country": "Suecia",
+        "country_resolution": "inferred"
+      },
+      "ids": [
+        "2000335362",
+        "2000335361",
+        "2000335359",
+        "2000335358",
+        "2000335357",
+        "2000335258"
+      ]
+    },
+    {
+      "data": {
         "country_id": "6abd6668f78269e9ae08b81e",
         "country": "Uruguay",
         "country_resolution": "inferred"
@@ -1685,20 +1753,6 @@
         "2000335143",
         "78102476",
         "78008540"
-      ]
-    },
-    {
-      "data": {
-        "country_id": "6ac61e259d8ef1aa75b0145f",
-        "country": "Escocia",
-        "country_resolution": "inferred"
-      },
-      "ids": [
-        "2000335371",
-        "2000335187",
-        "2000097052",
-        "61089738",
-        "61089737"
       ]
     },
     {
@@ -1865,22 +1919,22 @@
     },
     {
       "data": {
+        "country_id": "6ac60cf5b5c5f4c9360cd66d",
+        "country": "Suiza",
+        "country_resolution": "inferred"
+      },
+      "ids": [
+        "2000335377"
+      ]
+    },
+    {
+      "data": {
         "country_id": "6ae9bb728dd2e428b0ee58ec",
         "country": "Australia",
         "country_resolution": "inferred"
       },
       "ids": [
         "2000335282"
-      ]
-    },
-    {
-      "data": {
-        "country_id": "6ac56923becde4338730a1b0",
-        "country": "Suecia",
-        "country_resolution": "inferred"
-      },
-      "ids": [
-        "2000335258"
       ]
     },
     {
@@ -2077,6 +2131,7 @@
         "category": "Other"
       },
       "ids": [
+        "2000335355",
         "2000335201",
         "2000335170",
         "2000335168",
@@ -2101,6 +2156,22 @@
     }
   ],
   "region_groups": [
+    {
+      "data": {
+        "region": "Sheffield"
+      },
+      "ids": [
+        "2000335383"
+      ]
+    },
+    {
+      "data": {
+        "region": "Valladolid"
+      },
+      "ids": [
+        "2000335355"
+      ]
+    },
     {
       "data": {
         "region": "Cataluña"
@@ -2159,6 +2230,34 @@
     }
   ],
   "source_updates": [
+    {
+      "source_id": "2000335384",
+      "url": "https://www.fchd.info/cups/amcupsummary.htm",
+      "name": "FA Amateur Cup",
+      "score": 110,
+      "basis": "Copa inglesa amateur de larga tradición (1893–1974), con finales muy concurridas."
+    },
+    {
+      "source_id": "2000335383",
+      "url": "https://www.guinnessworldrecords.com/world-records/75075-oldest-competition-for-a-trophy-in-football-soccer",
+      "name": "Youdan Football Cup",
+      "score": 105,
+      "basis": "Primer torneo documentado por un trofeo de fútbol (1867); notable importancia patrimonial, difusión histórica limitada."
+    },
+    {
+      "source_id": "2000335377",
+      "url": "https://www.rsssf.org/tablesu/uhren.html",
+      "name": "Uhrencup (1962-2019)",
+      "score": 77,
+      "basis": "Torneo amistoso internacional veraniego organizado históricamente en Suiza."
+    },
+    {
+      "source_id": "2000335375",
+      "url": "https://www.scottishfootballmuseum.org.uk/news/the-drybrough-cup/",
+      "name": "Drybrough Cup (1971-80)",
+      "score": 85,
+      "basis": "Copa escocesa histórica de corta duración, recordada en el fútbol de clubes nacional."
+    },
     {
       "source_id": "2000335076",
       "url": "https://www.rsssf.org/tablesl/latin.html",
@@ -2237,14 +2336,16 @@
       "International": 1
     },
     "scores": {
-      "49": 99,
-      "55": 33,
-      "59": 76,
+      "49": 98,
+      "55": 32,
+      "59": 75,
+      "60": 1,
       "62": 4,
       "73": 5,
-      "76": 220,
-      "77": 1,
+      "76": 218,
+      "77": 2,
       "84": 1,
+      "85": 1,
       "86": 1,
       "88": 77,
       "89": 13,
@@ -2255,6 +2356,8 @@
       "100": 1,
       "101": 14,
       "102": 1,
+      "105": 1,
+      "110": 1,
       "112": 1,
       "114": 1,
       "136": 10,
@@ -2276,17 +2379,18 @@
       "200": 1
     },
     "countries": {
-      "Inglaterra": 18,
+      "Inglaterra": 21,
       "Rusia": 4,
       "Países Bajos": 10,
-      "Escocia": 5,
+      "Suiza": 1,
+      "Escocia": 6,
+      "Suecia": 6,
+      "España": 18,
       "Brasil": 29,
       "Chile": 3,
       "Australia": 1,
       "Uruguay": 6,
-      "Suecia": 1,
       "Italia": 10,
-      "España": 16,
       "Estados Unidos": 5,
       "Alemania": 35,
       "Argentina": 13,
@@ -2335,24 +2439,8 @@
         "name": "Azerbaijani SSR Pervaya liga"
       },
       {
-        "source_id": "2000335384",
-        "name": "FA Amateur Cup"
-      },
-      {
-        "source_id": "2000335383",
-        "name": "Youdan Football Cup"
-      },
-      {
-        "source_id": "2000335377",
-        "name": "Uhrencup (1962-2019)"
-      },
-      {
         "source_id": "2000335376",
         "name": "International Super Cup (2019)"
-      },
-      {
-        "source_id": "2000335375",
-        "name": "Drybrough Cup (1971-80)"
       },
       {
         "source_id": "2000335374",
@@ -2367,48 +2455,16 @@
         "name": "Victory Cup (1946)"
       },
       {
-        "source_id": "2000335367",
-        "name": "FA Sunday Cup"
-      },
-      {
         "source_id": "2000335366",
         "name": "BSSR - Pershaja Liha (1934-91)"
-      },
-      {
-        "source_id": "2000335362",
-        "name": "Rosenska Pokalen (1899-1903)"
-      },
-      {
-        "source_id": "2000335361",
-        "name": "Wicanderska Välgörenhetsskölden (1905-1916)"
       },
       {
         "source_id": "2000335360",
         "name": "Corinthian Bowl (1906-1913)"
       },
       {
-        "source_id": "2000335359",
-        "name": "Svenska Fotbollserien (1910-1924)"
-      },
-      {
-        "source_id": "2000335358",
-        "name": "Svenska Mästerskapet (1896-1925)"
-      },
-      {
-        "source_id": "2000335357",
-        "name": "Kamratmästerskapen (1901-1941)"
-      },
-      {
         "source_id": "2000335356",
         "name": "Bass Charity Vase"
-      },
-      {
-        "source_id": "2000335355",
-        "name": "Trofeo Ciudad de Valladolid (1972-2021)"
-      },
-      {
-        "source_id": "2000335354",
-        "name": "Trofeo Conde de Fenosa (1968-1976)"
       },
       {
         "source_id": "2000335353",
@@ -3788,6 +3844,46 @@
       }
     ],
     "anchored": [
+      {
+        "source_id": "2000335384",
+        "name": "FA Amateur Cup",
+        "reputation": 110,
+        "country": "Inglaterra",
+        "url": "https://www.fchd.info/cups/amcupsummary.htm",
+        "friendly": false
+      },
+      {
+        "source_id": "2000335383",
+        "name": "Youdan Football Cup",
+        "reputation": 105,
+        "country": "Inglaterra",
+        "url": "https://www.guinnessworldrecords.com/world-records/75075-oldest-competition-for-a-trophy-in-football-soccer",
+        "friendly": false
+      },
+      {
+        "source_id": "2000335377",
+        "name": "Uhrencup (1962-2019)",
+        "reputation": 77,
+        "country": "Suiza",
+        "url": "https://www.rsssf.org/tablesu/uhren.html",
+        "friendly": true
+      },
+      {
+        "source_id": "2000335375",
+        "name": "Drybrough Cup (1971-80)",
+        "reputation": 85,
+        "country": "Escocia",
+        "url": "https://www.scottishfootballmuseum.org.uk/news/the-drybrough-cup/",
+        "friendly": false
+      },
+      {
+        "source_id": "2000335355",
+        "name": "Trofeo Ciudad de Valladolid (1972-2021)",
+        "reputation": 60,
+        "country": "España",
+        "url": "",
+        "friendly": true
+      },
       {
         "source_id": "2000335201",
         "name": "Trofeo Naranja",
