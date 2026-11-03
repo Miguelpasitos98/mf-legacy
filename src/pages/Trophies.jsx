@@ -249,7 +249,7 @@ export default function Trophies(){
      <ChevronDown size={13} className={"transition-transform "+(showFilters?"rotate-180":"")}/>
     </button>
     {activeFilterCount>0&&!showFilters&&<button type="button" onClick={clearFilters} aria-label="Restablecer filtros" title="Limpiar filtros" className="grid h-9 w-8 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-800"><RotateCcw size={14}/></button>}
-    <span role="status" className="ml-auto shrink-0 text-[11px] font-medium tabular-nums text-slate-400">{filtered.length.toLocaleString("es-ES")} resultados</span>
+    <span role="status" className="ml-auto shrink-0 text-[11px] font-medium tabular-nums text-slate-400">{viewMode==="clubs"?"Por club":viewMode==="leagues"?grouped.reduce((sum,g)=>sum+g.items.length,0).toLocaleString("es-ES")+" ligas":filtered.length.toLocaleString("es-ES")+" resultados"}</span>
     <label title="Importar catálogo CSV" className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50" aria-label="Importar catálogo CSV">
      <Upload size={15}/><span className="sr-only">Importar catálogo CSV</span><input type="file" accept=".csv,text/csv" className="hidden" onChange={importLocal}/>
     </label>
@@ -295,6 +295,7 @@ export default function Trophies(){
    {teamFilter&&honourQuery.isLoading&&<div className="mt-3 text-xs text-slate-500">Consultando los títulos del equipo…</div>}
    {viewMode==="clubs"?<TrophyClubCatalogView teams={rows(teamsQuery.data)} honours={honours} catalog={all} manifest={imageManifest} onOpen={open} Card={TrophyCard} allowedIds={allowedClubSourceIds} loading={teamsQuery.isLoading} error={teamsQuery.isError}/>:
    <>
+    {(viewMode==="reputation"||viewMode==="scope")&&<p className="mt-3 text-[11px] leading-4 text-slate-500">{viewMode==="reputation"?"Reputación editorial de MF LEGACY (0–200), estimada cuando no existe valoración individual.":"Ámbito aproximado según competición, organizador y país vinculado; los casos dudosos permanecen sin determinar."}</p>}
     {selectableGroupView&&grouped.length>0&&<div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
       <div><p className="text-xs font-black text-slate-800">{viewMode==="leagues"?"Ligas por país":"Trofeos por país"}</p><p className="mt-0.5 text-[10px] text-slate-400">Pulsa un país para ver sus {viewMode==="leagues"?"ligas":"trofeos"}. Cada competición conserva su ficha original.</p></div>
