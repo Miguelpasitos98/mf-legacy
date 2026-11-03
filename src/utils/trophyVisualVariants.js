@@ -3,7 +3,7 @@
 export const FIFA_CWC_SOURCE_ID="121092";
 export const CLASSIC_CWC_VARIANT="fifa-club-world-cup-classic-2005-2023";
 export const MODERN_CWC_VARIANT="fifa-club-world-cup-modern-2025";
-export const CLASSIC_CWC_URL="https://media.base44.com/images/public/6a88359fd43f2af862874b12/8ddb16942_FIFA_Club_World_Cup_Classic_2005-2023_CC-BY-SA4.png";
+export const CLASSIC_CWC_URL="https://raw.githubusercontent.com/Miguelpasitos98/My-Legacy/main/Trofeos%20identificados/Variantes%20historicas/FIFA/Mundial%20de%20Clubes%20FIFA%202005-2023.png";
 export const CLASSIC_CWC_SOURCE="https://commons.wikimedia.org/wiki/File:FIFA_Club_World_Cup_Football_Trophy_HD_PNG-Photoroom.png";
 export const CLASSIC_CWC_CREDIT="ImLaurenz · Wikimedia Commons · CC BY-SA 4.0";
 export const FIFA_CWC_VISUAL_VARIANTS=[
