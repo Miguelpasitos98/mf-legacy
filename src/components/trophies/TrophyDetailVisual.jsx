@@ -70,7 +70,7 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
  const teamsQuery=useQuery({...completeRecordQueryOptions(base44.entities.Team,["mf-legacy","teams"]),enabled:needsTeams,retry:false});
  const playersQuery=useQuery({...completeRecordQueryOptions(base44.entities.Player,["mf-legacy","players"]),enabled:needsPlayers,retry:false});
  const creditsQuery=useQuery({...completeRecordQueryOptions(base44.entities.PlayerTrophyCredit,["mf-legacy","trophies","credits"]),enabled:tab==="Jugadores",retry:false});
- const needHistory=["Resumen","Ediciones","Historia"].includes(tab);
+ const needHistory=["Resumen","Ediciones","Historia","Clubes"].includes(tab);
  const historyTrophyId=String(trophy?.source_id||"");
  // Only read the opened competition, not every historical result across the library.
  const robEditionsQuery=useQuery({...completeRecordQueryOptions({list:options=>base44.entities.TrophyEdition.filter({trophy_source_id:historyTrophyId},options)},["mf-legacy","trophies","historical-editions",historyTrophyId]),enabled:needHistory&&Boolean(historyTrophyId),retry:false});
@@ -215,28 +215,49 @@ export default function TrophyDetailVisual({trophy,manifest,countries=[],tab,hon
    }
   </div>}
   {tab==="Ediciones"&&<div className="space-y-5 p-4 md:p-6">
-   <TrophyHistoricalArchive mode="editions" trophySourceId={trophy.source_id} editions={historicalEditions} events={historicalEvents} teams={teamsQuery.data||[]} loading={robEditionsQuery.isLoading} error={robEditionsQuery.isError}/>
-   <div className="border-t border-slate-200 pt-4"><p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Separado del archivo de Rob · palmarés de MF LEGACY</p></div>
-   <div className="flex flex-wrap items-center justify-between gap-2">
-    <div>{heading("Ediciones y ganadores",ordered.length+" adjudicaciones registradas · "+summary.verifiedCount+" verificadas")}</div>
-    <button type="button" onClick={onAdd} className="inline-flex items-center gap-1.5 rounded-lg bg-[#003399] px-3 py-2 text-[11px] font-bold text-white"><Plus size={14}/> Añadir edición</button>
-   </div>
-   {ordered.length?<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{ordered.map(h=><Edition key={h.id} honour={h} teamMap={teamMap} playerMap={playerMap} onVerify={onVerify} busy={honourSaving}/>)}</div>:
-    <EmptyState title="Sin ediciones todavía" description="Puedes registrar la temporada, el campeón y su fuente oficial desde Editar." action="Añadir edición" onAction={onAdd}/>}
+   {(hasHistoricalFinals||robEditionsQuery.isLoading||robEditionsQuery.isError)&&<TrophyHistoricalArchive mode="editions" trophySourceId={trophy.source_id} editions={historicalEditions} events={historicalEvents} teams={teamsQuery.data||[]} loading={robEditionsQuery.isLoading} error={robEditionsQuery.isError}/>}
+   {(ordered.length>0||(!hasHistoricalFinals&&!robEditionsQuery.isLoading&&!robEditionsQuery.isError))&&<section className="space-y-3 border-t border-slate-200 pt-5">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+     {heading(hasHistoricalFinals?"Adjudicaciones registradas en MF LEGACY":"Ediciones y ganadores",ordered.length+" adjudicaciones · "+summary.verifiedCount+" verificadas por fuente")}
+     <button type="button" onClick={onAdd} className="inline-flex items-center gap-1.5 rounded-lg border border-[#003399] bg-white px-3 py-2 text-[11px] font-bold text-[#003399] hover:bg-blue-50"><Plus size={14}/> Añadir adjudicación</button>
+    </div>
+    {hasHistoricalFinals&&<p className="text-[11px] leading-5 text-slate-500">Esta sección recoge adjudicaciones independientes; la lista superior contiene las finales del archivo de Rob. Una adjudicación pendiente no se cuenta como título verificado.</p>}
+    {ordered.length?<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{ordered.map(h=><Edition key={h.id} honour={h} teamMap={teamMap} playerMap={playerMap} onVerify={onVerify} busy={honourSaving}/>)}</div>:
+     <EmptyState title="Sin adjudicaciones registradas" description="Las finales históricas se importan desde TrophyEdition. Las adjudicaciones verificadas requieren una fuente contrastable." action="Añadir adjudicación" onAction={onAdd}/>}
+   </section>}
   </div>}
   {tab==="Historia"&&<div className="space-y-4 p-4 md:p-6"><TrophyHistoricalArchive mode="events" trophySourceId={trophy.source_id} editions={historicalEditions} events={historicalEvents} loading={robEventsQuery.isLoading} error={robEventsQuery.isError}/></div>}
-  {tab==="Clubes"&&<div className="space-y-4 p-4 md:p-6">
-   {heading("Clasificación histórica de clubes","Una victoria por club y edición verificada")}
-   {clubs.length?<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-    {clubs.map((club,i)=><div key={club.team_id} className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0">
-     <span className={"w-7 text-center text-base font-black tabular-nums "+(i<3?"text-[#003399]":"text-slate-300")}>{i+1}</span>
-     <Avatar entity={teamMap.get(club.team_id)} size="h-12 w-12"/>
-     <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-slate-800">{club.name}</p>
-      <p className="mt-1 text-[10px] text-slate-400">{club.seasons.slice(0,5).join(" · ")}{club.seasons.length>5?" · …":""}</p>
-     </div>
-     <div className="text-right"><p className="text-xl font-black tabular-nums text-[#003399]">{club.count}</p><p className="text-[9px] text-slate-400">títulos</p></div>
-    </div>)}
-   </div>:<EmptyState title="No hay clubes campeones verificados" description="Los títulos pendientes de verificación no se utilizan en las clasificaciones."/>}
+  {tab==="Clubes"&&<div className="space-y-5 p-4 md:p-6">
+   {robEditionsQuery.isLoading&&<p className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">Cargando clasificación histórica de Rob…</p>}
+   {robEditionsQuery.isError&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">No ha sido posible consultar las finales históricas.</p>}
+   {hasHistoricalFinals&&<section>
+    {heading("Clasificación histórica de clubes",historicalSummary.editionCount+" finales de Rob / FM24 · pendiente de verificación externa")}
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+     {historicalSummary.ranking.map((club,i)=><div key={club.key} className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0">
+      <span className={"w-7 text-center text-sm font-black tabular-nums "+(i<3?"text-[#003399]":"text-slate-300")}>{i+1}</span>
+      <Avatar entity={teamMap.get(String(club.team_id||""))} size="h-10 w-10"/>
+      <div className="min-w-0 flex-1">
+       <p className="truncate text-xs font-bold text-slate-800">{club.name}</p>
+       <p className="mt-0.5 truncate text-[10px] text-slate-400" title={club.seasons.join(" · ")}>{[...club.seasons].sort((a,b)=>String(b).localeCompare(String(a),"es",{numeric:true})).slice(0,5).join(" · ")}{club.seasons.length>5?" · …":""}</p>
+      </div>
+      <div className="text-right"><p className="text-lg font-black tabular-nums text-[#003399]">{club.count}</p><p className="text-[9px] text-slate-400">finales ganadas</p></div>
+     </div>)}
+    </div>
+    <p className="mt-2 text-[11px] text-slate-500">Clasificación de las finales importadas. Los equipos con ID vinculado utilizan su ficha de Team. Estos resultados todavía no incrementan su palmarés verificado.</p>
+   </section>}
+   {(clubs.length>0||(!hasHistoricalFinals&&!robEditionsQuery.isLoading&&!robEditionsQuery.isError))&&<section className="border-t border-slate-200 pt-4">
+    {heading(hasHistoricalFinals?"Palmarés verificado de MF LEGACY":"Clubes campeones",summary.verifiedCount+" adjudicaciones verificadas")}
+    {clubs.length?<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+     {clubs.map((club,i)=><div key={club.team_id} className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0">
+      <span className={"w-7 text-center text-base font-black tabular-nums "+(i<3?"text-[#003399]":"text-slate-300")}>{i+1}</span>
+      <Avatar entity={teamMap.get(club.team_id)} size="h-12 w-12"/>
+      <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-slate-800">{club.name}</p>
+       <p className="mt-1 text-[10px] text-slate-400">{club.seasons.slice(0,5).join(" · ")}{club.seasons.length>5?" · …":""}</p>
+      </div>
+      <div className="text-right"><p className="text-xl font-black tabular-nums text-[#003399]">{club.count}</p><p className="text-[9px] text-slate-400">títulos verificados</p></div>
+     </div>)}
+    </div>:<EmptyState title="No hay clubes campeones verificados" description="Las finales de Rob están disponibles en el archivo histórico y no se suman todavía al palmarés acreditado."/>}
+   </section>}
   </div>}
   {tab==="Jugadores"&&<div className="space-y-4 p-4 md:p-6">
    {heading(isIndividual?"Jugadores premiados":"Jugadores con este título","Solo títulos confirmados; las candidaturas no suman palmarés")}

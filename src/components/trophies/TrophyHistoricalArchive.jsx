@@ -39,7 +39,7 @@ export default function TrophyHistoricalArchive({mode="editions",editions=[],eve
  if(error)return <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">No se pudo cargar el historial importado desde FM24. El palmarés verificado no se ha modificado.</div>;
  return <section className="space-y-3">
   <div className="flex flex-wrap items-center justify-between gap-2">
-   <div><h3 className="text-sm font-black text-slate-900">{mode==="events"?"Historia y acontecimientos":"Finales históricas"}</h3>
+   <div><h3 className="text-sm font-black text-slate-900">{mode==="events"?"Historia y acontecimientos":"Ediciones y ganadores"}</h3>
     <p className="text-[11px] text-slate-500">{mode==="events"?"Anotaciones originales de Rob resumidas en español":"Campeones, subcampeones y sedes extraídos de capturas de FM24"}</p>
    </div>
    {data.length>0&&<button type="button" onClick={exporting} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"><Download size={13}/> Exportar CSV</button>}
