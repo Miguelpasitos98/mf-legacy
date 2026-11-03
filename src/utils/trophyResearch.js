@@ -71,7 +71,7 @@ const ELITE_COUNTRIES=['inglaterra','espana','alemania','italia','francia','bras
 export function estimateTrophyReputation(trophy={}) {
  const stored=Number(trophy.reputation);
  if(trophy.reputation!==undefined&&trophy.reputation!==null&&trophy.reputation!==''&&Number.isInteger(stored)&&stored>=0&&stored<=200)
-  return {score:stored,basis:trophy.reputation_basis||'Valor editorial guardado en MF LEGACY.',method:trophy.reputation_method||'manual',estimated:false};
+  return {score:stored,basis:trophy.reputation_basis||'Valor editorial guardado en MF LEGACY.',method:trophy.reputation_method||'manual',estimated:trophy.reputation_method!=='manual_editorial'};
  const anchor=trophyResearchAnchor(trophy);
  if(anchor)return {score:anchor.score,basis:anchor.basis,method:REPUTATION_METHOD,estimated:true,source:anchor.url||''};
  const n=norm(trophy.name||trophy.source_name);
