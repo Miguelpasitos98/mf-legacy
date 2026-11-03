@@ -1,0 +1,112 @@
+{
+  "name": "TrophyPalmaresEntry",
+  "type": "object",
+  "properties": {
+    "entry_key": {
+      "type": "string",
+      "description": "Deterministic team competition rank calendar-year key to avoid duplicate imports"
+    },
+    "batch_id": {
+      "type": "string"
+    },
+    "team_id": {
+      "type": "string"
+    },
+    "team_name": {
+      "type": "string"
+    },
+    "trophy_source_id": {
+      "type": "string",
+      "description": "Canonical Trophy.source_id only after successful recognition"
+    },
+    "trophy_id": {
+      "type": "string"
+    },
+    "trophy_name_raw": {
+      "type": "string"
+    },
+    "trophy_name_matched": {
+      "type": "string"
+    },
+    "source_segment": {
+      "type": "integer"
+    },
+    "source_order": {
+      "type": "integer"
+    },
+    "rank": {
+      "type": "string",
+      "enum": [
+        "winner",
+        "runner_up",
+        "third"
+      ]
+    },
+    "calendar_year": {
+      "type": "integer",
+      "description": "Calendar year as shown in FM24, without inferring season"
+    },
+    "edition_label": {
+      "type": "string"
+    },
+    "original_year_text": {
+      "type": "string"
+    },
+    "source_type": {
+      "type": "string"
+    },
+    "source_files": {
+      "type": "string"
+    },
+    "source_note": {
+      "type": "string"
+    },
+    "match_status": {
+      "type": "string",
+      "enum": [
+        "auto_linked",
+        "manual_linked",
+        "needs_review",
+        "unmatched",
+        "ignored"
+      ]
+    },
+    "match_confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "review_reason": {
+      "type": "string"
+    },
+    "manually_reviewed": {
+      "type": "boolean"
+    },
+    "officially_verified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Only true if independently verified with an official external source"
+    },
+    "official_source_url": {
+      "type": "string"
+    },
+    "is_friendly": {
+      "type": "boolean"
+    },
+    "created_from_import": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "entry_key",
+    "batch_id",
+    "team_id",
+    "team_name",
+    "trophy_name_raw",
+    "rank",
+    "calendar_year",
+    "source_type",
+    "match_status",
+    "officially_verified"
+  ]
+}
