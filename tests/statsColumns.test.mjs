@@ -273,3 +273,22 @@ test("El editor de la ficha conserva los nombres reales de FotMob y puede añadi
  assert.match(fs,/id==="dribbles"\?\["Dribbles","Successful dribbles"/);
  assert.match(fs,/id==="dispossessed"\?\["Dispossessed","Times dispossessed"\]/);
 });
+
+test('G+A personalizado muestra cero visual cuando falta el total, sin inventar datos ni afectar /90',async()=>{
+ const {isGoalsAssistsCountColumn,statsDisplayColumnValue}=await import('../src/utils/statsColumns.js');
+ const config=initialConfig();
+ config.computed.push({id:'calc_mv80ljj6',name:'G+A',formula:'(goals + assists)',decimals:0});
+ for(const column of ['ga','calc_mv80ljj6']){
+  assert.equal(isGoalsAssistsCountColumn(column,config),true);
+  assert.equal(statsDisplayColumnValue(null,column,config),0);
+  assert.equal(statsDisplayColumnValue(undefined,column,config),0);
+  assert.equal(statsDisplayColumnValue(0,column,config),0);
+  assert.equal(statsDisplayColumnValue(12,column,config),12);
+ }
+ assert.equal(statsDisplayColumnValue(null,'gaper90',config),null);
+ assert.equal(statsDisplayColumnValue(null,'xga',config),null);
+ const incomplete={...r,metrics:[{name:'Goals',value:2}]};
+ assert.equal(columnValue(incomplete,'competition','calc_mv80ljj6',config),null);
+ assert.equal(statsDisplayColumnValue(columnValue(incomplete,'competition','calc_mv80ljj6',config),'calc_mv80ljj6',config),0);
+ assert.equal(columnValue(incomplete,'competition','ga',config),null);
+});
