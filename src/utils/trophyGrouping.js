@@ -121,6 +121,11 @@ export const groupTrophies=(items,leagues=[],countries=[],sortMode="name")=>{
   groups.get(section.key).items.push(trophy);
  }
  return [...groups.values()].sort((a,b)=>{
+  if(sortMode==="reputation_desc"||sortMode==="reputation_asc"){
+   const edge=sortMode==="reputation_desc" ? rows=>Math.max(...rows.map(row=>estimateTrophyReputation(row).score)) : rows=>Math.min(...rows.map(row=>estimateTrophyReputation(row).score));
+   const diff=edge(a.items)-edge(b.items);
+   if(diff)return sortMode==="reputation_desc"?-diff:diff;
+  }
   if(a.rank!==b.rank)return a.rank-b.rank;
   if(a.kind==="country"&&b.kind==="country"){
    const aScore=scores.get(normaliseSearch(a.title))||0,bScore=scores.get(normaliseSearch(b.title))||0;
