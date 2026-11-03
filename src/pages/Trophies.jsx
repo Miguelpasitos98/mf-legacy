@@ -10,6 +10,7 @@ import {trophyViewGroups,TROPHY_CATALOG_VIEW_MODES} from "@/utils/trophyViews";
 import TrophyClubCatalogView from "@/components/trophies/TrophyClubCatalogView";
 import {countryTrophyIdsFromSections,verifiedTeamTrophyIds} from "@/utils/trophyCatalogFilters";
 import TrophySyncWorkbench from "@/components/trophies/TrophySyncWorkbench";
+import TrophyPalmaresImportWorkbench from "@/components/trophies/TrophyPalmaresImportWorkbench";
 import TeamSearchPicker from "@/components/trophies/TeamSearchPicker";
 import CountrySearchPicker from "@/components/trophies/CountrySearchPicker";
 import TrophyCountryPicker from "@/components/trophies/TrophyCountryPicker";
@@ -79,6 +80,7 @@ export default function Trophies(){
  const [query,setQuery]=useState("");
  const [section,setSection]=useState("catalog");
  const [syncPhase,setSyncPhase]=useState("champions");
+ const [syncSection,setSyncSection]=useState("research");
  const [tab,setTab]=useState("verified");
  const [type,setType]=useState("all");
  const [category,setCategory]=useState("all");
@@ -372,7 +374,11 @@ export default function Trophies(){
      <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900">Sincronización histórica</h2>
      <p className="mt-2 max-w-[800px] text-xs leading-5 text-slate-500">Investiga campeones oficiales, importa las adjudicaciones verificables y enlázalas con los jugadores de STATS. Los registros sin evidencia se mantienen pendientes, nunca se confirman automáticamente.</p>
     </div>
-    <TrophySyncWorkbench key={syncPhase} standalone initialPhase={syncPhase} catalog={catalog} trophies={rows(trophyQuery.data)} honours={honours}/>
+    <div role="tablist" aria-label="Tipos de importación de trofeos" className="flex gap-1 rounded-xl bg-slate-100 p-1">
+     <button type="button" role="tab" aria-selected={syncSection==="research"} onClick={()=>setSyncSection("research")} className={"flex-1 rounded-lg px-3 py-2 text-[11px] font-bold "+(syncSection==="research"?"bg-white text-[#003399] shadow-sm":"text-slate-500")}>Adjudicaciones oficiales</button>
+     <button type="button" role="tab" aria-selected={syncSection==="fm24"} onClick={()=>setSyncSection("fm24")} className={"flex-1 rounded-lg px-3 py-2 text-[11px] font-bold "+(syncSection==="fm24"?"bg-white text-[#003399] shadow-sm":"text-slate-500")}>Palmarés FM24 · capturas</button>
+    </div>
+    {syncSection==="fm24"?<TrophyPalmaresImportWorkbench catalog={all} teams={rows(teamsQuery.data)}/>:<TrophySyncWorkbench key={syncPhase} standalone initialPhase={syncPhase} catalog={catalog} trophies={rows(trophyQuery.data)} honours={honours}/>}
    </div>}
    {section==="review"&&<><TrophyImageReviewQueue catalog={all} manifest={imageManifest} onOpen={open} onImport={importImageRows}/><TrophyReviewCenter honours={honours} honoursLoading={honourQuery.isLoading} honoursError={honourQuery.isError}
     catalog={all} catalogReady={!catalogLoading&&!catalogError&&!trophyQuery.isLoading&&!trophyQuery.isError} imageManifest={imageManifest} onOpenTrophy={open}
