@@ -12,6 +12,7 @@ import { usePlayersQuery, useTeamsQuery, useCountriesQuery } from "@/hooks/useSh
 import { normalizeLabel, metricLabel } from "@/utils/statsImport";
 import { buildValuationPrompt } from "@/utils/valuationPrompt";
 import {buildMissingMarketPrompt,missingMarketSeasons} from "@/utils/missingMarketPrompt";
+import {buildMissingFifaPrompt,missingFifaSeasons} from "@/utils/missingFifaPrompt";
 import StatsImport from "@/components/stats/StatsImport";
 import HistoricalSingleEntryImporter from "@/components/stats/HistoricalSingleEntryImporter";
 import HistoricalValuationsTable from "@/components/stats/HistoricalValuationsTable";
@@ -94,6 +95,17 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
   const fotmobPlayerId=stats[0]?.fotmob_player_id||"";
   const [copySeasonsStatus,setCopySeasonsStatus]=useState("");
   const missingMarket=useMemo(()=>missingMarketSeasons(seasons,historicalValuations),[seasons,historicalValuations]);
+  const missingFifa=useMemo(()=>missingFifaSeasons(seasons,historicalValuations),[seasons,historicalValuations]);
+  const copyMissingFifa=async()=>{
+    if(!missingFifa.length){setCopySeasonsStatus("Todas las temporadas registradas tienen Overall FIFA/FC.");return;}
+    const prompt=buildMissingFifaPrompt({playerName:player?.name||stats[0]?.player_name||"",
+      fotmobId:fotmobPlayerId,fm26Uid:player?.fm26_uid||"",seasons,valuations:historicalValuations});
+    try{
+      await navigator.clipboard.writeText(prompt);
+      setCopySeasonsStatus("Investigación FIFA/FC copiada para "+missingFifa.length+
+       " ediciones sin Overall. Pega el JSON resultante en «Introducir datos históricos → Pegar JSON completo». Se conservan los valores de mercado.");
+    }catch{setCopySeasonsStatus("No se pudo copiar: revisa los permisos de portapapeles del navegador.");}
+  };
   const copyMissingMarket=async()=>{
     if(!missingMarket.length){setCopySeasonsStatus("Todas las temporadas registradas tienen un valor de mercado.");return;}
     const text=buildMissingMarketPrompt({playerName:player?.name||stats[0]?.player_name||"",fotmobId:fotmobPlayerId,fm26Uid:player?.fm26_uid||"",seasons,valuations:historicalValuations});
@@ -273,6 +285,12 @@ function StatDetail({player,stats,teams,initialSeason,onClose,onPlayer,onLinkTea
             <button type="button" onClick={copyMissingMarket} disabled={historicalLoading||!missingMarket.length}
               className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-50"
               title="Investigar solo las temporadas sin valor Transfermarkt"><Copy size={14} className="shrink-0"/> Completar valores ausentes <span className="rounded bg-emerald-200/70 px-1.5 py-0.5 tabular-nums">{historicalLoading?"…":missingMarket.length}</span></button>
+            <button type="button" onClick={copyMissingFifa}
+              disabled={historicalLoading||!missingFifa.length}
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-[#0e2844] transition hover:bg-indigo-100 disabled:opacity-50"
+              title="Investigar únicamente cartas base de las ediciones FIFA/FC sin Overall, incluida FC 25"><Copy size={14} className="shrink-0"/> Completar FIFA/FC ausentes
+              <span className="rounded bg-indigo-100 px-1.5 py-0.5 tabular-nums">{historicalLoading?"…":missingFifa.length}</span>
+            </button>
             <button type="button" onClick={copySeasonsForValuation}
               className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-bold text-[#0e2844] transition hover:bg-cyan-100"
               title="Copiar investigación de Overall, posición FIFA y Transfermarkt por año"><Copy size={14} className="shrink-0"/> Investigar temporadas (JSON)</button>

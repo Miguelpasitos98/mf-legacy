@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { CheckCircle2, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { formatEur } from "@/utils/historicalValuation";
+import { formatEur, fifaEditionForSeason } from "@/utils/historicalValuation";
 import {patchHistoricalPeerCache,HISTORICAL_PEER_KEY} from "@/utils/historicalPeerCache";
 import { POSITION_OPTIONS, normalizeHistoricalPosition, positionTone } from "@/utils/historicalPositions";
 import { nationalCompetition } from "@/utils/statsViews";
@@ -94,6 +94,10 @@ export default function HistoricalValuationsTable({
       if(latest[inlineEdit.field]!==null&&latest[inlineEdit.field]!==undefined&&latest[inlineEdit.field]!=="")
         throw Error("Este campo ya tiene un valor. Utiliza Editar para modificarlo.");
       const patch={ [inlineEdit.field]:value,verification_status:"pending" };
+      if(overall&&!latest.fifa_edition){
+        const inferred=fifaEditionForSeason(inlineEdit.season);
+        if(inferred)patch.fifa_edition=inferred;
+      }
       if(!overall)patch.market_value_status="provisional";
       await base44.entities.PlayerHistoricalValuation.update(inlineEdit.id,patch);
       if(!patchHistoricalPeerCache(queryClient,"PlayerHistoricalValuation",inlineEdit.id,patch))
@@ -238,7 +242,9 @@ export default function HistoricalValuationsTable({
                 <tr key={v.id} className="hover:bg-slate-50">
                   <td className="px-3 py-2 font-bold text-slate-800">{v.season}</td>
                   <td className="px-3 py-2 text-slate-600">
-                    {v.fifa_edition || "—"}
+                    {v.fifa_edition||
+                      (v.fifa_fc_overall!=null?<span title="Edición esperada por año, no identificada aún en la fuente" className="text-slate-500">{fifaEditionForSeason(v.season)} <sup>i</sup></span>:
+                      <span title="Edición prevista por calendario; falta confirmar la carta base" className="text-amber-700">{fifaEditionForSeason(v.season)||"—"} <sup>?</sup></span>)}
                   </td>
                   <td className="px-3 py-2 font-bold text-[#003399]">
                     {v.fifa_fc_overall === null || v.fifa_fc_overall === undefined || v.fifa_fc_overall === "" ? renderEmptyInput(v,"fifa_fc_overall","Overall FIFA/FC") : v.fifa_fc_overall}
@@ -275,14 +281,13 @@ export default function HistoricalValuationsTable({
                     )}
                   </td>
                   <td className="px-3 py-2">
-                    <span
-                      className={
-                        "inline-block rounded-full px-2 py-0.5 text-[10px] font-bold " +
-                        (VERIFICATION_LABELS[v.verification_status]?.cls || "")
-                      }
-                    >
+                    <span className={"inline-block rounded-full px-2 py-0.5 text-[10px] font-bold "+
+                     (VERIFICATION_LABELS[v.verification_status]?.cls || "")}
+                     title={v.fifa_fc_overall==null&&v.verification_status==="verified"?
+                      "Verificación histórica general/mercado; NO confirma el Overall FIFA/FC faltante.":undefined}>
                       {VERIFICATION_LABELS[v.verification_status]?.text || v.verification_status}
                     </span>
+                    {v.fifa_fc_overall==null&&<span className="mt-1 block text-[10px] font-semibold text-amber-700">FIFA/FC pendiente</span>}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <button
