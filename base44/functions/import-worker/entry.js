@@ -223,6 +223,42 @@ export default async function(req) {
         const page=rows(await db.ImportCandidate.filter({job_id:job.id},"id",100,skip));
         counts+=page.length;if(page.length<100)break;
       }
+      // Avanzar entre temporadas pendientes sin volver a solicitar todo el
+      // historial. Un bloque es de hasta ocho consultas; se detiene si FotMob
+      // rechaza o limita el acceso, o si el lote deja de resolver entradas.
+      let next_job_id=null;
+      const fotmobReport=source_results.fotmob||{};
+      const outstanding=(fotmobReport.diagnostics||[]).filter(d=>["cache_absent","cache_mismatch","cache_stale","query_failed","candidate_limit"].includes(d.status));
+      const stopped=(fotmobReport.diagnostics||[]).some(d=>["rate_limited","access_denied"].includes(d.status));
+      const madeProgress=(fotmobReport.diagnostics||[]).some(d=>[
+        "pending_review","provider_unavailable","no_statistics","team_unidentified","pending_reconciliation","incompatible_response"
+      ].includes(d.status));
+      const canContinue=(job.sources||[]).includes("fotmob")
+        &&outstanding.length>0
+        &&!stopped&&(madeProgress||fotmobReport.successful_requests>0);
+      if(canContinue) {
+        try {
+          const key="mfv3:continue:"+job.id;
+          const duplicate=rows(await db.ImportJob.filter({job_key:key},undefined,1))[0];
+          if(duplicate)next_job_id=duplicate.id;
+          else {
+            const next=await db.ImportJob.create({
+              job_key:key,player_id:job.player_id,player_name:job.player_name,
+              fotmob_player_id:job.fotmob_player_id,sources:["fotmob"],status:"queued",progress:0,
+              requested_at:new Date(Date.now()+45_000).toISOString(),
+              phase:"Cobertura FotMob · siguiente bloque de competiciones pendientes",
+              source_results:{fotmob:{status:"pending"}},completed_sources:[],received_candidates:0,
+              root_job_id:job.root_job_id||job.id,
+              retry_scopes:{fotmob:outstanding.map(d=>({
+                season:str(d.season),season_id:str(d.season_id),
+                tournament_id:str(d.tournament_id),competition:str(d.competition)
+              }))},
+              retry_count:Number(job.retry_count||0)+1,retry_pending:true
+            });
+            next_job_id=next.id;
+          }
+        }catch(e){console.error("No se pudo encolar el siguiente bloque FotMob",e);}
+      }
       await db.ImportJob.update(job.id,{status:counts?"review":"completed",phase:counts?"Datos recibidos; revisar candidatos":"Sin nuevos datos verificables",progress:100,
         source_results,received_candidates:counts,finished_at:new Date().toISOString(),claim_id:"",lease_expires_at:""});
       // Aplicar automáticamente solo candidatos compatibles con identidad,
@@ -251,40 +287,6 @@ export default async function(req) {
           });
         }
       }catch(e){console.error("Recuperación histórica adicional pendiente: "+String(e.message||e).slice(0,220));}
-      // Avanzar entre temporadas pendientes sin volver a solicitar todo el
-      // historial. Un bloque es de hasta ocho consultas; se detiene si FotMob
-      // rechaza o limita el acceso, si no hay respuestas útiles o al llegar
-      // al límite preventivo de doce bloques por solicitud.
-      let next_job_id=null;
-      const fotmobReport=report.fotmob||{};
-      const outstanding=(fotmobReport.diagnostics||[]).filter(d=>["cache_absent","cache_mismatch","cache_stale","query_failed","candidate_limit"].includes(d.status));
-      const stopped=(fotmobReport.diagnostics||[]).some(d=>["rate_limited","access_denied"].includes(d.status));
-      const canContinue=(job.sources||[]).includes("fotmob")
-        &&outstanding.length>0
-        &&!stopped&&(Number(fotmobReport.successful_requests||0)>0||Number(fotmobReport.counts?.pending_review||0)>0);
-      if(canContinue) {
-        try {
-          const key="mfv3:continue:"+job.id;
-          const duplicate=rows(await db.ImportJob.filter({job_key:key},undefined,1))[0];
-          if(duplicate)next_job_id=duplicate.id;
-          else {
-            const next=await db.ImportJob.create({
-              job_key:key,player_id:job.player_id,player_name:job.player_name,
-              fotmob_player_id:job.fotmob_player_id,sources:["fotmob"],status:"queued",progress:0,
-              requested_at:new Date(Date.now()+45_000).toISOString(),
-              phase:"Cobertura FotMob · siguiente bloque de competiciones pendientes",
-              source_results:{fotmob:{status:"pending"}},completed_sources:[],received_candidates:0,
-              root_job_id:job.root_job_id||job.id,
-              retry_scopes:{fotmob:outstanding.map(d=>({
-                season:str(d.season),season_id:str(d.season_id),
-                tournament_id:str(d.tournament_id),competition:str(d.competition)
-              }))},
-              retry_count:Number(job.retry_count||0)+1,retry_pending:true
-            });
-            next_job_id=next.id;
-          }
-        }catch(e){console.error("No se pudo encolar el siguiente bloque FotMob",e);}
-      }
       const remaining=rows(await db.ImportCandidate.filter({job_id:job.id,review_status:"pending"},undefined,1));
       const finalPatch=completionPatch(await db.ImportJob.get(job.id),remaining.length);
       await db.ImportJob.update(job.id,finalPatch);
