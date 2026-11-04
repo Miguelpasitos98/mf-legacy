@@ -2,7 +2,7 @@ import {fifaEditionForSeason} from "./historicalValuation.js";
 
 const text=v=>String(v??"").trim();
 const validSeason=s=>/^(?:19|20)\d{2}\/(?:19|20)\d{2}$/.test(s)&&
-  Number(s.slice(5))===Number(s.slice(0,4))+1);
+  Number(s.slice(5))===Number(s.slice(0,4))+1;
 
 /**
  * FIFA/FC recovery is deliberately separate from Transfermarkt and team
