@@ -101,7 +101,8 @@ test("large values use Spanish grouping and sources are not modified",()=>{
  const value=12345.6789;
  const cfg=structuredClone(config);
  assert.equal(view("xg",value,{},cfg).text,"12.345,68");
- assert.equal(view("goals",1200,{},cfg).text,"1.200");
+ assert.equal(view("goals",1200,{},cfg).text,"1200");
+ assert.equal(view("goals",12345,{},cfg).text,"12.345");
  assert.deepEqual(cfg,config);
 });
 test("goalkeepers are recognized only by a registered goalkeeper position",()=>{
@@ -119,7 +120,7 @@ test("both STATS tables render via the same shared policy and preserve visual-ze
   assert.match(source,/display\.suffix==="†"/);
   assert.match(source,/display\.text/);
  }
- assert.match(season,/display\.suffix==="\\*"/);
+ assert.match(season,/display\.suffix==="\*"/);
  assert.match(season,/Subtotal parcial/);
  assert.match(competition,/cero solo visual por dato ausente/);
 });

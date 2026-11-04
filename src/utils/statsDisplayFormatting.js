@@ -70,8 +70,10 @@ export function formatStatsTableValue(value,columnId,config,{goalkeeper=false,pa
  const col=getColumn(config,id);
  const unit=col?.unit|| (PERCENT_ONE.has(id)||PERCENT_TWO.has(id)?"%":"");
  const title=visualZero?"Cero solo visual: estadística ausente. No se guarda como cero ni se utiliza en las fórmulas o el Composite.":
-  belowPrecision?"Dato real no nulo: "+String(number)+". Se indica el umbral en lugar de redondear a un cero engañoso.":
-  partial?"Subtotal parcial: faltan estadísticas de alguna competición.":undefined;
+  [
+   belowPrecision?"Dato real no nulo: "+String(number)+". Se indica el umbral en lugar de redondear a un cero engañoso.":null,
+   partial?"Subtotal parcial: faltan estadísticas de alguna competición.":null
+  ].filter(Boolean).join(" ")||undefined;
  return {text:formatted,suffix:visualZero?"†":partial?"*":"",visualZero,
   partial:!visualZero&&Boolean(partial),decimals,unit:supplied?unit:"",
   title};
