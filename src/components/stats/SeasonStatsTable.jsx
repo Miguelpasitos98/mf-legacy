@@ -4,7 +4,8 @@ import {ArrowRight,Shield} from "lucide-react";
 import SortHeader from "@/components/stats/SortHeader";
 import {rankIdentity} from "@/utils/statsRank";
 import {statDisplay} from "@/utils/statsSeason";
-import {getColumn,columnValue,formulaCoverage,initialConfig,isGoalsAssistsCountColumn} from "@/utils/statsColumns";
+import {getColumn,columnValue,formulaCoverage,initialConfig} from "@/utils/statsColumns";
+import {formatStatsTableValue,isStatsGoalkeeper} from "@/utils/statsDisplayFormatting";
 import {metricLabel} from "@/utils/statsImport";
 import {seasonActive} from "@/utils/statsViews";
 import {compositeSeasonKey,displaySeasonPosition} from "@/utils/statsCompositeRanking";
@@ -20,9 +21,6 @@ export const seasonColumns={
 const labels={ga:"G + A",gaper90:"G + A /90",xgaper90:"xG + xA /90",xga:"xG + xA",goalsper90:"Goles /90",assistsper90:"Asist. /90",xgper90:"xG /90",xaper90:"xA /90",totaldistancecovered:"Distancia (m)",numberofsprints:"Sprints",goalsconcededwhileonpitch:"Goles encajados (en campo)"};
 const shortSeason=s=>String(s||"").replace(/^(\d{4})[/-](\d{4})$/,(_,start,end)=>start+"/"+end.slice(-2));
 const fmt=(v,d=0)=>v===null||v===undefined||v===""||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("es-ES",{minimumFractionDigits:d,maximumFractionDigits:d});
-const dec=k=>["xg","xa","xga","gaper90","xgaper90","goalsper90","assistsper90","xgper90","xaper90"].includes(k);
-const GK_OFFENSE=new Set(["goals","assists","ga","gaper90","goalsper90","assistsper90","xg","xa","xga","xgper90","xaper90","xgaper90","shots","shotsontarget","chancescreated","bigchancescreated"]);
-const goalkeeper=p=>/^(GK|POR|G)$/i.test(String(p?.position||p?.position_raw||"").trim());
 
 function PlayerPhoto({player,name}){
  const src=player?.card_photo_url||player?.cardPhotoUrl||player?.photo_url||player?.photoUrl;
@@ -91,9 +89,11 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
        const coverage=formulaCoverage(summary,"season",k,config);
        const partial=coverage?coverage.available<coverage.total:summary.totals[k]?.partial;
        const hint=coverage?coverage.available+" de "+coverage.total+" competiciones · "+coverage.minutes.toLocaleString("es-ES")+" minutos disponibles para esta fórmula":partial?"Subtotal parcial: faltan estadísticas":undefined;
-       const missingKeeperOffense=value===null&&goalkeeper(player)&&GK_OFFENSE.has(k);
-       const missingOffenseZero=value===null&&(k==="penaltygoals"||isGoalsAssistsCountColumn(k,config))&&!missingKeeperOffense;
-       return <td key={k} className={"px-2 py-2 text-right"+line(k)} title={missingKeeperOffense||missingOffenseZero?"0 visual: estadística ausente, no es un cero confirmado.":hint}>{missingKeeperOffense||missingOffenseZero?<span className="text-slate-900">0<sup>†</sup></span>:fmt(value,getColumn(config,k)?.decimals??(dec(k)?2:0))}{value!==null&&getColumn(config,k)?.unit?" "+getColumn(config,k).unit:""}{partial&&value!==null?<span className="text-amber-600">*</span>:null}</td>;
+       const display=formatStatsTableValue(value,k,config,{goalkeeper:isStatsGoalkeeper(player),partial});
+       return <td key={k} className={"px-2 py-2 text-right tabular-nums"+line(k)} title={display.title||hint}>
+        {display.text}{display.unit?" "+display.unit:""}
+        {display.suffix==="†"?<sup className="text-slate-600">†</sup>:display.suffix==="*"?<sup className="text-amber-600">*</sup>:null}
+       </td>;
       })}
       <td className="px-3 py-3"><button onClick={()=>onOpen(summary,player)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-blue-200 px-3 py-2 font-bold text-[#003399] hover:bg-blue-50">Desglose <ArrowRight size={13}/></button></td>
      </tr>;
@@ -102,6 +102,6 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
     </tbody>
    </table>
   </div>
-  <p className="px-3 py-2 text-[10px] text-slate-500">† El cero visual en métricas ausentes (ofensivas de porteros, Pen y G + A) no es un cero estadístico y no se guarda ni interviene en cálculos o Composite.</p>
+  <p className="px-3 py-2 text-[10px] text-slate-500">Formato común: recuentos sin decimales; xG, xA y métricas /90 con dos; porcentajes normalmente con uno. † Cero solo visual por dato ausente: no se almacena ni puntúa. * Subtotal parcial. &lt;0,01 indica un valor positivo real inferior al redondeo.</p>
  </div>;
 }
