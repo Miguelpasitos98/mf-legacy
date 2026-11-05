@@ -88,7 +88,7 @@ function EditorialClub({team,onOpen}){
       <div className="relative grid grid-cols-3 items-end gap-1 sm:gap-4">
         {images.map(({key,label,src})=><div key={key} className={`flex min-w-0 flex-col items-center ${key==="kit1_photo_url"?"relative z-10":"opacity-90"}`}>
           <div className={`flex w-full items-center justify-center ${key==="kit1_photo_url"?"h-64 sm:h-80":"h-52 sm:h-64"}`}>
-            <NormalizedKitImage url={src} alt={label+" de "+team.name} className="drop-shadow-xl transition-transform duration-300 group-hover:scale-[1.03]"/>
+            <NormalizedKitImage url={src} alt={label+" de "+team.name} className="scale-[1.15] drop-shadow-xl transition-transform duration-300 group-hover:scale-[1.18]"/>
           </div>
           <div className="mt-3 flex w-full justify-center"><KitTag team={team} kitKey={key} label={label}/></div>
         </div>)}
