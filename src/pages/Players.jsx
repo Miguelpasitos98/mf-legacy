@@ -9,6 +9,7 @@ import {candidatePoolValue} from "@/components/managers/managerCandidatePool.mjs
 import {groupPlayersByLeague} from "@/components/players/playerLeagueGroups.mjs";
 import {groupPlayerIds,selectedGroupCount,toggleGroupSelection} from "@/components/players/playerGroupSelection.mjs";
 import {updatePlayerCacheRows} from "@/utils/playerEditPatch";
+import {getGithubFaces, matchGithubFace} from "@/utils/githubFaceSync.mjs";
 import {readPlayersViewState,savePlayersViewState} from "@/utils/playersViewState";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 
@@ -1319,6 +1320,34 @@ export default function Players() {
   const teams = useMemo(() => (teamsQuery.data || []).map(normalizeTeam).filter(t => t.id && t.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })), [teamsQuery.data]);
   const countries = useMemo(() => (countriesQuery.data || []).map(normalizeCountry).filter(c => c.id && c.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })), [countriesQuery.data]);
   const [errorMessage, setErrorMessage] = useState("");
+  const [faceSyncBusy, setFaceSyncBusy] = useState(false);
+  const [faceSyncNotice, setFaceSyncNotice] = useState("");
+  const syncGithubCardPhotos = async () => {
+    if (faceSyncBusy) return;
+    setFaceSyncBusy(true);
+    setFaceSyncNotice("Consultando las fotografías de GitHub…");
+    try {
+      const faces = await getGithubFaces({refresh:true});
+      const matches = players.map(p => ({player:p, result:matchGithubFace(p,faces)}));
+      const changes = matches.filter(({player,result}) => player.id && result.status === 'matched' && player.card_photo_url !== result.url);
+      const unique = changes.filter(({player}) => matches.filter(({result}) => result.status === 'matched' && result.url === matchGithubFace(player,faces).url).length === 1);
+      // Players with the same display name require identity review, not blind assignment.
+      let updated=0,failed=0;
+      for (let i=0;i<unique.length;i+=5) {
+        const batch=unique.slice(i,i+5);
+        const results=await Promise.allSettled(batch.map(({player,result}) => base44.entities.Player.update(player.id,{card_photo_url:result.url})));
+        results.forEach(r=>{if(r.status==='fulfilled')updated++;else failed++;});
+        setFaceSyncNotice(`Sincronizando imágenes: ${Math.min(i+5,unique.length)}/${unique.length} · ${updated} actualizadas`);
+      }
+      await queryClient.invalidateQueries({queryKey:['mf-legacy','players']});
+      const missing=matches.filter(x=>x.result.status==='missing').length;
+      const ambiguous=matches.filter(x=>x.result.status==='ambiguous').length + changes.length-unique.length;
+      setFaceSyncNotice(`GitHub: ${faces.size} nombres indexados · ${updated} fotografías actualizadas · ${missing} sin coincidencia · ${ambiguous} ambiguas · ${failed} errores.`);
+    } catch(error) {
+      setFaceSyncNotice(`No se pudo sincronizar: ${error.message}`);
+    } finally {setFaceSyncBusy(false);}
+  };
+
 
   const [searchOpen, setSearchOpen] = useState(rememberedView.searchOpen);
   const [search, setSearch] = useState(rememberedView.search);
@@ -3366,6 +3395,13 @@ export default function Players() {
               <FileText size={16} /><span>Importar roles JSON</span>
             </button>
 
+            <button type="button" onClick={syncGithubCardPhotos} disabled={faceSyncBusy || isLoading}
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              title="Cruzar los nombres de jugadores con Faces UT en GitHub y sincronizar card_photo_url">
+              {faceSyncBusy ? <Loader2 size={16} className="animate-spin"/> : <Globe2 size={16}/>}
+              <span>Sincronizar caras GitHub</span>
+            </button>
+
             {/* ADD PLAYER */}
             <button
               type="button"
@@ -3379,6 +3415,7 @@ export default function Players() {
           </div>
         </div>
 
+        {faceSyncNotice && <div role="status" className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700">{faceSyncNotice}</div>}
         {!fm26ImportOpen && fm26Message?.startsWith("Completado:") && (
           <div role="status" className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
             <span>{fm26Message}</span>
