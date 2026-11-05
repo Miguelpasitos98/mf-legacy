@@ -71,7 +71,7 @@ function ColorEditor({label,value,onChange,onPick}){
 function KitPicture({url,label,club}){
   const src=normalizeImageUrl(url);
   return <div className="flex h-52 items-center justify-center bg-gradient-to-b from-white to-slate-50 p-4 sm:h-64">
-    <NormalizedKitImage url={src} alt={label+" de "+club} className="drop-shadow-sm"/>
+    <NormalizedKitImage url={src} alt={label+" de "+club} className="scale-[1.35] drop-shadow-sm"/>
   </div>;
 }
 function EditorialClub({team,onOpen}){
