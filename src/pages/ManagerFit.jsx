@@ -167,14 +167,53 @@ export default function ManagerFit(){
    <Link to="/squad-planner" className="text-xs font-bold text-blue-700 hover:underline">Abrir planificador de plantilla</Link>
   </div>
   {error&&<p role="alert" className="p-3 border border-red-200 bg-red-50 rounded-lg text-sm text-red-800">{error}</p>}
-  <section className="rounded-xl border bg-white p-3 md:p-4 space-y-3">
-   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+  <section className="rounded-xl border border-slate-200 bg-white p-3 md:p-4 space-y-3" aria-label="Buscador de encaje táctico">
+   <div className="flex flex-wrap items-center justify-between gap-2">
+    <div><h2 className="text-sm font-black text-slate-900">Encuentra los futbolistas ideales</h2><p className="text-[11px] text-slate-500">Selecciona un entrenador, su etapa y una posición. El perfil histórico óptimo se calcula automáticamente.</p></div>
+    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-800">{candidates.length} en tu bolsa</span>
+   </div>
+   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
     <label className="text-xs font-bold">Entrenador<select aria-label="Entrenador" value={managerId} onChange={e=>chooseManager(e.target.value)} className="block w-full border rounded-lg p-2 mt-1 text-sm"><option value="">Seleccionar…</option>{managers.map(m=><option key={m.id} value={m.id}>{m.display_name||m.name}</option>)}</select></label>
     <label className="text-xs font-bold">ADN táctico<select aria-label="ADN táctico" value={profileId} onChange={e=>setParams({manager:managerId,profile:e.target.value})} className="block w-full border rounded-lg p-2 mt-1 text-sm"><option value="">Seleccionar…</option>{profileOptions.map(p=><option key={p.id} value={p.id}>{p.name} · {profileScopeLabel(p)}</option>)}</select></label>
-    <label className="text-xs font-bold">Rol buscado<select aria-label="Rol buscado" value={role} onChange={e=>setRole(e.target.value)} className="block w-full border rounded-lg p-2 mt-1 text-sm">{Object.entries(ROLE_LABELS).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
-    <label className="text-xs font-bold">CA mínimo (FM26)<input aria-label="CA mínimo" type="number" min="0" max="200" value={minCA} onChange={e=>setMinCA(Math.max(0,Math.min(200,Number(e.target.value)||0)))} className="block w-full border rounded-lg p-2 mt-1 text-sm"/></label>
    </div>
-   <div className="flex gap-2 flex-wrap text-sm"><label className="text-xs font-bold">{scoreMode==="career"?"Temporada de referencia (filtros de edad y valor)":"Temporada histórica"} <input aria-label="Temporada histórica" className="block rounded-lg border p-2 mt-1" value={season} onChange={e=>setSeason(e.target.value)} placeholder="2025/2026"/></label></div>
+   <div className="space-y-2">
+    <p className="text-xs font-bold text-slate-700">Posición buscada · <span className="text-blue-800">{ROLE_LABELS[role]}</span></p>
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Posición buscada">
+     {Object.entries(ROLE_LABELS).map(([code,name])=><button key={code} type="button" aria-pressed={role===code} title={name} onClick={()=>setRole(code)} className={"rounded-lg border px-3 py-2 text-xs font-bold transition "+(role===code?"border-[#003399] bg-[#003399] text-white":"border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50")}>{code}</button>)}
+    </div>
+   </div>
+   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#f2f6fc] px-3 py-2">
+    <div className="min-w-0"><strong className="text-xs text-blue-950">{scoreMode==="career"?"Perfil histórico óptimo":scoreMode==="deep"?"Deep Fit experimental":scoreMode==="role"?"ADN táctico V4":scoreMode==="historical"?"Histórico V3":scoreMode==="attributes"?"Atributos FM26 V2":"Adecuación posicional"}</strong><p className="text-[11px] text-slate-600">{scoreMode==="career"?"70% mejor temporada + 30% trayectoria en la posición":"Modo alternativo elegido en herramientas avanzadas"}</p></div>
+    <button type="button" onClick={()=>{setScoreMode("career");setResultSort("score")}} disabled={scoreMode==="career"} className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-800 disabled:opacity-50">{scoreMode==="career"?"Modo principal":"Volver al principal"}</button>
+   </div>
+   <div className="flex flex-wrap items-center gap-2">
+    <input aria-label="Buscar jugador" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar futbolista en tu bolsa…" className="min-w-[200px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"/>
+    <Link to="/players?view=candidates" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-50">Gestionar bolsa</Link>
+   </div>
+      {manager&&profile?<div className="text-xs rounded-lg bg-blue-50 p-3"><strong>{manager.name} · {profile.name}</strong><p className="mt-1"><strong>Lo que busca en {ROLE_LABELS[role].toLowerCase()}:</strong> {(()=>{try{return JSON.parse(profile.player_role_priorities||"{}")[role]||"Sin descripción específica"}catch{return "Sin descripción específica"}})()}</p></div>:!loading&&<p className="text-sm text-amber-700">Necesitas un entrenador con un ADN guardado antes de evaluar futbolistas. <Link className="underline" to="/managers">Abrir MANAGERS</Link>.</p>}
+
+   <details className="group rounded-lg border border-slate-200 bg-slate-50/70 p-3" aria-label="Filtros avanzados">
+    <summary className="cursor-pointer text-xs font-bold text-slate-700">Filtros avanzados · Edad, valor, CA y temporada</summary>
+    <div className="mt-3 space-y-3">
+        <div className="flex gap-2 flex-wrap text-sm"><label className="text-xs font-bold">{scoreMode==="career"?"Temporada de referencia (filtros de edad y valor)":"Temporada histórica"} <input aria-label="Temporada histórica" className="block rounded-lg border p-2 mt-1" value={season} onChange={e=>setSeason(e.target.value)} placeholder="2025/2026"/></label></div>
+
+     <div className="max-w-[230px]">    <label className="text-xs font-bold">CA mínimo (FM26)<input aria-label="CA mínimo" type="number" min="0" max="200" value={minCA} onChange={e=>setMinCA(Math.max(0,Math.min(200,Number(e.target.value)||0)))} className="block w-full border rounded-lg p-2 mt-1 text-sm"/></label>
+</div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 rounded-xl border bg-slate-50 p-3">
+    <label className="text-xs font-bold">Edad mínima<input aria-label="Edad mínima" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" max="60" value={minAge} onChange={e=>setMinAge(e.target.value)}/></label>
+    <label className="text-xs font-bold">Edad máxima<input aria-label="Edad máxima" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" max="60" value={maxAge} onChange={e=>setMaxAge(e.target.value)}/></label>
+    <label className="text-xs font-bold">Valor máximo (M€)<input aria-label="Valor máximo" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" step="0.5" value={maxValueM} onChange={e=>setMaxValueM(e.target.value)}/></label>
+    <label className="text-xs font-bold">Cobertura mínima<select aria-label="Cobertura mínima" className="block border bg-white rounded-lg p-2 w-full mt-1" value={minimumCoverage} onChange={e=>setMinimumCoverage(Number(e.target.value))}>{[0,25,50,75,100].map(x=><option key={x} value={x}>{x}%</option>)}</select></label>
+    <label className="text-xs font-bold flex flex-col justify-center gap-2"><span>Valor histórico</span><span className="flex gap-2 font-normal items-center"><input type="checkbox" checked={knownValueOnly} onChange={e=>setKnownValueOnly(e.target.checked)}/> Solo con valor</span></label>
+   </div>
+
+     <p className="text-[11px] text-slate-500">En el modo histórico óptimo, la temporada de referencia solo afecta a los filtros de edad y valor. No limita la búsqueda de la mejor campaña.</p>
+    </div>
+   </details>
+   <details className="rounded-lg border border-slate-200 bg-white p-3" aria-label="Modelos y herramientas avanzadas">
+    <summary className="cursor-pointer text-xs font-bold text-slate-700">Modelos y herramientas avanzadas · V1–V4 y Deep Fit</summary>
+    <div className="mt-3 space-y-3">
+     <p className="text-[11px] text-slate-600">Los modelos alternativos son independientes del perfil histórico óptimo. Úsalos para estudios específicos.</p>
    <div className="grid grid-cols-2 gap-2 lg:grid-cols-6" role="group" aria-label="Modelo de evaluación">
     {[
      {key:"career",title:"PERFIL HISTÓRICO ÓPTIMO",note:"70% mejor temporada + 30% trayectoria en la posición"},
@@ -219,23 +258,9 @@ export default function ManagerFit(){
     </p>
     <p className="text-[11px] text-slate-600">Se normalizan los pesos que elijas; si falta el estilo FM26, ese peso se redistribuye entre factores disponibles. Datos reales V4 y atributos funcionales FM26 son obligatorios. CA, valor de mercado, fama y precio no entran en la nota.</p>
    </section>}
-   <div className="grid grid-cols-2 md:grid-cols-5 gap-2 rounded-xl border bg-slate-50 p-3">
-    <label className="text-xs font-bold">Edad mínima<input aria-label="Edad mínima" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" max="60" value={minAge} onChange={e=>setMinAge(e.target.value)}/></label>
-    <label className="text-xs font-bold">Edad máxima<input aria-label="Edad máxima" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" max="60" value={maxAge} onChange={e=>setMaxAge(e.target.value)}/></label>
-    <label className="text-xs font-bold">Valor máximo (M€)<input aria-label="Valor máximo" className="block border bg-white rounded-lg p-2 w-full mt-1" type="number" min="0" step="0.5" value={maxValueM} onChange={e=>setMaxValueM(e.target.value)}/></label>
-    <label className="text-xs font-bold">Cobertura mínima<select aria-label="Cobertura mínima" className="block border bg-white rounded-lg p-2 w-full mt-1" value={minimumCoverage} onChange={e=>setMinimumCoverage(Number(e.target.value))}>{[0,25,50,75,100].map(x=><option key={x} value={x}>{x}%</option>)}</select></label>
-    <label className="text-xs font-bold flex flex-col justify-center gap-2"><span>Valor histórico</span><span className="flex gap-2 font-normal items-center"><input type="checkbox" checked={knownValueOnly} onChange={e=>setKnownValueOnly(e.target.checked)}/> Solo con valor</span></label>
-   </div>
-   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#c9d9ef] bg-[#f2f6fc] px-3 py-2.5 text-xs">
-    <div className="min-w-0">
-     <strong className="text-blue-900">Bolsa de candidatos: {candidates.length} jugadores marcados</strong>
-     <p className="mt-0.5 text-slate-600">MANAGER FIT muestra únicamente futbolistas que has incorporado manualmente desde PLAYERS. El resto del catálogo se utiliza solo como referencia estadística de comparación.</p>
+
     </div>
-    <Link to="/players?view=candidates" className="shrink-0 rounded-lg border border-blue-200 bg-white px-3 py-2 font-bold text-blue-800 hover:bg-blue-50">Gestionar bolsa en PLAYERS</Link>
-   </div>
-   <p className="text-[11px] text-slate-500">Edad calculada al cierre de la temporada indicada. Valor de mercado histórico de esa misma campaña, no precio de traspaso ni valor actual. Los registros sin fecha o importe verificable no se estiman.</p>
-   <div className="flex flex-wrap gap-3 items-center"><input aria-label="Buscar jugador" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar futbolista por nombre…" className="border rounded-lg p-2 text-sm flex-1 min-w-[180px]"/><label className="text-sm flex items-center gap-2"><input type="checkbox" checked={showUnknown} onChange={e=>{setShowUnknown(e.target.checked);setShowAllResults(e.target.checked)}}/> Incluir encaje no evaluable de la bolsa</label></div>
-   {manager&&profile?<div className="text-xs rounded-lg bg-blue-50 p-3"><strong>{manager.name} · {profile.name}</strong><p className="mt-1"><strong>Lo que busca en {ROLE_LABELS[role].toLowerCase()}:</strong> {(()=>{try{return JSON.parse(profile.player_role_priorities||"{}")[role]||"Sin descripción específica"}catch{return "Sin descripción específica"}})()}</p></div>:!loading&&<p className="text-sm text-amber-700">Necesitas un entrenador con un ADN guardado antes de evaluar futbolistas. <Link className="underline" to="/managers">Abrir MANAGERS</Link>.</p>}
+   </details>
   </section>
   <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 md:p-5 space-y-4">
    <div className="flex flex-wrap items-center justify-between gap-2">
@@ -243,6 +268,9 @@ export default function ManagerFit(){
      <h2 className="mt-1 text-base font-black text-slate-900">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}</h2><p className="text-[11px] text-slate-500">{visibility.compatibleCount} compatibles en la bolsa · {visibility.scoredCount} evaluables en el modelo seleccionado · {players.length} jugadores del catálogo para la muestra histórica</p></div>
     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold text-slate-600">Modelo auditable · No predice rendimiento</span>
    </div>
+   <details className="rounded-lg border border-slate-200 bg-slate-50/70 p-3" aria-label="Diagnóstico y metodología de evaluación">
+    <summary className="cursor-pointer text-xs font-semibold text-slate-700">Metodología y diagnóstico · Ver evidencia detallada</summary>
+    <div className="mt-3 space-y-3">
    {scoreMode==="career"&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">Perfil histórico por posición: cada campaña se puntúa por separado frente a una referencia histórica de otros jugadores del mismo rol (cada jugador comparable cuenta una vez). Se utiliza el 70% de la mejor campaña evaluable y el 30% de la media de campañas evaluables ponderada por minutos (máximo 3000 por campaña). Se requieren dos métricas y diez jugadores históricos comparables por indicador, al menos 450 minutos y posición histórica identificada. Una única campaña válida se señala como tal.</p>}
    <ManagerScoutingSummary scoreMode={scoreMode} visibility={visibility} roleRequirements={roleRequirements} statsLoading={statsLoading} statsError={statsError} season={season}/>
    {scoreMode==="career"&&<p className="text-[11px] text-slate-600">Evaluación histórica: {careerIndex.size} jugadores con nota · {careerIndex.diagnostics?.eligible??0} temporadas compatibles con el rol · {careerIndex.diagnostics?.withTwoMetrics??0} temporadas con al menos dos indicadores detectados · {careerIndex.diagnostics?.scoredSeasons??0} temporadas puntuadas · {careerIndex.diagnostics?.roleRequirements??0} indicadores exigidos por el ADN. La temporada del selector solo afecta a los filtros de edad y valor.</p>}
@@ -251,6 +279,8 @@ export default function ManagerFit(){
     <p className="mt-2">Temporada {season}: {statsDiagnosis.total} registros FotMob; {statsDiagnosis.matched} asociados a jugadores de MF Legacy; {statsDiagnosis.unresolved} sin vínculo resoluble; {statsDiagnosis.links} relaciones FotMob–Base44; {statsDiagnosis.measured}/{statsDiagnosis.peers} jugadores de la cohorte con al menos una métrica reconocida.</p>
     <p className="mt-1">Los registros sin vínculo no se asignan por similitud de nombre. Cada nota V4 requiere además dos métricas válidas y diez comparables externos por indicador.</p>
     {linkError&&<p role="alert" className="mt-1 text-red-700">{linkError}</p>}
+   </details>
+    </div>
    </details>
    {visibility.fallback&&!statsLoading&&<p role="status" className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-slate-700">
     {scoreMode==="deep"?<>
