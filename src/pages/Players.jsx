@@ -403,6 +403,7 @@ const emptyPlayerForm = {
   secondaryCountryId: "",
   primaryPosition: "",
   secondaryPosition: "",
+  managerFitCandidate: false,
   height: "",
   rightFoot: "",
   leftFoot: "",
@@ -3214,6 +3215,7 @@ export default function Players() {
 
         country_id: countryId || "",
         secondary_country_id: form.secondaryCountryId || "",
+        manager_fit_candidate: Boolean(form.managerFitCandidate),
         position: form.primaryPosition,
         position_raw: form.primaryPosition,
         secondary_position: form.secondaryPosition || "",
