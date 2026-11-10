@@ -25,7 +25,7 @@ export function historicalObservationMetrics(observation,raw={}){
   const value=observation?.values?.[field];
   if(typeof value==="number"&&Number.isFinite(value)&&value>=0){
    result[metric]={value,source:"STATS · histórico",minutes:Number(observation.minutes)||null,
-    scope:"temporada "+observation.season};
+    scope:"histórico por posición",season:observation.season};
   }
  }
  return result;
