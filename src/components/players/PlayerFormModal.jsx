@@ -1,4 +1,4 @@
-import React,{useMemo,useState} from "react";
+import React,{useMemo} from "react";
 import {X,UserRound,Shield,SlidersHorizontal,Image as ImageIcon,ChevronDown,CheckCircle2} from "lucide-react";
 import {inputClassName,POSITION_RATING_GROUPS,PLAYER_DESCRIPTIONS,NEW_TEAM_VALUE,NEW_COUNTRY_VALUE,careerStatusLogo,normalizeImageUrl,SearchableEntitySelect} from "@/components/players/playerFormShared";
 import {PLAYER_ATTRIBUTE_GROUPS} from "@/components/players/playerAttributeGroups.mjs";
@@ -13,7 +13,6 @@ const POSITIONS=[
 ];
 const section="rounded-xl border border-slate-200 bg-white shadow-sm";
 const labelClass="mb-1.5 block text-[11px] font-semibold text-slate-600";
-const number=(value)=>value===""||value===null||value===undefined?null:Number(value);
 
 function Section({title,subtitle,icon:Icon,children,initial=false,count}){
  return <details open={initial?true:undefined} className={section}>
@@ -31,8 +30,7 @@ function RolesSelect({value,onChange,placeholder="Sin rol"}){
   <option value="">{placeholder}</option>{PLAYER_DESCRIPTIONS.map(group=><optgroup key={group.group} label={group.group}>{group.options.map(v=><option key={v} value={v}>{v}</option>)}</optgroup>)}
  </select>;
 }
-export default function PlayerFormModal({form,setForm,isSaving,onClose,onSubmit,countries=[],teams=[]}){
- const [sectionHint,setSectionHint]=useState("");
+export default function PlayerFormModal({form,setForm,isSaving,errorMessage="",onClose,onSubmit,countries=[],teams=[]}){
  const update=(key,value)=>setForm(old=>({...old,[key]:value}));
  const setRole=(i,key,value)=>setForm(old=>{
   const roles=[...(old.tacticalRoles||[{name:"",description:""},{name:"",description:""}])];
@@ -44,7 +42,6 @@ export default function PlayerFormModal({form,setForm,isSaving,onClose,onSubmit,
   ...old.positionRatings,[POSITIONS.find(p=>p[0]===value)?.[2]]:old.positionRatings?.[POSITIONS.find(p=>p[0]===value)?.[2]]==="0"?"20":old.positionRatings?.[POSITIONS.find(p=>p[0]===value)?.[2]]
  }:old.positionRatings}));
  const attributesCount=useMemo(()=>Object.values(form.stats||{}).reduce((n,g)=>n+Object.values(g||{}).filter(v=>v!==""&&v!==null&&v!==undefined).length,0),[form.stats]);
- const hasDate=Boolean(form.dateOfBirth?.trim());
  const formValid=Boolean(form.name?.trim()&&form.primaryPosition&&
   (form.teamId!==NEW_TEAM_VALUE||form.newTeamName?.trim())&&
   (form.countryId!==NEW_COUNTRY_VALUE||form.newCountryName?.trim()));
@@ -58,6 +55,7 @@ export default function PlayerFormModal({form,setForm,isSaving,onClose,onSubmit,
     <button type="button" onClick={onClose} disabled={isSaving} aria-label="Cerrar" className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-50"><X size={18}/></button>
    </header>
    <form id="create-player-form" onSubmit={onSubmit} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-5">
+    {errorMessage&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">{errorMessage}</p>}
     <Section title="Identidad y equipo" subtitle="Datos esenciales" icon={UserRound} initial>
      <div className="grid gap-3 sm:grid-cols-2">
       <label className="sm:col-span-2"><span className={labelClass}>Nombre completo *</span><input required autoFocus className={inputClassName} value={form.name} placeholder="Ej. Toni Kroos" onChange={e=>update("name",e.target.value)}/></label>
