@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
+import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
 import {ManagerScoutingSummary,ScoutingCandidateCard,ManagerMethodsPanel} from "@/components/managers/ManagerScoutingVisual";
 import {ROLE_LABELS,rankPlayers} from "@/components/managers/managerFit.mjs";
 import {collectPlayerSeasonMetrics,seasonPercentiles,historicalRoleCandidates,linkedManagerFitRows} from "@/components/managers/managerFitHistorical.mjs";
@@ -44,12 +45,12 @@ export default function ManagerFit(){
  const [customDeepWeights,setCustomDeepWeights]=useState({...DEEP_FIT_PRESETS.balanced});
  const deepWeights=deepPreset==="custom"?customDeepWeights:DEEP_FIT_PRESETS[deepPreset]||DEEP_FIT_PRESETS.balanced;
  const [season,setSeason]=useState(()=>params.get("season")||"2025/2026");
- const [seasonStats,setSeasonStats]=useState([]);
- const [understatRows,setUnderstatRows]=useState([]);
- const [statsLoading,setStatsLoading]=useState(false);
- const [statsError,setStatsError]=useState("");
+ const {data:historicalDataset,isFetching:statsLoading,error:historicalError}=useHistoricalPeerDataset(true);
+ const statsError=historicalError?.message||"";
+ const seasonStats=useMemo(()=>historicalDataset?.records?.PlayerSeasonStats?.filter(row=>row.season===season)||[],[historicalDataset,season]);
+ const understatRows=useMemo(()=>historicalDataset?.records?.UnderstatSeasonRate?.filter(row=>row.season===season)||[],[historicalDataset,season]);
+ const valuationRows=useMemo(()=>historicalDataset?.records?.PlayerHistoricalValuation?.filter(row=>row.season===season)||[],[historicalDataset,season]);
  const [scoutingPlayerId,setScoutingPlayerId]=useState("");
- const [valuationRows,setValuationRows]=useState([]);
  const [minAge,setMinAge]=useState("");
  const [maxAge,setMaxAge]=useState("");
  const [maxValueM,setMaxValueM]=useState("");
@@ -85,17 +86,6 @@ export default function ManagerFit(){
   if(String(selected.id)!==managerId||String(next?.id||"")!==profileId)
    setParams({manager:String(selected.id),...(next?{profile:String(next.id)}:{})},{replace:true});
  },[loading,managers,profiles,managerId,profileId,setParams]);
- useEffect(()=>{
-  let active=true;setStatsLoading(true);setStatsError("");setSeasonStats([]);setUnderstatRows([]);setValuationRows([]);
-  Promise.all([
-   all(base44.entities.PlayerSeasonStats,{season}),
-   all(base44.entities.UnderstatSeasonRate,{season}),
-   all(base44.entities.PlayerHistoricalValuation,{season})
-  ]).then(([stats,under,valuations])=>{if(active){setSeasonStats(stats);setUnderstatRows(under);setValuationRows(valuations)}})
-  .catch(e=>{if(active)setStatsError(e.message||"No se cargaron los datos históricos")})
-  .finally(()=>{if(active)setStatsLoading(false)});
-  return ()=>{active=false};
- },[season]);
  // Build statistical reference from the full role cohort, never from the
  // manually chosen scouting pool: restricting peers to the bag biases percentiles.
  const linkedSeasonStats=useMemo(()=>linkedManagerFitRows(seasonStats,fotmobLinks,players),[seasonStats,fotmobLinks,players]);
