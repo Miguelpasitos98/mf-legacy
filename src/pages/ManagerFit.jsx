@@ -22,6 +22,7 @@ import {DEEP_FIT_PRESETS,DEEP_COMPONENT_LABELS,evaluateDeepFit} from "@/componen
 import {managerFitTemporalScope} from "@/components/managers/managerFitTemporalScope.mjs";
 import {careerPositionFitIndex} from "@/components/managers/managerCareerPositionFit.mjs";
 import {evaluatePlayerSeasonHybrid} from "@/components/managers/managerPlayerSeasonHybrid.mjs";
+import {activeAssignment,indexManagerPlayerAssignments,filterManagerPlayerAssignments,countManagerPlayerAssignments,saveManagerPlayerDecision} from "@/components/managers/managerPlayerAssignments.mjs";
 const all=async(entity,query={})=>{
  const output=[];
  for(let skip=0;skip<100000;skip+=200){
@@ -39,6 +40,13 @@ export default function ManagerFit(){
  const [players,setPlayers]=useState([]);
  const [fotmobLinks,setFotmobLinks]=useState([]);
  const [linkError,setLinkError]=useState("");
+ const [playerAssignments,setPlayerAssignments]=useState([]);
+ const [assignmentLoading,setAssignmentLoading]=useState(true);
+ const [assignmentError,setAssignmentError]=useState("");
+ const [assignmentNotice,setAssignmentNotice]=useState("");
+ const [assignmentFilter,setAssignmentFilter]=useState("available");
+ const [assignmentBusy,setAssignmentBusy]=useState("");
+
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [role,setRole]=useState(()=>["GK","CB","FB","DM","AM","WG","ST"].includes(params.get("role"))?params.get("role"):"FB");
@@ -84,6 +92,61 @@ export default function ManagerFit(){
  const manager=managers.find(m=>String(m.id)===managerId);
  const profileOptions=profiles.filter(p=>String(p.manager_id)===String(managerId));
  const profile=profileOptions.find(p=>String(p.id)===profileId)||null;
+ const assignmentsIndex=useMemo(()=>indexManagerPlayerAssignments(playerAssignments),[playerAssignments]);
+ const assignmentCounts=useMemo(()=>countManagerPlayerAssignments(assignmentsIndex,managerId),[assignmentsIndex,managerId]);
+ const managerAssignments=useMemo(()=>playerAssignments.filter(a=>activeAssignment(a)&&String(a.manager_id)===String(managerId))
+  .sort((a,b)=>a.status===b.status?String(b.decision_at||"").localeCompare(String(a.decision_at||"")):a.status==="linked"?-1:1),[playerAssignments,managerId]);
+ const nameByManager=useMemo(()=>new Map(managers.map(m=>[String(m.id),m.display_name||m.name])),[managers]);
+ const nameByPlayer=useMemo(()=>new Map(players.map(p=>[String(p.id),p.name])),[players]);
+ const reloadAssignments=async()=>{
+  setAssignmentLoading(true);setAssignmentError("");
+  try{
+   const latest=await all(base44.entities.ManagerPlayerAssignment);
+   setPlayerAssignments(latest);
+  }catch(e){
+   setAssignmentError("No se pudieron cargar las adjudicaciones: "+(e.message||"Error de Base44")+". No se permitirá vincular hasta recuperar los datos.");
+  }finally{setAssignmentLoading(false)}
+ };
+ const managePlayerAssignment=async(playerId,action,selectedRole=role)=>{
+  if(!manager||!profile||assignmentLoading||assignmentError||assignmentBusy)return;
+  const player=players.find(p=>String(p.id)===String(playerId));
+  if(!player)return;
+  if(assignmentsIndex.conflicts.has(String(playerId))){
+   setAssignmentError("El jugador tiene adjudicaciones duplicadas. Deben revisarse antes de modificar su vínculo.");
+   return;
+  }
+  const current=assignmentsIndex.byPlayer.get(String(playerId));
+  const occupied=activeAssignment(current)&&String(current.manager_id)!==String(managerId);
+  if(occupied){
+   const other=nameByManager.get(String(current.manager_id))||"otro entrenador";
+   if(!window.confirm(player.name+" ya está adjudicado a "+other+". ¿Reasignarlo a "+(manager.display_name||manager.name)+"? El cambio se guardará en su historial."))return;
+  }else if(action==="release"){
+   if(!window.confirm("¿Desvincular a "+player.name+" de "+(manager.display_name||manager.name)+"? Volverá a estar disponible."))return;
+  }
+  setAssignmentBusy(String(playerId));setAssignmentError("");setAssignmentNotice("");
+  try{
+   await saveManagerPlayerDecision(base44.entities.ManagerPlayerAssignment,{
+    playerId:String(playerId),managerId:String(managerId),profileId:String(profileId),
+    role:selectedRole,action,confirmReassign:occupied
+   });
+   const fresh=await all(base44.entities.ManagerPlayerAssignment);
+   setPlayerAssignments(fresh);
+   setAssignmentNotice(player.name+(action==="release"?" está disponible de nuevo.":action==="preselect"?" está preseleccionado para "+(manager.display_name||manager.name)+".":" está vinculado a "+(manager.display_name||manager.name)+"."));
+  }catch(e){
+   setAssignmentError("No se pudo guardar la adjudicación de "+player.name+": "+(e.message||"Error del servidor"));
+  }finally{setAssignmentBusy("")}
+ };
+ useEffect(()=>{
+  let live=true;
+  setAssignmentLoading(true);
+  all(base44.entities.ManagerPlayerAssignment).then(rows=>{
+   if(live){setPlayerAssignments(rows);setAssignmentError("")}
+  }).catch(e=>{
+   if(live)setAssignmentError("No se pudieron cargar las adjudicaciones: "+(e.message||"Error")+". Reintenta antes de vincular.");
+  }).finally(()=>{if(live)setAssignmentLoading(false)});
+  return()=>{live=false};
+ },[]);
+
  useEffect(()=>{
   let active=true;
   Promise.all([all(base44.entities.Manager),all(base44.entities.ManagerTacticalProfile),all(base44.entities.Player)])
@@ -131,7 +194,7 @@ export default function ManagerFit(){
  const candidates=useMemo(()=>managerScoutingPool(players),[players]);
  const candidateIds=useMemo(()=>managerScoutingCandidateIds(players),[players]);
  const resultLimit=showAllResults?Number.POSITIVE_INFINITY:48;
- useEffect(()=>setShowAllResults(false),[role,profileId,season,scoreMode,search,minCA,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage]);
+ useEffect(()=>setShowAllResults(false),[role,profileId,season,scoreMode,search,minCA,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage,assignmentFilter]);
  const visibility=useMemo(()=>{
   if(!profile)return {rows:[],fallback:false,compatibleCount:0,scoredCount:0,unscoredCount:0,shownCount:0,displayCount:0};
   const rows=rankPlayers(candidates,role,profile,{search,minCA,showUnknown:true})
@@ -149,9 +212,10 @@ export default function ManagerFit(){
   const eligible=filterScoutingCandidates(rows,{season,
     minAge:minAge===""?null:Number(minAge),maxAge:maxAge===""?null:Number(maxAge),
     maxValueM:maxValueM===""?null:Number(maxValueM),knownValueOnly,minimumCoverage,coverageMode:scoreMode});
-  return visibleManagerFitCandidates(eligible,{scoreMode,showUnknown,sortMode:resultSort,limit:resultLimit});
+  const reservable=filterManagerPlayerAssignments(eligible,assignmentsIndex,managerId,assignmentFilter);
+  return visibleManagerFitCandidates(reservable,{scoreMode,showUnknown,sortMode:resultSort,limit:resultLimit});
  },[candidates,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics,
-    valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage,resultSort,resultLimit,deepWeights,careerIndex]);
+    valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage,resultSort,resultLimit,deepWeights,careerIndex,assignmentsIndex,assignmentFilter,managerId]);
  const results=visibility.rows;
  const comparedRows=useMemo(()=>{
   if(!profile||!comparedIds.length)return [];
@@ -191,6 +255,9 @@ export default function ManagerFit(){
    <Link to="/squad-planner" className="text-xs font-bold text-blue-700 hover:underline">Abrir planificador de plantilla</Link>
   </div>
   {error&&<p role="alert" className="p-3 border border-red-200 bg-red-50 rounded-lg text-sm text-red-800">{error}</p>}
+  {assignmentNotice&&<div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-900">{assignmentNotice}</div>}
+  {assignmentError&&<div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"><span>{assignmentError}</span><button type="button" onClick={reloadAssignments} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-semibold">Reintentar lectura</button></div>}
+
   <section className="rounded-xl border border-slate-200 bg-white p-3 md:p-4 space-y-3" aria-label="Buscador de encaje táctico">
    <div className="flex flex-wrap items-center justify-between gap-2">
     <div><h2 className="text-sm font-black text-slate-900">Encuentra los futbolistas ideales</h2><p className="text-[11px] text-slate-500">Selecciona un entrenador, su etapa y una posición. El perfil histórico óptimo se calcula automáticamente.</p></div>
@@ -214,6 +281,26 @@ export default function ManagerFit(){
     <input aria-label="Buscar jugador" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar futbolista en tu bolsa…" className="min-w-[200px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"/>
     <Link to="/players?view=candidates" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-50">Gestionar bolsa</Link>
    </div>
+   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-100 bg-blue-50/50 px-3 py-2" aria-label="Estado de las adjudicaciones">
+    <div className="flex flex-wrap items-center gap-2 text-xs"><strong className="text-blue-950">Proyecto de {manager?.display_name||manager?.name||"entrenador"}</strong>
+     <span className="rounded-full bg-white px-2 py-1 font-bold text-blue-900">{assignmentCounts.linked} vinculados</span>
+     <span className="rounded-full bg-white px-2 py-1 font-bold text-slate-700">{assignmentCounts.preselected} preseleccionados</span>
+     {assignmentCounts.conflicts>0&&<span className="text-red-800">{assignmentCounts.conflicts} adjudicaciones por revisar</span>}
+    </div>
+    <span className="text-[10px] text-slate-500">{assignmentLoading?"Comprobando registros…":"Los vínculos no alteran plantillas ni puntuaciones"}</span>
+   </div>
+   <details className="rounded-xl border border-slate-200 bg-white p-3" aria-label="Jugadores adjudicados a este entrenador">
+    <summary className="cursor-pointer text-xs font-bold text-slate-800">Mis jugadores vinculados y preseleccionados · {managerAssignments.length} <span className="font-normal text-slate-500">(todas las posiciones)</span></summary>
+    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+     {managerAssignments.length===0?<p className="text-xs text-slate-500">Todavía no has adjudicado jugadores a este entrenador.</p>:managerAssignments.map(link=><div key={link.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50 p-2">
+      <div className="min-w-0"><strong className="block truncate text-xs">{nameByPlayer.get(String(link.player_id))||"Jugador "+link.player_id}</strong><span className="text-[10px] text-slate-500">{link.role||"Sin rol"} · {link.status==="linked"?"Vinculado":"Preseleccionado"} · {link.history?.length||0} decisiones registradas</span></div>
+      <div className="flex gap-1">
+       {link.status==="preselected"&&<button type="button" disabled={!!assignmentBusy||assignmentLoading||!!assignmentError} onClick={()=>managePlayerAssignment(link.player_id,"link",link.role||role)} className="rounded-md border border-blue-200 bg-white px-2 py-1 text-[10px] font-semibold text-blue-800">Confirmar</button>}
+       <button type="button" disabled={!!assignmentBusy||assignmentLoading||!!assignmentError} onClick={()=>managePlayerAssignment(link.player_id,"release",link.role||role)} className="rounded-md border border-red-200 bg-white px-2 py-1 text-[10px] font-semibold text-red-700">Liberar</button>
+      </div>
+     </div>)}
+    </div>
+   </details>
       {manager&&profile?<div className="text-xs rounded-lg bg-blue-50 p-3"><strong>{manager.name} · {profile.name}</strong><p className="mt-1"><strong>Lo que busca en {ROLE_LABELS[role].toLowerCase()}:</strong> {(()=>{try{return JSON.parse(profile.player_role_priorities||"{}")[role]||"Sin descripción específica"}catch{return "Sin descripción específica"}})()}</p></div>:!loading&&<p className="text-sm text-amber-700">Necesitas un entrenador con un ADN guardado antes de evaluar futbolistas. <Link className="underline" to="/managers">Abrir MANAGERS</Link>.</p>}
 
    <details className="group rounded-lg border border-slate-200 bg-slate-50/70 p-3" aria-label="Filtros avanzados">
@@ -323,6 +410,11 @@ export default function ManagerFit(){
     </>}
    </p>}
    {!loading&&!statsLoading&&!visibility.fallback&&visibility.unscoredCount>0&&visibility.scoredCount>0&&!showUnknown&&<p className="text-xs text-slate-500">Hay {visibility.unscoredCount} jugadores compatibles sin evaluación. Activa «Incluir encaje no evaluable» para mostrarlos.</p>}
+   <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar por adjudicación">
+    {[["available","Disponibles"],["preselected","Preseleccionados"],["linked","Vinculados"],["all","Todos"]].map(([value,label])=>
+     <button key={value} type="button" aria-pressed={assignmentFilter===value} onClick={()=>setAssignmentFilter(value)} className={"rounded-lg border px-3 py-2 text-xs font-semibold "+(assignmentFilter===value?"border-[#003399] bg-[#003399] text-white":"border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{label}</button>)}
+    <span className="text-[11px] text-slate-500">La adjudicación es manual y no depende de la nota.</span>
+   </div>
    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
     <label className="flex items-center gap-2 text-[11px] font-semibold text-slate-700">Ordenar resultados
      <select aria-label="Orden de resultados V4" value={resultSort} onChange={e=>setResultSort(e.target.value)}
@@ -347,7 +439,16 @@ export default function ManagerFit(){
      selected={comparedIds.includes(String(item.player.id))}
      compareDisabled={!comparedIds.includes(String(item.player.id))&&comparedIds.length>=MAX_COMPARE}
      onCompare={()=>setComparedIds(prev=>toggleCandidate(prev,item.player.id))}
-     onReport={()=>setScoutingPlayerId(String(item.player.id))}/>)}
+     onReport={()=>setScoutingPlayerId(String(item.player.id))}
+     assignment={assignmentsIndex.byPlayer.get(String(item.player.id))||null}
+     assignmentConflict={assignmentsIndex.conflicts.has(String(item.player.id))}
+     assignmentOwner={nameByManager.get(String(assignmentsIndex.byPlayer.get(String(item.player.id))?.manager_id))||""}
+     currentManagerId={managerId}
+     assignmentDisabled={assignmentLoading||!!assignmentError||!!assignmentBusy}
+     assignmentBusy={assignmentBusy===String(item.player.id)}
+     onPreselect={()=>managePlayerAssignment(item.player.id,"preselect")}
+     onLink={()=>managePlayerAssignment(item.player.id,"link")}
+     onRelease={()=>managePlayerAssignment(item.player.id,"release")}/>)}
    </div>
    {!loading&&visibility.displayCount>visibility.shownCount&&<div className="flex flex-col items-center gap-2 border-t border-slate-100 pt-4">
     <span className="text-xs text-slate-500">Mostrando {visibility.shownCount} de {visibility.displayCount} jugadores del filtro actual.</span>
