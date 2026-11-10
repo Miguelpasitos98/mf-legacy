@@ -400,6 +400,15 @@ const emptyPlayerForm = {
   retirementYear: "",
   lastTeamId: "",
   countryId: "",
+  secondaryCountryId: "",
+  primaryPosition: "",
+  secondaryPosition: "",
+  height: "",
+  rightFoot: "",
+  leftFoot: "",
+  shirtNumber: "",
+  tacticalRoles: [{ name: "", description: "" }, { name: "", description: "" }],
+  stats: { mental: {}, physical: {}, technical: {}, goalkeeping: {} },
   photoUrl: "",
   cardPhotoUrl: "",
   nationalCardPhotoUrl: "",
@@ -3012,18 +3021,42 @@ export default function Players() {
       return;
     }
 
-    if (form.ca === "" || form.ca == null || Number(form.ca) < 0 || Number(form.ca) > 200) {
-      setErrorMessage(
-        "El CA debe estar entre 0 y 200."
-      );
+    if (!form.primaryPosition) {
+      setErrorMessage("Selecciona la posición principal del jugador.");
       return;
     }
-
-    if (form.cp === "" || form.cp == null || Number(form.cp) < 0 || Number(form.cp) > 200) {
-      setErrorMessage(
-        "El CP debe estar entre 0 y 200."
-      );
+    if (form.primaryPosition === form.secondaryPosition) {
+      setErrorMessage("La posición secundaria debe ser diferente de la principal.");
       return;
+    }
+    if (form.countryId && form.countryId === form.secondaryCountryId) {
+      setErrorMessage("La segunda nacionalidad debe ser diferente de la principal.");
+      return;
+    }
+    const sameNameAndBirth=players.some(player=>
+      String(player.name||"").trim().toLocaleLowerCase("es") === form.name.trim().toLocaleLowerCase("es") &&
+      form.dateOfBirth.trim() && normalizeDateOfBirth(player.date_of_birth||"")===normalizeDateOfBirth(form.dateOfBirth));
+    if(sameNameAndBirth){
+      setErrorMessage("Ya existe un jugador con el mismo nombre y fecha de nacimiento. Abre su ficha para editarlo.");
+      return;
+    }
+    const validOptional=(value,max,min=0)=>value===""||value==null||(Number.isFinite(Number(value))&&Number(value)>=min&&Number(value)<=max);
+    if(!validOptional(form.ca,200)||!validOptional(form.cp,200)){
+      setErrorMessage("CA y CP deben estar entre 0 y 200; deja el campo vacío si lo desconoces.");
+      return;
+    }
+    if(!validOptional(form.height,230,110)||!validOptional(form.rightFoot,20,1)||!validOptional(form.leftFoot,20,1)||!validOptional(form.shirtNumber,99)){
+      setErrorMessage("Revisa altura (110–230), pies (1–20) y dorsal (0–99).");
+      return;
+    }
+    const stats={mental:{},physical:{},technical:{},goalkeeping:{}};
+    for(const [group,entries] of Object.entries(form.stats||{})){
+      if(!Object.prototype.hasOwnProperty.call(stats,group))continue;
+      for(const [key,raw] of Object.entries(entries||{})){
+        if(raw===""||raw==null)continue;
+        if(!validOptional(raw,20)){setErrorMessage("Los atributos FM deben estar entre 0 y 20.");return;}
+        stats[group][key]=Number(raw);
+      }
     }
 
     const positionRatings = Object.entries(form.positionRatings).reduce(
@@ -3054,60 +3087,6 @@ export default function Players() {
     try {
       let teamId = form.teamId || "";
       let countryId = form.countryId || "";
-
-      /* CREATE NEW TEAM */
-      if (teamId === NEW_TEAM_VALUE) {
-        const newTeamName = form.newTeamName.trim();
-
-        const normalizedNewTeamName =
-          newTeamName.toLowerCase();
-
-        const existingTeam = teams.find(
-          (team) =>
-            String(team.name || "")
-              .trim()
-              .toLowerCase() ===
-            normalizedNewTeamName
-        );
-
-        if (existingTeam?.id) {
-          teamId = existingTeam.id;
-        } else {
-          const generatedShortName =
-            newTeamName
-              .toUpperCase()
-              .replace(/[^A-Z0-9À-ÿ]/g, "")
-              .slice(0, 12) ||
-            `TEAM${Date.now()}`;
-
-          const createdTeam =
-            await base44.entities.Team.create({
-              name: newTeamName,
-              short_name: generatedShortName,
-              country_id:
-                form.countryId || "",
-              continent: "Europe",
-              is_active: true,
-            });
-
-          const createdTeamData =
-            createdTeam?.data ||
-            createdTeam;
-
-          teamId =
-            createdTeamData?.id ||
-            createdTeamData?._id ||
-            createdTeam?.id ||
-            createdTeam?._id ||
-            "";
-
-          if (!teamId) {
-            throw new Error(
-              "El club se creó pero Base44 no devolvió su ID."
-            );
-          }
-        }
-      }
 
       /* CREATE NEW COUNTRY */
       if (countryId === NEW_COUNTRY_VALUE) {
@@ -3165,6 +3144,60 @@ export default function Players() {
         }
       }
 
+      /* CREATE NEW TEAM */
+      if (teamId === NEW_TEAM_VALUE) {
+        const newTeamName = form.newTeamName.trim();
+
+        const normalizedNewTeamName =
+          newTeamName.toLowerCase();
+
+        const existingTeam = teams.find(
+          (team) =>
+            String(team.name || "")
+              .trim()
+              .toLowerCase() ===
+            normalizedNewTeamName
+        );
+
+        if (existingTeam?.id) {
+          teamId = existingTeam.id;
+        } else {
+          const generatedShortName =
+            newTeamName
+              .toUpperCase()
+              .replace(/[^A-Z0-9À-ÿ]/g, "")
+              .slice(0, 12) ||
+            `TEAM${Date.now()}`;
+
+          const createdTeam =
+            await base44.entities.Team.create({
+              name: newTeamName,
+              short_name: generatedShortName,
+              country_id:
+                countryId || "",
+              continent: "Europe",
+              is_active: true,
+            });
+
+          const createdTeamData =
+            createdTeam?.data ||
+            createdTeam;
+
+          teamId =
+            createdTeamData?.id ||
+            createdTeamData?._id ||
+            createdTeam?.id ||
+            createdTeam?._id ||
+            "";
+
+          if (!teamId) {
+            throw new Error(
+              "El club se creó pero Base44 no devolvió su ID."
+            );
+          }
+        }
+      }
+
       /* CREATE PLAYER */
       await base44.entities.Player.create({
         name: form.name.trim(),
@@ -3179,8 +3212,20 @@ export default function Players() {
         last_team_id: form.lastTeamId || "",
         retirement_year: teamId === "__retired__" && form.retirementYear !== "" ? Number(form.retirementYear) : null,
 
-        country_id:
-          countryId || "",
+        country_id: countryId || "",
+        secondary_country_id: form.secondaryCountryId || "",
+        position: form.primaryPosition,
+        position_raw: form.primaryPosition,
+        secondary_position: form.secondaryPosition || "",
+        secondary_position_raw: form.secondaryPosition || "",
+        fm_position: [form.primaryPosition,form.secondaryPosition].filter(Boolean).join(", "),
+        best_positions: form.primaryPosition,
+        height: form.height === "" ? undefined : Number(form.height),
+        right_foot: form.rightFoot === "" ? "" : String(form.rightFoot),
+        left_foot: form.leftFoot === "" ? "" : String(form.leftFoot),
+        shirt_number: form.shirtNumber === "" ? undefined : Number(form.shirtNumber),
+        tactical_roles: (form.tacticalRoles||[]).map(role=>({name:String(role.name||""),description:String(role.description||"")})),
+        stats,
 
         photo_url:
           normalizeImageUrl(form.photoUrl),
@@ -3191,14 +3236,14 @@ export default function Players() {
         national_card_photo_url:
           normalizeImageUrl(form.nationalCardPhotoUrl),
 
-        ca: Number(form.ca),
+        ...(form.ca === "" ? {} : {ca:Number(form.ca)}),
 
-        cp: Number(form.cp),
+        ...(form.cp === "" ? {} : {cp:Number(form.cp)}),
 
         position_ratings: positionRatings,
 
         description:
-          form.description || "",
+          form.tacticalRoles?.[0]?.name || form.description || "",
       });
 
       setAddModalOpen(false);
