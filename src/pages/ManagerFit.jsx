@@ -152,6 +152,7 @@ export default function ManagerFit(){
   historical:seasonPercentiles(historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,role,profile),
   roleFit:evaluateRoleRequirements(historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,role,profile,{playerId:scoutingPlayer.id})
  }:null;
+ const scoutingCareer=scoutingPlayer?careerIndex.get(String(scoutingPlayer.id))||null:null;
  const scoutingDeep=scoutingRow?evaluateDeepFit({player:scoutingPlayer,role,profile,
   roleFit:scoutingRow.roleFit,advanced:scoutingRow.advanced,weights:deepWeights,season}):null;
  const scoutingReport=scoutingRow?buildScoutingReport(scoutingPlayer,role,profile,season,scoutingRow.roleFit,scoutingRow.historical,scoutingRow.advanced):null;
@@ -173,7 +174,7 @@ export default function ManagerFit(){
     <label className="text-xs font-bold">Rol buscado<select aria-label="Rol buscado" value={role} onChange={e=>setRole(e.target.value)} className="block w-full border rounded-lg p-2 mt-1 text-sm">{Object.entries(ROLE_LABELS).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
     <label className="text-xs font-bold">CA mínimo (FM26)<input aria-label="CA mínimo" type="number" min="0" max="200" value={minCA} onChange={e=>setMinCA(Math.max(0,Math.min(200,Number(e.target.value)||0)))} className="block w-full border rounded-lg p-2 mt-1 text-sm"/></label>
    </div>
-   <div className="flex gap-2 flex-wrap text-sm"><label className="text-xs font-bold">Temporada histórica <input aria-label="Temporada histórica" className="block rounded-lg border p-2 mt-1" value={season} onChange={e=>setSeason(e.target.value)} placeholder="2025/2026"/></label></div>
+   <div className="flex gap-2 flex-wrap text-sm"><label className="text-xs font-bold">{scoreMode==="career"?"Temporada de referencia (filtros de edad y valor)":"Temporada histórica"} <input aria-label="Temporada histórica" className="block rounded-lg border p-2 mt-1" value={season} onChange={e=>setSeason(e.target.value)} placeholder="2025/2026"/></label></div>
    <div className="grid grid-cols-2 gap-2 lg:grid-cols-6" role="group" aria-label="Modelo de evaluación">
     {[
      {key:"career",title:"PERFIL HISTÓRICO ÓPTIMO",note:"70% mejor temporada + 30% trayectoria en la posición"},
@@ -242,7 +243,7 @@ export default function ManagerFit(){
      <h2 className="mt-1 text-base font-black text-slate-900">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}</h2><p className="text-[11px] text-slate-500">{visibility.compatibleCount} compatibles en la bolsa · {visibility.scoredCount} evaluables en el modelo seleccionado · {players.length} jugadores del catálogo para la muestra histórica</p></div>
     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold text-slate-600">Modelo auditable · No predice rendimiento</span>
    </div>
-   {scoreMode==="career"&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">Perfil histórico por posición: cada campaña se evalúa de forma independiente contra jugadores de la misma temporada y rol. Se utiliza el 70% de la mejor campaña evaluable y el 30% de la media de campañas evaluables ponderada por minutos (máximo 3000 por campaña). Se requieren dos métricas y diez comparables por indicador, al menos 450 minutos y posición histórica identificada. Una única campaña válida se señala como tal.</p>}
+   {scoreMode==="career"&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">Perfil histórico por posición: cada campaña se puntúa por separado frente a una referencia histórica de otros jugadores del mismo rol (cada jugador comparable cuenta una vez). Se utiliza el 70% de la mejor campaña evaluable y el 30% de la media de campañas evaluables ponderada por minutos (máximo 3000 por campaña). Se requieren dos métricas y diez jugadores históricos comparables por indicador, al menos 450 minutos y posición histórica identificada. Una única campaña válida se señala como tal.</p>}
    <ManagerScoutingSummary scoreMode={scoreMode} visibility={visibility} roleRequirements={roleRequirements} statsLoading={statsLoading} statsError={statsError} season={season}/>
    <details className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
     <summary className="cursor-pointer font-semibold">Diagnóstico de datos · {statsDiagnosis.matched}/{statsDiagnosis.total} registros vinculados · {statsDiagnosis.measured} jugadores con métricas reconocidas</summary>
@@ -329,6 +330,12 @@ export default function ManagerFit(){
      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
       {[["Deep Fit experimental",scoutingDeep?.score===null?"—":scoutingDeep?.score+"/100"],["Encaje por requisitos",scoutingReport.fit===null?"—":scoutingReport.fit+"/100"],["Histórico general",scoutingReport.historicalScore===null?"—":scoutingReport.historicalScore+"/100"],["Atributos FM26",scoutingReport.attributeScore===null?"—":scoutingReport.attributeScore+"/100"],["CA independiente",scoutingReport.ca===null?"—":scoutingReport.ca+"/200"]].map(([k,v])=><div key={k} className="rounded-xl bg-white border p-3"><p className="text-[11px] text-slate-500">{k}</p><strong className="text-xl tabular-nums">{v}</strong></div>)}
      </div>
+     {scoutingCareer&&<section className="rounded-lg border border-blue-200 bg-white p-3 text-xs space-y-1" aria-label="Perfil histórico óptimo del jugador">
+      <h4 className="font-black text-blue-900">Perfil histórico óptimo · {scoutingCareer.score}/100</h4>
+      <p><strong>Mejor campaña ({scoutingCareer.bestSeason}):</strong> {scoutingCareer.bestScore}/100 · <strong>Trayectoria en esta posición:</strong> {scoutingCareer.careerScore===null?"una campaña válida":scoutingCareer.careerScore+"/100 en "+scoutingCareer.seasonCount+" campañas"}.</p>
+      <p>{scoutingCareer.method}. Referencia histórica de jugadores distintos del mismo rol; las métricas reales pertenecen a cada campaña y no se mezclan como si fueran una temporada.</p>
+      <p>Campañas evaluables: {scoutingCareer.seasons.map(r=>r.season+" ("+r.score+"/100)").join(" · ")}</p>
+     </section>}
      <p className="text-sm font-medium">{scoutingReport.fitLabel}. {scoutingReport.summary}</p>
      {scoutingDeep&&<section aria-label="Informe Deep Fit por fuentes" className="rounded-xl border border-blue-200 bg-white p-3 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="font-bold text-sm">Deep Fit · Evidencia histórica y perfil funcional FM26</h4>
