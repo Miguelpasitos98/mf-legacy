@@ -20,6 +20,7 @@ import {managerScoutingPool,managerScoutingCandidateIds} from "@/components/mana
 import {DEEP_FIT_PRESETS,DEEP_COMPONENT_LABELS,evaluateDeepFit} from "@/components/managers/managerFitDeep.mjs";
 import {managerFitTemporalScope} from "@/components/managers/managerFitTemporalScope.mjs";
 import {careerPositionFitIndex} from "@/components/managers/managerCareerPositionFit.mjs";
+import {evaluatePlayerSeasonHybrid} from "@/components/managers/managerPlayerSeasonHybrid.mjs";
 const all=async(entity,query={})=>{
  const output=[];
  for(let skip=0;skip<100000;skip+=200){
@@ -45,7 +46,7 @@ export default function ManagerFit(){
  const [showUnknown,setShowUnknown]=useState(false);
  const [resultSort,setResultSort]=useState("score");
  const [showAllResults,setShowAllResults]=useState(false);
- const [scoreMode,setScoreMode]=useState("career");
+ const [scoreMode,setScoreMode]=useState("hybrid");
  const [deepPreset,setDeepPreset]=useState("balanced");
  const [customDeepWeights,setCustomDeepWeights]=useState({...DEEP_FIT_PRESETS.balanced});
  const deepWeights=deepPreset==="custom"?customDeepWeights:DEEP_FIT_PRESETS[deepPreset]||DEEP_FIT_PRESETS.balanced;
@@ -135,8 +136,9 @@ export default function ManagerFit(){
     const evidence=historicalIndex.get(String(item.player.id))||{};
     const advanced=managerFitAttributes(item.player,role,profile);
     const roleFit=evaluateRoleRequirements(evidence,historicalPeerMetrics,role,profile,{playerId:item.player.id});
+    const career=careerIndex.get(String(item.player.id))||null;
     return {...item,valuation:valuationForSeason(valuationRows,item.player.id,season),
-     career:careerIndex.get(String(item.player.id))||null,
+     career,hybrid:evaluatePlayerSeasonHybrid({player:item.player,role,profile,advanced,career}),
      advanced,roleFit,
      historical:seasonPercentiles(evidence,historicalPeerMetrics,role,profile),
      deep:evaluateDeepFit({player:item.player,role,profile,roleFit,advanced,weights:deepWeights,season})};
@@ -156,7 +158,9 @@ export default function ManagerFit(){
    const evidence=historicalIndex.get(String(player.id))||{};
    const roleFit=evaluateRoleRequirements(evidence,historicalPeerMetrics,role,profile,{playerId:player.id});
    const advanced=managerFitAttributes(player,role,profile);
-   return {player,valuation:valuationForSeason(valuationRows,player.id,season),career:careerIndex.get(String(player.id))||null,
+   const career=careerIndex.get(String(player.id))||null;
+   return {player,valuation:valuationForSeason(valuationRows,player.id,season),career,
+    hybrid:evaluatePlayerSeasonHybrid({player,role,profile,advanced,career}),
     roleFit,advanced,deep:evaluateDeepFit({player,role,profile,roleFit,advanced,weights:deepWeights,season}),
     historical:seasonPercentiles(evidence,historicalPeerMetrics,role,profile)};
   }).filter(Boolean),comparedIds);
@@ -169,6 +173,7 @@ export default function ManagerFit(){
   roleFit:evaluateRoleRequirements(historicalIndex.get(String(scoutingPlayer.id))||{},historicalPeerMetrics,role,profile,{playerId:scoutingPlayer.id})
  }:null;
  const scoutingCareer=scoutingPlayer?careerIndex.get(String(scoutingPlayer.id))||null:null;
+ const scoutingHybrid=scoutingRow?evaluatePlayerSeasonHybrid({player:scoutingPlayer,role,profile,advanced:scoutingRow.advanced,career:scoutingCareer}):null;
  const scoutingDeep=scoutingRow?evaluateDeepFit({player:scoutingPlayer,role,profile,
   roleFit:scoutingRow.roleFit,advanced:scoutingRow.advanced,weights:deepWeights,season}):null;
  const scoutingReport=scoutingRow?buildScoutingReport(scoutingPlayer,role,profile,season,scoutingRow.roleFit,scoutingRow.historical,scoutingRow.advanced):null;
@@ -199,8 +204,8 @@ export default function ManagerFit(){
     </div>
    </div>
    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#f2f6fc] px-3 py-2">
-    <div className="min-w-0"><strong className="text-xs text-blue-950">{scoreMode==="career"?"Perfil histórico óptimo":scoreMode==="deep"?"Deep Fit experimental":scoreMode==="role"?"ADN táctico V4":scoreMode==="historical"?"Histórico V3":scoreMode==="attributes"?"Atributos FM26 V2":"Adecuación posicional"}</strong><p className="text-[11px] text-slate-600">{scoreMode==="career"?"70% mejor temporada + 30% trayectoria en la posición":"Modo alternativo elegido en herramientas avanzadas"}</p></div>
-    <button type="button" onClick={()=>{setScoreMode("career");setResultSort("score")}} disabled={scoreMode==="career"} className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-800 disabled:opacity-50">{scoreMode==="career"?"Modo principal":"Volver al principal"}</button>
+    <div className="min-w-0"><strong className="text-xs text-blue-950">{scoreMode==="hybrid"?"Encaje integral 70/30":scoreMode==="career"?"Histórico de carrera":scoreMode==="deep"?"Deep Fit experimental":scoreMode==="role"?"ADN táctico V4":scoreMode==="historical"?"Histórico V3":scoreMode==="attributes"?"Atributos FM26 V2":"Adecuación posicional"}</strong><p className="text-[11px] text-slate-600">{scoreMode==="hybrid"?"70% atributos del jugador (FM26) + 30% rendimiento de su mejor temporada":scoreMode==="career"?"Histórico: mejor campaña y trayectoria":"Modo alternativo elegido en herramientas avanzadas"}</p></div>
+    <button type="button" onClick={()=>{setScoreMode("hybrid");setResultSort("score")}} disabled={scoreMode==="hybrid"} className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-800 disabled:opacity-50">{scoreMode==="hybrid"?"Modo principal":"Volver al principal"}</button>
    </div>
    <div className="flex flex-wrap items-center gap-2">
     <input aria-label="Buscar jugador" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar futbolista en tu bolsa…" className="min-w-[200px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"/>
@@ -230,9 +235,10 @@ export default function ManagerFit(){
     <summary className="cursor-pointer text-xs font-bold text-slate-700">Modelos y herramientas avanzadas · V1–V4 y Deep Fit</summary>
     <div className="mt-3 space-y-3">
      <p className="text-[11px] text-slate-600">Los modelos alternativos son independientes del perfil histórico óptimo. Úsalos para estudios específicos.</p>
-   <div className="grid grid-cols-2 gap-2 lg:grid-cols-6" role="group" aria-label="Modelo de evaluación">
+   <div className="grid grid-cols-2 gap-2 lg:grid-cols-7" role="group" aria-label="Modelo de evaluación">
     {[
-     {key:"career",title:"PERFIL HISTÓRICO ÓPTIMO",note:"70% mejor temporada + 30% trayectoria en la posición"},
+     {key:"hybrid",title:"ENCAJE INTEGRAL 70/30",note:"70% atributos FM26 + 30% mejor temporada real"},
+     {key:"career",title:"Histórico de carrera",note:"70% mejor temporada + 30% trayectoria en la posición"},
      {key:"deep",title:"Deep Fit · Cruce real + FM26",note:"Funciones tácticas · 2 fuentes · experimental"},
      {key:"role",title:"V4 · ADN del entrenador",note:"Requisitos medidos · experimental"},
      {key:"historical",title:"V3 · Histórico",note:"FotMob + Understat · por temporada"},
@@ -287,6 +293,7 @@ export default function ManagerFit(){
    <details className="rounded-lg border border-slate-200 bg-slate-50/70 p-3" aria-label="Diagnóstico y metodología de evaluación">
     <summary className="cursor-pointer text-xs font-semibold text-slate-700">Metodología y diagnóstico · Ver evidencia detallada</summary>
     <div className="mt-3 space-y-3">
+   {scoreMode==="hybrid"&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">Nota principal: 70% atributos FM26 del jugador para la posición (incluidas las funciones del ADN cuando hay datos) + 30% rendimiento real de su mejor temporada histórica evaluable. Ambos componentes son obligatorios. CA, PA y mercado no forman parte de la puntuación; las fuentes y épocas se muestran por separado.</p>}
    {scoreMode==="career"&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">Perfil histórico por posición: cada campaña se puntúa por separado frente a una referencia histórica de otros jugadores del mismo rol (cada jugador comparable cuenta una vez). Se utiliza el 70% de la mejor campaña evaluable y el 30% de la media de campañas evaluables ponderada por minutos (máximo 3000 por campaña). Se requieren dos métricas y diez jugadores históricos comparables por indicador, al menos 450 minutos y posición histórica identificada. Una única campaña válida se señala como tal.</p>}
    <ManagerScoutingSummary scoreMode={scoreMode} visibility={visibility} roleRequirements={roleRequirements} statsLoading={statsLoading} statsError={statsError} season={season}/>
    {scoreMode==="career"&&<p className="text-[11px] text-slate-600">Evaluación histórica: {careerIndex.size} jugadores con nota · {careerIndex.diagnostics?.eligible??0} temporadas compatibles con el rol · {careerIndex.diagnostics?.withTwoMetrics??0} temporadas con al menos dos indicadores detectados · {careerIndex.diagnostics?.scoredSeasons??0} temporadas puntuadas · {careerIndex.diagnostics?.roleRequirements??0} indicadores exigidos por el ADN. La temporada del selector solo afecta a los filtros de edad y valor.</p>}
@@ -298,7 +305,7 @@ export default function ManagerFit(){
    </details>
     </div>
    </details>
-   {scoreMode==="career"&&visibility.scoredCount===0&&<div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+   {(scoreMode==="career"||scoreMode==="hybrid")&&visibility.scoredCount===0&&<div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
     <strong>Comprobación de estadísticas:</strong> {fitDataset?.observations?.length??0} temporadas cargadas · {careerIndex.diagnostics?.eligible??0} temporadas de este rol · {careerIndex.diagnostics?.withTwoMetrics??0} con métricas · {careerIndex.diagnostics?.scoredSeasons??0} puntuables · {careerIndex.size} jugadores con nota.
     {!fitDataset&&<span> La base histórica aún no está disponible. {statsError||"Cargando el historial completo de STATS…"}</span>}
     <button type="button" onClick={()=>reloadStats()} className="ml-2 rounded border border-amber-300 bg-white px-2 py-1 font-bold">Reintentar lectura de STATS</button>
@@ -382,6 +389,7 @@ export default function ManagerFit(){
      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
       {[["Deep Fit experimental",scoutingDeep?.score===null?"—":scoutingDeep?.score+"/100"],["Encaje por requisitos",scoutingReport.fit===null?"—":scoutingReport.fit+"/100"],["Histórico general",scoutingReport.historicalScore===null?"—":scoutingReport.historicalScore+"/100"],["Atributos FM26",scoutingReport.attributeScore===null?"—":scoutingReport.attributeScore+"/100"],["CA independiente",scoutingReport.ca===null?"—":scoutingReport.ca+"/200"]].map(([k,v])=><div key={k} className="rounded-xl bg-white border p-3"><p className="text-[11px] text-slate-500">{k}</p><strong className="text-xl tabular-nums">{v}</strong></div>)}
      </div>
+     {scoutingHybrid&&<section className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs space-y-1" aria-label="Encaje integral 70 30"><h4 className="font-black text-blue-900">Encaje integral 70/30 · {scoutingHybrid.score===null?"Sin valoración conjunta":scoutingHybrid.score+"/100"}</h4><p><strong>70% FM26:</strong> {scoutingHybrid.fmScore===null?"Sin datos suficientes":scoutingHybrid.fmScore+"/100"} · <strong>30% rendimiento real:</strong> {scoutingHybrid.seasonScore===null?"Sin campaña evaluable":scoutingHybrid.seasonScore+"/100 · "+scoutingHybrid.season}</p><p>La mejor campaña real se evalúa por separado. {scoutingHybrid.seasonBasis==="position"?"Referencia estadística por posición; ADN no medible en ese rol.":"El histórico utiliza los requisitos de ADN medibles."} No se sustituyen datos ausentes por cero.</p></section>}
      {scoutingCareer&&<section className="rounded-lg border border-blue-200 bg-white p-3 text-xs space-y-1" aria-label="Perfil histórico óptimo del jugador">
       <h4 className="font-black text-blue-900">Perfil histórico óptimo · {scoutingCareer.score}/100</h4>
       <p><strong>Mejor campaña ({scoutingCareer.bestSeason}):</strong> {scoutingCareer.bestScore}/100 · <strong>Trayectoria en esta posición:</strong> {scoutingCareer.careerScore===null?"una campaña válida":scoutingCareer.careerScore+"/100 en "+scoutingCareer.seasonCount+" campañas"}.</p>
