@@ -11,32 +11,54 @@ const nonEmptyId=x=>String(x??"").trim();
 const validSeason=s=>/^\d{4}\/\d{4}$/.test(String(s));
 const addTo=(map,k,row)=>{if(!map.has(k))map.set(k,[]);map.get(k).push(row)};
 
-// Only scored years (>=2 measured indicators with >=10 same-season peers)
-// contribute to the blend. Every season is evaluated independently first.
+// Every player-season is scored separately against one role-specific historical
+// reference per distinct peer (not a skewed count of the same player’s seasons).
 export function careerPositionFitIndex({dataset,players=[],links=[],role,profile}={}){
  const empty=new Map();
  if(!dataset?.observations?.length||!profile)return empty;
  const relevant=dataset.observations.filter(o=>roleMatches(o.role,role)&&validSeason(o.season)&&nonEmptyId(o.playerId)&&Number(o.minutes)>=450&&!o.positionMixed);
  if(!relevant.length)return empty;
  const chosen=new Set(relevant.map(o=>key(o.playerId,o.season)));
- const observationsBySeason=new Map();
- for(const o of relevant)addTo(observationsBySeason,o.season,o);
  const rawStats=linkedManagerFitRows(dataset.records?.PlayerSeasonStats||[],links,players);
  const rawUnder=linkedManagerFitRows(dataset.records?.UnderstatSeasonRate||[],links,players);
  const statsByKey=new Map(),underByKey=new Map();
  for(const r of rawStats){const k=key(r.player_id,r.season);if(chosen.has(k))addTo(statsByKey,k,r)}
  for(const r of rawUnder){const k=key(r.player_id,r.season);if(chosen.has(k))addTo(underByKey,k,r)}
- const metricsByKey=new Map(),cohorts=new Map();
+ const metricsByKey=new Map(),byHistoricalPlayer=new Map();
  for(const obs of relevant){
   const k=key(obs.playerId,obs.season);
   const measured={...collectPlayerSeasonMetrics(statsByKey.get(k)||[],underByKey.get(k)||[],obs.season,obs.playerId),__playerId:String(obs.playerId)};
   metricsByKey.set(k,measured);
-  addTo(cohorts,obs.season,measured);
+  addTo(byHistoricalPlayer,String(obs.playerId),measured);
+ }
+ // Build one independent historical reference per comparable player.
+ // Never combine incompatible providers or season-global vs competition scope.
+ const peerReference=[];
+ for(const [pid,seasonMetrics] of byHistoricalPlayer){
+  const buckets=new Map();
+  for(const record of seasonMetrics)for(const [metric,observation] of Object.entries(record)){
+   if(metric==="__playerId"||!observation||typeof observation.value!=="number")continue;
+   const group=metric+"|"+(observation.source||"")+"|"+(observation.scope||"");
+   if(!buckets.has(group))buckets.set(group,[]);
+   buckets.get(group).push(observation);
+  }
+  const preferred=new Map();
+  for(const [group,values] of buckets){
+   const metric=group.split("|")[0];
+   const weight=values.reduce((total,v)=>total+Math.min(3000,Math.max(0,v.minutes||0)),0);
+   const mean=weight>0?values.reduce((total,v)=>total+v.value*Math.min(3000,Math.max(0,v.minutes||0)),0)/weight:
+    values.reduce((total,v)=>total+v.value,0)/values.length;
+   const candidate={value:mean,source:values[0].source,scope:values[0].scope,minutes:weight||null};
+   if(!preferred.has(metric)||weight>preferred.get(metric).weight)preferred.set(metric,{weight,candidate});
+  }
+  const peer={__playerId:pid};
+  for(const [metric,entry] of preferred)peer[metric]=entry.candidate;
+  peerReference.push(peer);
  }
  const byPlayer=new Map();
  for(const obs of relevant){
   const measured=metricsByKey.get(key(obs.playerId,obs.season));
-  const fit=evaluateRoleRequirements(measured,cohorts.get(obs.season)||[],role,profile,{playerId:obs.playerId});
+  const fit=evaluateRoleRequirements(measured,peerReference,role,profile,{playerId:obs.playerId});
   if(fit.score===null)continue;
   addTo(byPlayer,String(obs.playerId),{season:obs.season,score:fit.score,coverage:fit.coverage,
    minutes:Math.min(3000,Number(obs.minutes)||0),fit});
