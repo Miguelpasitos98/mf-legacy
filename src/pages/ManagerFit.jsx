@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
+import {useProgressiveHistoricalStats} from "@/hooks/useProgressiveHistoricalStats";
 import {useQuery} from "@tanstack/react-query";
 import {statsSnapshotOptions} from "@/api/recordQueries";
 import {flattenStatsPages} from "@/utils/statsRowsCache";
@@ -51,20 +52,22 @@ export default function ManagerFit(){
  const [customDeepWeights,setCustomDeepWeights]=useState({...DEEP_FIT_PRESETS.balanced});
  const deepWeights=deepPreset==="custom"?customDeepWeights:DEEP_FIT_PRESETS[deepPreset]||DEEP_FIT_PRESETS.balanced;
  const [season,setSeason]=useState(()=>params.get("season")||"2025/2026");
- const {data:historicalDataset,isFetching:fullHistoryLoading,error:historicalError}=useHistoricalPeerDataset(true);
- // STATS records are independently cached and can be used before the larger
- // seven-entity reference dataset completes (or if one ancillary entity fails).
- const {data:statsSnapshot,isFetching:rawStatsLoading,error:rawStatsError,refetch:reloadStats}=useQuery(statsSnapshotOptions());
- const rawHistoricalStats=useMemo(()=>statsSnapshot?flattenStatsPages(statsSnapshot):[],[statsSnapshot]);
+ // The main 70/30 mode does NOT need seven massive historical downloads.
+ // Read each historical season completely before publishing it into the comparison.
+ const progressiveMode=scoreMode==="hybrid"||scoreMode==="career";
+ const progressive=useProgressiveHistoricalStats(progressiveMode);
+ const {data:historicalDataset,isFetching:fullHistoryLoading,error:historicalError}=useHistoricalPeerDataset(!progressiveMode);
+ const {data:statsSnapshot,isFetching:rawStatsLoading,error:rawStatsError,refetch:reloadStats}=useQuery({...statsSnapshotOptions(),enabled:!progressiveMode});
+ const rawHistoricalStats=useMemo(()=>progressiveMode?progressive.rows:(statsSnapshot?flattenStatsPages(statsSnapshot):[]),[progressiveMode,progressive.rows,statsSnapshot]);
  const coreDataset=useMemo(()=>{
   if(!players.length||!rawHistoricalStats.length)return null;
   const resolved=linkedManagerFitRows(rawHistoricalStats,fotmobLinks,players);
   return {observations:buildHistoricalObservations({players,stats:resolved}),
    records:{PlayerSeasonStats:resolved,UnderstatSeasonRate:[],PlayerHistoricalValuation:[]}};
  },[rawHistoricalStats,players,fotmobLinks]);
- const fitDataset=historicalDataset?.observations?.length?historicalDataset:coreDataset;
- const statsLoading=!fitDataset&&(fullHistoryLoading||rawStatsLoading);
- const statsError=fitDataset?"":historicalError?.message||rawStatsError?.message||"";
+ const fitDataset=progressiveMode?(coreDataset||historicalDataset):historicalDataset||coreDataset;
+ const statsLoading=!fitDataset&&(progressiveMode?progressive.loading:(fullHistoryLoading||rawStatsLoading));
+ const statsError=progressiveMode?progressive.error:(historicalError?.message||rawStatsError?.message||"");
  const seasonStats=useMemo(()=>fitDataset?.records?.PlayerSeasonStats?.filter(row=>row.season===season)||[],[fitDataset,season]);
  const understatRows=useMemo(()=>fitDataset?.records?.UnderstatSeasonRate?.filter(row=>row.season===season)||[],[fitDataset,season]);
  const valuationRows=useMemo(()=>fitDataset?.records?.PlayerHistoricalValuation?.filter(row=>row.season===season)||[],[fitDataset,season]);
@@ -305,10 +308,12 @@ export default function ManagerFit(){
    </details>
     </div>
    </details>
-   {(scoreMode==="career"||scoreMode==="hybrid")&&visibility.scoredCount===0&&<div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-    <strong>Comprobación de estadísticas:</strong> {fitDataset?.observations?.length??0} temporadas cargadas · {careerIndex.diagnostics?.eligible??0} temporadas de este rol · {careerIndex.diagnostics?.withTwoMetrics??0} con métricas · {careerIndex.diagnostics?.scoredSeasons??0} puntuables · {careerIndex.size} jugadores con nota.
-    {!fitDataset&&<span> La base histórica aún no está disponible. {statsError||"Cargando el historial completo de STATS…"}</span>}
-    <button type="button" onClick={()=>reloadStats()} className="ml-2 rounded border border-amber-300 bg-white px-2 py-1 font-bold">Reintentar lectura de STATS</button>
+   {progressiveMode&&<div role="status" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
+    <strong>{progressive.complete?"Historial cargado":"Historial en actualización"}:</strong> {progressive.loadedSeasons.length}/{progressive.totalSeasons??"?"} temporadas completas · {progressive.rows.length} registros de STATS · {careerIndex.diagnostics?.eligible??0} campañas compatibles con el rol · {careerIndex.diagnostics?.scoredSeasons??0} campañas puntuables · {careerIndex.size} jugadores con evaluación histórica.
+    {!progressive.complete&&<span> Las puntuaciones pueden cambiar al incorporar otras temporadas; todavía no se confirma la mejor campaña histórica.</span>}
+    {statsError&&<p className="mt-1 text-amber-900">Error de carga: {statsError}</p>}
+    {progressive.failedSeasons.length>0&&<p className="mt-1">Temporadas pendientes: {progressive.failedSeasons.map(x=>x.season).join(", ")}.</p>}
+    <button type="button" onClick={progressive.retry} className="ml-2 rounded border border-blue-300 bg-white px-2 py-1 font-bold">Recargar temporadas de STATS</button>
    </div>}
    {visibility.fallback&&!statsLoading&&<p role="status" className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-slate-700">
     {scoreMode==="deep"?<>
