@@ -3,7 +3,7 @@ import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {ManagerScoutingSummary,ScoutingCandidateCard,ManagerMethodsPanel} from "@/components/managers/ManagerScoutingVisual";
 import {ROLE_LABELS,rankPlayers} from "@/components/managers/managerFit.mjs";
-import {collectPlayerSeasonMetrics,seasonPercentiles,historicalRoleCandidates} from "@/components/managers/managerFitHistorical.mjs";
+import {collectPlayerSeasonMetrics,seasonPercentiles,historicalRoleCandidates,linkedManagerFitRows} from "@/components/managers/managerFitHistorical.mjs";
 import {evaluateRoleRequirements,deriveRoleRequirements} from "@/components/managers/managerRoleFit.mjs";
 import {buildScoutingReport,compareManagerProfiles,SCOUT_METRIC_NAMES} from "@/components/managers/managerScoutingReport.mjs";
 import {ageOnSeason,valuationForSeason,filterScoutingCandidates,formatTransferValue} from "@/components/managers/managerTransferScout.mjs";
@@ -29,6 +29,8 @@ export default function ManagerFit(){
  const [managers,setManagers]=useState([]);
  const [profiles,setProfiles]=useState([]);
  const [players,setPlayers]=useState([]);
+ const [fotmobLinks,setFotmobLinks]=useState([]);
+ const [linkError,setLinkError]=useState("");
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [role,setRole]=useState(()=>["GK","CB","FB","DM","AM","WG","ST"].includes(params.get("role"))?params.get("role"):"FB");
@@ -69,6 +71,12 @@ export default function ManagerFit(){
   return()=>{active=false};
  },[]);
  useEffect(()=>{
+  let active=true;
+  all(base44.entities.PlayerFotmobLink).then(links=>{if(active)setFotmobLinks(links)})
+   .catch(e=>{if(active)setLinkError("No se pudieron cargar los vínculos FotMob–Base44: "+(e.message||"error desconocido"))});
+  return()=>{active=false};
+ },[]);
+ useEffect(()=>{
   if(loading||!managers.length)return;
   const selected=managers.find(m=>String(m.id)===managerId)||managers[0];
   if(!selected)return;
@@ -90,13 +98,21 @@ export default function ManagerFit(){
  },[season]);
  // Build statistical reference from the full role cohort, never from the
  // manually chosen scouting pool: restricting peers to the bag biases percentiles.
+ const linkedSeasonStats=useMemo(()=>linkedManagerFitRows(seasonStats,fotmobLinks,players),[seasonStats,fotmobLinks,players]);
+ const linkedUnderstat=useMemo(()=>linkedManagerFitRows(understatRows,fotmobLinks,players),[understatRows,fotmobLinks,players]);
  const historicalIndex=useMemo(()=>{
   const peers=historicalRoleCandidates(players,role);
   const result=new Map();
-  for(const p of peers)result.set(String(p.id),{...collectPlayerSeasonMetrics(seasonStats,understatRows,season,p.id),__playerId:String(p.id)});
+  for(const p of peers)result.set(String(p.id),{...collectPlayerSeasonMetrics(linkedSeasonStats,linkedUnderstat,season,p.id),__playerId:String(p.id)});
   return result;
- },[players,role,seasonStats,understatRows,season]);
+ },[players,role,linkedSeasonStats,linkedUnderstat,season]);
  const historicalPeerMetrics=useMemo(()=>[...historicalIndex.values()],[historicalIndex]);
+ const statsDiagnosis=useMemo(()=>{
+  const matched=linkedSeasonStats.filter(r=>players.some(p=>String(p.id)===String(r.player_id)));
+  const unresolved=linkedSeasonStats.filter(r=>!r.player_id||!players.some(p=>String(p.id)===String(r.player_id)));
+  const measured=historicalPeerMetrics.filter(r=>Object.values(r).some(v=>v&&typeof v==="object"&&typeof v.value==="number")).length;
+  return {total:seasonStats.length,matched:matched.length,unresolved:unresolved.length,measured,peers:historicalPeerMetrics.length,links:fotmobLinks.length};
+ },[linkedSeasonStats,seasonStats,players,historicalPeerMetrics,fotmobLinks]);
  const roleRequirements=useMemo(()=>deriveRoleRequirements(profile,role),[profile,role]);
  const temporalContext=useMemo(()=>managerFitTemporalScope(profile,season),[profile,season]);
  const candidates=useMemo(()=>managerScoutingPool(players),[players]);
@@ -232,6 +248,12 @@ export default function ManagerFit(){
     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold text-slate-600">Modelo auditable · No predice rendimiento</span>
    </div>
    <ManagerScoutingSummary scoreMode={scoreMode} visibility={visibility} roleRequirements={roleRequirements} statsLoading={statsLoading} statsError={statsError} season={season}/>
+   <details className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+    <summary className="cursor-pointer font-semibold">Diagnóstico de datos · {statsDiagnosis.matched}/{statsDiagnosis.total} registros vinculados · {statsDiagnosis.measured} jugadores con métricas reconocidas</summary>
+    <p className="mt-2">Temporada {season}: {statsDiagnosis.total} registros FotMob; {statsDiagnosis.matched} asociados a jugadores de MF Legacy; {statsDiagnosis.unresolved} sin vínculo resoluble; {statsDiagnosis.links} relaciones FotMob–Base44; {statsDiagnosis.measured}/{statsDiagnosis.peers} jugadores de la cohorte con al menos una métrica reconocida.</p>
+    <p className="mt-1">Los registros sin vínculo no se asignan por similitud de nombre. Cada nota V4 requiere además dos métricas válidas y diez comparables externos por indicador.</p>
+    {linkError&&<p role="alert" className="mt-1 text-red-700">{linkError}</p>}
+   </details>
    {visibility.fallback&&!statsLoading&&<p role="status" className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-slate-700">
     {scoreMode==="deep"?<>
      El cruce entre fuentes todavía no permite calcular una nota Deep Fit. Los candidatos se ordenan como <strong>preselección funcional FM26</strong> cuando el ADN dispone de atributos medibles; después por adecuación posicional. No se confunden estas notas del videojuego con rendimiento histórico.
