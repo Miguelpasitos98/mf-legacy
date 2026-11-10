@@ -2215,7 +2215,7 @@ export default function Players() {
     setForm({
       ...emptyPlayerForm,
     });
-
+    setErrorMessage("");
     setAddModalOpen(true);
   };
 
@@ -4542,6 +4542,7 @@ export default function Players() {
             form={form}
             setForm={setForm}
             isSaving={isSaving}
+            errorMessage={errorMessage}
             onClose={handleCloseAddPlayer}
             onSubmit={handleSavePlayer}
             countries={countries}
