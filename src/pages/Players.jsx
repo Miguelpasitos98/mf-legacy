@@ -3047,7 +3047,7 @@ export default function Players() {
       return;
     }
     if(!validOptional(form.height,230,110)||!validOptional(form.rightFoot,20,1)||!validOptional(form.leftFoot,20,1)||!validOptional(form.shirtNumber,99)||!validOptional(form.retirementYear,2100,1900)){
-      setErrorMessage("Revisa altura (110–230), pies (1–20) y dorsal (0–99).");
+      setErrorMessage("Revisa altura (110–230), pies (1–20), dorsal (0–99) y año de retirada (1900–2100).");
       return;
     }
     const stats={mental:{},physical:{},technical:{},goalkeeping:{}};
