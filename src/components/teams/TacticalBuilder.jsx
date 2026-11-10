@@ -30,7 +30,6 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
   const [bench,setBench] = useState([]);
   const [lineups,setLineups] = useState([]);
   const appliedAssignment=useRef("");
-  const templateAttempted=useRef(new Set());
   const shapeOf=code=>FORMATIONS[code]||generateFormation(code);
   const formationOptions=[...new Set([...Object.keys(FORMATIONS),...(coachShape?.formation?[coachShape.formation]:[]),...lineups.map(l=>l.formation)])].filter(f=>{try{return shapeOf(f).length===11}catch{return false}});
   const [activeId,setActiveId] = useState("");
@@ -110,38 +109,8 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     }catch(e){setError(e.message||"No se pudo cargar el once")}
     finally{setBusy(false)}
   };
-  useEffect(()=>{
-    if(!coachShape?.formation||loadingSaved||busy||dirty)return;
-    const key=String(team.id)+"|"+season+"|"+String(coachShape.assignment.id);
-    if(templateAttempted.current.has(key))return;
-    // Existing historic assignments can receive their initial tactical template
-    // on the first visit; no old XI or player assignment is modified.
-    if(lineups.some(l=>String(l.notes||"").includes("manager_assignment:"+coachShape.assignment.id)))return;
-    templateAttempted.current.add(key);
-    let live=true;
-    const create=async()=>{
-      try{
-        const current=await listRecords(base44.entities.TeamLineup,{team_type:"club",team_id:String(team.id),season});
-        if(current.some(l=>String(l.notes||"").includes("manager_assignment:"+coachShape.assignment.id)))return;
-        await base44.entities.TeamLineup.create({
-          team_type:"club",team_id:String(team.id),season,
-          name:"Once táctico · "+(coachShape.manager?.display_name||coachShape.manager?.name||"Entrenador")+" · "+coachShape.formation,
-          formation:coachShape.formation,type:"custom",is_default:false,
-          notes:"manager_assignment:"+coachShape.assignment.id+" · ADN: "+coachShape.profile.id+" · Once inicial sin jugadores."
-        });
-        if(live){
-          appliedAssignment.current="";
-          setRevision(r=>r+1);
-        }
-      }catch(e){
-        // An unauthorized user can still see the formation; persistence requires
-        // edit access, and no imported XI is overwritten.
-        if(live)setNotice("Formación "+coachShape.formation+" aplicada; no se pudo crear el once-base automáticamente: "+(e.message||"sin permisos")+". Puedes guardarlo manualmente.");
-      }
-    };
-    create();
-    return()=>{live=false};
-  },[coachShape?.assignment?.id,coachShape?.formation,lineups,loadingSaved,busy,dirty,team.id,season]);
+  // A manager assignment creates its template on assignment, not on every
+  // view. Never recreate a template the user deliberately deleted.
   const saveLineup = async () => {
     if(busy || loadingSaved)return;
     const name=lineupName.trim();

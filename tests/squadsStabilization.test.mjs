@@ -17,7 +17,8 @@ test('save validates uniqueness and restricts concurrent requests',()=>{
  assert.match(builder,/if\(busy \|\| loadingSaved\)return/);
  assert.match(builder,/new Set\(ids\).size!==ids.length/);
  assert.match(builder,/ids.some\(pid=>!availableIds.has/);
- assert.match(builder,/cleanup.some\(r=>r.status==="rejected"\)/);
+ assert.match(builder,/reconcileLineupChildren\(/);
+ assert.match(builder,/removeFromPosition/);
 });
 test('the bench, lineup, export and responsive controls remain available',()=>{
  assert.match(builder,/const toggleBench/);
