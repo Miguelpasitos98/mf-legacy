@@ -57,3 +57,25 @@ test("DM searches include historically classified CM campaigns",()=>{
  const result=careerPositionFitIndex({dataset,players:observations.map(o=>({id:o.playerId})),role:"DM",profile:manager}).get("target");
  assert.ok(result&&result.score!==null);
 });
+
+test("an unmeasurable coach description falls back to observed position evidence, not fabricated tactical fit",()=>{
+ const {observations}=reference();
+ for(let i=0;i<observations.length;i++)observations[i].values={accurate_passes_p90:20+i,accurate_long_balls_p90:3+i*.2};
+ observations.push({...obs("target","2022/2023"),values:{accurate_passes_p90:44,accurate_long_balls_p90:9}});
+ const dataset={observations,records:{PlayerSeasonStats:[]}};
+ const general={player_role_priorities:JSON.stringify({GK:"Líder"})};
+ const result=careerPositionFitIndex({dataset,players:observations.map(o=>({id:o.playerId})),role:"GK",profile:general});
+ assert.ok(result.get("target")?.score!==null);
+ assert.equal(result.get("target").basis,"position");
+ assert.match(result.get("target").method,/ADN sin evidencia suficiente/);
+ assert.equal(result.diagnostics.tacticalSeasons,0);
+ assert.ok(result.diagnostics.positionalSeasons>0);
+});
+test("a measurable GK coach brief uses tactical evidence rather than positional fallback",()=>{
+ const {observations}=reference();
+ for(let i=0;i<observations.length;i++)observations[i].values={accurate_passes_p90:20+i,accurate_long_balls_p90:3+i*.2};
+ observations.push({...obs("target","2022/2023"),values:{accurate_passes_p90:44,accurate_long_balls_p90:9}});
+ const result=careerPositionFitIndex({dataset:{observations,records:{}},players:observations.map(o=>({id:o.playerId})),role:"GK",profile});
+ assert.equal(result.get("target")?.basis,"adn");
+ assert.ok(result.diagnostics.tacticalSeasons>0);
+});
