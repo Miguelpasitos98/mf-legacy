@@ -71,7 +71,9 @@ export function ManagerScoutingSummary({scoreMode,visibility,roleRequirements,st
   </div>
  </section>;
 }
-export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,onCompare,onReport,age,valueText}){
+export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,onCompare,onReport,age,valueText,
+ assignment,assignmentConflict=false,assignmentOwner="",currentManagerId="",
+ assignmentDisabled=false,assignmentBusy=false,onPreselect,onLink,onRelease}){
  const [more,setMore]=useState(false);
  const measured=scoutingScore(item,scoreMode);
  const score=typeof measured==="number"&&Number.isFinite(measured)?measured:null;
@@ -80,6 +82,10 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
  const label=scoreMode==="hybrid"?"Encaje integral 70/30":scoreMode==="career"?"Perfil histórico óptimo":isPositional?"Encaje posicional":scoreMode==="deep"?"Deep Fit":scoreMode==="attributes"?"Estimación FM26":scoreMode==="role"?"Encaje V4":"Histórico V3";
  const evidence=scoreMode==="hybrid"?item.hybrid:scoreMode==="career"?item.career:scoreMode==="deep"?item.deep:scoreMode==="role"?item.roleFit:scoreMode==="historical"?item.historical:scoreMode==="attributes"?item.advanced:null;
  const v4Missing=scoreMode==="role"?v4MissingMetricExplanations(item.roleFit):[];
+ const owned=assignment&&(assignment.status==="linked"||assignment.status==="preselected")&&String(assignment.manager_id)===String(currentManagerId);
+ const other=assignment&&(assignment.status==="linked"||assignment.status==="preselected")&&!owned;
+ const statusLabel=assignmentConflict?"Adjudicación duplicada":assignment?.status==="linked"?"Vinculado":assignment?.status==="preselected"?"Preseleccionado":null;
+
  return <article className="flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition hover:border-blue-200 hover:shadow-md">
   <div className="flex min-w-0 gap-3">
    <PlayerPortrait player={item.player} className="h-14 w-14 shrink-0 rounded-xl border border-slate-100 bg-slate-50 object-cover" fallback={String(item.player.name||"?").charAt(0)}/>
@@ -93,6 +99,9 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
     <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{score===null?"Sin evaluación":"/100 "+label}</p>
    </div>
   </div>
+  {statusLabel&&<div className={"rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold "+(assignmentConflict?"border-red-200 bg-red-50 text-red-800":owned?"border-emerald-200 bg-emerald-50 text-emerald-900":"border-amber-200 bg-amber-50 text-amber-900")}>
+   {statusLabel}{!assignmentConflict&&(assignmentOwner?" · "+assignmentOwner:"")}{assignment?.role?" · "+assignment.role:""}{other?" · Reservado para otro entrenador":""}
+  </div>}
   <div className="rounded-lg bg-slate-50 px-3 py-2">
    <div className="flex flex-wrap items-center justify-between gap-2">
     <span className="text-[11px] font-semibold text-slate-700">{score===null?
@@ -185,9 +194,24 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
    {scoreMode==="attributes"&&<p>Posición {item.advanced.position??"—"} · Atributos {item.advanced.attributes??"—"} · ADN {item.advanced.style??"—"}</p>}
    {scoreMode==="position"&&<p>{item.evidence}</p>}
   </div>}
-  <div className="mt-auto flex gap-2 border-t border-slate-100 pt-3">
+  <div className="mt-auto space-y-2 border-t border-slate-100 pt-3">
+   {!assignmentConflict&&currentManagerId&&<div className="flex flex-wrap gap-1.5" aria-label={"Adjudicación de "+item.player.name}>
+    {!owned&&!other&&<>
+     <button type="button" disabled={assignmentDisabled} onClick={onPreselect} className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-[11px] font-bold text-blue-900 disabled:opacity-50">Preseleccionar</button>
+     <button type="button" disabled={assignmentDisabled} onClick={onLink} className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[11px] font-bold text-emerald-900 disabled:opacity-50">Vincular a entrenador</button>
+    </>}
+    {owned&&<>
+     {assignment.status==="preselected"&&<button type="button" disabled={assignmentDisabled} onClick={onLink} className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[11px] font-bold text-emerald-900 disabled:opacity-50">Confirmar vínculo</button>}
+     <button type="button" disabled={assignmentDisabled} onClick={onRelease} className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] font-bold text-red-800 disabled:opacity-50">{assignment.status==="linked"?"Desvincular":"Retirar preselección"}</button>
+    </>}
+    {other&&<button type="button" disabled={assignmentDisabled} onClick={onLink} className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] font-bold text-amber-900 disabled:opacity-50">Reasignar a este entrenador</button>}
+    {assignmentBusy&&<span role="status" className="text-[10px] text-slate-500">Guardando…</span>}
+   </div>}
+   {assignmentConflict&&<p className="rounded-lg bg-red-50 px-2 py-1 text-[10px] text-red-900">El jugador tiene registros duplicados: las modificaciones están bloqueadas hasta revisar su adjudicación.</p>}
+   <div className="flex gap-2">
    <button type="button" aria-pressed={selected} disabled={compareDisabled} onClick={onCompare} className={"flex-1 rounded-lg border px-2.5 py-2 text-[11px] font-bold disabled:opacity-40 "+(selected?"border-[#003399] bg-blue-50 text-[#003399]":"border-slate-200 text-slate-700 hover:bg-slate-50")}>{selected?"Quitar de comparación":"Comparar +"}</button>
    <button type="button" onClick={onReport} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#003399] px-2.5 py-2 text-[11px] font-bold text-white hover:bg-[#002771]"><ClipboardList size={13}/> Informe</button>
+   </div>
   </div>
  </article>;
 }
