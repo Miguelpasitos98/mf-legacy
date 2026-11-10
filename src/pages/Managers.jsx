@@ -3,6 +3,7 @@ import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {Search,Plus,Save,Sparkles,Copy,UserRoundCog,SlidersHorizontal,ShieldCheck,ArrowUpRight,BookOpen} from "lucide-react";
 import ManagerPortrait from "@/components/managers/ManagerPortrait";
+import {assignmentShape,templateName} from "@/components/teams/managerFormationBridge.mjs";
 import {displayManagerBirthDate,normalizeManagerBirthDate} from "@/components/managers/managerBirthDate.mjs";
 import ManagerNationalityPicker from "@/components/managers/ManagerNationalityPicker";
 import {resolveManagerCountry,buildManagerBiographyPrompt,parseBiographyResponse} from "@/components/managers/managerBiography.mjs";
@@ -378,6 +379,24 @@ export default function Managers(){
   }catch(e){setError(e.message||"No se pudo guardar el perfil táctico.")}
   finally{setBusy(false)}
  };
+ const ensureCoachLineup=async(assignment,team)=>{
+  const shape=assignmentShape(assignment,profiles,managers);
+  if(!shape)return {created:false,reason:"El ADN no contiene una formación válida. Edita su formación y vuelve a guardar la asignación."};
+  // A new manager template is separate from the user's existing XIs.
+  // Check by assignment ID, so switching managers never overwrites a line-up.
+  const previous=await getRows(base44.entities.TeamLineup,{
+    team_type:"club",team_id:String(team.id),season:assignSeason
+  });
+  const existing=previous.find(l=>String(l.notes||"").includes("manager_assignment:"+assignment.id));
+  if(existing)return {created:false,formation:existing.formation};
+  await base44.entities.TeamLineup.create({
+    team_type:"club",team_id:String(team.id),season:assignSeason,
+    name:templateName(shape.manager,shape.formation),
+    formation:shape.formation,type:"custom",is_default:false,
+    notes:"manager_assignment:"+assignment.id+" · ADN: "+shape.profile.id+" · Once inicial sin jugadores. No sobrescribir otros onces."
+  });
+  return {created:true,formation:shape.formation};
+ };
  const saveAssignment=async event=>{
   event.preventDefault();if(!selected||isAdmin!==true||busy)return;
   const team=customTeams.find(t=>String(t.id)===String(assignTeamId));
@@ -386,7 +405,13 @@ export default function Managers(){
   if(assignProfile&&!managerProfiles.some(p=>String(p.id)===String(assignProfile))){setError("Ese perfil táctico no pertenece al entrenador.");return;}
   const existing=chooseAssignment(assignments,team.id,assignSeason);
   if(existing&&String(existing.manager_id)===String(selected.id)&&String(existing.tactical_profile_id||"")===String(assignProfile||"")){
-   setNotice("La asignación ya está guardada.");return;
+   setBusy(true);setError("");
+   try{
+    const outcome=await ensureCoachLineup(existing,team);
+    setNotice("La asignación ya está guardada. "+(outcome.formation?"Formación "+outcome.formation+" disponible en Plantillas.":outcome.reason));
+   }catch(e){setError("No se pudo preparar el once del entrenador: "+(e.message||"Error"))}
+   finally{setBusy(false)}
+   return;
   }
   if(existing&&!window.confirm("Este club ya tiene un entrenador principal en esta temporada. ¿Sustituirlo conservando el registro anterior como histórico?"))return;
   setBusy(true);setError("");setNotice("");
@@ -394,7 +419,7 @@ export default function Managers(){
   try{
    if(existing){await base44.entities.TeamManagerAssignment.update(existing.id,{is_primary:false});deactivated=true;}
    try{
-    await base44.entities.TeamManagerAssignment.create({
+    var newAssignment=await base44.entities.TeamManagerAssignment.create({
       team_type:"club",team_id:String(team.id),manager_id:String(selected.id),season:assignSeason,
       tactical_profile_id:String(assignProfile||""),assignment_name:"Entrenador principal",is_primary:true
     });
@@ -402,7 +427,14 @@ export default function Managers(){
     if(deactivated){try{await base44.entities.TeamManagerAssignment.update(existing.id,{is_primary:true});}catch{throw Error("No se creó la nueva asignación y no se pudo restaurar el indicador de entrenador principal. Revisa el historial.");}}
     throw e;
    }
-   await refresh();setNotice("Entrenador asignado a "+team.name+" ("+assignSeason+").");
+   let formationNotice="";
+   try{
+    const outcome=await ensureCoachLineup(newAssignment?.data||newAssignment,team);
+    formationNotice=outcome.formation?" Formación "+outcome.formation+" preparada automáticamente en PLANTILLAS.":" "+outcome.reason;
+   }catch(e){
+    formationNotice=" Asignación guardada, pero no pudo crearse el once-base: "+(e.message||"Error")+". Vuelve a guardar la asignación para reintentarlo.";
+   }
+   await refresh();setNotice("Entrenador asignado a "+team.name+" ("+assignSeason+")."+formationNotice);
   }catch(e){setError(e.message||"No se pudo vincular el club.")}
   finally{setBusy(false)}
  };
