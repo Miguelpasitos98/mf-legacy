@@ -101,5 +101,19 @@ export async function reconcileLineupChildren({slotEntity,benchEntity,lineupId,s
  ]);
  if(removed.some(x=>x.status==="rejected"))throw Error(
   "Los jugadores nuevos se guardaron, pero algunos antiguos no pudieron eliminarse. Revisa el once y vuelve a guardarlo.");
+ // Read-after-write verification: a 'saved' banner must reflect persisted
+ // player assignments, not just successful-looking mutation responses.
+ const [verifiedSlots,verifiedBench]=await Promise.all([
+  lineupRows(slotEntity,{lineup_id:lineupId}),
+  lineupRows(benchEntity,{lineup_id:lineupId})
+ ]);
+ const expectedSlots=new Map(slots.map(s=>[String(s.slot_code),String(s.player_id)]));
+ const expectedBench=new Set(bench.map(s=>String(s.player_id)));
+ const validSlots=verifiedSlots.length===slots.length&&verifiedSlots.every(r=>
+  expectedSlots.get(String(r.slot_code))===String(r.player_id));
+ const validBench=verifiedBench.length===bench.length&&verifiedBench.every(r=>
+  expectedBench.has(String(r.player_id)));
+ if(!validSlots||!validBench)throw Error(
+  "No se pudo confirmar el once guardado. Los cambios siguen en pantalla; revisa la base antes de reintentarlo.");
  return {slots:slots.length,bench:bench.length,removed:duplicateSlots.length+duplicateBench.length};
 }
