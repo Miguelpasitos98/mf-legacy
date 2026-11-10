@@ -19,7 +19,7 @@ const badgeByStatus = {
   protected: "bg-amber-100 text-amber-800", unmatched: "bg-amber-100 text-amber-800",
   ambiguous: "bg-rose-100 text-rose-800", invalid: "bg-rose-100 text-rose-800",
 };
-const sourceUid = item => String(item.id || "");
+const sourceIdCaption = item => (item.matchingKey === "base44_player_id" ? "Base44 " : "FM26 ") + String(item.id || "");
 const snapshotSignature = rows => JSON.stringify(rows.map(item => [
   item.index, item.status, item.player?.id || item.player?._id || "",
   item.player?.description || "", item.player?.tactical_roles || [], item.roles,
@@ -49,7 +49,7 @@ export default function TacticalRoleImportModal({ open, initialFile=null, onClos
     setFilename(""); setParsed(null); setError(""); setNotice("");
     setResult(null); setProgress({ current: 0, total: 0 }); setOverwrite(false);
     setAllPlayers(null); setLoading(false);
-    // Solo consultamos los FM26 UID incluidos cuando el usuario carga un JSON.
+    // Solo consultamos los IDs FM26 o Base44 incluidos en el JSON.
     // Descargar todos los jugadores al abrir el modal puede agotar la API.
     ++readSequence.current;
     const previousOverflow = document.body.style.overflow;
@@ -74,7 +74,7 @@ export default function TacticalRoleImportModal({ open, initialFile=null, onClos
       const matched = await fetchTacticalRolePlayers(base44.entities.Player, entries);
       if (activeRef.current && sequence === readSequence.current) setAllPlayers(matched);
     } catch (err) {
-      if (activeRef.current && sequence === readSequence.current) setError("Error al vincular los IDs FM26: " + problem(err));
+      if (activeRef.current && sequence === readSequence.current) setError("Error al vincular los jugadores: " + problem(err));
     } finally {
       if (activeRef.current && sequence === readSequence.current) setLoading(false);
     }
@@ -129,7 +129,7 @@ export default function TacticalRoleImportModal({ open, initialFile=null, onClos
           await base44.entities.Player.update(item.player.id || item.player._id, tacticalRolePatch(item));
           done++;
         } catch (err) {
-          failures.push(item.name + " (FM " + sourceUid(item) + "): " + problem(err));
+          failures.push(item.name + " (" + sourceIdCaption(item) + "): " + problem(err));
         }
         if (activeRef.current) setProgress({ current: done + failures.length, total: pending.length });
       }
@@ -172,7 +172,7 @@ export default function TacticalRoleImportModal({ open, initialFile=null, onClos
         <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
           <div>
             <h2 id="tactical-json-import-title" className="text-base font-extrabold text-slate-900 sm:text-lg">Importar roles tácticos · JSON</h2>
-            <p className="mt-1 text-xs text-slate-500">Vinculación exacta FM26 UID → Player de MF LEGACY. No crea jugadores ni modifica estadísticas.</p>
+            <p className="mt-1 text-xs text-slate-500">Vinculación exacta por FM26 UID o ID interno de Base44. No crea jugadores ni modifica estadísticas.</p>
           </div>
           <button type="button" aria-label="Cerrar importador de roles" disabled={saving} onClick={onClose}
             className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"><X size={20} /></button>
@@ -196,7 +196,7 @@ export default function TacticalRoleImportModal({ open, initialFile=null, onClos
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-bold text-slate-900">{parsed.filenameTeam || "Plantilla sin nombre"} · {parsed.entries.length} futbolistas</p>
-                <p className="mt-1 text-xs text-slate-500">Solo se leen los dos roles y sus textos. Los nombres sirven para revisar; la vinculación se hace exclusivamente por FM26 UID.</p>
+                <p className="mt-1 text-xs text-slate-500">Solo se actualizan los dos roles y sus textos. Método: {parsed.matchingKey === "base44_player_id" ? "ID interno Base44 (con verificación del nombre)" : "FM26 UID"}.</p>
                 {parsed.warnings.map(x=><p key={x} className="text-xs text-amber-700">{x}</p>)}
               </div>
               <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
@@ -217,14 +217,14 @@ export default function TacticalRoleImportModal({ open, initialFile=null, onClos
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="min-w-[700px] w-full text-left text-xs">
                   <thead className="bg-slate-50 text-slate-600"><tr>
-                    <th className="px-3 py-3">Jugador / UID FM26</th>
+                    <th className="px-3 py-3">Jugador / identificador</th>
                     <th className="px-3 py-3">Rol 1 · principal</th>
                     <th className="px-3 py-3">Rol 2 · secundario</th>
                     <th className="px-3 py-3">Estado</th>
                   </tr></thead>
                   <tbody className="divide-y divide-slate-100">{rows.map(row=><tr key={row.index} className="align-top">
                     <td className="px-3 py-3"><strong className="text-slate-900">{row.name}</strong>
-                      <div className="mt-1 text-[11px] text-slate-500">FM {row.id || "—"}{row.player?.name && row.player.name !== row.name ? " · En Base44: " + row.player.name : ""}</div>
+                      <div className="mt-1 text-[11px] text-slate-500">{sourceIdCaption(row)}{row.player?.name && row.player.name !== row.name ? " · En Base44: " + row.player.name : ""}</div>
                     </td>
                     {[0,1].map(i=><td key={i} className="max-w-[235px] px-3 py-3">
                       <strong className="font-semibold text-slate-800">{row.roles[i]?.name || "—"}</strong>
@@ -236,7 +236,7 @@ export default function TacticalRoleImportModal({ open, initialFile=null, onClos
                   </tr>)}</tbody>
                 </table>
               </div>
-              {!!count(rows,"unmatched") && <p className="flex items-start gap-2 text-xs text-amber-800"><AlertTriangle size={15} className="shrink-0" />Los IDs sin vínculo no se crean ni se asignan por nombre. Impórtalos primero con el importador FM26 habitual.</p>}
+              {!!count(rows,"unmatched") && <p className="flex items-start gap-2 text-xs text-amber-800"><AlertTriangle size={15} className="shrink-0" />Los IDs sin vínculo no se crean ni se asignan por nombre. {parsed.matchingKey === "base44_player_id" ? "Revisa que las fichas sigan existiendo y que sus IDs sean los correctos." : "Impórtalos primero con el importador FM26 habitual."}</p>}
             </>}
           </>}
         </div>
