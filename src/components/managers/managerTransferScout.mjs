@@ -34,7 +34,8 @@ export function filterScoutingCandidates(items,{season,minAge=null,maxAge=null,m
   const value=item.valuation?.eur??null;
   if(knownValueOnly&&value===null)return false;
   if(maxValueM!==null&&(value===null||value>maxValueM*1000000))return false;
-  const coverage=coverageMode==="historical"?item.historical?.coverage:
+  const coverage=coverageMode==="career"?item.career?.coverage:
+    coverageMode==="historical"?item.historical?.coverage:
     coverageMode==="attributes"?item.advanced?.coverage:
     coverageMode==="position"?(item.fit===null?0:100):item.roleFit?.coverage;
   if(minimumCoverage>0&&(coverage??0)<minimumCoverage)return false;
