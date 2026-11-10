@@ -6,6 +6,7 @@ import PlayerPortrait from "./PlayerPortrait";
 import { BalancePanel, PlayerPicker } from "./LineupSidePanel";
 import { analyzeLineup } from "./lineupAnalysis.mjs";
 import {BASE_FORMATIONS,generateFormation} from "./managerFormationBridge.mjs";
+import {lineupRows,reconcileLineupChildren} from "./lineupPersistence.mjs";
 
 export const FORMATIONS = BASE_FORMATIONS;
 export function assignSlot(slots, target, playerId) {
@@ -66,16 +67,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     }catch(e){setExportError("No se pudo exportar el PNG. Comprueba si alguna foto externa bloquea la captura. "+(e.message||""))}
     finally{setExporting(false)}
   };
-  const listRecords = async (entity, filter) => {
-    const all = [];
-    for(let skip=0;skip<=100000;skip+=200) {
-      const page = await entity.filter(filter, undefined, 200, skip);
-      const rows = Array.isArray(page) ? page : page?.data || [];
-      all.push(...rows);
-      if(rows.length<200) break;
-    }
-    return all;
-  };
+  const listRecords = lineupRows;
   useEffect(()=>{
     let live=true;
     setLoadingSaved(true);setError("");
@@ -171,27 +163,27 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
         const entity=await base44.entities.TeamLineup.create({team_type:"club",team_id:String(team.id),season,name,formation,type:season==="2026/2027"?"custom":"historical",is_default:false});
         id=entity.id;created=true;
       }
-      const oldSlots=created?[]:await listRecords(base44.entities.TeamLineupSlot,{lineup_id:id});
-      const oldBench=created?[]:await listRecords(base44.entities.TeamLineupBench,{lineup_id:id});
-      const inserted=[];
-      try{
-        for(const row of slotRows) inserted.push({type:"slot",record:await base44.entities.TeamLineupSlot.create({lineup_id:id,...row})});
-        for(let i=0;i<bench.length;i++) inserted.push({type:"bench",record:await base44.entities.TeamLineupBench.create({lineup_id:id,player_id:bench[i],bench_order:i})});
-      }catch(e){
-        await Promise.allSettled(inserted.map(x=>x.type==="slot"?base44.entities.TeamLineupSlot.delete(x.record.id):base44.entities.TeamLineupBench.delete(x.record.id)));
-        throw e;
-      }
-      // Reconcile only after all new children exist; leave a recoverable error if cleanup fails.
-      // A partial write must never be reported as a successful save.
+      // Update only changed positions, keeping existing Base44 record IDs.
+      // No bulk delete/recreate of all players, preventing duplicate writes.
+      await reconcileLineupChildren({
+        slotEntity:base44.entities.TeamLineupSlot,
+        benchEntity:base44.entities.TeamLineupBench,
+        lineupId:id,slots:slotRows,
+        bench:bench.map((pid,i)=>({player_id:pid,bench_order:i}))
+      });
       await base44.entities.TeamLineup.update(id,{name,formation});
-      const cleanup=await Promise.allSettled([
-        ...oldSlots.map(r=>base44.entities.TeamLineupSlot.delete(r.id)),
-        ...oldBench.map(r=>base44.entities.TeamLineupBench.delete(r.id))
-      ]);
-      if(cleanup.some(r=>r.status==="rejected"))throw new Error("La nueva versión se escribió, pero no se pudieron limpiar todos los registros anteriores. No vuelvas a guardar hasta revisar duplicados.");
       setActiveId(id);setDirty(false);setRevision(r=>r+1);setNotice("Once guardado correctamente.");
     }catch(e){
-      setError("No se pudo completar el guardado: "+(e.message||"Error desconocido")+". Revisa el once antes de reintentarlo.");
+      if(created&&id){
+        try{
+          const existing=await Promise.all([
+            listRecords(base44.entities.TeamLineupSlot,{lineup_id:id}),
+            listRecords(base44.entities.TeamLineupBench,{lineup_id:id})
+          ]);
+          if(existing.every(rows=>rows.length===0))await base44.entities.TeamLineup.delete(id);
+        }catch{/* leave the record recoverable when cleanup fails */}
+      }
+      setError("No se pudo completar el guardado: "+(e.message||"Error desconocido")+". Los cambios siguen en pantalla: puedes reintentarlo.");
     }finally{setBusy(false)}
   };
   const deleteLineup = async () => {
@@ -206,6 +198,12 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
       setActiveId("");setSlots({});setSlotPositions({});setBench([]);setLineupName("Nuevo once");setDirty(false);setRevision(r=>r+1);setNotice("Once eliminado.");
     }catch(e){setError(e.message||"No se pudo eliminar el once")}
     finally{setBusy(false)}
+  };
+  const removeFromPosition=code=>{
+    if(busy||!slots[code])return;
+    setSlots(old=>{const next={...old};delete next[code];return next});
+    setSlotPositions(prev=>{const next={...prev};delete next[code];return next});
+    setSelected(null);markDirty();setNotice("Jugador retirado del once. Guarda para confirmar el cambio.");
   };
   const toggleBench = id => {
     if(!id || busy || Object.values(slots).includes(String(id)))return;
@@ -323,11 +321,15 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
         <p className="mt-2 text-xs text-slate-500">Pulsa una posición para elegir jugador. Arrastra cualquier ficha con el dedo o ratón para moverla libremente.</p>
       </div>
       <aside className="hidden xl:block border rounded-xl p-3 min-w-0 h-[min(69dvh,670px)] overflow-y-auto">
-        {selected?<PlayerPicker key={selected} selected={selected} roster={roster} allPlayers={allPlayers} onPick={pickPlayer} onClose={()=>setSelected(null)} busy={busy}/>:<BalancePanel assessment={assessment} comparison={comparison} balanceComparison={balanceComparison} season={season}/>}
+        {selected?<div className="flex h-full flex-col gap-2">
+          {slots[selected]&&<button type="button" onClick={()=>removeFromPosition(selected)} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800"><Trash2 size={15}/> Quitar jugador de {selected}</button>}
+          <PlayerPicker key={selected} selected={selected} roster={roster} allPlayers={allPlayers} onPick={pickPlayer} onClose={()=>setSelected(null)} busy={busy}/>
+        </div>:<BalancePanel assessment={assessment} comparison={comparison} balanceComparison={balanceComparison} season={season}/>}
       </aside>
     </div>
     {selected&&<div className="xl:hidden fixed inset-0 z-[100] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={()=>setSelected(null)}>
       <div role="dialog" aria-modal="true" aria-label="Seleccionar jugador" onClick={e=>e.stopPropagation()} className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-white p-4 h-[min(79dvh,640px)] flex flex-col overflow-hidden shadow-xl">
+        {slots[selected]&&<button type="button" onClick={()=>removeFromPosition(selected)} disabled={busy} className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800"><Trash2 size={15}/> Quitar jugador de {selected}</button>}
         <PlayerPicker key={selected} selected={selected} roster={roster} allPlayers={allPlayers} onPick={pickPlayer} onClose={()=>setSelected(null)} busy={busy}/>
       </div>
     </div>}
