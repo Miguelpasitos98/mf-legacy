@@ -298,6 +298,7 @@ export default function ManagerFit(){
        {link.status==="preselected"&&<button type="button" disabled={!!assignmentBusy||assignmentLoading||!!assignmentError} onClick={()=>managePlayerAssignment(link.player_id,"link",link.role||role)} className="rounded-md border border-blue-200 bg-white px-2 py-1 text-[10px] font-semibold text-blue-800">Confirmar</button>}
        <button type="button" disabled={!!assignmentBusy||assignmentLoading||!!assignmentError} onClick={()=>managePlayerAssignment(link.player_id,"release",link.role||role)} className="rounded-md border border-red-200 bg-white px-2 py-1 text-[10px] font-semibold text-red-700">Liberar</button>
       </div>
+      {Array.isArray(link.history)&&link.history.length>0&&<details className="w-full border-t border-slate-200 pt-1 text-[10px] text-slate-600"><summary className="cursor-pointer font-semibold">Ver historial ({link.history.length})</summary><div className="mt-1 space-y-1">{link.history.slice().reverse().map((event,i)=><p key={i}>{event.at?.slice(0,10)||"Sin fecha"} · {event.action==="link"?"Vinculado":event.action==="preselect"?"Preseleccionado":"Liberado"} · {nameByManager.get(String(event.from_manager_id))||"Sin entrenador previo"} → {nameByManager.get(String(event.to_manager_id))||"Sin entrenador"} · {event.role||"Sin rol"}</p>)}</div></details>}
      </div>)}
     </div>
    </details>
