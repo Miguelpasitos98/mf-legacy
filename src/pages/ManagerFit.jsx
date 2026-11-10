@@ -15,6 +15,7 @@ import {visibleManagerFitCandidates} from "@/components/managers/managerFitVisib
 import {managerScoutingPool,managerScoutingCandidateIds} from "@/components/managers/managerScoutingPool.mjs";
 import {DEEP_FIT_PRESETS,DEEP_COMPONENT_LABELS,evaluateDeepFit} from "@/components/managers/managerFitDeep.mjs";
 import {managerFitTemporalScope} from "@/components/managers/managerFitTemporalScope.mjs";
+import {careerPositionFitIndex} from "@/components/managers/managerCareerPositionFit.mjs";
 const all=async(entity,query={})=>{
  const output=[];
  for(let skip=0;skip<100000;skip+=200){
@@ -40,7 +41,7 @@ export default function ManagerFit(){
  const [showUnknown,setShowUnknown]=useState(false);
  const [resultSort,setResultSort]=useState("score");
  const [showAllResults,setShowAllResults]=useState(false);
- const [scoreMode,setScoreMode]=useState("role");
+ const [scoreMode,setScoreMode]=useState("career");
  const [deepPreset,setDeepPreset]=useState("balanced");
  const [customDeepWeights,setCustomDeepWeights]=useState({...DEEP_FIT_PRESETS.balanced});
  const deepWeights=deepPreset==="custom"?customDeepWeights:DEEP_FIT_PRESETS[deepPreset]||DEEP_FIT_PRESETS.balanced;
@@ -104,6 +105,7 @@ export default function ManagerFit(){
   const measured=historicalPeerMetrics.filter(r=>Object.values(r).some(v=>v&&typeof v==="object"&&typeof v.value==="number")).length;
   return {total:seasonStats.length,matched:matched.length,unresolved:unresolved.length,measured,peers:historicalPeerMetrics.length,links:fotmobLinks.length};
  },[linkedSeasonStats,seasonStats,players,historicalPeerMetrics,fotmobLinks]);
+ const careerIndex=useMemo(()=>careerPositionFitIndex({dataset:historicalDataset,players,links:fotmobLinks,role,profile}),[historicalDataset,players,fotmobLinks,role,profile]);
  const roleRequirements=useMemo(()=>deriveRoleRequirements(profile,role),[profile,role]);
  const temporalContext=useMemo(()=>managerFitTemporalScope(profile,season),[profile,season]);
  const candidates=useMemo(()=>managerScoutingPool(players),[players]);
@@ -118,6 +120,7 @@ export default function ManagerFit(){
     const advanced=managerFitAttributes(item.player,role,profile);
     const roleFit=evaluateRoleRequirements(evidence,historicalPeerMetrics,role,profile,{playerId:item.player.id});
     return {...item,valuation:valuationForSeason(valuationRows,item.player.id,season),
+     career:careerIndex.get(String(item.player.id))||null,
      advanced,roleFit,
      historical:seasonPercentiles(evidence,historicalPeerMetrics,role,profile),
      deep:evaluateDeepFit({player:item.player,role,profile,roleFit,advanced,weights:deepWeights,season})};
@@ -127,7 +130,7 @@ export default function ManagerFit(){
     maxValueM:maxValueM===""?null:Number(maxValueM),knownValueOnly,minimumCoverage,coverageMode:scoreMode});
   return visibleManagerFitCandidates(eligible,{scoreMode,showUnknown,sortMode:resultSort,limit:resultLimit});
  },[candidates,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics,
-    valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage,resultSort,resultLimit,deepWeights]);
+    valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage,resultSort,resultLimit,deepWeights,careerIndex]);
  const results=visibility.rows;
  const comparedRows=useMemo(()=>{
   if(!profile||!comparedIds.length)return [];
@@ -137,11 +140,11 @@ export default function ManagerFit(){
    const evidence=historicalIndex.get(String(player.id))||{};
    const roleFit=evaluateRoleRequirements(evidence,historicalPeerMetrics,role,profile,{playerId:player.id});
    const advanced=managerFitAttributes(player,role,profile);
-   return {player,valuation:valuationForSeason(valuationRows,player.id,season),
+   return {player,valuation:valuationForSeason(valuationRows,player.id,season),career:careerIndex.get(String(player.id))||null,
     roleFit,advanced,deep:evaluateDeepFit({player,role,profile,roleFit,advanced,weights:deepWeights,season}),
     historical:seasonPercentiles(evidence,historicalPeerMetrics,role,profile)};
   }).filter(Boolean),comparedIds);
- },[profile,comparedIds,players,candidateIds,valuationRows,season,historicalIndex,historicalPeerMetrics,role,deepWeights]);
+ },[profile,comparedIds,players,candidateIds,valuationRows,season,historicalIndex,historicalPeerMetrics,role,deepWeights,careerIndex]);
  const comparisonBudget=candidateOverview(comparedRows,totalBudget);
  const scoutingPlayer=candidates.find(p=>String(p.id)===scoutingPlayerId)||null;
  const scoutingRow=scoutingPlayer&&profile?{
@@ -171,8 +174,9 @@ export default function ManagerFit(){
     <label className="text-xs font-bold">CA mínimo (FM26)<input aria-label="CA mínimo" type="number" min="0" max="200" value={minCA} onChange={e=>setMinCA(Math.max(0,Math.min(200,Number(e.target.value)||0)))} className="block w-full border rounded-lg p-2 mt-1 text-sm"/></label>
    </div>
    <div className="flex gap-2 flex-wrap text-sm"><label className="text-xs font-bold">Temporada histórica <input aria-label="Temporada histórica" className="block rounded-lg border p-2 mt-1" value={season} onChange={e=>setSeason(e.target.value)} placeholder="2025/2026"/></label></div>
-   <div className="grid grid-cols-2 gap-2 lg:grid-cols-5" role="group" aria-label="Modelo de evaluación">
+   <div className="grid grid-cols-2 gap-2 lg:grid-cols-6" role="group" aria-label="Modelo de evaluación">
     {[
+     {key:"career",title:"PERFIL HISTÓRICO ÓPTIMO",note:"70% mejor temporada + 30% trayectoria en la posición"},
      {key:"deep",title:"Deep Fit · Cruce real + FM26",note:"Funciones tácticas · 2 fuentes · experimental"},
      {key:"role",title:"V4 · ADN del entrenador",note:"Requisitos medidos · experimental"},
      {key:"historical",title:"V3 · Histórico",note:"FotMob + Understat · por temporada"},
@@ -238,6 +242,7 @@ export default function ManagerFit(){
      <h2 className="mt-1 text-base font-black text-slate-900">Resultados {loading?"· Cargando…":"· "+results.length+" mostrados"}</h2><p className="text-[11px] text-slate-500">{visibility.compatibleCount} compatibles en la bolsa · {visibility.scoredCount} evaluables en el modelo seleccionado · {players.length} jugadores del catálogo para la muestra histórica</p></div>
     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-semibold text-slate-600">Modelo auditable · No predice rendimiento</span>
    </div>
+   {scoreMode==="career"&&<p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">Perfil histórico por posición: cada campaña se evalúa de forma independiente contra jugadores de la misma temporada y rol. Se utiliza el 70% de la mejor campaña evaluable y el 30% de la media de campañas evaluables ponderada por minutos (máximo 3000 por campaña). Se requieren dos métricas y diez comparables por indicador, al menos 450 minutos y posición histórica identificada. Una única campaña válida se señala como tal.</p>}
    <ManagerScoutingSummary scoreMode={scoreMode} visibility={visibility} roleRequirements={roleRequirements} statsLoading={statsLoading} statsError={statsError} season={season}/>
    <details className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
     <summary className="cursor-pointer font-semibold">Diagnóstico de datos · {statsDiagnosis.matched}/{statsDiagnosis.total} registros vinculados · {statsDiagnosis.measured} jugadores con métricas reconocidas</summary>
