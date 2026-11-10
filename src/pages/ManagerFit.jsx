@@ -2,6 +2,10 @@ import React,{useEffect,useMemo,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
+import {useQuery} from "@tanstack/react-query";
+import {statsSnapshotOptions} from "@/api/recordQueries";
+import {flattenStatsPages} from "@/utils/statsRowsCache";
+import {buildHistoricalObservations} from "@/utils/historicalPeers";
 import {ManagerScoutingSummary,ScoutingCandidateCard,ManagerMethodsPanel} from "@/components/managers/ManagerScoutingVisual";
 import {ROLE_LABELS,rankPlayers} from "@/components/managers/managerFit.mjs";
 import {collectPlayerSeasonMetrics,seasonPercentiles,historicalRoleCandidates,linkedManagerFitRows} from "@/components/managers/managerFitHistorical.mjs";
@@ -46,11 +50,23 @@ export default function ManagerFit(){
  const [customDeepWeights,setCustomDeepWeights]=useState({...DEEP_FIT_PRESETS.balanced});
  const deepWeights=deepPreset==="custom"?customDeepWeights:DEEP_FIT_PRESETS[deepPreset]||DEEP_FIT_PRESETS.balanced;
  const [season,setSeason]=useState(()=>params.get("season")||"2025/2026");
- const {data:historicalDataset,isFetching:statsLoading,error:historicalError}=useHistoricalPeerDataset(true);
- const statsError=historicalError?.message||"";
- const seasonStats=useMemo(()=>historicalDataset?.records?.PlayerSeasonStats?.filter(row=>row.season===season)||[],[historicalDataset,season]);
- const understatRows=useMemo(()=>historicalDataset?.records?.UnderstatSeasonRate?.filter(row=>row.season===season)||[],[historicalDataset,season]);
- const valuationRows=useMemo(()=>historicalDataset?.records?.PlayerHistoricalValuation?.filter(row=>row.season===season)||[],[historicalDataset,season]);
+ const {data:historicalDataset,isFetching:fullHistoryLoading,error:historicalError}=useHistoricalPeerDataset(true);
+ // STATS records are independently cached and can be used before the larger
+ // seven-entity reference dataset completes (or if one ancillary entity fails).
+ const {data:statsSnapshot,isFetching:rawStatsLoading,error:rawStatsError,refetch:reloadStats}=useQuery(statsSnapshotOptions());
+ const rawHistoricalStats=useMemo(()=>statsSnapshot?flattenStatsPages(statsSnapshot):[],[statsSnapshot]);
+ const coreDataset=useMemo(()=>{
+  if(!players.length||!rawHistoricalStats.length)return null;
+  const resolved=linkedManagerFitRows(rawHistoricalStats,fotmobLinks,players);
+  return {observations:buildHistoricalObservations({players,stats:resolved}),
+   records:{PlayerSeasonStats:resolved,UnderstatSeasonRate:[],PlayerHistoricalValuation:[]}};
+ },[rawHistoricalStats,players,fotmobLinks]);
+ const fitDataset=historicalDataset?.observations?.length?historicalDataset:coreDataset;
+ const statsLoading=!fitDataset&&(fullHistoryLoading||rawStatsLoading);
+ const statsError=fitDataset?"":historicalError?.message||rawStatsError?.message||"";
+ const seasonStats=useMemo(()=>fitDataset?.records?.PlayerSeasonStats?.filter(row=>row.season===season)||[],[fitDataset,season]);
+ const understatRows=useMemo(()=>fitDataset?.records?.UnderstatSeasonRate?.filter(row=>row.season===season)||[],[fitDataset,season]);
+ const valuationRows=useMemo(()=>fitDataset?.records?.PlayerHistoricalValuation?.filter(row=>row.season===season)||[],[fitDataset,season]);
  const [scoutingPlayerId,setScoutingPlayerId]=useState("");
  const [minAge,setMinAge]=useState("");
  const [maxAge,setMaxAge]=useState("");
@@ -105,7 +121,7 @@ export default function ManagerFit(){
   const measured=historicalPeerMetrics.filter(r=>Object.values(r).some(v=>v&&typeof v==="object"&&typeof v.value==="number")).length;
   return {total:seasonStats.length,matched:matched.length,unresolved:unresolved.length,measured,peers:historicalPeerMetrics.length,links:fotmobLinks.length};
  },[linkedSeasonStats,seasonStats,players,historicalPeerMetrics,fotmobLinks]);
- const careerIndex=useMemo(()=>careerPositionFitIndex({dataset:historicalDataset,players,links:fotmobLinks,role,profile}),[historicalDataset,players,fotmobLinks,role,profile]);
+ const careerIndex=useMemo(()=>careerPositionFitIndex({dataset:fitDataset,players,links:fotmobLinks,role,profile}),[fitDataset,players,fotmobLinks,role,profile]);
  const roleRequirements=useMemo(()=>deriveRoleRequirements(profile,role),[profile,role]);
  const temporalContext=useMemo(()=>managerFitTemporalScope(profile,season),[profile,season]);
  const candidates=useMemo(()=>managerScoutingPool(players),[players]);
@@ -282,6 +298,11 @@ export default function ManagerFit(){
    </details>
     </div>
    </details>
+   {scoreMode==="career"&&visibility.scoredCount===0&&<div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+    <strong>Comprobación de estadísticas:</strong> {fitDataset?.observations?.length??0} temporadas cargadas · {careerIndex.diagnostics?.eligible??0} temporadas de este rol · {careerIndex.diagnostics?.withTwoMetrics??0} con métricas · {careerIndex.diagnostics?.scoredSeasons??0} puntuables · {careerIndex.size} jugadores con nota.
+    {!fitDataset&&<span> La base histórica aún no está disponible. {statsError||"Cargando el historial completo de STATS…"}</span>}
+    <button type="button" onClick={()=>reloadStats()} className="ml-2 rounded border border-amber-300 bg-white px-2 py-1 font-bold">Reintentar lectura de STATS</button>
+   </div>}
    {visibility.fallback&&!statsLoading&&<p role="status" className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-slate-700">
     {scoreMode==="deep"?<>
      El cruce entre fuentes todavía no permite calcular una nota Deep Fit. Los candidatos se ordenan como <strong>preselección funcional FM26</strong> cuando el ADN dispone de atributos medibles; después por adecuación posicional. No se confunden estas notas del videojuego con rendimiento histórico.
