@@ -1,4 +1,4 @@
-import {collectPlayerSeasonMetrics,linkedManagerFitRows} from "./managerFitHistorical.mjs";
+import {collectPlayerSeasonMetrics,linkedManagerFitRows,seasonPercentiles} from "./managerFitHistorical.mjs";
 import {evaluateRoleRequirements,deriveRoleRequirements} from "./managerRoleFit.mjs";
 
 // A historical season must be classified in this position by the existing
@@ -39,7 +39,7 @@ const addTo=(map,k,row)=>{if(!map.has(k))map.set(k,[]);map.get(k).push(row)};
 // reference per distinct peer (not a skewed count of the same player’s seasons).
 export function careerPositionFitIndex({dataset,players=[],links=[],role,profile}={}){
  const empty=new Map();
- empty.diagnostics={total:dataset?.observations?.length||0,eligible:0,withTwoMetrics:0,scoredSeasons:0,roleRequirements:deriveRoleRequirements(profile,role).metricKeys.length};
+ empty.diagnostics={total:dataset?.observations?.length||0,eligible:0,withTwoMetrics:0,scoredSeasons:0,tacticalSeasons:0,positionalSeasons:0,roleRequirements:deriveRoleRequirements(profile,role).metricKeys.length};
  if(!dataset?.observations?.length||!profile)return empty;
  const relevant=dataset.observations.filter(o=>roleMatches(o.role,role)&&validSeason(o.season)&&nonEmptyId(o.playerId)&&Number(o.minutes)>=450&&!o.positionMixed);
  if(!relevant.length)return empty;
@@ -82,17 +82,28 @@ export function careerPositionFitIndex({dataset,players=[],links=[],role,profile
   for(const [metric,entry] of preferred)peer[metric]=entry.candidate;
   peerReference.push(peer);
  }
+ // If the coach description has no two observable indicators, rank that
+ // player's real historical positional evidence. This is explicitly labelled
+ // as a positional proxy, never misrepresented as tactical coach compatibility.
  const byPlayer=new Map();
  for(const obs of relevant){
   const measured=metricsByKey.get(key(obs.playerId,obs.season));
   const fit=evaluateRoleRequirements(measured,peerReference,role,profile,{playerId:obs.playerId});
-  if(fit.score===null)continue;
+  const positional=seasonPercentiles(measured,peerReference,role,{});
+  const basis=fit.score!==null?"adn":positional.score!==null?"position":null;
+  if(!basis)continue;
   empty.diagnostics.scoredSeasons++;
-  addTo(byPlayer,String(obs.playerId),{season:obs.season,score:fit.score,coverage:fit.coverage,
-   minutes:Math.min(3000,Number(obs.minutes)||0),fit});
+  empty.diagnostics[basis==="adn"?"tacticalSeasons":"positionalSeasons"]++;
+  addTo(byPlayer,String(obs.playerId),{season:obs.season,score:basis==="adn"?fit.score:positional.score,
+   coverage:basis==="adn"?fit.coverage:positional.coverage,
+   minutes:Math.min(3000,Number(obs.minutes)||0),basis,
+   fit:basis==="adn"?fit:positional});
  }
  const results=new Map();
- for(const [pid,seasons] of byPlayer){
+ for(const [pid,allSeasons] of byPlayer){
+  // Never average a tactical percentile with a different positional proxy.
+  const tactical=allSeasons.filter(s=>s.basis==="adn");
+  const seasons=(tactical.length?tactical:allSeasons.filter(s=>s.basis==="position"));
   seasons.sort((a,b)=>b.score-a.score||b.coverage-a.coverage||b.season.localeCompare(a.season));
   const best=seasons[0];
   const weight=seasons.reduce((sum,r)=>sum+r.minutes,0);
@@ -101,10 +112,11 @@ export function careerPositionFitIndex({dataset,players=[],links=[],role,profile
   const hasCareer=seasons.length>=2&&career!==null;
   results.set(pid,{score:hasCareer?Math.round(best.score*.7+career*.3):best.score,
    bestSeason:best.season,bestScore:best.score,careerScore:hasCareer?career:null,
-   seasonCount:seasons.length,coverage:best.coverage,
+   seasonCount:seasons.length,coverage:best.coverage,basis:best.basis,
    confidence:hasCareer?"medium":"low",historicalPosition:role,
    seasons:seasons.map(({season,score,coverage,minutes})=>({season,score,coverage,minutes})),
-   fit:best.fit,method:hasCareer?"70% mejor campaña + 30% media de campañas evaluables por minutos":"Solo mejor campaña evaluable; trayectoria insuficiente"});
+   fit:best.fit,method:(best.basis==="adn"?"Encaje ADN medido":"Perfil estadístico por posición (ADN sin evidencia suficiente)")+
+   " · "+(hasCareer?"70% mejor campaña + 30% media de campañas evaluables por minutos":"Solo mejor campaña evaluable; trayectoria insuficiente")});
  }
  results.diagnostics=empty.diagnostics;
  return results;
