@@ -43,3 +43,19 @@ test("ignora registros sin UID para evitar coincidencias por nombres", async () 
   assert.deepEqual(players, []);
   assert.equal(called, false);
 });
+
+test("consulta perfiles históricos por ID de Base44 sin hacer búsquedas por nombres", async () => {
+  const id="6af30b6f584b3537cdf15e5b";
+  const calls=[];
+  const entity={async get(got){calls.push(got);return {id:got,name:"Eden Hazard",fm26_uid:null}}};
+  const rows=await fetchTacticalRolePlayers(entity,[{id,matchingKey:"base44_player_id"}]);
+  assert.equal(rows.length,1);
+  assert.deepEqual(calls,[id]);
+  assert.equal(rows[0].name,"Eden Hazard");
+});
+
+test("aborta la lectura si Base44 devuelve un ID distinto", async () => {
+  const id="6af30b6f584b3537cdf15e5b";
+  const entity={async get(){return {id:"6af31204bd003a0d9988b414",name:"Gareth Bale"}}};
+  await assert.rejects(fetchTacticalRolePlayers(entity,[{id,matchingKey:"base44_player_id"}]),/detenida por seguridad/);
+});
