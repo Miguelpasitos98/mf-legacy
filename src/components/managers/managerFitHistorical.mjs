@@ -9,23 +9,23 @@ const LABELS={
  chain:["xG Chain","xGChain"],
  xa:["xA","Expected assists"],
  xg:["xG excl. penalty","Non-penalty xG","np xG","npxG"],
- passing:["Accurate passes"],
- longPassing:["Accurate long balls"],
- creation:["Big chances created"],
- dribbles:["Dribbles","Successful dribbles"],
- pressure:["Possession won final 3rd"],
+ passing:["Accurate passes","Pases completados","Pases precisos","Pases acertados","Accurate passes per 90","accuratepasses"],
+ longPassing:["Accurate long balls","Pases largos precisos","Pases largos acertados","accuratelongballs"],
+ creation:["Big chances created","Ocasiones claras creadas","Grandes ocasiones creadas","bigchancescreated"],
+ dribbles:["Dribbles","Successful dribbles","Regates exitosos","Regates completados","successfuldribbles"],
+ pressure:["Possession won final 3rd","Recuperaciones en ultimo tercio","Posesión ganada en último tercio","possessionwonfinal3rd"],
  defense:["PAdj defensive actions","Possession adjusted defensive actions"],
- preventing:["Goals prevented"],
+ preventing:["Goals prevented","Goles evitados","goals_prevented"],
  shot:["Shots on target"],
  // Extra V4-only observed activity proxies; do not silently change V3 rankings.
- recoveries:["Recoveries"],
- defensiveActions:["Defensive actions"],
- tackles:["Tackles"],
- interceptions:["Interceptions"],
- aerialsWon:["Aerials won"],
- touchesBox:["Touches in opposition box"],
- chancesCreated:["Chances created"],
- clearances:["Clearances"]
+ recoveries:["Recoveries","Recuperaciones"],
+ defensiveActions:["Defensive actions","Acciones defensivas"],
+ tackles:["Tackles","Entradas"],
+ interceptions:["Interceptions","Intercepciones"],
+ aerialsWon:["Aerials won","Duelos aéreos ganados"],
+ touchesBox:["Touches in opposition box","Toques en area rival"],
+ chancesCreated:["Chances created","Oportunidades creadas","Ocasiones creadas"],
+ clearances:["Clearances","Despejes"]
 };
 export const HIST_ROLE_METRICS={
  GK:["preventing","longPassing","passing"],
@@ -48,6 +48,24 @@ function rate(metric,row){
  const total=positive(metric.value);
  const minutes=positive(row.minutes);
  return total!==null&&minutes>=90?total*90/minutes:null;
+}
+// Resolve only explicit, unique FotMob-to-Base44 links. Never match names or
+// silently override a different PlayerSeasonStats.player_id.
+export function linkedManagerFitRows(rows,links,players){
+ const known=new Set((players||[]).map(p=>id(p.id)).filter(Boolean));
+ const ownerByFotmob=new Map(),conflicted=new Set();
+ for(const link of links||[]){
+  const fid=id(link.fotmob_player_id).trim(),pid=id(link.player_id).trim();
+  if(!fid||!pid||!known.has(pid))continue;
+  if(ownerByFotmob.has(fid)&&ownerByFotmob.get(fid)!==pid)conflicted.add(fid);
+  else ownerByFotmob.set(fid,pid);
+ }
+ return (rows||[]).map(row=>{
+  const fid=id(row.fotmob_player_id).trim(),existing=id(row.player_id).trim();
+  const linked=ownerByFotmob.get(fid);
+  if(!fid||conflicted.has(fid)||!linked||existing&&existing!==linked)return row;
+  return {...row,player_id:linked};
+ });
 }
 const findMetric=(row,key)=>{
  const aliases=LABELS[key]||[];
