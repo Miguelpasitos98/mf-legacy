@@ -3046,7 +3046,7 @@ export default function Players() {
       setErrorMessage("CA y CP deben estar entre 0 y 200; deja el campo vacío si lo desconoces.");
       return;
     }
-    if(!validOptional(form.height,230,110)||!validOptional(form.rightFoot,20,1)||!validOptional(form.leftFoot,20,1)||!validOptional(form.shirtNumber,99)){
+    if(!validOptional(form.height,230,110)||!validOptional(form.rightFoot,20,1)||!validOptional(form.leftFoot,20,1)||!validOptional(form.shirtNumber,99)||!validOptional(form.retirementYear,2100,1900)){
       setErrorMessage("Revisa altura (110–230), pies (1–20) y dorsal (0–99).");
       return;
     }
@@ -3176,7 +3176,7 @@ export default function Players() {
               short_name: generatedShortName,
               country_id:
                 countryId || "",
-              continent: "Europe",
+              continent: (form.countryId === NEW_COUNTRY_VALUE ? form.newCountryContinent : countries.find(c => String(c.id) === String(countryId))?.continent) || "Europe",
               is_active: true,
             });
 
