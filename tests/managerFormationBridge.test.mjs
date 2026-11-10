@@ -20,3 +20,11 @@ test("coach assignment takes explicit tactical DNA and normalizes diamond",()=>{
  assert.match(templateName(r.manager,r.formation),/Conte/);
  assert.equal(assignmentShape(ass,[{...p[0],formation:"invalid"}],[]),null);
 });
+
+test("Conte 3-4-3 includes true wingbacks/wide midfield and three attackers",()=>{
+ const codes=generateFormation("3-4-3").map(s=>s[2]);
+ for(const code of ["GK","CB1","CB2","CB3","LM","CM1","CM2","RM","LW","ST","RW"])assert.ok(codes.includes(code),code);
+});
+test("no guessed formation from a manager without valid tactical DNA",()=>{
+ assert.equal(assignmentShape({manager_id:"m",tactical_profile_id:"p"},[{id:"p",manager_id:"m",formation:""}],[]),null);
+});
