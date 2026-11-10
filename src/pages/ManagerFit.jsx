@@ -213,7 +213,7 @@ export default function ManagerFit(){
     minAge:minAge===""?null:Number(minAge),maxAge:maxAge===""?null:Number(maxAge),
     maxValueM:maxValueM===""?null:Number(maxValueM),knownValueOnly,minimumCoverage,coverageMode:scoreMode});
   const reservable=filterManagerPlayerAssignments(eligible,assignmentsIndex,managerId,assignmentFilter);
-  return visibleManagerFitCandidates(reservable,{scoreMode,showUnknown,sortMode:resultSort,limit:resultLimit});
+  return visibleManagerFitCandidates(reservable,{scoreMode,showUnknown:assignmentFilter==="available"?showUnknown:true,sortMode:resultSort,limit:resultLimit});
  },[candidates,role,profile,search,minCA,showUnknown,scoreMode,historicalIndex,historicalPeerMetrics,
     valuationRows,season,minAge,maxAge,maxValueM,knownValueOnly,minimumCoverage,resultSort,resultLimit,deepWeights,careerIndex,assignmentsIndex,assignmentFilter,managerId]);
  const results=visibility.rows;
@@ -402,7 +402,7 @@ export default function ManagerFit(){
     {progressive.failedSeasons.length>0&&<p className="mt-1">Temporadas pendientes: {progressive.failedSeasons.map(x=>x.season).join(", ")}.</p>}
     <button type="button" onClick={progressive.retry} className="ml-2 rounded border border-blue-300 bg-white px-2 py-1 font-bold">Recargar temporadas de STATS</button>
    </div>}
-   {visibility.fallback&&!statsLoading&&<p role="status" className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-slate-700">
+   {assignmentFilter==="available"&&visibility.fallback&&!statsLoading&&<p role="status" className="rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-slate-700">
     {scoreMode==="deep"?<>
      El cruce entre fuentes todavía no permite calcular una nota Deep Fit. Los candidatos se ordenan como <strong>preselección funcional FM26</strong> cuando el ADN dispone de atributos medibles; después por adecuación posicional. No se confunden estas notas del videojuego con rendimiento histórico.
     </>:<>
@@ -425,7 +425,7 @@ export default function ManagerFit(){
       <option value="position">Mayor adecuación posicional FM26</option>
      </select>
     </label>
-    {visibility.unscoredCount>0&&scoreMode!=="position"&&
+    {assignmentFilter==="available"&&visibility.unscoredCount>0&&scoreMode!=="position"&&
      <button type="button" onClick={()=>{setShowUnknown(v=>!v);setShowAllResults(!showUnknown)}}
       className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-bold text-blue-800 hover:bg-blue-50">
       {showUnknown?"Ocultar jugadores sin nota":"Mostrar todos los "+visibility.unscoredCount+" compatibles sin puntuación de la bolsa"}
