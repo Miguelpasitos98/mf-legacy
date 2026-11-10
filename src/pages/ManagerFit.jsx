@@ -108,8 +108,9 @@ export default function ManagerFit(){
  },[players,role,linkedSeasonStats,linkedUnderstat,season]);
  const historicalPeerMetrics=useMemo(()=>[...historicalIndex.values()],[historicalIndex]);
  const statsDiagnosis=useMemo(()=>{
-  const matched=linkedSeasonStats.filter(r=>players.some(p=>String(p.id)===String(r.player_id)));
-  const unresolved=linkedSeasonStats.filter(r=>!r.player_id||!players.some(p=>String(p.id)===String(r.player_id)));
+  const playerIds=new Set(players.map(p=>String(p.id)));
+  const matched=linkedSeasonStats.filter(r=>playerIds.has(String(r.player_id)));
+  const unresolved=linkedSeasonStats.filter(r=>!playerIds.has(String(r.player_id)));
   const measured=historicalPeerMetrics.filter(r=>Object.values(r).some(v=>v&&typeof v==="object"&&typeof v.value==="number")).length;
   return {total:seasonStats.length,matched:matched.length,unresolved:unresolved.length,measured,peers:historicalPeerMetrics.length,links:fotmobLinks.length};
  },[linkedSeasonStats,seasonStats,players,historicalPeerMetrics,fotmobLinks]);
