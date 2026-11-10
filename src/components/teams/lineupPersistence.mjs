@@ -57,12 +57,14 @@ export async function reconcileLineupChildren({slotEntity,benchEntity,lineupId,s
    const previous=choose(slotsByCode.get(row.slot_code)||[]);
    if(previous){
     if(changed(previous,row,["player_id","x_position","y_position","display_order"])){
-     await slotEntity.update(previous.id,row);
-     rollback.push({entity:slotEntity,id:previous.id,row:{
+     // Snapshot BEFORE update: some SDK caches mutate the original object.
+     const snapshot={
       player_id:previous.player_id,slot_code:previous.slot_code,
       x_position:previous.x_position,y_position:previous.y_position,
       display_order:previous.display_order
-     }});
+     };
+     await slotEntity.update(previous.id,row);
+     rollback.push({entity:slotEntity,id:previous.id,row:snapshot});
     }
    }else{
     const created=await slotEntity.create({lineup_id:lineupId,...row});
@@ -74,8 +76,9 @@ export async function reconcileLineupChildren({slotEntity,benchEntity,lineupId,s
    const previous=choose(benchByPlayer.get(String(row.player_id))||[]);
    if(previous){
     if(changed(previous,row,["bench_order"])){
+     const oldOrder=previous.bench_order;
      await benchEntity.update(previous.id,{bench_order:row.bench_order});
-     rollback.push({entity:benchEntity,id:previous.id,row:{bench_order:previous.bench_order}});
+     rollback.push({entity:benchEntity,id:previous.id,row:{bench_order:oldOrder}});
     }
    }else{
     const created=await benchEntity.create({lineup_id:lineupId,...row});
