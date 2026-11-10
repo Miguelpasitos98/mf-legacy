@@ -34,9 +34,14 @@ export function generateFormation(raw){
     else if(count===3)code=["LW","ST","RW"][j];
     else code="ST"+(j+1);
    }else{
-    const prefix=i===1?(count===1?"DM":"CM"):"AM";
-    code=prefix+(count===1?"":j+1);
-    if(count===1)code=prefix;
+    // Wide midfield lines use the full width; holding pivots and advanced
+    // attacking midfielders keep distinct role labels.
+    if(count===1)code=i===1?"DM":"CAM";
+    else if(count===2)code=(i===1?"DM":"AM")+(j+1);
+    else if(count===3)code=i===1?["CM1","DM","CM2"][j]:["AM1","CAM","AM2"][j];
+    else if(count===4)code=i===1?["LM","CM1","CM2","RM"][j]:["LAM","AM1","AM2","RAM"][j];
+    else if(count===5)code=["LWB","CM1","CAM","CM2","RWB"][j];
+    else code=(i===1?"CM":"AM")+(j+1);
    }
    if(codes.has(code))code=code+"_L"+i;
    codes.add(code);shape.push([Math.round(x*10)/10,Math.round(y*10)/10,code]);
