@@ -5,18 +5,18 @@
  * totals without minute alignment.
  */
 const LABELS={
- buildup:["xG Buildup","xGBuildup"],
- chain:["xG Chain","xGChain"],
- xa:["xA","Expected assists"],
- xg:["xG excl. penalty","Non-penalty xG","np xG","npxG"],
+ buildup:["xG Buildup","xGBuildup","xg_buildup","Participación en construcción xG"],
+ chain:["xG Chain","xGChain","xg_chain","Participación en cadena xG"],
+ xa:["xA","Expected assists","Asistencias esperadas"],
+ xg:["xG excl. penalty","Non-penalty xG","np xG","npxG","xG sin penaltis","xgexclpenalty"],
  passing:["Accurate passes","Pases completados","Pases precisos","Pases acertados","Accurate passes per 90","accuratepasses"],
  longPassing:["Accurate long balls","Pases largos precisos","Pases largos acertados","accuratelongballs"],
  creation:["Big chances created","Ocasiones claras creadas","Grandes ocasiones creadas","bigchancescreated"],
  dribbles:["Dribbles","Successful dribbles","Regates exitosos","Regates completados","successfuldribbles"],
  pressure:["Possession won final 3rd","Recuperaciones en ultimo tercio","Posesión ganada en último tercio","possessionwonfinal3rd"],
- defense:["PAdj defensive actions","Possession adjusted defensive actions"],
+ defense:["PAdj defensive actions","Possession adjusted defensive actions","Acciones defensivas ajustadas","p_adj_defensive_actions"],
  preventing:["Goals prevented","Goles evitados","goals_prevented"],
- shot:["Shots on target"],
+ shot:["Shots on target","Tiros a puerta","shotsontarget"],
  // Extra V4-only observed activity proxies; do not silently change V3 rankings.
  recoveries:["Recoveries","Recuperaciones"],
  defensiveActions:["Defensive actions","Acciones defensivas"],
