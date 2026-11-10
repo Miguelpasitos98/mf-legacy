@@ -5,7 +5,31 @@ import {evaluateRoleRequirements} from "./managerRoleFit.mjs";
 // historical position resolver. A current FM26 position alone is not evidence.
 const roleMatches=(historical,selected)=>
  historical===selected||(selected==="FB"&&historical==="WB")||
+ (selected==="DM"&&historical==="CM")||
  (selected==="AM"&&historical==="CAM")||(selected==="WG"&&historical==="W");
+
+// The STATS analysis already publishes validated, aligned per-90 indicators.
+// Reuse those independently calculated player-season observations rather than
+// requiring the second, narrower legacy-label parser to recognize them again.
+const HIST_TO_V4={
+ preventing:"goals_prevented_p90",passing:"accurate_passes_p90",
+ longPassing:"accurate_long_balls_p90",buildup:"xg_buildup_p90",
+ chain:"xg_chain_p90",xa:"xa_p90",xg:"npxg_p90",
+ creation:"big_chances_created_p90",dribbles:"successful_dribbles_p90",
+ pressure:"possession_won_final_3rd_p90",defense:"def_actions_poss_adj_p90",
+ shot:"shots_on_target_p90"
+};
+export function historicalObservationMetrics(observation,raw={}){
+ const result={...raw};
+ for(const [metric,field] of Object.entries(HIST_TO_V4)){
+  const value=observation?.values?.[field];
+  if(typeof value==="number"&&Number.isFinite(value)&&value>=0){
+   result[metric]={value,source:"STATS · histórico",minutes:Number(observation.minutes)||null,
+    scope:"temporada "+observation.season};
+  }
+ }
+ return result;
+}
 const key=(pid,season)=>String(pid)+"|"+String(season);
 const nonEmptyId=x=>String(x??"").trim();
 const validSeason=s=>/^\d{4}\/\d{4}$/.test(String(s));
@@ -27,7 +51,7 @@ export function careerPositionFitIndex({dataset,players=[],links=[],role,profile
  const metricsByKey=new Map(),byHistoricalPlayer=new Map();
  for(const obs of relevant){
   const k=key(obs.playerId,obs.season);
-  const measured={...collectPlayerSeasonMetrics(statsByKey.get(k)||[],underByKey.get(k)||[],obs.season,obs.playerId),__playerId:String(obs.playerId)};
+  const measured={...historicalObservationMetrics(obs,collectPlayerSeasonMetrics(statsByKey.get(k)||[],underByKey.get(k)||[],obs.season,obs.playerId)),__playerId:String(obs.playerId)};
   metricsByKey.set(k,measured);
   addTo(byHistoricalPlayer,String(obs.playerId),measured);
  }
