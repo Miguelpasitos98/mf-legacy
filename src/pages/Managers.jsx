@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
+import {useAuth} from "@/lib/AuthContext";
 import {Search,Plus,Save,Sparkles,Copy,UserRoundCog,SlidersHorizontal,ShieldCheck,ArrowUpRight,BookOpen} from "lucide-react";
 import ManagerPortrait from "@/components/managers/ManagerPortrait";
 import {assignmentShape,templateName} from "@/components/teams/managerFormationBridge.mjs";
@@ -27,6 +28,7 @@ const primary="inline-flex items-center justify-center gap-2 rounded-lg bg-[#003
 const normalize=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
 export default function Managers(){
+ const {user:sessionUser,isAuthenticated,navigateToLogin,checkUserAuth}=useAuth();
  const [params,setParams]=useSearchParams();
  const managerParam=params.get("manager")||"";
  const [managers,setManagers]=useState([]);
@@ -35,6 +37,8 @@ export default function Managers(){
  const [teams,setTeams]=useState([]);
  const [countries,setCountries]=useState([]);
  const [isAdmin,setIsAdmin]=useState(null);
+ const [authorizationError,setAuthorizationError]=useState("");
+ const [checkingPermissions,setCheckingPermissions]=useState(false);
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
@@ -72,6 +76,25 @@ export default function Managers(){
  const managerAssignments=assignments.filter(a=>String(a.manager_id)===String(selected?.id)&&a.team_type==="club"&&customTeams.some(t=>String(t.id)===String(a.team_id)));
  const visible=useMemo(()=>managers.filter(m=>normalize([m.name,m.display_name,m.nationality,m.manager_kind].join(" ")).includes(normalize(search))).sort((a,b)=>Number(Boolean(b.is_active))-Number(Boolean(a.is_active))||String(a.name).localeCompare(String(b.name))),[managers,search]);
 
+ const verifyEditorAccess=async()=>{
+  setCheckingPermissions(true);setAuthorizationError("");
+  try{
+   const me=await base44.auth.me();
+   const role=me?.role??me?.data?.role;
+   if(!role)throw Error("La API de sesión no devolvió los permisos del usuario.");
+   setIsAdmin(role==="admin");
+  }catch(e){
+   // A failed identity request must NEVER be mistaken for a confirmed
+   // non-admin account. RLS still enforces authorization on every write.
+   const validatedContextRole=isAuthenticated?(sessionUser?.role??sessionUser?.data?.role):null;
+   setIsAdmin(validatedContextRole==="admin"?true:null);
+   setAuthorizationError(e?.message||"No se pudo validar la sesión.");
+  }finally{setCheckingPermissions(false)}
+ };
+ const retryEditorAccess=async()=>{
+  try{await checkUserAuth();}catch{/* verifyEditorAccess will display the current error */}
+  await verifyEditorAccess();
+ };
  const refresh=async()=>{
   const [m,p,a,t,c]=await Promise.all([
    getRows(base44.entities.Manager),getRows(base44.entities.ManagerTacticalProfile),
@@ -82,15 +105,17 @@ export default function Managers(){
  };
  useEffect(()=>{
   let live=true;
+  // Catalog retrieval is independent from authentication. A transient
+  // /auth/me failure must not permanently lock all editor controls.
+  verifyEditorAccess();
   Promise.all([
-   base44.auth.me().catch(()=>null),
    getRows(base44.entities.Manager),
    getRows(base44.entities.ManagerTacticalProfile),
    getRows(base44.entities.TeamManagerAssignment),
    getRows(base44.entities.Team),getRows(base44.entities.Country)
-  ]).then(([me,m,p,a,t,c])=>{
+  ]).then(([m,p,a,t,c])=>{
    if(!live)return;
-   setIsAdmin(me?.role==="admin");setManagers(m);setProfiles(p);setAssignments(a);setTeams(t);setCountries(c);
+   setManagers(m);setProfiles(p);setAssignments(a);setTeams(t);setCountries(c);
    if(!managerParam&&m.length)setParams({manager:String(m[0].id)},{replace:true});
   }).catch(e=>{if(live)setError("Error al cargar Manager DNA: "+String(e.message||e))})
   .finally(()=>{if(live)setLoading(false)});
@@ -442,7 +467,8 @@ export default function Managers(){
  return <main className="mx-auto max-w-[1650px] px-3 py-2 md:px-6 text-slate-900">
   {error&&<div role="alert" className="mb-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">{error}</div>}
   {notice&&<div role="status" className="mb-3 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">{notice}</div>}
-  {isAdmin===false&&<p className="rounded-lg border p-3 mb-3 text-sm">La base de entrenadores es visible en modo consulta. Las ediciones están reservadas a administradores.</p>}
+  {isAdmin===false&&<div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><span>La sesión actual tiene permisos de consulta. Para editar entrenadores, entra con una cuenta administradora de MF Legacy.</span><button type="button" onClick={retryEditorAccess} disabled={checkingPermissions} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold">Comprobar permisos</button></div>}
+  {isAdmin===null&&<div role="status" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950"><span><strong>No se ha podido verificar la sesión.</strong> {authorizationError||"Comprobando permisos de edición…"} No significa que hayas perdido permisos de administrador.</span><div className="flex gap-2"><button type="button" onClick={retryEditorAccess} disabled={checkingPermissions} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold">{checkingPermissions?"Comprobando…":"Reintentar"}</button><button type="button" onClick={navigateToLogin} className="rounded-lg bg-blue-800 px-3 py-2 text-xs font-semibold text-white">Iniciar sesión</button></div></div>}
   <div className="grid grid-cols-1 lg:grid-cols-[270px_minmax(0,1fr)] gap-4 min-w-0">
    <aside className="border rounded-2xl bg-white p-3 lg:self-start min-w-0">
     <div className="flex items-center justify-between mb-3"><h2 className="font-extrabold">Entrenadores <span className="text-xs font-medium text-slate-500">({managers.length})</span></h2><button type="button" onClick={openNew} disabled={!canWrite||busy} className="rounded-lg bg-lime-400 p-2 text-slate-900 disabled:opacity-50" aria-label="Crear entrenador"><Plus size={18}/></button></div>
