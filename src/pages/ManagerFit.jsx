@@ -216,7 +216,7 @@ export default function ManagerFit(){
    <details className="group rounded-lg border border-slate-200 bg-slate-50/70 p-3" aria-label="Filtros avanzados">
     <summary className="cursor-pointer text-xs font-bold text-slate-700">Filtros avanzados · Edad, valor, CA y temporada</summary>
     <div className="mt-3 space-y-3">
-        <div className="flex gap-2 flex-wrap text-sm"><label className="text-xs font-bold">{scoreMode==="career"?"Temporada de referencia (filtros de edad y valor)":"Temporada histórica"} <input aria-label="Temporada histórica" className="block rounded-lg border p-2 mt-1" value={season} onChange={e=>setSeason(e.target.value)} placeholder="2025/2026"/></label></div>
+        <div className="flex gap-2 flex-wrap text-sm"><label className="text-xs font-bold">{scoreMode==="career"||scoreMode==="hybrid"?"Temporada de referencia para filtros":"Temporada histórica"} <input aria-label="Temporada histórica" className="block rounded-lg border p-2 mt-1" value={season} onChange={e=>setSeason(e.target.value)} placeholder="2025/2026"/></label></div>
 
      <div className="max-w-[230px]">    <label className="text-xs font-bold">CA mínimo (FM26)<input aria-label="CA mínimo" type="number" min="0" max="200" value={minCA} onChange={e=>setMinCA(Math.max(0,Math.min(200,Number(e.target.value)||0)))} className="block w-full border rounded-lg p-2 mt-1 text-sm"/></label>
 </div>
@@ -228,13 +228,13 @@ export default function ManagerFit(){
     <label className="text-xs font-bold flex flex-col justify-center gap-2"><span>Valor histórico</span><span className="flex gap-2 font-normal items-center"><input type="checkbox" checked={knownValueOnly} onChange={e=>setKnownValueOnly(e.target.checked)}/> Solo con valor</span></label>
    </div>
 
-     <p className="text-[11px] text-slate-500">En el modo histórico óptimo, la temporada de referencia solo afecta a los filtros de edad y valor. No limita la búsqueda de la mejor campaña.</p>
+     <p className="text-[11px] text-slate-500">En el modo principal 70/30, la temporada del selector solo afecta a los filtros de edad y valor; el 30% procede de la mejor campaña histórica evaluable. No limita la búsqueda de la mejor campaña.</p>
     </div>
    </details>
    <details className="rounded-lg border border-slate-200 bg-white p-3" aria-label="Modelos y herramientas avanzadas">
     <summary className="cursor-pointer text-xs font-bold text-slate-700">Modelos y herramientas avanzadas · V1–V4 y Deep Fit</summary>
     <div className="mt-3 space-y-3">
-     <p className="text-[11px] text-slate-600">Los modelos alternativos son independientes del perfil histórico óptimo. Úsalos para estudios específicos.</p>
+     <p className="text-[11px] text-slate-600">El encaje integral 70/30 es el modo principal. Los modelos históricos y experimentales se mantienen para análisis específicos.</p>
    <div className="grid grid-cols-2 gap-2 lg:grid-cols-7" role="group" aria-label="Modelo de evaluación">
     {[
      {key:"hybrid",title:"ENCAJE INTEGRAL 70/30",note:"70% atributos FM26 + 30% mejor temporada real"},
@@ -361,6 +361,9 @@ export default function ManagerFit(){
      </div>
      {comparedRows.length?<div className="overflow-x-auto"><table className="min-w-[650px] w-full text-xs bg-white rounded-lg border border-collapse"><thead><tr className="bg-slate-100"><th className="p-3 text-left">Indicador</th>{comparedRows.map(r=><th className="p-3 text-left" key={r.player.id}>{r.player.name}</th>)}</tr></thead><tbody>
       {[
+       ["Encaje integral 70/30",r=>r.hybrid?.score===null||r.hybrid?.score===undefined?"—":r.hybrid.score+"/100"],
+       ["70% · Atributos FM26",r=>r.hybrid?.fmScore===null||r.hybrid?.fmScore===undefined?"—":r.hybrid.fmScore+"/100"],
+       ["30% · Rendimiento real",r=>r.hybrid?.seasonScore===null||r.hybrid?.seasonScore===undefined?"—":r.hybrid.seasonScore+"/100 · "+r.hybrid.season],
        ["Deep Fit combinado",r=>r.deep.score===null?"—":r.deep.score+"/100"],
        ["Funciones ADN en FM26",r=>r.deep.functions.score===null?"—":r.deep.functions.score+"/100"],
        ["Preselección funcional FM26",r=>r.deep.preliminaryScore===null?"—":r.deep.preliminaryScore+"/100"],
