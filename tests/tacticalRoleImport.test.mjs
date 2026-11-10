@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ROLE_IMPORT_FORMAT, parseTacticalRoleImport, buildTacticalRoleImportPlan, tacticalRolePatch } from "../src/utils/tacticalRoleImport.mjs";
+import { ROLE_IMPORT_FORMAT, ROLE_BASE44_REVIEW_FORMAT, parseTacticalRoleImport, buildTacticalRoleImportPlan, tacticalRolePatch } from "../src/utils/tacticalRoleImport.mjs";
 
 const roles = ["🎩 Space Creator", "🌀 Space Creator", "🧠 Ball-Playing Defender", "📐 Tactical Defender", "⚡ Line Breaker"];
 const item = (id, name = "Pau Cubarsí") => ({
@@ -48,4 +48,31 @@ test("reimportar datos idénticos es idempotente", () => {
 });
 test("formato original de FM no puede confundirse con importación de roles", () => {
   assert.throws(() => parseTacticalRoleImport([item("1")], roles), /Formato no compatible/);
+});
+
+test("permite la revisión de leyendas sin UID FM26, vinculadas por ID interno", () => {
+  const id = "6af30b6f584b3537cdf15e5b";
+  const row = { base44_player_id:id, name:"Eden Hazard", fm26_uid:null, tactical_roles:[
+    {name:"⚡ Line Breaker",description:"Desborde"},
+    {name:"🎩 Space Creator",description:"Creación"}]};
+  for (const format of [ROLE_IMPORT_FORMAT,ROLE_BASE44_REVIEW_FORMAT]) {
+    const parsed = parseTacticalRoleImport({format,matching_key:"base44_player_id",players_count:1,players:[row]},roles);
+    assert.equal(parsed.matchingKey,"base44_player_id");
+    assert.equal(parsed.entries[0].errors.length,0);
+    const player = {id,name:"Eden Hazard",fm26_uid:null,description:"",tactical_roles:[]};
+    const plan=buildTacticalRoleImportPlan(parsed.entries,[player]);
+    assert.equal(plan[0].status,"ready");
+    assert.deepEqual(Object.keys(tacticalRolePatch(plan[0])).sort(),["description","tactical_roles"]);
+    assert.equal(buildTacticalRoleImportPlan(parsed.entries,[{...player,name:"Otro jugador"}])[0].status,"invalid");
+  }
+});
+
+test("no admite IDs Base44 falsos, nombres ajenos ni duplicados", () => {
+  const id="6af30b6f584b3537cdf15e5b";
+  const row={...item(null,"Eden Hazard"),base44_player_id:id};
+  const duplicate=parseTacticalRoleImport({format:ROLE_IMPORT_FORMAT,matching_key:"base44_player_id",players:[row,row]},roles);
+  assert.equal(duplicate.entries[0].errors.some(e=>e.includes("repetido")),true);
+  const broken=parseTacticalRoleImport({format:ROLE_IMPORT_FORMAT,matching_key:"base44_player_id",players:[{...row,base44_player_id:"not-an-id"}]},roles);
+  assert.equal(broken.entries[0].errors.length>0,true);
+  assert.throws(()=>parseTacticalRoleImport({format:ROLE_IMPORT_FORMAT,matching_key:"unknown",players:[row]},roles),/matching_key/);
 });
