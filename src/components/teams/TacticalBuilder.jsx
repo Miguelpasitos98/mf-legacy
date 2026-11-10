@@ -5,14 +5,9 @@ import { base44 } from "@/api/base44Client";
 import PlayerPortrait from "./PlayerPortrait";
 import { BalancePanel, PlayerPicker } from "./LineupSidePanel";
 import { analyzeLineup } from "./lineupAnalysis.mjs";
+import {BASE_FORMATIONS,generateFormation} from "./managerFormationBridge.mjs";
 
-export const FORMATIONS = {
-  "4-3-3": [[50,91,"GK"],[13,73,"LB"],[37,76,"CB1"],[63,76,"CB2"],[87,73,"RB"],[28,50,"CM1"],[50,55,"DM"],[72,50,"CM2"],[16,25,"LW"],[50,19,"ST"],[84,25,"RW"]],
-  "4-4-2": [[50,91,"GK"],[13,73,"LB"],[37,76,"CB1"],[63,76,"CB2"],[87,73,"RB"],[13,49,"LM"],[38,53,"CM1"],[62,53,"CM2"],[87,49,"RM"],[36,24,"ST1"],[64,24,"ST2"]],
-  "3-5-2": [[50,91,"GK"],[25,73,"CB1"],[50,77,"CB2"],[75,73,"CB3"],[9,51,"LWB"],[33,55,"CM1"],[50,47,"CAM"],[67,55,"CM2"],[91,51,"RWB"],[36,24,"ST1"],[64,24,"ST2"]],
-  "4-2-3-1": [[50,91,"GK"],[13,73,"LB"],[37,76,"CB1"],[63,76,"CB2"],[87,73,"RB"],[35,57,"DM1"],[65,57,"DM2"],[15,37,"LW"],[50,37,"CAM"],[85,37,"RW"],[50,17,"ST"]],
-  "4-3-1-2": [[50,91,"GK"],[13,73,"LB"],[37,76,"CB1"],[63,76,"CB2"],[87,73,"RB"],[22,54,"CM1"],[50,58,"DM"],[78,54,"CM2"],[50,38,"CAM"],[35,20,"ST1"],[65,20,"ST2"]]
-};
+export const FORMATIONS = BASE_FORMATIONS;
 export function assignSlot(slots, target, playerId) {
   const next = {...slots};
   const old = Object.keys(next).find(k => next[k] === playerId);
@@ -22,8 +17,8 @@ export function assignSlot(slots, target, playerId) {
   if (!playerId) delete next[target];
   return next;
 }
-export default function TacticalBuilder({ team, season, roster, allPlayers = [], comparison = [], balanceComparison = [], onEnsurePlayer, onDirtyChange }) {
-  const [formation,setFormation] = useState("4-3-3");
+export default function TacticalBuilder({ team, season, roster, allPlayers = [], comparison = [], balanceComparison = [], onEnsurePlayer, onDirtyChange, coachShape = null }) {
+  const [formation,setFormation] = useState(coachShape?.formation||"4-3-3");
   const [slots,setSlots] = useState({});
   const [slotPositions,setSlotPositions]=useState({});
   const pitchRef=useRef(null);
@@ -33,6 +28,9 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
   const [notice,setNotice] = useState("");
   const [bench,setBench] = useState([]);
   const [lineups,setLineups] = useState([]);
+  const appliedAssignment=useRef("");
+  const shapeOf=code=>FORMATIONS[code]||generateFormation(code);
+  const formationOptions=[...new Set([...Object.keys(FORMATIONS),...(coachShape?.formation?[coachShape.formation]:[]),...lineups.map(l=>l.formation)])].filter(f=>{try{return shapeOf(f).length===11}catch{return false}});
   const [activeId,setActiveId] = useState("");
   const [lineupName,setLineupName] = useState("Once ideal");
   const [busy,setBusy] = useState(false);
@@ -101,7 +99,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
       if(!chosen) throw new Error("No se encontró el once seleccionado");
       const newSlots={};
       const newPositions={};
-      const validCodes=new Set((FORMATIONS[chosen.formation]||FORMATIONS["4-3-3"]).map(s=>s[2]));
+      const validCodes=new Set(shapeOf(chosen.formation).map(s=>s[2]));
       const assignedIds=new Set();
       for(const s of savedSlots.sort((a,b)=>String(a.created_date||"").localeCompare(String(b.created_date||"")))){
         const pid=String(s.player_id);
@@ -113,7 +111,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
       const occupied=new Set(Object.values(newSlots));
       const newBench=savedBench.sort((a,b)=>(a.bench_order??0)-(b.bench_order??0))
         .map(b=>String(b.player_id)).filter(pid=>availableIds.has(pid)&&!occupied.has(pid));
-      setFormation(FORMATIONS[chosen.formation]?chosen.formation:"4-3-3");
+      setFormation(chosen.formation);
       setSlots(newSlots);setSlotPositions(newPositions);setBench([...new Set(newBench)]);setActiveId(id);setLineupName(chosen.name);setDirty(false);setSelected(null);
       setNotice("Alineación recuperada.");
     }catch(e){setError(e.message||"No se pudo cargar el once")}
@@ -124,7 +122,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     const name=lineupName.trim();
     if(!name){setError("Escribe un nombre para el once.");return;}
     if(!season.trim()){setError("La temporada es obligatoria.");return;}
-    const slotRows=FORMATIONS[formation].filter(([,,code])=>slots[code]).map(([x,y,code],index)=>({
+    const slotRows=shapeOf(formation).filter(([,,code])=>slots[code]).map(([x,y,code],index)=>({
       player_id:slots[code],slot_code:code,x_position:slotPositions[code]?.x??x,y_position:slotPositions[code]?.y??y,display_order:index
     }));
     const ids=[...slotRows.map(s=>s.player_id),...bench];
@@ -182,8 +180,27 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     setBench(b=>b.includes(pid)?b.filter(v=>v!==pid):[...b,pid]);
     setDirty(true);
   };
-  useEffect(() => { setSlots({}); setSlotPositions({});setBench([]); setActiveId(""); setDirty(false); setSelected(null); setNotice(""); },[team?.id,season]);
-  const activeSlots = FORMATIONS[formation];
+  useEffect(() => {
+    setSlots({});setSlotPositions({});setBench([]);setActiveId("");setDirty(false);
+    setSelected(null);setNotice("");appliedAssignment.current="";
+    setFormation(coachShape?.formation||"4-3-3");
+  },[team?.id,season]);
+  useEffect(()=>{
+    if(!coachShape?.formation||loadingSaved||busy||dirty)return;
+    const key=String(team.id)+"|"+season+"|"+String(coachShape.assignment.id);
+    if(appliedAssignment.current===key)return;
+    const preferred=lineups.find(l=>String(l.notes||"").includes("manager_assignment:"+coachShape.assignment.id)&&l.formation===coachShape.formation);
+    appliedAssignment.current=key;
+    if(preferred){
+      loadLineup(preferred.id);
+    }else if(!activeId){
+      setFormation(coachShape.formation);
+      setSlotPositions({});
+      setNotice("Formación del entrenador aplicada: "+coachShape.formation+". Puedes guardar un once nuevo.");
+    }
+  },[coachShape?.formation,coachShape?.assignment?.id,lineups,loadingSaved,dirty,busy,team.id,season]);
+
+  const activeSlots = useMemo(()=>shapeOf(formation),[formation]);
   const placed = useMemo(()=>activeSlots.filter(([,,code])=>slots[code]).map(([x,y,code])=>({
     player_id:slots[code],x:slotPositions[code]?.x??x,y:slotPositions[code]?.y??y,code
   })),[activeSlots,slots,slotPositions]);
@@ -237,8 +254,8 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     setNotice("");
   };
   const changeFormation = f => {
-    const old = FORMATIONS[formation];
-    const next = FORMATIONS[f];
+    const old = shapeOf(formation);
+    const next = shapeOf(f);
     const players = old.map(s => slots[s[2]]).filter(Boolean);
     setSlots(Object.fromEntries(next.slice(0,players.length).map((s,i)=>[s[2],players[i]])));
     setFormation(f);setSlotPositions({});setSelected(null);markDirty();
@@ -249,7 +266,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     {exportError&&<p role="alert" className="mb-3 text-sm text-red-700">{exportError}</p>}
     {error&&<p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
     {notice&&<p role="status" className="mb-3 text-xs text-amber-700">{notice}</p>}
-    <div className="flex flex-wrap items-center gap-2 mb-2"><span className="font-bold text-sm">Formación</span>{Object.keys(FORMATIONS).map(f=><button type="button" key={f} aria-pressed={f===formation} onClick={()=>changeFormation(f)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${formation===f?"bg-lime-400 text-slate-900":"bg-slate-100 hover:bg-slate-200"}`}>{f}</button>)}
+    <div className="flex flex-wrap items-center gap-2 mb-2"><span className="font-bold text-sm">Formación</span>{formationOptions.map(f=><button type="button" key={f} aria-pressed={f===formation} onClick={()=>changeFormation(f)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${formation===f?"bg-lime-400 text-slate-900":"bg-slate-100 hover:bg-slate-200"}`}>{f}</button>)}
       <button type="button" onClick={restoreShape} className="text-xs rounded-lg border px-2 py-1.5" title="Restaurar posiciones sin quitar jugadores">Restaurar forma</button>
       <button type="button" disabled={busy||loadingSaved} onClick={saveLineup} className="ml-auto flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white"><Save size={15}/> Guardar once</button>
     </div>
