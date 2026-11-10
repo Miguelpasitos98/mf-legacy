@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {careerPositionFitIndex} from "../src/components/managers/managerCareerPositionFit.mjs";
+import {careerPositionFitIndex,historicalObservationMetrics} from "../src/components/managers/managerCareerPositionFit.mjs";
 
 const profile={player_role_priorities:JSON.stringify({GK:"Sweeper-keeper"})};
 const obs=(playerId,season,role="GK",minutes=1800)=>({playerId,season,role,minutes,positionMixed:false});
@@ -36,4 +36,24 @@ test("different historical positions and cameos cannot inflate a career",()=>{
  assert.equal(result.seasonCount,1);
  assert.equal(result.careerScore,null);
  assert.equal(result.score,result.bestScore);
+});
+
+test("STATS composite observations feed Manager Fit without raw metric duplicates",()=>{
+ const {observations}=reference();
+ for(let i=0;i<observations.length;i++)observations[i].values={accurate_passes_p90:20+i,accurate_long_balls_p90:3+i*.2};
+ observations.push({...obs("target","2022/2023"),values:{accurate_passes_p90:49,accurate_long_balls_p90:11}});
+ const dataset={observations,records:{PlayerSeasonStats:[],UnderstatSeasonRate:[]}};
+ const result=careerPositionFitIndex({dataset,players:observations.map(o=>({id:o.playerId})),role:"GK",profile}).get("target");
+ assert.ok(result&&result.score>=0,"must score existing historical STATS data");
+ assert.equal(result.bestSeason,"2022/2023");
+ assert.equal(result.coverage,100);
+ assert.equal(historicalObservationMetrics(observations.at(-1)).passing.value,49);
+});
+test("DM searches include historically classified CM campaigns",()=>{
+ const observations=Array.from({length:12},(_,i)=>({...obs("peer"+i,"2022/2023","CM"),values:{accurate_passes_p90:25+i,accurate_long_balls_p90:3+i*.3,xg_buildup_p90:.4+i*.01}}));
+ observations.push({...obs("target","2022/2023","CM"),values:{accurate_passes_p90:42,accurate_long_balls_p90:9,xg_buildup_p90:.8}});
+ const manager={player_role_priorities:JSON.stringify({DM:"Pivote organizador"})};
+ const dataset={observations,records:{PlayerSeasonStats:[]}};
+ const result=careerPositionFitIndex({dataset,players:observations.map(o=>({id:o.playerId})),role:"DM",profile:manager}).get("target");
+ assert.ok(result&&result.score!==null);
 });
