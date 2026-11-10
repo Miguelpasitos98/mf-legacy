@@ -4,6 +4,7 @@
  * The fallback never turns position fit into a tactical performance score.
  */
 export const managerFitScore=(row,scoreMode)=>{
+ if(scoreMode==="career")return row?.career?.score??null;
  if(scoreMode==="deep")return row?.deep?.score??null;
  if(scoreMode==="role")return row?.roleFit?.score??null;
  if(scoreMode==="historical")return row?.historical?.score??null;
