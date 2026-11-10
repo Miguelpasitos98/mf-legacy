@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from "react";
+import React,{useEffect,useMemo,useRef,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {useHistoricalPeerDataset} from "@/hooks/useHistoricalPeerDataset";
@@ -46,6 +46,7 @@ export default function ManagerFit(){
  const [assignmentNotice,setAssignmentNotice]=useState("");
  const [assignmentFilter,setAssignmentFilter]=useState("available");
  const [assignmentBusy,setAssignmentBusy]=useState("");
+ const assignmentWriteRef=useRef(false);
 
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -108,7 +109,7 @@ export default function ManagerFit(){
   }finally{setAssignmentLoading(false)}
  };
  const managePlayerAssignment=async(playerId,action,selectedRole=role)=>{
-  if(!manager||assignmentLoading||assignmentError||assignmentBusy)return;
+  if(!manager||assignmentLoading||assignmentError||assignmentBusy||assignmentWriteRef.current)return;
   const player=players.find(p=>String(p.id)===String(playerId));
   if(!player)return;
   if(assignmentsIndex.conflicts.has(String(playerId))){
@@ -123,6 +124,7 @@ export default function ManagerFit(){
   }else if(action==="release"){
    if(!window.confirm("¿Desvincular a "+player.name+" de "+(manager.display_name||manager.name)+"? Volverá a estar disponible."))return;
   }
+  assignmentWriteRef.current=true;
   setAssignmentBusy(String(playerId));setAssignmentError("");setAssignmentNotice("");
   try{
    await saveManagerPlayerDecision(base44.entities.ManagerPlayerAssignment,{
@@ -134,7 +136,7 @@ export default function ManagerFit(){
    setAssignmentNotice(player.name+(action==="release"?" está disponible de nuevo.":action==="preselect"?" está preseleccionado para "+(manager.display_name||manager.name)+".":" está vinculado a "+(manager.display_name||manager.name)+"."));
   }catch(e){
    setAssignmentError("No se pudo guardar la adjudicación de "+player.name+": "+(e.message||"Error del servidor"));
-  }finally{setAssignmentBusy("")}
+  }finally{assignmentWriteRef.current=false;setAssignmentBusy("")}
  };
  useEffect(()=>{
   let live=true;
