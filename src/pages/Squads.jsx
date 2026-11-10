@@ -92,10 +92,10 @@ export default function Squads() {
     return()=>{live=false};
   },[teamId,season]);
   const coachShape=useMemo(()=>{
-    const active=coachAssignments.filter(a=>a.is_primary!==false)
+    const active=coachAssignments.filter(a=>String(a.team_id)===String(teamId)&&a.season===season&&a.is_primary!==false)
       .sort((a,b)=>String(b.created_date||"").localeCompare(String(a.created_date||"")))[0];
     return assignmentShape(active,coachProfiles,coachManagers);
-  },[coachAssignments,coachProfiles,coachManagers]);
+  },[coachAssignments,coachProfiles,coachManagers,teamId,season]);
   const roster = useMemo(() => members.map(m => ({ ...m, player: players.find(p => String(p.id) === String(m.player_id)) })).sort((a,b) => (a.sort_order ?? 999) - (b.sort_order ?? 999)), [members,players]);
   const candidates = useMemo(() => {
     const q = playerQuery.trim().toLocaleLowerCase();
