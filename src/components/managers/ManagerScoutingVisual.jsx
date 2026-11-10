@@ -6,8 +6,9 @@ import {V4_METRIC_LABELS} from "./managerRoleRules.mjs";
 import {DEEP_COMPONENT_LABELS} from "./managerFitDeep.mjs";
 
 const CONFIDENCE={medium:"Media",low:"Baja",insufficient:"Sin datos suficientes"};
-const modeName={career:"Perfil histórico óptimo · 70/30",deep:"Deep Fit · Datos reales + FM26",role:"Encaje por ADN V4",historical:"Histórico V3",attributes:"FM26 orientativo V2",position:"Adecuación posicional V1"};
+const modeName={hybrid:"Encaje integral · 70% FM26 / 30% temporada",career:"Perfil histórico óptimo · 70/30",deep:"Deep Fit · Datos reales + FM26",role:"Encaje por ADN V4",historical:"Histórico V3",attributes:"FM26 orientativo V2",position:"Adecuación posicional V1"};
 const modeDescription={
+ hybrid:"La puntuación principal requiere atributos FM26 medidos para la posición y estadísticas reales de una temporada histórica evaluable. 70% atributos del jugador + 30% mejor campaña. No incluye CA ni valor de mercado.",
  career:"Combina la mejor temporada táctica evaluable (70%) con el promedio ponderado por minutos de temporadas evaluables en la misma posición (30%). No mezcla métricas brutas entre temporadas.",
  deep:"Cruce experimental: exige al menos una misma función del ADN con datos históricos V4 y atributos FM26. El índice solo se calcula cuando ambas fuentes tienen evidencia suficiente. El CA no puntúa.",
  role:"Requiere requisitos reconocibles del ADN, al menos dos métricas observadas y diez jugadores comparables por indicador.",
@@ -15,19 +16,21 @@ const modeDescription={
  attributes:"Estima ajuste con atributos FM26 y señales generales del ADN; no es rendimiento histórico.",
  position:"Solo valora compatibilidad con la posición, no encaje con el entrenador."
 };
-export const scoutingScore=(item,mode)=>mode==="career"?item?.career?.score??null:mode==="deep"?item?.deep?.score??null:mode==="role"?item?.roleFit?.score??null:mode==="historical"?item?.historical?.score??null:mode==="attributes"?item?.advanced?.score??null:item?.fit??null;
-export const scoutingCoverage=(item,mode)=>mode==="career"?item?.career?.coverage??0:mode==="deep"?item?.deep?.functions?.coverage??0:mode==="role"?item?.roleFit?.coverage??0:mode==="historical"?item?.historical?.coverage??0:mode==="attributes"?item?.advanced?.coverage??0:null;
+export const scoutingScore=(item,mode)=>mode==="hybrid"?item?.hybrid?.score??null:mode==="career"?item?.career?.score??null:mode==="deep"?item?.deep?.score??null:mode==="role"?item?.roleFit?.score??null:mode==="historical"?item?.historical?.score??null:mode==="attributes"?item?.advanced?.score??null:item?.fit??null;
+export const scoutingCoverage=(item,mode)=>mode==="hybrid"?item?.hybrid?.coverage??0:mode==="career"?item?.career?.coverage??0:mode==="deep"?item?.deep?.functions?.coverage??0:mode==="role"?item?.roleFit?.coverage??0:mode==="historical"?item?.historical?.coverage??0:mode==="attributes"?item?.advanced?.coverage??0:null;
 export function ManagerScoutingSummary({scoreMode,visibility,roleRequirements,statsLoading,statsError,season}){
  const available=visibility.scoredCount||0,compatible=visibility.compatibleCount||0;
  const noV4Criteria=scoreMode==="role"&&!roleRequirements?.matched?.length;
  const hasDescription=Boolean(roleRequirements?.text?.trim());
  const pending=statsLoading;
- const status=scoreMode==="career"?(available?"Perfil histórico por posición evaluable":"Sin temporadas históricas con muestra suficiente"):
+ const status=scoreMode==="hybrid"?(available?"Encaje integral 70/30 disponible":"Falta evidencia FM26 o histórica para el 70/30"):
+ scoreMode==="career"?(available?"Perfil histórico por posición evaluable":"Sin temporadas históricas con muestra suficiente"):
  scoreMode==="deep"?(available?"Cruce histórico + FM26 disponible":"No hay cruce suficiente entre ambas fuentes"):
  scoreMode==="role"?(noV4Criteria?"ADN del rol sin indicadores históricos evaluables":available?"V4 parcialmente evaluable":"Datos insuficientes para puntuar V4"):
  scoreMode==="historical"?(available?"Histórico calculado":"Sin muestra histórica suficiente"):
  scoreMode==="attributes"?(available?"Estimaciones FM26 disponibles":"Atributos FM26 insuficientes"):"Solo posición";
- const statusText=scoreMode==="career"?(available?"Se evalúa cada temporada en su posición histórica con al menos dos indicadores y diez comparables de esa campaña. La mejor cuenta un 70% y la trayectoria el 30% si hay al menos dos campañas válidas.":"Aún no hay campañas con suficiente evidencia para calcular el perfil histórico en este rol; se mantiene la nota sin inventar valores."):
+ const statusText=scoreMode==="hybrid"?(available?"El 70% corresponde a los atributos FM26 del rol y a las funciones del ADN que puedan medirse; el 30% proviene del rendimiento real de la mejor temporada evaluable. Ambas fuentes son obligatorias.":"La nota integral necesita atributos FM26 del rol y rendimiento histórico de una campaña con muestra suficiente; no se sustituyen ausencias por cero."):
+ scoreMode==="career"?(available?"Se evalúa cada temporada en su posición histórica con al menos dos indicadores y diez comparables de esa campaña. La mejor cuenta un 70% y la trayectoria el 30% si hay al menos dos campañas válidas.":"Aún no hay campañas con suficiente evidencia para calcular el perfil histórico en este rol; se mantiene la nota sin inventar valores."):
  scoreMode==="deep"?(
   available?"Deep Fit cruza las métricas reales de la campaña con los atributos FM26 vinculados a las funciones de este ADN. Consulta cada fuente por separado; no es una predicción.":
   "No hay suficientes datos V4 y atributos FM26 medidos para la misma función del ADN. Prueba V4 o V2 por separado. No se rellena ninguna nota conjunta automáticamente."):
@@ -74,8 +77,8 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
  const score=typeof measured==="number"&&Number.isFinite(measured)?measured:null;
  const coverage=scoutingCoverage(item,scoreMode);
  const isPositional=scoreMode==="position";
- const label=scoreMode==="career"?"Perfil histórico óptimo":isPositional?"Encaje posicional":scoreMode==="deep"?"Deep Fit":scoreMode==="attributes"?"Estimación FM26":scoreMode==="role"?"Encaje V4":"Histórico V3";
- const evidence=scoreMode==="career"?item.career:scoreMode==="deep"?item.deep:scoreMode==="role"?item.roleFit:scoreMode==="historical"?item.historical:scoreMode==="attributes"?item.advanced:null;
+ const label=scoreMode==="hybrid"?"Encaje integral 70/30":scoreMode==="career"?"Perfil histórico óptimo":isPositional?"Encaje posicional":scoreMode==="deep"?"Deep Fit":scoreMode==="attributes"?"Estimación FM26":scoreMode==="role"?"Encaje V4":"Histórico V3";
+ const evidence=scoreMode==="hybrid"?item.hybrid:scoreMode==="career"?item.career:scoreMode==="deep"?item.deep:scoreMode==="role"?item.roleFit:scoreMode==="historical"?item.historical:scoreMode==="attributes"?item.advanced:null;
  const v4Missing=scoreMode==="role"?v4MissingMetricExplanations(item.roleFit):[];
  return <article className="flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm transition hover:border-blue-200 hover:shadow-md">
   <div className="flex min-w-0 gap-3">
@@ -98,6 +101,7 @@ export function ScoutingCandidateCard({item,scoreMode,selected,compareDisabled,o
     {scoreMode!=="position"&&<span className="text-[10px] text-slate-500">{scoreMode==="role"&&item.roleFit?.requested===0?"Cobertura no aplicable":"Cobertura "+coverage+"%"}</span>}
    </div>
    {scoreMode!=="position"&&<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-[#3a6eae]" style={{width:Math.max(0,Math.min(100,coverage))+"%"}}/></div>}
+   {scoreMode==="hybrid"&&item.hybrid&&<div className="mt-1.5 space-y-1 text-[10px] text-slate-700"><p><strong>70% · Atributos FM26:</strong> {item.hybrid.fmScore===null?"Sin dato":item.hybrid.fmScore+"/100"}</p><p><strong>30% · Rendimiento real:</strong> {item.hybrid.seasonScore===null?"Sin campaña evaluable":item.hybrid.seasonScore+"/100 · "+item.hybrid.season}</p>{item.hybrid.seasonBasis==="position"&&<p className="text-amber-800">Referencia estadística por posición; no es una valoración táctica directa del ADN.</p>}{score===null&&<p>{item.hybrid.missing.join(" · ")}. No se genera nota conjunta sin las dos fuentes.</p>}</div>}
    {scoreMode==="career"&&item.career&&<div className="mt-1.5 space-y-1 text-[10px] text-slate-700"><p><strong>Mejor campaña:</strong> {item.career.bestSeason} · {item.career.bestScore}/100</p><p><strong>Trayectoria misma posición:</strong> {item.career.careerScore===null?"Solo una temporada evaluable":item.career.careerScore+"/100 ("+item.career.seasonCount+" temporadas)"}</p><p>{item.career.method}</p></div>}
    {scoreMode==="deep"&&<div className="mt-1.5 space-y-1">
     {item.deep.score===null&&<p className="text-[10px] text-indigo-900"><strong>Preselección de funciones FM26:</strong> {item.deep.preliminaryScore===null?"—":item.deep.preliminaryScore+"/100"} · Solo videojuego, no Deep Fit combinado</p>}
