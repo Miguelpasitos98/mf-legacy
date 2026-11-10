@@ -1,5 +1,5 @@
 import {collectPlayerSeasonMetrics,linkedManagerFitRows} from "./managerFitHistorical.mjs";
-import {evaluateRoleRequirements} from "./managerRoleFit.mjs";
+import {evaluateRoleRequirements,deriveRoleRequirements} from "./managerRoleFit.mjs";
 
 // A historical season must be classified in this position by the existing
 // historical position resolver. A current FM26 position alone is not evidence.
@@ -39,9 +39,11 @@ const addTo=(map,k,row)=>{if(!map.has(k))map.set(k,[]);map.get(k).push(row)};
 // reference per distinct peer (not a skewed count of the same player’s seasons).
 export function careerPositionFitIndex({dataset,players=[],links=[],role,profile}={}){
  const empty=new Map();
+ empty.diagnostics={total:dataset?.observations?.length||0,eligible:0,withTwoMetrics:0,scoredSeasons:0,roleRequirements:deriveRoleRequirements(profile,role).metricKeys.length};
  if(!dataset?.observations?.length||!profile)return empty;
  const relevant=dataset.observations.filter(o=>roleMatches(o.role,role)&&validSeason(o.season)&&nonEmptyId(o.playerId)&&Number(o.minutes)>=450&&!o.positionMixed);
  if(!relevant.length)return empty;
+ empty.diagnostics.eligible=relevant.length;
  const chosen=new Set(relevant.map(o=>key(o.playerId,o.season)));
  const rawStats=linkedManagerFitRows(dataset.records?.PlayerSeasonStats||[],links,players);
  const rawUnder=linkedManagerFitRows(dataset.records?.UnderstatSeasonRate||[],links,players);
@@ -53,6 +55,7 @@ export function careerPositionFitIndex({dataset,players=[],links=[],role,profile
   const k=key(obs.playerId,obs.season);
   const measured={...historicalObservationMetrics(obs,collectPlayerSeasonMetrics(statsByKey.get(k)||[],underByKey.get(k)||[],obs.season,obs.playerId)),__playerId:String(obs.playerId)};
   metricsByKey.set(k,measured);
+  if(Object.values(measured).filter(x=>x&&typeof x.value==="number"&&Number.isFinite(x.value)).length>=2)empty.diagnostics.withTwoMetrics++;
   addTo(byHistoricalPlayer,String(obs.playerId),measured);
  }
  // Build one independent historical reference per comparable player.
@@ -84,6 +87,7 @@ export function careerPositionFitIndex({dataset,players=[],links=[],role,profile
   const measured=metricsByKey.get(key(obs.playerId,obs.season));
   const fit=evaluateRoleRequirements(measured,peerReference,role,profile,{playerId:obs.playerId});
   if(fit.score===null)continue;
+  empty.diagnostics.scoredSeasons++;
   addTo(byPlayer,String(obs.playerId),{season:obs.season,score:fit.score,coverage:fit.coverage,
    minutes:Math.min(3000,Number(obs.minutes)||0),fit});
  }
@@ -102,5 +106,6 @@ export function careerPositionFitIndex({dataset,players=[],links=[],role,profile
    seasons:seasons.map(({season,score,coverage,minutes})=>({season,score,coverage,minutes})),
    fit:best.fit,method:hasCareer?"70% mejor campaña + 30% media de campañas evaluables por minutos":"Solo mejor campaña evaluable; trayectoria insuficiente"});
  }
+ results.diagnostics=empty.diagnostics;
  return results;
 }
