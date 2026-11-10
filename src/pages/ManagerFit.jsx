@@ -108,7 +108,7 @@ export default function ManagerFit(){
   }finally{setAssignmentLoading(false)}
  };
  const managePlayerAssignment=async(playerId,action,selectedRole=role)=>{
-  if(!manager||!profile||assignmentLoading||assignmentError||assignmentBusy)return;
+  if(!manager||assignmentLoading||assignmentError||assignmentBusy)return;
   const player=players.find(p=>String(p.id)===String(playerId));
   if(!player)return;
   if(assignmentsIndex.conflicts.has(String(playerId))){
