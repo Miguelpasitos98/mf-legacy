@@ -1,3 +1,5 @@
+import {retryDelay} from "./entityRecords.js";
+
 const fallbackSeasons=Array.from({length:17},(_,i)=>{
  const year=2025-i;
  return `${year}/${year+1}`;
@@ -10,7 +12,17 @@ const rowsOf=value=>Array.isArray(value)?value:value?.items||value?.data||value?
 export async function loadCompleteSeason(entity,season,{pageSize=300,maxRows=9000}={}){
  const all=[],ids=new Set();
  for(let skip=0;skip<maxRows;skip+=pageSize){
-  const response=await entity.filter({season},"-created_date",pageSize,skip);
+  let response;
+  for(let attempt=0;attempt<3;attempt++){
+   try{
+    response=await entity.filter({season},"-created_date",pageSize,skip);
+    break;
+   }catch(error){
+    const delay=retryDelay(error,attempt);
+    if(delay===null||attempt===2)throw error;
+    await new Promise(resolve=>setTimeout(resolve,delay));
+   }
+  }
   const rows=rowsOf(response);
   if(!Array.isArray(rows))throw Error("Respuesta inválida para temporada "+season);
   for(const row of rows){
