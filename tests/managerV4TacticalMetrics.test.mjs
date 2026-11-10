@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {deriveRoleRequirements,evaluateRoleRequirements} from "../src/components/managers/managerRoleFit.mjs";
 import {V4_ROLE_METRICS,V4_METRIC_LABELS,TACTICAL_REQUIREMENT_RULES} from "../src/components/managers/managerRoleRules.mjs";
-import {collectPlayerSeasonMetrics,HIST_ROLE_METRICS} from "../src/components/managers/managerFitHistorical.mjs";
+import {collectPlayerSeasonMetrics,HIST_ROLE_METRICS,linkedManagerFitRows} from "../src/components/managers/managerFitHistorical.mjs";
 
 const coach=roles=>({player_role_priorities:JSON.stringify(roles)});
 test("the seven Liverpool role descriptions resolve to auditable, role-specific indicators",()=>{
@@ -81,4 +81,38 @@ test("role rules never assign a key that lacks a declared historical label",()=>
  assert.match(code,/metricDiagnostics/);
  assert.match(code,/Muestra insuficiente/);
  assert.match(code,/Sin dato del jugador/);
+});
+
+test("V4 reads real Spanish FotMob labels without inventing missing rates",()=>{
+ const row={player_id:"gk",season:"2025/2026",competition:"LaLiga",minutes:1800,metrics:[
+  {name:"Pases completados",value:720,per90:36},
+  {name:"Pases largos precisos",value:140,per90:7},
+  {name:"Precisión de pases (%)",value:90},
+ ]};
+ const evidence=collectPlayerSeasonMetrics([row],[],"2025/2026","gk");
+ assert.equal(evidence.passing.value,36);
+ assert.equal(evidence.longPassing.value,7);
+ assert.equal(evidence.passing.source,"FotMob");
+ assert.equal(collectPlayerSeasonMetrics([row],[],"2024/2025","gk").passing,undefined);
+});
+
+test("confirmed unique FotMob links recover unlinked season stats without guessing names",()=>{
+ const rows=[
+  {fotmob_player_id:"100",player_id:"",season:"2025/2026",metrics:[]},
+  {fotmob_player_id:"101",player_id:"other",season:"2025/2026",metrics:[]},
+  {fotmob_player_id:"102",player_id:"",season:"2025/2026",metrics:[]},
+  {fotmob_player_id:"103",player_id:"",season:"2025/2026",metrics:[]}
+ ];
+ const links=[
+  {fotmob_player_id:"100",player_id:"known"},
+  {fotmob_player_id:"101",player_id:"known"},
+  {fotmob_player_id:"102",player_id:"known"},
+  {fotmob_player_id:"102",player_id:"another"},
+  {fotmob_player_id:"103",player_id:"absent"}
+ ];
+ const result=linkedManagerFitRows(rows,links,[{id:"known"},{id:"another"}]);
+ assert.equal(result[0].player_id,"known");
+ assert.equal(result[1].player_id,"other");
+ assert.equal(result[2].player_id,"");
+ assert.equal(result[3].player_id,"");
 });
