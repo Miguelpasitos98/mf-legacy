@@ -1,0 +1,37 @@
+{
+  "name": "ManagerPlayerAssignment",
+  "type": "object",
+  "description": "Adjudicación manual para Manager Fit. No representa contrato, traspaso ni estadísticas.",
+  "properties": {
+    "player_id": {"type":"string","description":"ID de Player en Base44"},
+    "manager_id": {"type":"string","description":"Único entrenador adjudicado o preseleccionado actualmente"},
+    "tactical_profile_id": {"type":"string","description":"ADN con el que se tomó la decisión, no condiciona el vínculo"},
+    "role": {"type":"string","enum":["GK","CB","FB","DM","AM","WG","ST"],"description":"Rol previsto al adjudicar"},
+    "status": {"type":"string","enum":["preselected","linked","released"],"default":"preselected"},
+    "decision_at": {"type":"string","description":"Fecha/hora ISO del último cambio"},
+    "history": {
+      "type":"array",
+      "items":{
+        "type":"object",
+        "properties":{
+          "at":{"type":"string"},
+          "action":{"type":"string"},
+          "from_manager_id":{"type":"string"},
+          "to_manager_id":{"type":"string"},
+          "from_status":{"type":"string"},
+          "to_status":{"type":"string"},
+          "tactical_profile_id":{"type":"string"},
+          "role":{"type":"string"}
+        }
+      },
+      "default":[]
+    }
+  },
+  "required":["player_id","manager_id","status"],
+  "rls":{
+    "read":{},
+    "create":{"user_condition":{"role":"admin"}},
+    "update":{"user_condition":{"role":"admin"}},
+    "delete":{"user_condition":{"role":"admin"}}
+  }
+}
