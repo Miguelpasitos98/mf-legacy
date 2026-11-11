@@ -25,6 +25,10 @@ const FIELD_MAP={
   nationalCardPhotoUrl:["national_card_photo_url"],
   ca:["ca"],
   cp:["cp"],
+  fm27Ca:["fm27_ca"],
+  fm27Cp:["fm27_cp"],
+  fm27Reviewed:["fm27_reviewed","fm27_reviewed_at"],
+  fm27ReviewNotes:["fm27_review_notes"],
   positionRatings:["position_ratings"],
   stats:["stats"],
   description:["description"]
