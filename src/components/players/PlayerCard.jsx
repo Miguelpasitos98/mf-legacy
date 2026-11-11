@@ -362,9 +362,10 @@ function PlayerCardInner({
         <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 flex-wrap items-center gap-1.5 text-xs`}>
           <span className="min-w-0 break-words font-semibold text-slate-900">{legacyTitle}</span>
           <span className="shrink-0 text-slate-300">|</span>
-          <span className="shrink-0 font-semibold text-slate-500">
-            {player.ca !== "" && player.ca != null ? player.ca : "—"} / {player.cp !== "" && player.cp != null ? player.cp : "—"}
+          <span title="CA / CP de FM26" className="shrink-0 font-semibold text-slate-500">
+            FM26 {player.ca !== "" && player.ca != null ? player.ca : "—"} / {player.cp !== "" && player.cp != null ? player.cp : "—"}
           </span>
+          {hasFm27Value(player)&&<span title="CA / CP registrados manualmente para FM27" className="shrink-0 font-bold text-blue-800">FM27 {player.fm27_ca??"—"} / {player.fm27_cp??"—"}</span>}
         </div>
 
         {/* AGE + POSITION RATINGS */}
