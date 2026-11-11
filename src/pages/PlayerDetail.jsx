@@ -29,6 +29,7 @@ import MarketValueRecords from "@/components/players/MarketValueRecords";
 import PalmaresButton from "@/components/trophies/PalmaresButton";
 import PlayerIdentityDialog from "@/components/players/PlayerIdentityDialog";
 import {changedPlayerFields,playerEditHasChanges,applyPlayerEditPatch} from "@/utils/playerEditPatch";
+import {fm27Value,fm27Delta,fm27Payload,isFm27Reviewed} from "@/components/players/fm27Review.mjs";
 
 // MF LEGACY: logos de estado integrados, sin dependencias externas.
 const CAREER_STATUS_LOGOS = {
@@ -720,6 +721,10 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       salary: player?.salary ?? "",
       ca: player?.ca ?? "",
       cp: player?.cp ?? "",
+      fm27Ca: player?.fm27_ca ?? "",
+      fm27Cp: player?.fm27_cp ?? "",
+      fm27Reviewed: player?.fm27_reviewed===true,
+      fm27ReviewNotes: player?.fm27_review_notes ?? "",
       description: player?.description || "",
       tacticalRoles: Array.isArray(player?.tactical_roles)?player.tactical_roles:[{name:player?.description||"",description:""},{name:"",description:""}],
       positionRatings: initialPositionRatings,
@@ -910,28 +915,18 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
       return;
     }
 
-    const numericCA = Number(form.ca);
-    const numericCP = Number(form.cp);
-
-    if (
-      form.ca === "" ||
-      !Number.isFinite(numericCA) ||
-      numericCA < 0 ||
-      numericCA > 200
-    ) {
-      setEditError("El CA debe estar entre 0 y 200.");
+    // Historic FM26 values are optional for manually created footballers.
+    // Editing an FM27 review must never force the user to invent FM26 CA/CP.
+    const numericCA=form.ca===""?null:Number(form.ca);
+    const numericCP=form.cp===""?null:Number(form.cp);
+    if ((form.ca!==""&&(!Number.isInteger(numericCA)||numericCA<0||numericCA>200))||
+        (form.cp!==""&&(!Number.isInteger(numericCP)||numericCP<0||numericCP>200))) {
+      setEditError("CA y CP de FM26 deben ser enteros entre 0 y 200, o quedar vacíos.");
       return;
     }
-
-    if (
-      form.cp === "" ||
-      !Number.isFinite(numericCP) ||
-      numericCP < 0 ||
-      numericCP > 200
-    ) {
-      setEditError("El CP debe estar entre 0 y 200.");
-      return;
-    }
+    let fm27;
+    try {fm27=fm27Payload(form,editablePlayer);}
+    catch(error){setEditError(error.message);return;}
 
     const positionRatings = POSITION_RATING_FIELDS.reduce((result, [key]) => {
       const value = Number(form.positionRatings?.[key] ?? 0);
@@ -1005,6 +1000,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
           normalizeImageUrl(form.nationalCardPhotoUrl),
         ca: numericCA,
         cp: numericCP,
+        ...fm27,
         position_ratings: positionRatings,
         stats: normalizedStats,
         description: form.tacticalRoles?.[0]?.name || form.description || "",
@@ -1300,6 +1296,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                   ["general", "General"],
                   ["market", "Valor mercado"],
                   ...(editablePlayer?.fm26_uid ? [["fm26", "FM26"]] : []),
+                  ["fm27", "FM27 · Revisión"],
                   ["positions", "Positions"],
                   ["mental", "Mental"],
                   ["physical", "Physical"],
@@ -1321,6 +1318,46 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                 ))}
               </div>
 
+              {editTab === "fm27" && (
+                <section className="space-y-4 rounded-2xl border border-blue-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Revisión manual FM27">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-700">Football Manager 27</p>
+                      <h3 className="mt-1 text-lg font-black text-slate-900">Revisión de {form.name}</h3>
+                      <p className="mt-1 text-xs text-slate-600">Registra las nuevas valoraciones y marca el jugador cuando hayas terminado su edición en FM27. No sobrescribe FM26.</p>
+                    </div>
+                    <span className={"rounded-full border px-3 py-1 text-xs font-bold "+(form.fm27Reviewed?"border-emerald-200 bg-emerald-50 text-emerald-900":"border-slate-200 bg-slate-50 text-slate-600")}>{form.fm27Reviewed?"Revisado en FM27":"Pendiente FM27"}</span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[
+                      ["CA","fm27Ca",editablePlayer?.ca],
+                      ["CP","fm27Cp",editablePlayer?.cp]
+                    ].map(([label,key,baseline])=><div key={key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <label className="block text-xs font-bold text-slate-800">{label} · FM27</label>
+                      <input aria-label={label+" FM27"} type="number" min="0" max="200" step="1"
+                        value={form[key]??""} placeholder="Sin registrar"
+                        onChange={event=>setForm(current=>({...current,[key]:event.target.value}))}
+                        className="mt-2 w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-base font-black text-blue-900"/>
+                      <p className="mt-2 text-[11px] text-slate-600">FM26: <strong>{baseline??"—"}</strong> · Diferencia: <strong>{fm27Delta(baseline,form[key])===null?"—":(fm27Delta(baseline,form[key])>0?"+":"")+fm27Delta(baseline,form[key])}</strong></p>
+                    </div>)}
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                    <input aria-label="Marcar jugador como revisado FM27" type="checkbox" checked={Boolean(form.fm27Reviewed)}
+                      onChange={event=>setForm(current=>({...current,fm27Reviewed:event.target.checked}))}
+                      className="mt-0.5 h-4 w-4 accent-emerald-700"/>
+                    <span className="text-xs leading-5 text-emerald-950"><strong className="block">Este jugador ya está editado en FM27</strong>
+                      La confirmación es manual, independiente de si has escrito CA y CP. Se registrará la fecha al guardar y podrás desmarcarlo.</span>
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-700">Notas de revisión (opcional)
+                    <textarea rows={3} value={form.fm27ReviewNotes} placeholder="Ej. CA ajustada tras revisar la plantilla, CP pendiente de contrastar..."
+                      onChange={event=>setForm(current=>({...current,fm27ReviewNotes:event.target.value}))}
+                      className="mt-1 w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm"/>
+                  </label>
+                  {editablePlayer?.fm27_reviewed_at&&<p className="text-xs text-slate-500">Última confirmación guardada: {editablePlayer.fm27_reviewed_at}</p>}
+                  <p className="text-xs text-slate-500">Usa «Guardar cambios» para confirmar CA, CP y estado. Las valoraciones originales CA/CP de FM26 permanecen disponibles.</p>
+                </section>
+              )}
+
               {editTab === "market" && <div className="space-y-5"><HistoricalMarketLookup player={editablePlayer}/><MarketValueRecords player={editablePlayer} clubs={teams}/><MarketCsvUpload player={editablePlayer}/><MarketBulkImport player={editablePlayer}/></div>}
 
               {editTab === "general" && (
@@ -1335,6 +1372,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{selectedCountry?.name || "Sin país"}</span>
                           {age ? <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{age} años</span> : null}
                           {form.style ? <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{form.style}</span> : null}
+                          {isFm27Reviewed(editablePlayer)&&<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">FM27 · Revisado</span>}
                         </div>
                       </div>
 
