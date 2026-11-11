@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Users, Building2 } from "lucide-react";
 import SmartImage from "./SmartImage";
 import {candidateOutlineClass} from "./playerCandidateOutline.mjs";
+import {isFm27Reviewed,hasFm27Value} from "./fm27Review.mjs";
 
 // ============================================================
 // Helpers extraídos de Players.jsx para mantener PlayerCard
@@ -356,6 +357,8 @@ function PlayerCardInner({
         </div>
 
         {/* LEGACY TITLE + CA/CP */}
+        {isFm27Reviewed(player)&&<span title={player.fm27_reviewed_at?"Confirmado el "+player.fm27_reviewed_at:"Revisión FM27 confirmada"} className="mt-1 inline-flex w-fit items-center rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">FM27 ✓</span>}
+        {!isFm27Reviewed(player)&&hasFm27Value(player)&&<span className="mt-1 inline-flex w-fit items-center rounded-md border border-blue-100 bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800">FM27 · En curso</span>}
         <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 flex-wrap items-center gap-1.5 text-xs`}>
           <span className="min-w-0 break-words font-semibold text-slate-900">{legacyTitle}</span>
           <span className="shrink-0 text-slate-300">|</span>

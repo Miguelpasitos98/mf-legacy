@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import PlayersDetail from "@/pages/PlayerDetail";
 import {candidatePoolValue} from "@/components/managers/managerCandidatePool.mjs";
+import {fm27FilterPlayer,fm27ReviewSummary} from "@/components/players/fm27Review.mjs";
 import {groupPlayersByLeague} from "@/components/players/playerLeagueGroups.mjs";
 import {groupPlayerIds,selectedGroupCount,toggleGroupSelection} from "@/components/players/playerGroupSelection.mjs";
 import {updatePlayerCacheRows} from "@/utils/playerEditPatch";
@@ -1327,6 +1328,8 @@ export default function Players() {
   // Mutations invalidate the query keys, triggering a background refetch that
   // recomputes these memos automatically.
   const players = useMemo(() => (playersQuery.data || []).map(normalizePlayer).filter(p => p.id || p.name), [playersQuery.data]);
+  const [fm27StatusFilter,setFm27StatusFilter]=useState("all");
+  const fm27Progress=useMemo(()=>fm27ReviewSummary(players),[players]);
   const teams = useMemo(() => (teamsQuery.data || []).map(normalizeTeam).filter(t => t.id && t.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })), [teamsQuery.data]);
   const countries = useMemo(() => (countriesQuery.data || []).map(normalizeCountry).filter(c => c.id && c.name).sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })), [countriesQuery.data]);
   const [errorMessage, setErrorMessage] = useState("");
@@ -1831,6 +1834,7 @@ export default function Players() {
     return players
       .filter((player) => {
         if(viewMode==="candidates"&&!candidatePoolValue(player.manager_fit_candidate))return false;
+        if(!fm27FilterPlayer(player,fm27StatusFilter))return false;
         const team = teamById[player.teamId];
         const country = countryById[player.countryId];
 
@@ -1872,11 +1876,11 @@ export default function Players() {
         }
         return cmp(a, b);
       });
-  }, [players, search, teamById, countryById, sortBy, teamFilterId, positionFilter, viewMode]);
+  }, [players, search, teamById, countryById, sortBy, teamFilterId, positionFilter, viewMode, fm27StatusFilter]);
 
   // A deliberately small local cache: list choices + the last visible position.
   // Never store players, photos, private details or imported data in this cache.
-  const listContext = JSON.stringify([viewMode,teamFilterId,positionFilter,sortBy,search]);
+  const listContext = JSON.stringify([viewMode,teamFilterId,positionFilter,sortBy,search,fm27StatusFilter]);
   const previousListContext = useRef(JSON.stringify([
     rememberedView.view,rememberedView.teamFilterId,rememberedView.positionFilter,
     rememberedView.sortBy,rememberedView.search
@@ -3425,6 +3429,16 @@ export default function Players() {
             <button type="button" onClick={() => setSortBy(c => c === "age_youngest" ? "age_oldest" : "age_youngest")} className={`flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition ${sortBy === "age_youngest" || sortBy === "age_oldest" ? "border-[#003399] bg-[#003399] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`} aria-label="Order by age" title="Order by age"><Cake size={14} /> {sortBy === "age_oldest" ? "Oldest" : "Youngest"}</button>
 
             <button type="button" aria-pressed={viewMode==="candidates"} onClick={()=>navigateFromStats(viewMode==="candidates"?"/players?view=all":"/players?view=candidates")} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${viewMode==="candidates"?"border-emerald-400 bg-emerald-50/70 text-emerald-800":"border-slate-200 bg-white text-slate-600"}`} title="Abrir o cerrar la vista exclusiva de candidatos Manager Fit">Candidatos Manager Fit ({players.filter(p=>candidatePoolValue(p.manager_fit_candidate)).length})</button>
+            <label className="flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/60 px-3 text-xs font-semibold text-blue-950" title="Revisión manual de las valoraciones de FM27">
+              <span className="whitespace-nowrap">FM27 {fm27Progress.reviewed}/{fm27Progress.total}</span>
+              <select aria-label="Filtrar jugadores por revisión FM27" value={fm27StatusFilter}
+                onChange={event=>setFm27StatusFilter(event.target.value)}
+                className="min-w-[105px] bg-transparent text-xs font-semibold outline-none">
+                <option value="all">Todos</option>
+                <option value="pending">Pendientes ({fm27Progress.pending})</option>
+                <option value="reviewed">Revisados ({fm27Progress.reviewed})</option>
+              </select>
+            </label>
             <button type="button" onClick={() => { setBulkMode(v => !v); setBulkIds([]); setBulkFeedback(""); setBulkDeleteIds([]); }} className={`flex h-10 items-center rounded-xl border px-3 text-xs font-extrabold ${bulkMode ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-600"}`}>{bulkMode ? "Terminar selección" : "Selección múltiple"}</button>
             <input ref={fm26QuickFileRef} type="file" accept=".json,application/json"
               className="hidden" tabIndex={-1} aria-label="Archivo JSON FM26" onChange={chooseFm26File}/>
