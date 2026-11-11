@@ -58,8 +58,8 @@ test("Player schema and UI expose FM27 fields and old FM26 CA/CP remain editable
  const catalog=readFileSync("src/pages/Players.jsx","utf8");
  assert.match(editor,/FM27 · Revisión/);
  assert.match(editor,/Marcar jugador como revisado FM27/);
- assert.match(editor,/CA.*FM27/);
- assert.match(editor,/CP.*FM27/);
+ assert.match(editor,/\["CA","fm27Ca"/);
+ assert.match(editor,/\["CP","fm27Cp"/);
  assert.match(editor,/ca: numericCA/);
  assert.match(editor,/cp: numericCP/);
  assert.match(catalog,/fm27FilterPlayer\(player,fm27StatusFilter\)/);
