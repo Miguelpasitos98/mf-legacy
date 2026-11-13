@@ -88,14 +88,23 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
             base44.entities.Player.filter({ name: record.name }, undefined, 10),
           ]);
           const remote = results.map(responseRows);
-          if (remote.some(result => !Array.isArray(result))) throw Error("No se pudo verificar el catálogo de duplicados.");
+          if (remote.some(result => !Array.isArray(result)) || results.some(result => result?.has_more === true || result?.next_cursor)) {
+            throw Error("No se pudo verificar completamente el catálogo de duplicados.");
+          }
           if (remote.some(result => result.length)) throw Error("La ficha ya existe o se creó en otra sesión. Revisa antes de importar.");
           const teamId = teamChoices[rowIndex] || "";
           const countryId = countryChoices[rowIndex] || "";
           if (teamId && !teams.some(item => String(item.id) === String(teamId))) throw Error("Equipo de destino no válido.");
           if (countryId && !countries.some(item => String(item.id) === String(countryId))) throw Error("País de destino no válido.");
           const data = buildNewFmPlayer({ source, record, teamId, countryId });
-          await base44.entities.Player.create(data);
+          const response = await base44.entities.Player.create(data);
+          const createdPlayer = response?.data || response;
+          const createdId = createdPlayer?.id || createdPlayer?._id;
+          if (!createdId) throw Error("Base44 no devolvió el ID de la nueva ficha. Comprueba PLAYERS antes de reintentar.");
+          const verified = await base44.entities.Player.get(String(createdId));
+          if (String(verified?.[editionField] ?? "") !== String(record.uid) || fmNameKey(verified?.name) !== fmNameKey(record.name)) {
+            throw Error("La ficha se creó, pero no se pudo confirmar su identidad. Revisa PLAYERS antes de reintentar.");
+          }
           created++;
         } catch (err) {
           failed.push(`${record.name}: ${err.message || "Error al crear"}`);
