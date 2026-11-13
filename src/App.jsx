@@ -24,6 +24,7 @@ import { Navigate } from "react-router-dom";
 import ImportHistory from "@/pages/ImportHistory";
 import ImportUnified from "@/pages/ImportUnified";
 import ImportCenter from "@/pages/ImportCenter";
+import FmSaveExplorer from "@/pages/FmSaveExplorer";
 import NativeImport from "@/pages/NativeImport";
 import TeamPossession from "@/pages/TeamPossession";
 import Squads from "@/pages/Squads";
@@ -81,6 +82,7 @@ const AuthenticatedApp = () => {
         <Route path="/import-histories" element={<ImportHistory />} />
         <Route path="/import-unified" element={<ImportUnified />} />
         <Route path="/import-center" element={<ImportCenter />} />
+        <Route path="/fm-explorer" element={<FmSaveExplorer />} />
         <Route path="/identity-catalog" element={<IdentityCatalog />} />
         <Route path="/import-native" element={<NativeImport />} />
       </Route>
