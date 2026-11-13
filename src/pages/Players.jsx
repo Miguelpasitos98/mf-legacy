@@ -21,6 +21,7 @@ import { base44 } from "@/api/base44Client";import { useQuery, useQueryClient } 
 import PlayerFormModal from "@/components/players/PlayerFormModal";
 import Fm26ImportModal from "@/components/players/Fm26ImportModal";
 import TacticalRoleImportModal from "@/components/players/TacticalRoleImportModal";
+import TacticalRolesAutomationModal from "@/components/players/TacticalRolesAutomationModal";
 import {consumeQuickJsonFile} from "@/utils/quickJsonFilePicker.mjs";
 
 
@@ -1388,6 +1389,7 @@ export default function Players() {
   const [fm26CreateMissing, setFm26CreateMissing] = useState(true);
   const [fm26ImportOpen, setFm26ImportOpen] = useState(false);
   const [tacticalRoleImportOpen, setTacticalRoleImportOpen] = useState(false);
+  const [tacticalRoleAutoOpen, setTacticalRoleAutoOpen] = useState(false);
   // Keep the native pickers mounted outside the modals: browser file selection
   // opens synchronously from the user's toolbar click, not in a later effect.
   const fm26QuickFileRef = useRef(null);
@@ -3455,6 +3457,11 @@ export default function Players() {
               title="Elegir directamente un archivo JSON de roles tácticos">
               <FileText size={16} /><span>Importar roles JSON</span>
             </button>
+            <button type="button" onClick={() => setTacticalRoleAutoOpen(true)}
+              className="flex h-10 items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-extrabold text-indigo-800 hover:bg-indigo-100"
+              title="Evaluar automáticamente los jugadores sin roles con atributos FM y estadísticas FotMob; revisión y registro antes de guardar">
+              <span aria-hidden="true">✨</span><span>Autoasignar roles</span>
+            </button>
 
             <button type="button" onClick={syncGithubCardPhotos} disabled={faceSyncBusy || isLoading}
               className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
@@ -3899,6 +3906,9 @@ export default function Players() {
 
           </div>
         )}
+
+        <TacticalRolesAutomationModal open={tacticalRoleAutoOpen} players={players}
+          onClose={() => setTacticalRoleAutoOpen(false)} />
 
         {/* IMPORTADOR DE ROLES POR ID FM26; independiente del importador de atributos */}
         <TacticalRoleImportModal open={tacticalRoleImportOpen} initialFile={tacticalRoleInitialFile}
