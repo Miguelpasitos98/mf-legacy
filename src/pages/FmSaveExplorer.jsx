@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, Database, Download, FileUp, Loader2, Search, ShieldCheck, Users, X } from "lucide-react";
 import { buildFmSaveIndex, findFmPlayers, findFmClubs, filterFmTeamDetails, buildFmExport } from "@/utils/fmSaveSearch.mjs";
 import FmSaveDirectImportPanel from "@/components/fmsave/FmSaveDirectImportPanel";
+import { listRememberedFmSaves, rememberFmSaveHandle, touchRememberedFmSave, forgetRememberedFmSave, getRememberedFmFile } from "@/utils/fmSavedHandles.mjs";
 
 const fmNumber = (value) => Number.isFinite(value) ? Math.round(value) : "—";
 const smallNumber = (value) => Number(value || 0).toLocaleString("es-ES");
@@ -41,6 +42,8 @@ export default function FmSaveExplorer() {
   const detailCacheRef = useRef(new Map());
   const metaRef = useRef(null);
   const pickerRef = useRef(null);
+  const restoreCheckedRef = useRef(false);
+  const fileChosenRef = useRef(false);
   const [reader, setReader] = useState(null);
   const [stage, setStage] = useState("boot");
   const [fileName, setFileName] = useState("");
@@ -57,6 +60,9 @@ export default function FmSaveExplorer() {
   const [exportProgress, setExportProgress] = useState({ done: 0, total: 0 });
   const [firstTeamOnly, setFirstTeamOnly] = useState(true);
   const [directImport, setDirectImport] = useState(null);
+  const [rememberedSaves, setRememberedSaves] = useState([]);
+  const [rememberBusy, setRememberBusy] = useState(false);
+  const [rememberMessage, setRememberMessage] = useState("");
 
   useEffect(() => {
     const worker = new Worker("/fmsave/worker.js", { type: "module" });
@@ -128,6 +134,7 @@ export default function FmSaveExplorer() {
       setError("Selecciona una partida .fm de Football Manager 26 o 27.");
       return;
     }
+    fileChosenRef.current = true;
     generationRef.current += 1;
     pendingRef.current.forEach(({ reject }) => reject(new Error("Se ha cargado otra partida.")));
     pendingRef.current.clear();
@@ -146,6 +153,110 @@ export default function FmSaveExplorer() {
     setExportProgress({ done: 0, total: 0 });
     setStage("open");
     workerRef.current?.postMessage({ type: "open", file, generation: generationRef.current });
+  };
+
+  const refreshRememberedSaves = async () => {
+    try {
+      const rows = await listRememberedFmSaves();
+      setRememberedSaves(rows);
+      return rows;
+    } catch (caught) {
+      setRememberMessage(`No se pudo leer la biblioteca local: ${caught.message}`);
+      return [];
+    }
+  };
+
+  const openRememberedSave = async (entry, automatic = false) => {
+    if (!reader || ["boot", "open", "players", "indexing"].includes(stage) || downloading || (automatic && fileChosenRef.current)) return;
+    setRememberBusy(true);
+    try {
+      const file = await getRememberedFmFile(entry, { interactive: !automatic });
+      if (automatic && fileChosenRef.current) return;
+      readFile(file);
+      await touchRememberedFmSave(entry.id);
+      await refreshRememberedSaves();
+      setRememberMessage(`Partida recordada abierta: ${file.name}. Se leen siempre los datos actuales del archivo.`);
+    } catch (caught) {
+      if (automatic && caught.code === "FM_PERMISSION_REQUIRED") {
+        setRememberMessage("Tu última partida sigue recordada. Pulsa «Abrir» para renovar el permiso de lectura si Chrome lo solicita.");
+      } else {
+        setRememberMessage(`No se pudo abrir la partida guardada: ${caught.message}`);
+      }
+    } finally {
+      setRememberBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!reader || restoreCheckedRef.current) return;
+    restoreCheckedRef.current = true;
+    let active = true;
+    (async () => {
+      const entries = await listRememberedFmSaves().catch(() => []);
+      if (!active) return;
+      setRememberedSaves(entries);
+      if (entries[0] && !fileChosenRef.current) await openRememberedSave(entries[0], true);
+    })();
+    return () => { active = false; restoreCheckedRef.current = false; };
+  }, [reader]);
+
+  const chooseLocalSave = async () => {
+    if (typeof window.showOpenFilePicker !== "function") {
+      pickerRef.current?.click();
+      return;
+    }
+    try {
+      // Called directly from the button click: the browser requires a user gesture.
+      const [handle] = await window.showOpenFilePicker({
+        id: "mf-legacy-fmsave",
+        multiple: false,
+        types: [{ description: "Partida Football Manager", accept: { "application/octet-stream": [".fm"] } }],
+      });
+      if (!handle) return;
+      const file = await handle.getFile();
+      if (!/\.fm$/i.test(file.name)) { setError("Selecciona una partida con extensión .fm."); return; }
+      readFile(file);
+      try {
+        await rememberFmSaveHandle(handle);
+        await refreshRememberedSaves();
+        setRememberMessage(`Se ha recordado «${file.name}» en este navegador, sin copiar el archivo a Base44.`);
+      } catch (caught) {
+        setRememberMessage(`La partida se abrió, pero no se pudo recordar el acceso: ${caught.message}`);
+      }
+    } catch (caught) {
+      if (caught.name !== "AbortError") setError(`No se pudo seleccionar la partida: ${caught.message}`);
+    }
+  };
+
+  const readDroppedSave = async event => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    // Obtain the handle during the drop gesture; its promise can be awaited later.
+    const item = event.dataTransfer.items?.[0];
+    const handlePromise = typeof item?.getAsFileSystemHandle === "function"
+      ? item.getAsFileSystemHandle().catch(() => null) : null;
+    readFile(file);
+    if (!handlePromise || !/\.fm$/i.test(file?.name || "")) return;
+    try {
+      const handle = await handlePromise;
+      if (handle?.kind === "file") {
+        await rememberFmSaveHandle(handle);
+        await refreshRememberedSaves();
+        setRememberMessage(`Partida «${file.name}» recordada en este navegador.`);
+      }
+    } catch (caught) {
+      setRememberMessage(`Partida leída, pero no se pudo recordar el acceso: ${caught.message}`);
+    }
+  };
+
+  const forgetLocalSave = async (id) => {
+    try {
+      await forgetRememberedFmSave(id);
+      await refreshRememberedSaves();
+      setRememberMessage("Acceso olvidado. El archivo .fm original sigue intacto en tu ordenador.");
+    } catch (caught) {
+      setRememberMessage(`No se pudo olvidar el acceso: ${caught.message}`);
+    }
   };
 
   const requestDetail = (uid) => {
@@ -260,17 +371,32 @@ export default function FmSaveExplorer() {
         <div className="mb-3 flex items-center gap-3"><div className="rounded-xl bg-blue-50 p-3 text-[#003399]"><FileUp size={22} /></div>
           <div><h2 className="font-bold text-slate-900">1. Cargar una partida .fm</h2>
             <p className="text-xs text-slate-500">El archivo se lee en tu navegador; no se sube a Base44 ni se almacena en el servidor.</p></div></div>
-        <div onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); readFile(event.dataTransfer.files?.[0]); }}
+        <div onDragOver={event => event.preventDefault()} onDrop={event => { void readDroppedSave(event); }}
           className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/30 p-6 text-center">
           <input ref={pickerRef} type="file" accept=".fm" className="hidden" onChange={event => { readFile(event.target.files?.[0]); event.target.value = ""; }} />
-          <button type="button" disabled={working || downloading || !reader} onClick={() => pickerRef.current?.click()}
+          <button type="button" disabled={working || downloading || !reader || rememberBusy} onClick={chooseLocalSave}
             className="inline-flex items-center gap-2 rounded-xl bg-[#003399] px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50">
             {working ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
             {fileName ? "Cambiar partida" : "Seleccionar archivo .fm"}
           </button>
           <p className="mt-2 text-xs text-slate-500">{fileName || "También puedes arrastrar aquí tu partida guardada."}</p>
+          <p className="mt-1 text-[11px] text-slate-500">{typeof window.showOpenFilePicker === "function" ? "Se intentará recordar el acceso a cada partida para que no tengas que buscarla de nuevo." : "El selector de este navegador no permite recordar el acceso automático; puedes seguir leyendo archivos .fm."}</p>
           {working && <p role="status" className="mt-3 text-sm font-semibold text-[#003399]">{STAGES[stage]}</p>}
         </div>
+        {!!rememberedSaves.length && <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <h3 className="text-xs font-black uppercase tracking-wide text-[#0d315b]">Mis partidas recordadas · Solo este navegador</h3>
+          <p className="mt-1 text-[11px] text-slate-500">Guardamos el acceso al archivo original, no una copia. Al volver, intentamos abrir la última automáticamente; Chrome puede solicitar permiso de nuevo.</p>
+          <div className="mt-2 max-h-44 space-y-1 overflow-y-auto">
+            {rememberedSaves.map(saved => <div key={saved.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-white px-3 py-2">
+              <span className="min-w-0 flex-1 truncate text-xs font-semibold" title={saved.name}>{saved.name}</span>
+              <button type="button" onClick={() => openRememberedSave(saved)} disabled={working || downloading || rememberBusy || !reader}
+                className="rounded-md border border-blue-200 px-2.5 py-1 text-xs font-bold text-[#003399] hover:bg-blue-50 disabled:opacity-50">{rememberBusy ? "Abriendo..." : "Abrir"}</button>
+              <button type="button" onClick={() => forgetLocalSave(saved.id)} disabled={rememberBusy}
+                className="rounded-md px-2 py-1 text-xs text-slate-500 hover:bg-slate-200 disabled:opacity-50" title="Solo olvida el acceso; no borra la partida del ordenador">Olvidar</button>
+            </div>)}
+          </div>
+        </div>}
+        {rememberMessage && <p role="status" className="mt-3 rounded-lg bg-blue-50 p-3 text-xs font-semibold text-[#0d315b]">{rememberMessage}</p>}
         {meta && <div className="mt-4 grid gap-2 sm:grid-cols-3">
           <DataBadge label="Juego" value={meta.game || "—"} />
           <DataBadge label="Versión de fmsave" value={meta.fmsave || reader?.fmsave} />
