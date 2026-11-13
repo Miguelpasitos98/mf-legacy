@@ -48,6 +48,7 @@ export default function FmSaveExplorer() {
   const fileChosenRef = useRef(false);
   const fileToCloudRef = useRef(null);
   const lastLocalFileRef = useRef(null);
+  const cloudTransferRef = useRef(false);
   const [cloudUser, setCloudUser] = useState(null);
   const [cloudSaves, setCloudSaves] = useState([]);
   const [cloudLoading, setCloudLoading] = useState(true);
@@ -195,7 +196,8 @@ export default function FmSaveExplorer() {
   }, []);
 
   const uploadCloudFile = async (file, loadedMeta, count) => {
-    if (!cloudUser || cloudBusy || !file) return;
+    if (!cloudUser || cloudTransferRef.current || !file) return;
+    cloudTransferRef.current = true;
     setCloudBusy(true);
     setCloudMessage("");
     setCloudProgress({ label: "Preparando guardado privado", done: 0, total: 0 });
@@ -210,6 +212,7 @@ export default function FmSaveExplorer() {
       setCloudMessage(`La partida se puede consultar, pero no se terminó de guardar en la nube: ${caught.message}. Pulsa «Reintentar guardado» para continuar.`);
     } finally {
       await refreshCloudSaves(cloudUser);
+      cloudTransferRef.current = false;
       setCloudBusy(false);
     }
   };
@@ -225,10 +228,11 @@ export default function FmSaveExplorer() {
     }
     fileToCloudRef.current = null;
     void uploadCloudFile(pending.file, meta, index.count);
-  }, [stage, index, meta, cloudUser]);
+  }, [stage, index, meta, cloudUser, cloudBusy]);
 
   const openCloudEntry = async entry => {
-    if (cloudBusy || !reader || ["boot", "open", "players", "indexing"].includes(stage) || downloading) return;
+    if (cloudTransferRef.current || !reader || ["boot", "open", "players", "indexing"].includes(stage) || downloading) return;
+    cloudTransferRef.current = true;
     setCloudBusy(true);
     setCloudMessage("");
     setCloudProgress({ label: "Preparando descarga privada", done: 0, total: entry.part_count || 0 });
@@ -240,6 +244,7 @@ export default function FmSaveExplorer() {
     } catch (caught) {
       setCloudMessage(`No se pudo recuperar la partida: ${caught.message}`);
     } finally {
+      cloudTransferRef.current = false;
       setCloudBusy(false);
     }
   };
