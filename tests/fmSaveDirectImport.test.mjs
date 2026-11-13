@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildSafeFmPatch, compatibleFmTarget, suggestFmTarget } from "../src/utils/fmSaveDirectImport.mjs";
+import { buildSafeFmPatch, buildNewFmPlayer, canCreateFmPlayer, compatibleFmTarget, suggestFmTarget } from "../src/utils/fmSaveDirectImport.mjs";
 
 const fm26 = { game:"FM26",game_build:"26.1",reader:"fmsave",reader_version:"0.12.2",game_date:"2025-08-01" };
 const fm27 = { game:"FM27",game_build:"27.0.1",reader:"fmsave",reader_version:"0.12.2" };
@@ -55,6 +55,46 @@ test("FM26 import fills blank official CA and PA only",()=>{
   assert.equal(patch.ca,168);
   assert.equal(patch.cp,176);
   assert.equal(patch.fm27_ca,undefined);
+});
+test("new player is allowed only without name or edition UID collisions",()=>{
+  assert.equal(canCreateFmPlayer({source:fm26,record:arturo,players:[]}).allowed,true);
+  assert.equal(canCreateFmPlayer({source:fm26,record:arturo,players:[target]}).allowed,false);
+  assert.equal(canCreateFmPlayer({source:fm27,record:arturo,players:[{id:"2",name:"Arturo Vidal",fm26_uid:"7"}]}).allowed,false);
+  assert.equal(canCreateFmPlayer({source:fm27,record:{...arturo,name:"Another",uid:123},players:[{id:"1",name:"Other",fm27_uid:"123"}]}).allowed,false);
+  assert.equal(canCreateFmPlayer({source:fm26,record:{...arturo,uid:9007199254740992},players:[]}).allowed,false);
+});
+test("new FM26 player receives full origin plus visible attributes and editable identity",()=>{
+  const record={...arturo,club_uid:110,nation_id:44,club_name:"Colo-Colo",team_slot:0,
+    natural_positions:["MC"],accomplished_positions:["DM"],positions:{mc:18,dm:15},
+    attributes:{passing:17,vision:16,injury_proneness:12},height_cm:182,left_foot:12,right_foot:19};
+  const created=buildNewFmPlayer({source:fm26,record,teamId:"club-1",countryId:"country-1"});
+  assert.equal(created.name,"Arturo Vidal");
+  assert.equal(created.fm26_uid,"75000261");
+  assert.equal(created.ca,168);
+  assert.equal(created.cp,176);
+  assert.equal(created.position,"CM");
+  assert.equal(created.date_of_birth,"22/05/1987");
+  assert.equal(created.team_id,"club-1");
+  assert.equal(created.country_id,"country-1");
+  assert.equal(created.stats.technical.pases,17);
+  assert.equal(created.stats.mental.vision,16);
+  assert.equal(created.stats.physical.tendencia_a_lesionarse,9);
+  assert.equal(created.position_ratings.centrocampista,18);
+  assert.deepEqual(created.fm26_source_record,record);
+  assert.equal(created.fm27_ca,undefined);
+});
+test("new FM27 player never fills FM26 master attributes or CA/PA",()=>{
+  const created=buildNewFmPlayer({source:fm27,record:arturo});
+  assert.equal(created.name,"Arturo Vidal");
+  assert.equal(created.fm27_uid,"75000261");
+  assert.equal(created.fm27_ca,168);
+  assert.equal(created.fm27_cp,176);
+  assert.equal(created.ca,undefined);
+  assert.equal(created.cp,undefined);
+  assert.equal(created.stats,undefined);
+  assert.equal(created.team_id,undefined);
+  assert.equal(created.fm26_uid,undefined);
+  assert.deepEqual(created.fm27_source_record,arturo);
 });
 test("existing source snapshots are not overwritten",()=>{
   const previous={uid:42,name:"Arturo Vidal"};
