@@ -224,7 +224,10 @@ export default function FmSaveExplorer() {
         setRememberMessage(`La partida se abrió, pero no se pudo recordar el acceso: ${caught.message}`);
       }
     } catch (caught) {
-      if (caught.name !== "AbortError") setError(`No se pudo seleccionar la partida: ${caught.message}`);
+      if (caught.name !== "AbortError") {
+        setRememberMessage("El navegador no permitió recordar la partida desde este selector. Puedes usar «Abrir sin recordar».");
+        setError(`No se pudo seleccionar la partida: ${caught.message}`);
+      }
     }
   };
 
@@ -379,6 +382,8 @@ export default function FmSaveExplorer() {
             {working ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
             {fileName ? "Cambiar partida" : "Seleccionar archivo .fm"}
           </button>
+          {typeof window.showOpenFilePicker === "function" && <button type="button" disabled={working || downloading || !reader}
+            onClick={() => pickerRef.current?.click()} className="ml-3 mt-2 text-xs font-semibold text-[#003399] underline disabled:opacity-50">Abrir sin recordar</button>}
           <p className="mt-2 text-xs text-slate-500">{fileName || "También puedes arrastrar aquí tu partida guardada."}</p>
           <p className="mt-1 text-[11px] text-slate-500">{typeof window.showOpenFilePicker === "function" ? "Se intentará recordar el acceso a cada partida para que no tengas que buscarla de nuevo." : "El selector de este navegador no permite recordar el acceso automático; puedes seguir leyendo archivos .fm."}</p>
           {working && <p role="status" className="mt-3 text-sm font-semibold text-[#003399]">{STAGES[stage]}</p>}
