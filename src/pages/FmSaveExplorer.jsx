@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, Database, Download, FileUp, Loader2, Search, ShieldCheck, Users, X } from "lucide-react";
 import { buildFmSaveIndex, findFmPlayers, findFmClubs, filterFmTeamDetails, buildFmExport } from "@/utils/fmSaveSearch.mjs";
+import FmSaveDirectImportPanel from "@/components/fmsave/FmSaveDirectImportPanel";
 
 const fmNumber = (value) => Number.isFinite(value) ? Math.round(value) : "—";
 const smallNumber = (value) => Number(value || 0).toLocaleString("es-ES");
@@ -55,6 +56,7 @@ export default function FmSaveExplorer() {
   const [downloading, setDownloading] = useState(false);
   const [exportProgress, setExportProgress] = useState({ done: 0, total: 0 });
   const [firstTeamOnly, setFirstTeamOnly] = useState(true);
+  const [directImport, setDirectImport] = useState(null);
 
   useEffect(() => {
     const worker = new Worker("/fmsave/worker.js", { type: "module" });
@@ -136,6 +138,7 @@ export default function FmSaveExplorer() {
     setIndex(null);
     setSelection(null);
     setPlayerDetail(null);
+    setDirectImport(null);
     setError("");
     setNotice("");
     setWarnings([]);
@@ -167,6 +170,7 @@ export default function FmSaveExplorer() {
     const uid = index?.uid[rowIndex];
     if (!Number.isFinite(uid)) return;
     setSelection({ type: "player", index: rowIndex });
+    setDirectImport(null);
     setPlayerDetail(null);
     setError("");
     try {
@@ -179,6 +183,7 @@ export default function FmSaveExplorer() {
 
   const chooseClub = club => {
     setSelection({ type: "club", club });
+    setDirectImport(null);
     setPlayerDetail(null);
     setFirstTeamOnly(true);
     setError("");
@@ -192,7 +197,7 @@ export default function FmSaveExplorer() {
       .sort((a, b) => (index.ca[b] || 0) - (index.ca[a] || 0));
   }, [firstTeamOnly, index, selection]);
 
-  const exportJson = async () => {
+  const prepareSelection = async (action = "download") => {
     if (!selection || downloading || !index) return;
     const indexes = selection.type === "player" ? [selection.index] : selectedClubMembers;
     if (!indexes.length) {
@@ -218,10 +223,18 @@ export default function FmSaveExplorer() {
         ? { type: "player", uid: index.uid[selection.index], name: identifier }
         : { type: "club_players", club_uid: selection.club.uid, club_name: identifier, first_team_only: firstTeamOnly };
       const data = buildFmExport({ meta: metaRef.current, selection: selectionInfo, details: included });
-      const game = (metaRef.current?.game || "FM").toLowerCase();
-      const suffix = selection.type === "club" ? (firstTeamOnly ? "_first_team" : "_all_teams") : "";
-      downloadSelection(data, `${game}_${filenamePart(identifier)}${suffix}.json`);
-      setNotice(`JSON descargado: ${included.length} jugador(es) con todos los campos disponibles y sus estadísticas de temporada, si existen.`);
+      if (action === "import") {
+        if (!["FM26", "FM27"].includes(metaRef.current?.game)) throw new Error("La importación directa solo admite FM26 y FM27.");
+        if (included.length > 250) throw new Error("Para revisión directa selecciona como máximo 250 jugadores a la vez.");
+        setDirectImport(data);
+        setNotice(`Datos de ${included.length} jugador(es) leídos directamente. Revisa las coincidencias antes de incorporarlos.`);
+        window.setTimeout(() => document.getElementById("fm-direct-import-review")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+      } else {
+        const game = (metaRef.current?.game || "FM").toLowerCase();
+        const suffix = selection.type === "club" ? (firstTeamOnly ? "_first_team" : "_all_teams") : "";
+        downloadSelection(data, `${game}_${filenamePart(identifier)}${suffix}.json`);
+        setNotice(`JSON descargado: ${included.length} jugador(es) con todos los campos disponibles y sus estadísticas de temporada, si existen.`);
+      }
     } catch (caught) {
       setError(caught.message || "No se ha podido generar la descarga.");
     } finally {
@@ -237,7 +250,7 @@ export default function FmSaveExplorer() {
         <div>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-[#003399]">MF LEGACY · STUDIO</p>
           <h1 className="mt-1 text-2xl font-black tracking-tight text-[#0d315b] md:text-3xl">Explorador Football Manager</h1>
-          <p className="mt-1 text-sm text-slate-600">Busca jugadores o plantillas de FM26 y FM27 y descarga un JSON completo sin salir de MF Legacy.</p>
+          <p className="mt-1 text-sm text-slate-600">Busca jugadores o plantillas de FM26 y FM27 e incorpóralos directamente a MF LEGACY tras revisar las coincidencias. También puedes descargar JSON.</p>
         </div>
         <a className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#003399] hover:bg-blue-50"
           href="https://github.com/rhiever/fmsave" target="_blank" rel="noreferrer">Motor fmsave · MIT ↗</a>
@@ -345,15 +358,20 @@ export default function FmSaveExplorer() {
           </div>
         </div>}
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button type="button" onClick={exportJson} disabled={downloading || !reader || (selection.type === "club" && !selectedClubMembers.length)}
+          <button type="button" onClick={() => prepareSelection("import")} disabled={downloading || !reader || (selection.type === "club" && !selectedClubMembers.length)}
             className="inline-flex items-center gap-2 rounded-xl bg-[#003399] px-5 py-3 text-sm font-bold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50">
-            {downloading ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
-            {downloading ? `Preparando ${exportProgress.done}/${exportProgress.total}...` : "Descargar JSON completo"}
+            {downloading ? <Loader2 size={17} className="animate-spin" /> : <Database size={17} />}
+            {downloading ? `Leyendo ${exportProgress.done}/${exportProgress.total}...` : "Incorporar en MF LEGACY"}
           </button>
-          <span className="inline-flex items-center gap-1 text-xs text-slate-500"><ShieldCheck size={15} /> No se modifican jugadores de MF Legacy</span>
+          <button type="button" onClick={() => prepareSelection("download")} disabled={downloading || !reader || (selection.type === "club" && !selectedClubMembers.length)}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#003399] bg-white px-4 py-3 text-sm font-bold text-[#003399] hover:bg-blue-50 disabled:opacity-50">
+            <Download size={17} /> Descargar JSON
+          </button>
+          <span className="inline-flex items-center gap-1 text-xs text-slate-500"><ShieldCheck size={15} /> Revisión previa y sin sobrescrituras</span>
         </div>
-        <p className="mt-3 text-xs leading-relaxed text-slate-500">El JSON contiene los registros íntegros que fmsave puede leer, además de las estadísticas disponibles de esta temporada. Mantiene el array <code>players</code> para facilitar una futura importación revisada. No incluye fotografías ni estadísticas reales de FotMob.</p>
+        <p className="mt-3 text-xs leading-relaxed text-slate-500">La incorporación directa utiliza los datos de la partida ya cargados en memoria: sin descargar y volver a subir archivos. Guarda el registro íntegro de cada jugador bajo su edición FM y solo rellena valores vacíos, después de tu confirmación. Las estadísticas simuladas y los datos reales de FotMob no se mezclan. El JSON sigue disponible como copia opcional.</p>
       </section>}
+      {directImport && <FmSaveDirectImportPanel payload={directImport} onClose={() => setDirectImport(null)} />}
 
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
       {notice && <div role="status" className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800">{notice}</div>}
