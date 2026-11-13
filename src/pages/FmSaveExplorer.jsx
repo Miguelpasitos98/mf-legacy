@@ -47,6 +47,7 @@ export default function FmSaveExplorer() {
   const restoreCheckedRef = useRef(false);
   const fileChosenRef = useRef(false);
   const fileToCloudRef = useRef(null);
+  const lastLocalFileRef = useRef(null);
   const [cloudUser, setCloudUser] = useState(null);
   const [cloudSaves, setCloudSaves] = useState([]);
   const [cloudLoading, setCloudLoading] = useState(true);
@@ -146,6 +147,7 @@ export default function FmSaveExplorer() {
     fileChosenRef.current = true;
     generationRef.current += 1;
     fileToCloudRef.current = source === "local" ? { file, generation: generationRef.current } : null;
+    lastLocalFileRef.current = source === "local" ? { file, generation: generationRef.current } : null;
     pendingRef.current.forEach(({ reject }) => reject(new Error("Se ha cargado otra partida.")));
     pendingRef.current.clear();
     detailCacheRef.current.clear();
@@ -163,6 +165,87 @@ export default function FmSaveExplorer() {
     setExportProgress({ done: 0, total: 0 });
     setStage("open");
     workerRef.current?.postMessage({ type: "open", file, generation: generationRef.current });
+  };
+
+  const refreshCloudSaves = async (user = cloudUser) => {
+    if (!user?.id || user.role !== "admin") { setCloudSaves([]); return; }
+    try {
+      const entries = await listFmCloudSaves(base44, user);
+      setCloudSaves(entries);
+    } catch (caught) {
+      setCloudMessage(`No se pudo consultar la biblioteca privada: ${caught.message}`);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    base44.auth.me().then(async user => {
+      if (!active) return;
+      if (user?.role === "admin") {
+        setCloudUser(user);
+        await refreshCloudSaves(user);
+      } else {
+        setCloudMessage("La biblioteca privada de partidas está disponible para administradores con sesión iniciada.");
+      }
+    }).catch(() => {
+      if (active) setCloudMessage("Inicia sesión como administrador para almacenar partidas en Base44.");
+    }).finally(() => { if (active) setCloudLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const uploadCloudFile = async (file, loadedMeta, count) => {
+    if (!cloudUser || cloudBusy || !file) return;
+    setCloudBusy(true);
+    setCloudMessage("");
+    setCloudProgress({ label: "Preparando guardado privado", done: 0, total: 0 });
+    try {
+      const result = await archiveFmCloudSave(base44, file, { ...loadedMeta, players_count: count }, cloudUser,
+        (label, done, total) => setCloudProgress({ label, done, total }));
+      await refreshCloudSaves(cloudUser);
+      setCloudMessage(result.alreadySaved
+        ? `«${file.name}» ya estaba disponible en tu biblioteca en la nube.`
+        : `«${file.name}» se ha guardado de forma privada en Base44. Ya puedes abrirla desde otro ordenador.`);
+    } catch (caught) {
+      setCloudMessage(`La partida se puede consultar, pero no se terminó de guardar en la nube: ${caught.message}. Pulsa «Reintentar guardado» para continuar.`);
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (stage !== "ready" || !meta || !index || !cloudUser || cloudBusy) return;
+    const pending = fileToCloudRef.current;
+    if (!pending || pending.generation !== generationRef.current) return;
+    if (!["FM26", "FM27"].includes(meta.game)) {
+      setCloudMessage("Esta versión de la partida no se puede guardar en la biblioteca FM26/FM27.");
+      fileToCloudRef.current = null;
+      return;
+    }
+    fileToCloudRef.current = null;
+    void uploadCloudFile(pending.file, meta, index.count);
+  }, [stage, index, meta, cloudUser]);
+
+  const openCloudEntry = async entry => {
+    if (cloudBusy || !reader || ["boot", "open", "players", "indexing"].includes(stage) || downloading) return;
+    setCloudBusy(true);
+    setCloudMessage("");
+    setCloudProgress({ label: "Preparando descarga privada", done: 0, total: entry.part_count || 0 });
+    try {
+      const file = await openFmCloudSave(base44, entry,
+        (label, done, total) => setCloudProgress({ label, done, total }));
+      readFile(file, "cloud");
+      setCloudMessage(`Partida «${entry.filename}» recuperada desde Base44. Ya puedes buscar cualquier jugador o equipo.`);
+    } catch (caught) {
+      setCloudMessage(`No se pudo recuperar la partida: ${caught.message}`);
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const retryCloudUpload = () => {
+    const latest = lastLocalFileRef.current;
+    if (!latest || !meta || !index || latest.generation !== generationRef.current) return;
+    void uploadCloudFile(latest.file, meta, index.count);
   };
 
   const refreshRememberedSaves = async () => {
@@ -205,7 +288,7 @@ export default function FmSaveExplorer() {
       const entries = await listRememberedFmSaves().catch(() => []);
       if (!active) return;
       setRememberedSaves(entries);
-      if (entries[0] && !fileChosenRef.current) await openRememberedSave(entries[0], true);
+      // No abrimos automáticamente archivos del ordenador: el usuario puede elegir una partida de su biblioteca privada.
     })();
     return () => { active = false; restoreCheckedRef.current = false; };
   }, [reader]);
