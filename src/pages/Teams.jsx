@@ -7,6 +7,7 @@ import React, {
 import { useOutletContext, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { recordQueryOptions } from "@/api/recordQueries";
+import { readViewMemory, writeViewMemory, memoryText } from "@/utils/viewMemory";
 import { countCurrentPlayersByTeam, coveredTeamsCount } from "@/components/teams/teamPlayerCoverage.mjs";
 import {
   useCountriesQuery,
@@ -84,9 +85,13 @@ export default function Teams() {
   const [unattachedError, setUnattachedError] = useState("");
   const [unattachedLoading, setUnattachedLoading] = useState(false);
   const [unattachedTab, setUnattachedTab] = useState("free_agent");
-  const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState("countries");
-  const [countriesView, setCountriesView] = useState("normal");
+  // La vista recordada evita que TEAMS vuelva al inicio en cada entrada.
+  const [search, setSearch] = useState(() => memoryText(readViewMemory("teams"), "search", null, ""));
+  const [activeFilter, setActiveFilter] = useState(() => memoryText(readViewMemory("teams"), "filter", navigationFilters.map((item) => item.id), "countries"));
+  const [countriesView, setCountriesView] = useState(() => memoryText(readViewMemory("teams"), "countriesView", ["normal", "coverage"], "normal"));
+  useEffect(() => {
+    writeViewMemory("teams", { search, filter: activeFilter, countriesView });
+  }, [search, activeFilter, countriesView]);
   const showPlayerCoverage = activeFilter === "countries" && countriesView === "coverage";
   // Solo leer Players cuando el usuario abre esta vista; compartir su caché con PLAYERS.
   const coveragePlayersQuery = useQuery({ ...recordQueryOptions("Player"), enabled: showPlayerCoverage });

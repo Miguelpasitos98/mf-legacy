@@ -1,4 +1,5 @@
-import React,{useEffect,useMemo,useState} from "react";
+import React,{useEffect,useMemo,useRef,useState} from "react";
+import {readViewMemory,writeViewMemory,memoryText} from "@/utils/viewMemory";
 import {useSearchParams} from "react-router-dom";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {Search,Trophy,Plus,ChevronRight,ChevronDown,X,Save,Filter,AlertCircle,Trash2,Upload,Medal,Users,Link2,RotateCcw,Globe2} from "lucide-react";
@@ -77,18 +78,20 @@ export default function Trophies(){
  const [imageManifest,setImageManifest]=useState(null);
  const [catalogError,setCatalogError]=useState("");
  const [catalogLoading,setCatalogLoading]=useState(true);
- const [query,setQuery]=useState("");
- const [section,setSection]=useState("catalog");
+ // Trophies recuerda la última vista y sus filtros entre entradas y recargas.
+ const [rememberedTrophies]=useState(()=>readViewMemory("trophies"));
+ const [query,setQuery]=useState(()=>memoryText(rememberedTrophies,"query",null,""));
+ const [section,setSection]=useState(()=>memoryText(rememberedTrophies,"section",["catalog","palmares","sync","review"],"catalog"));
  const [syncPhase,setSyncPhase]=useState("champions");
  const [syncSection,setSyncSection]=useState("research");
- const [tab,setTab]=useState("verified");
- const [type,setType]=useState("all");
- const [category,setCategory]=useState("all");
- const [sortMode,setSortMode]=useState("reputation_desc");
+ const [tab,setTab]=useState(()=>memoryText(rememberedTrophies,"tab",["all","verified","pending","registered"],"verified"));
+ const [type,setType]=useState(()=>memoryText(rememberedTrophies,"type",null,"all"));
+ const [category,setCategory]=useState(()=>memoryText(rememberedTrophies,"category",null,"all"));
+ const [sortMode,setSortMode]=useState(()=>memoryText(rememberedTrophies,"sortMode",null,"reputation_desc"));
  const [showFilters,setShowFilters]=useState(false);
  const [focusedGroup,setFocusedGroup]=useState("");
  const [showAllViewGroups,setShowAllViewGroups]=useState(false);
- const [countryFilter,setCountryFilter]=useState("all");
+ const [countryFilter,setCountryFilter]=useState(()=>memoryText(rememberedTrophies,"countryFilter",null,"all"));
  const [teamFilter,setTeamFilter]=useState("");
  const [expandedGroups,setExpandedGroups]=useState({});
  const [selectedId,setSelectedId]=useState("");
@@ -102,6 +105,7 @@ export default function Trophies(){
  const [showHonours,setShowHonours]=useState(true);
  const [detailTab,setDetailTab]=useState("Resumen");
  const [editorPane,setEditorPane]=useState("historical");
+ useEffect(()=>{writeViewMemory("trophies",{query,section,tab,type,category,sortMode,countryFilter});},[query,section,tab,type,category,sortMode,countryFilter]);
  const leaguesQuery=useLeaguesQuery(),countriesQuery=useCountriesQuery(),teamsQuery=useTeamsQuery();
  const trophyQuery=useQuery({...completeRecordQueryOptions(base44.entities.Trophy,TROPHY_KEY),retry:false});
  const honourQuery=useQuery({...completeRecordQueryOptions(base44.entities.TrophyHonour,HONOURS_KEY),retry:false});
@@ -133,7 +137,11 @@ export default function Trophies(){
   return [...byKey.values()].sort((a,b)=>a.label.localeCompare(b.label,"es"));
  },[countrySections,countryRecords]);
  const activeFilterCount=[type!=="all",category!=="all",countryFilter!=="all",Boolean(teamFilter&&viewMode!=="clubs")].filter(Boolean).length;
- useEffect(()=>{setFocusedGroup("");setShowAllViewGroups(false);setExpandedGroups({});setTab("all");setTeamFilter("");},[viewMode]);
+ const viewModeInit=useRef(false);
+ useEffect(()=>{
+  if(!viewModeInit.current){viewModeInit.current=true;return;}
+  setFocusedGroup("");setShowAllViewGroups(false);setExpandedGroups({});setTab("all");setTeamFilter("");
+ },[viewMode]);
  const clearFilters=()=>{setType("all");setCategory("all");setCountryFilter("all");setTeamFilter("");setSortMode("reputation_desc");};
  const countryTrophyIds=useMemo(()=>countryTrophyIdsFromSections(countrySections,countryFilter),[countrySections,countryFilter]);
  // A team's filter means verified trophies actually awarded to that exact Base44 Team.

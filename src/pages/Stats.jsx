@@ -495,6 +495,17 @@ export default function Stats(){
   const [seasonDisplay,setSeasonDisplay]=useState(savedView.seasonDisplay==="current"?"all":savedView.seasonDisplay||"all"),[bestMetric,setBestMetric]=useState(savedView.bestMetric||"composite");
   const [tab,setTab]=useState(savedView.tab||"con"),[category,setCategory]=useState(savedView.category||"Resumen"),[sort,setSort]=useState(savedView.sort||"composite"),[sortDirection,setSortDirection]=useState(savedView.sortDirection||"desc"),[importOpen,setImportOpen]=useState(false),[selected,setSelected]=useState(null),[page,setPage]=useState(savedView.page||0);
   const scrollRoot=useRef(null),restoredScroll=useRef(false);
+  // Guardar la posición con retardo: en móvil escribir localStorage en cada
+  // evento de scroll bloquea la pintura.
+  const scrollSaveTimer=useRef(0);
+  const saveScrollPosition=()=>{
+    if(scrollSaveTimer.current)return;
+    scrollSaveTimer.current=window.setTimeout(()=>{
+      scrollSaveTimer.current=0;
+      const horizontal=scrollRoot.current?.querySelector('[data-stats-horizontal]');
+      writeStatsViewState({...readStatsViewState(),scrollTop:scrollRoot.current?.scrollTop||0,scrollLeft:horizontal?.scrollLeft||0});
+    },400);
+  };
   const {rows:sourceRows,allRows:sourceAllRows,hasMore,loadMore,applyLocalRecord,refresh:refreshStats,busy,error,cached,refreshedAt}=useStatsRows(season,competition);
   // One refresh orchestrates raw records and dependent queries; React Query
   // deduplicates in-flight requests and rebuilds the peer dataset automatically.
@@ -792,10 +803,7 @@ export default function Stats(){
     queryClient.invalidateQueries({queryKey:["mf-legacy","teams"]});
     queryClient.invalidateQueries({queryKey:HISTORICAL_PEER_KEY});
   };
-  return <div ref={scrollRoot} data-stats-scroll className="mf-page-scroll w-full bg-[#f3f5f8]" onScrollCapture={()=>{
-    const previous=readStatsViewState(),horizontal=scrollRoot.current?.querySelector('[data-stats-horizontal]');
-    writeStatsViewState({...previous,scrollTop:scrollRoot.current?.scrollTop||0,scrollLeft:horizontal?.scrollLeft||0});
-  }}>
+  return <div ref={scrollRoot} data-stats-scroll className="mf-page-scroll w-full bg-[#f3f5f8]" onScrollCapture={saveScrollPosition}>
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 md:px-5">
       <p className="text-xs font-black uppercase tracking-[.12em] text-[#0d315b]">STATS <span className="ml-2 font-normal normal-case tracking-normal text-slate-400">Rendimiento por temporada</span></p>
       <div className="flex max-w-full flex-wrap items-center gap-2">
