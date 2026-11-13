@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CheckCircle2, Cloud, CloudDownload, CloudUpload, Database, Download, FileUp, Loader2, Search, ShieldCheck, Users, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Cloud, CloudDownload, Database, Download, FileUp, Loader2, Search, ShieldCheck, Users, X } from "lucide-react";
 import { buildFmSaveIndex, findFmPlayers, findFmClubs, filterFmTeamDetails, buildFmExport } from "@/utils/fmSaveSearch.mjs";
 import FmSaveDirectImportPanel from "@/components/fmsave/FmSaveDirectImportPanel";
 import { base44 } from "@/api/base44Client";
@@ -160,6 +160,7 @@ export default function FmSaveExplorer() {
     setDirectImport(null);
     setError("");
     setNotice("");
+    setCloudMessage("");
     setWarnings([]);
     setQuery("");
     setExportProgress({ done: 0, total: 0 });
@@ -208,6 +209,7 @@ export default function FmSaveExplorer() {
     } catch (caught) {
       setCloudMessage(`La partida se puede consultar, pero no se terminó de guardar en la nube: ${caught.message}. Pulsa «Reintentar guardado» para continuar.`);
     } finally {
+      await refreshCloudSaves(cloudUser);
       setCloudBusy(false);
     }
   };
