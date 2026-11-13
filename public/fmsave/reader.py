@@ -145,6 +145,7 @@ def player_numbers(players: Sequence[Any]) -> dict[str, list[object]]:
         (
             "uid",
             "club_uid",
+            "team_slot",
             "age",
             "birth_date",
             "height_cm",
@@ -160,6 +161,7 @@ def player_numbers(players: Sequence[Any]) -> dict[str, list[object]]:
         ),
         "uid",
         "club_uid",
+        "team_slot",
         "age",
         "birth_date",
         "height_cm",
