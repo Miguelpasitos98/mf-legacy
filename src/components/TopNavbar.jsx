@@ -29,6 +29,7 @@ const footballNav = [
   { label: "TROPHIES", path: "/trophies", items: [{ label: "Trophies", path: "/trophies" }] },
   { label: "STUDIO", path: "/import-center", items: [
     { label: "Import", path: "/import-center" },
+    { label: "Explorador FM26/27", path: "/fm-explorer" },
     { label: "Catálogo", path: "/identity-catalog" },
   ] },
 ];
