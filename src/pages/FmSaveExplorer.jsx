@@ -463,27 +463,63 @@ export default function FmSaveExplorer() {
           href="https://github.com/rhiever/fmsave" target="_blank" rel="noreferrer">Motor fmsave · MIT ↗</a>
       </header>
 
+      <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700"><Cloud size={23} /></div>
+          <div className="flex-1">
+            <h2 className="font-bold text-slate-900">1. Mis partidas guardadas en MF LEGACY</h2>
+            <p className="mt-1 text-xs text-slate-600">Tus archivos .fm se guardan de forma privada en Base44. Selecciona una partida aquí sin volver a buscarla en el ordenador, incluso desde otro dispositivo.</p>
+            <p className="mt-1 text-[11px] text-slate-500">Guardar una partida no importa jugadores ni modifica sus datos. FM26 y FM27 se conservan por separado. Archivos grandes pueden tardar varios minutos en subir o abrirse.</p>
+          </div>
+        </div>
+        {cloudLoading && <p className="mt-4 text-xs text-slate-500">Conectando con tu biblioteca privada…</p>}
+        {!cloudLoading && !cloudUser && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">Inicia sesión como administrador para activar tu biblioteca en la nube. Puedes seguir leyendo partidas locales.</p>}
+        {cloudUser && <div className="mt-4 space-y-2">
+          {!cloudSaves.length && <p className="rounded-lg border border-dashed border-slate-200 p-4 text-xs text-slate-500">Todavía no hay partidas guardadas. Abre un archivo .fm abajo: cuando se termine de leer, comenzará a guardarse automáticamente aquí.</p>}
+          {cloudSaves.map(saved => <div key={saved.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+            <span className={`rounded-md px-2 py-1 text-[10px] font-black ${saved.game === "FM27" ? "bg-violet-100 text-violet-800" : "bg-blue-100 text-blue-800"}`}>{saved.game}</span>
+            <div className="min-w-[160px] flex-1">
+              <p className="truncate text-xs font-bold text-slate-900" title={saved.filename}>{saved.filename}</p>
+              <p className="text-[11px] text-slate-500">{(Number(saved.size_bytes || 0) / (1024 * 1024)).toFixed(1)} MB · {smallNumber(saved.players_count)} jugadores · {saved.in_game_date || "Fecha sin determinar"}</p>
+            </div>
+            {saved.status === "ready" ? <button type="button" onClick={() => openCloudEntry(saved)}
+              disabled={cloudBusy || working || downloading || !reader}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white hover:bg-blue-900 disabled:opacity-50">
+              <CloudDownload size={14} /> Abrir en la web
+            </button> : <span className="text-[11px] font-semibold text-amber-700">Subida pendiente · {saved.parts?.length || 0}/{saved.part_count || "?"}. Vuelve a seleccionar el mismo archivo para reanudar.</span>}
+          </div>)}
+        </div>}
+        {cloudBusy && <div role="status" className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs font-semibold text-[#003399]">
+          <span className="inline-flex items-center gap-2"><Loader2 size={15} className="animate-spin" />{cloudProgress.label} · {cloudProgress.done}/{cloudProgress.total || "?"} fragmentos</span>
+          {cloudProgress.total > 0 && <div className="mt-2 h-1.5 overflow-hidden rounded bg-blue-100"><div className="h-full bg-[#003399]" style={{ width: `${Math.round(cloudProgress.done / cloudProgress.total * 100)}%` }} /></div>}
+        </div>}
+        {cloudMessage && <div role="status" className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
+          {cloudMessage}
+          {!cloudBusy && lastLocalFileRef.current && cloudMessage.includes("no se terminó de guardar") && <button type="button" onClick={retryCloudUpload} className="ml-2 font-bold text-[#003399] underline">Reintentar guardado</button>}
+        </div>}
+      </section>
+
       <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-3"><div className="rounded-xl bg-blue-50 p-3 text-[#003399]"><FileUp size={22} /></div>
-          <div><h2 className="font-bold text-slate-900">1. Cargar una partida .fm</h2>
-            <p className="text-xs text-slate-500">El archivo se lee en tu navegador; no se sube a Base44 ni se almacena en el servidor.</p></div></div>
-        <div onDragOver={event => event.preventDefault()} onDrop={event => { void readDroppedSave(event); }}
+          <div><h2 className="font-bold text-slate-900">2. Añadir una partida .fm nueva</h2>
+            <p className="text-xs text-slate-500">Selecciona el archivo una vez. Cuando fmsave confirme que es FM26 o FM27, se guardará automáticamente en tu biblioteca privada de Base44 si has iniciado sesión como administrador.</p></div></div>
+        <div onDragOver={event => event.preventDefault()} onDrop={event => { if (!cloudBusy) void readDroppedSave(event); }}
           className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/30 p-6 text-center">
           <input ref={pickerRef} type="file" accept=".fm" className="hidden" onChange={event => { readFile(event.target.files?.[0]); event.target.value = ""; }} />
-          <button type="button" disabled={working || downloading || !reader || rememberBusy} onClick={chooseLocalSave}
+          <button type="button" disabled={working || downloading || cloudBusy || !reader || rememberBusy} onClick={chooseLocalSave}
             className="inline-flex items-center gap-2 rounded-xl bg-[#003399] px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50">
             {working ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
             {fileName ? "Cambiar partida" : "Seleccionar archivo .fm"}
           </button>
-          {typeof window.showOpenFilePicker === "function" && <button type="button" disabled={working || downloading || !reader}
-            onClick={() => pickerRef.current?.click()} className="ml-3 mt-2 text-xs font-semibold text-[#003399] underline disabled:opacity-50">Abrir sin recordar</button>}
+          {typeof window.showOpenFilePicker === "function" && <button type="button" disabled={working || downloading || cloudBusy || !reader}
+            onClick={() => pickerRef.current?.click()} className="ml-3 mt-2 text-xs font-semibold text-[#003399] underline disabled:opacity-50">Abrir sin recordar acceso local</button>}
           <p className="mt-2 text-xs text-slate-500">{fileName || "También puedes arrastrar aquí tu partida guardada."}</p>
-          <p className="mt-1 text-[11px] text-slate-500">{typeof window.showOpenFilePicker === "function" ? "Se intentará recordar el acceso a cada partida para que no tengas que buscarla de nuevo." : "El selector de este navegador no permite recordar el acceso automático; puedes seguir leyendo archivos .fm."}</p>
+          <p className="mt-1 text-[11px] text-slate-500">El primer paso sigue usando el selector de archivos porque los navegadores no pueden leer directamente tu disco. Después usarás «Abrir en la web» desde la biblioteca superior, sin selector de Windows.</p>
           {working && <p role="status" className="mt-3 text-sm font-semibold text-[#003399]">{STAGES[stage]}</p>}
         </div>
         {!!rememberedSaves.length && <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <h3 className="text-xs font-black uppercase tracking-wide text-[#0d315b]">Mis partidas recordadas · Solo este navegador</h3>
-          <p className="mt-1 text-[11px] text-slate-500">Guardamos el acceso al archivo original, no una copia. Al volver, intentamos abrir la última automáticamente; Chrome puede solicitar permiso de nuevo.</p>
+          <h3 className="text-xs font-black uppercase tracking-wide text-[#0d315b]">Accesos locales anteriores · Opcional</h3>
+          <p className="mt-1 text-[11px] text-slate-500">Son accesos guardados antes de añadir la nube. No equivalen a copias almacenadas. Puedes usar la biblioteca superior para abrir tus partidas sin volver a Windows.</p>
           <div className="mt-2 max-h-44 space-y-1 overflow-y-auto">
             {rememberedSaves.map(saved => <div key={saved.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-white px-3 py-2">
               <span className="min-w-0 flex-1 truncate text-xs font-semibold" title={saved.name}>{saved.name}</span>
@@ -512,7 +548,7 @@ export default function FmSaveExplorer() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="font-bold text-slate-900">2. Buscar un jugador o un equipo</h2>
+        <h2 className="font-bold text-slate-900">3. Buscar un jugador o un equipo</h2>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button onClick={() => { setMode("player"); setSelection(null); setQuery(""); }} type="button"
             className={`rounded-lg px-4 py-2 text-sm font-bold ${mode === "player" ? "bg-[#003399] text-white" : "bg-slate-100 text-slate-700"}`}>Jugadores</button>
@@ -550,7 +586,7 @@ export default function FmSaveExplorer() {
 
       {selection && index && <section className="rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-bold text-[#0d315b]">3. Revisar y descargar datos completos</h2>
+          <h2 className="font-bold text-[#0d315b]">4. Revisar e incorporar los datos completos</h2>
           <button type="button" className="flex items-center gap-1 text-xs font-semibold text-slate-500" onClick={() => { setSelection(null); setPlayerDetail(null); }}><ArrowLeft size={14} /> Volver</button>
         </div>
         {selection.type === "player" && <div className="mt-3 space-y-3">
