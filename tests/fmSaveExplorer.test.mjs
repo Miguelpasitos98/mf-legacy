@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildFmSaveIndex, findFmPlayers, findFmClubs, filterFmTeamDetails, buildFmExport } from "./fmSaveSearch.mjs";
+import { buildFmSaveIndex, findFmPlayers, findFmClubs, filterFmTeamDetails, buildFmExport } from "../src/utils/fmSaveSearch.mjs";
 
 const sample = buildFmSaveIndex({
   count: 4,
