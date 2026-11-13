@@ -65,6 +65,58 @@ export function buildSafeFmPatch({ source, record, target, now = new Date() }) {
   return patch;
 }
 
+
+const POSITION_RATING_COLUMNS = {
+  portero: "gk", defensa_izquierdo: "dl", defensa_central: "dc",
+  defensa_derecho: "dr", mediocentro: "dm", carrilero_izquierdo: "wbl",
+  carrilero_derecho: "wbr", centrocampista_izquierdo: "ml",
+  centrocampista: "mc", centrocampista_derecho: "mr",
+  mediapunta_por_la_izquierda: "aml", mediapunta_central: "amc",
+  mediapunta_por_la_derecha: "amr", delantero: "stc"
+};
+const FM26_ATTRIBUTE_COLUMNS = {
+  mental: {
+    agresividad: "aggression", anticipacion: "anticipation", valentia: "bravery",
+    serenidad: "composure", concentracion: "concentration", consistencia: "consistency",
+    decisiones: "decisions", determinacion: "determination", juego_sucio: "dirtiness",
+    talento: "flair", partidos_importantes: "important_matches", liderazgo: "leadership",
+    movimiento: "off_the_ball", colocacion: "positioning", trabajo_de_equipo: "teamwork",
+    vision: "vision", sacrificio: "work_rate"
+  },
+  physical: {
+    aceleracion: "acceleration", agilidad: "agility", balance: "balance",
+    alcance_de_salto: "jumping_reach", recuperacion_fisica: "natural_fitness",
+    velocidad: "pace", resistencia: "stamina", fuerza: "strength"
+  },
+  technical: {
+    saques_de_esquina: "corners", centros: "crossing", regate: "dribbling",
+    remate: "finishing", control: "first_touch", tiros_libres: "free_kick_taking",
+    cabeceo: "heading", tiros_lejanos: "long_shots", saques_largos: "long_throws",
+    marcaje: "marking", pases: "passing", penaltis: "penalty_taking",
+    entradas: "tackling", tecnica: "technique", polivalencia: "versatility"
+  },
+  goalkeeping: {
+    balones_aereos: "aerial_reach", mando_en_el_area: "command_of_area",
+    comunicacion: "communication", excentricidad: "eccentricity", blocaje: "handling",
+    saques_de_puerta: "kicking", uno_contra_uno: "one_on_ones", reflejos: "reflexes",
+    salidas_tendencia: "rushing_out", salida_de_puños: "punching",
+    saque_con_la_mano: "throwing"
+  }
+};
+export function fm26VisibleAttributes(record) {
+  const result = {};
+  for (const [group, fields] of Object.entries(FM26_ATTRIBUTE_COLUMNS)) {
+    const values = Object.fromEntries(Object.entries(fields)
+      .filter(([, source]) => Number.isFinite(record.attributes?.[source]))
+      .map(([field, source]) => [field, record.attributes[source]]));
+    result[group] = values;
+  }
+  if (Number.isFinite(record.attributes?.injury_proneness)) {
+    result.physical.tendencia_a_lesionarse = 21 - record.attributes.injury_proneness;
+  }
+  return result;
+}
+
 const PRIMARY_POSITION = {
   GK: "GK", DC: "DFC", DL: "LI", DR: "LD", WBL: "CRI", WBR: "CRD",
   DM: "CDM", MC: "CM", AMC: "CAM", AML: "EI", AMR: "ED",
@@ -113,7 +165,7 @@ export function buildNewFmPlayer({ source, record, teamId = "", countryId = "", 
     result.fm26_club_uid = String(record.club_uid ?? "");
     result.fm26_nation_id = String(record.nation_id ?? "");
     result.fm26_save_club_name = String(record.club_name || "");
-    result.fm26_team_slot = Number.isFinite(record.team_slot) ? record.team_slot : null;
+    if (Number.isFinite(record.team_slot)) result.fm26_team_slot = record.team_slot;
     result.fm26_natural_positions = natural;
     result.fm26_accomplished_positions = accomplished;
     result.fm26_raw_positions = record.positions || {};
@@ -123,6 +175,10 @@ export function buildNewFmPlayer({ source, record, teamId = "", countryId = "", 
     result.fm26_reputation = record.reputation || {};
     result.fm_position = [...natural, ...accomplished].join(", ");
     result.best_positions = natural.join(", ");
+    result.position_ratings = Object.fromEntries(Object.entries(POSITION_RATING_COLUMNS)
+      .filter(([, key]) => Number.isFinite(record.positions?.[key]))
+      .map(([field, key]) => [field, record.positions[key]]));
+    result.stats = fm26VisibleAttributes(record);
   }
   if (teamId) result.team_id = String(teamId);
   if (countryId) result.country_id = String(countryId);
