@@ -2,15 +2,22 @@ import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, ShieldCheck, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { usePlayersQuery } from "@/hooks/useSharedData";
-import { buildSafeFmPatch, compatibleFmTarget, fmNameKey, suggestFmTarget } from "@/utils/fmSaveDirectImport.mjs";
+import { usePlayersQuery, useTeamsQuery, useCountriesQuery } from "@/hooks/useSharedData";
+import { buildSafeFmPatch, buildNewFmPlayer, canCreateFmPlayer, compatibleFmTarget, fmNameKey, suggestFmTarget } from "@/utils/fmSaveDirectImport.mjs";
+
+const responseRows = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || null;
 
 export default function FmSaveDirectImportPanel({ payload, onClose }) {
   const source = payload?.source || {};
   const rows = payload?.players || [];
   const { data: players = [], isLoading, error: readError } = usePlayersQuery();
+  const { data: teams = [], isLoading: teamsLoading, error: teamsError } = useTeamsQuery();
+  const { data: countries = [], isLoading: countriesLoading, error: countriesError } = useCountriesQuery();
   const queryClient = useQueryClient();
   const [links, setLinks] = useState({});
+  const [createSelections, setCreateSelections] = useState({});
+  const [teamChoices, setTeamChoices] = useState({});
+  const [countryChoices, setCountryChoices] = useState({});
   const [searchTerms, setSearchTerms] = useState({});
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -26,6 +33,7 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
       if (candidate.match) preselected[index] = String(candidate.match.id);
     });
     setLinks(preselected);
+    setCreateSelections({});
     setConfirmed(false);
   }, [suggestions, isLoading, readError]);
 
@@ -34,15 +42,23 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
     .filter(({ record, target }) => target && compatibleFmTarget(record, target, source.game));
   const targetIds = mapped.map(({ target }) => String(target.id));
   const duplicateTarget = new Set(targetIds).size !== targetIds.length;
-  const approved = mapped.length > 0 && !duplicateTarget && confirmed && !busy && !readError && !isLoading;
+  const newRows = rows.map((record, index) => ({ record, index }))
+    .filter(({ record, index }) => createSelections[index] && !links[index] && canCreateFmPlayer({ source, record, players }).allowed);
+  const creationNames = newRows.map(({ record }) => fmNameKey(record.name));
+  const creationIds = newRows.map(({ record }) => String(record.uid));
+  const duplicateCreation = new Set(creationNames).size !== creationNames.length || new Set(creationIds).size !== creationIds.length;
+  const selectedTotal = mapped.length + newRows.length;
+  const reviewing = isLoading || teamsLoading || countriesLoading;
+  const approved = selectedTotal > 0 && !duplicateTarget && !duplicateCreation && confirmed && !busy &&
+    !readError && !teamsError && !countriesError && !reviewing;
 
   const handleImport = async () => {
     if (!approved) return;
     setBusy(true);
     setFailures([]);
     setFeedback("");
-    setProgress({ done: 0, total: mapped.length });
-    let saved = 0, unchanged = 0;
+    setProgress({ done: 0, total: selectedTotal });
+    let saved = 0, unchanged = 0, created = 0;
     const failed = [];
     try {
       for (let index = 0; index < mapped.length; index++) {
@@ -58,10 +74,36 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
         } catch (err) {
           failed.push(`${record.name}: ${err.message || "Error al guardar"}`);
         }
-        setProgress({ done: index + 1, total: mapped.length });
+        setProgress({ done: index + 1, total: selectedTotal });
+      }
+      for (let index = 0; index < newRows.length; index++) {
+        const { record, index: rowIndex } = newRows[index];
+        try {
+          const safe = canCreateFmPlayer({ source, record, players });
+          if (!safe.allowed) throw Error(safe.reason);
+          // Recheck server state immediately before each create. Fail closed on incomplete results.
+          const editionField = source.game === "FM27" ? "fm27_uid" : "fm26_uid";
+          const results = await Promise.all([
+            base44.entities.Player.filter({ [editionField]: String(record.uid) }, undefined, 10),
+            base44.entities.Player.filter({ name: record.name }, undefined, 10),
+          ]);
+          const remote = results.map(responseRows);
+          if (remote.some(result => !Array.isArray(result))) throw Error("No se pudo verificar el catálogo de duplicados.");
+          if (remote.some(result => result.length)) throw Error("La ficha ya existe o se creó en otra sesión. Revisa antes de importar.");
+          const teamId = teamChoices[rowIndex] || "";
+          const countryId = countryChoices[rowIndex] || "";
+          if (teamId && !teams.some(item => String(item.id) === String(teamId))) throw Error("Equipo de destino no válido.");
+          if (countryId && !countries.some(item => String(item.id) === String(countryId))) throw Error("País de destino no válido.");
+          const data = buildNewFmPlayer({ source, record, teamId, countryId });
+          await base44.entities.Player.create(data);
+          created++;
+        } catch (err) {
+          failed.push(`${record.name}: ${err.message || "Error al crear"}`);
+        }
+        setProgress({ done: mapped.length + index + 1, total: selectedTotal });
       }
       await queryClient.invalidateQueries({ queryKey: ["mf-legacy", "players"] });
-      setFeedback(`Resultado: ${saved} ficha(s) incorporadas; ${unchanged} ya tenían los datos; ${rows.length - mapped.length} pendientes sin vincular; ${failed.length} errores.`);
+      setFeedback(`Resultado: ${created} fichas nuevas; ${saved} existentes actualizadas; ${unchanged} sin cambios; ${rows.length - selectedTotal} pendientes; ${failed.length} errores.`);
       setFailures(failed.slice(0, 8));
       setConfirmed(false);
     } catch (err) {
