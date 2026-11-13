@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CheckCircle2, Database, Download, FileUp, Loader2, Search, ShieldCheck, Users, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Cloud, CloudDownload, CloudUpload, Database, Download, FileUp, Loader2, Search, ShieldCheck, Users, X } from "lucide-react";
 import { buildFmSaveIndex, findFmPlayers, findFmClubs, filterFmTeamDetails, buildFmExport } from "@/utils/fmSaveSearch.mjs";
 import FmSaveDirectImportPanel from "@/components/fmsave/FmSaveDirectImportPanel";
+import { base44 } from "@/api/base44Client";
+import { archiveFmCloudSave, listFmCloudSaves, openFmCloudSave } from "@/utils/fmCloudSaves.mjs";
 import { listRememberedFmSaves, rememberFmSaveHandle, touchRememberedFmSave, forgetRememberedFmSave, getRememberedFmFile } from "@/utils/fmSavedHandles.mjs";
 
 const fmNumber = (value) => Number.isFinite(value) ? Math.round(value) : "—";
@@ -44,6 +46,13 @@ export default function FmSaveExplorer() {
   const pickerRef = useRef(null);
   const restoreCheckedRef = useRef(false);
   const fileChosenRef = useRef(false);
+  const fileToCloudRef = useRef(null);
+  const [cloudUser, setCloudUser] = useState(null);
+  const [cloudSaves, setCloudSaves] = useState([]);
+  const [cloudLoading, setCloudLoading] = useState(true);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudProgress, setCloudProgress] = useState({ label: "", done: 0, total: 0 });
+  const [cloudMessage, setCloudMessage] = useState("");
   const [reader, setReader] = useState(null);
   const [stage, setStage] = useState("boot");
   const [fileName, setFileName] = useState("");
@@ -128,7 +137,7 @@ export default function FmSaveExplorer() {
     };
   }, []);
 
-  const readFile = (file) => {
+  const readFile = (file, source = "local") => {
     if (!file || !reader || ["boot", "open", "players", "indexing"].includes(stage) || downloading) return;
     if (!/\.fm$/i.test(file.name)) {
       setError("Selecciona una partida .fm de Football Manager 26 o 27.");
@@ -136,6 +145,7 @@ export default function FmSaveExplorer() {
     }
     fileChosenRef.current = true;
     generationRef.current += 1;
+    fileToCloudRef.current = source === "local" ? { file, generation: generationRef.current } : null;
     pendingRef.current.forEach(({ reject }) => reject(new Error("Se ha cargado otra partida.")));
     pendingRef.current.clear();
     detailCacheRef.current.clear();
