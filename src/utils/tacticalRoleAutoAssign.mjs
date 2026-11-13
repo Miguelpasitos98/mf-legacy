@@ -116,6 +116,11 @@ function realMetric(record, name) {
 }
 function profileScore(player, role, season) {
   const [name, attrs, real] = role;
+  // Roles que requieren hechos contextuales no se infieren de buenos atributos generales.
+  if(name==="Penalty Specialist")return null; // no hay histórico de penaltis parados fiable
+  if(name==="Chaotic Winger" && !(statValue(player,"m.consistencia")<=10 && statValue(player,"m.talento")>=14 && statValue(player,"m.decisiones")<=12))return null;
+  if(name==="Defensive Leader" && !(statValue(player,"m.liderazgo")>=14))return null;
+  if(name==="Libero Defender" && !(Number(player?.position_ratings?.mediocentro||0)>=12))return null;
   let sum=0, weight=0, missing=0, details=[];
   for(const [key,importance] of Object.entries(attrs)){
     const value=statValue(player,key);
