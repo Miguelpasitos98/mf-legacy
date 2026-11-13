@@ -64,3 +64,68 @@ export function buildSafeFmPatch({ source, record, target, now = new Date() }) {
   } else throw Error("Únicamente se admiten partidas FM26 y FM27.");
   return patch;
 }
+
+const PRIMARY_POSITION = {
+  GK: "GK", DC: "DFC", DL: "LI", DR: "LD", WBL: "CRI", WBR: "CRD",
+  DM: "CDM", MC: "CM", AMC: "CAM", AML: "EI", AMR: "ED",
+  STC: "DC", ML: "MI", MR: "MD"
+};
+
+/** Never create a new Player when either the edition's UID or the identity already exists. */
+export function canCreateFmPlayer({ source, record, players = [] }) {
+  const edition = source?.game;
+  const key = uidKey(edition);
+  const identity = fmNameKey(record?.name);
+  const originalId = sourceUid(record);
+  if (!key || !identity || !/^\d{1,20}$/.test(originalId) ||
+      (typeof record?.uid === "number" && !Number.isSafeInteger(record.uid))) {
+    return { allowed: false, reason: "Registro sin edición, nombre o UID válido." };
+  }
+  const idCollision = players.some(item => !empty(item[key]) && String(item[key]) === originalId);
+  if (idCollision) return { allowed: false, reason: "Ese ID ya pertenece a una ficha de esta edición. Vincúlala en lugar de crear otra." };
+  if (players.some(item => fmNameKey(item.name) === identity)) {
+    return { allowed: false, reason: "Ya existe un jugador con el mismo nombre. Revisa la identidad y vincula su ficha antes de crear." };
+  }
+  return { allowed: true, reason: "" };
+}
+
+/** New records have only edition-scoped FM data plus unambiguous basic identity fields. */
+export function buildNewFmPlayer({ source, record, teamId = "", countryId = "", now = new Date() }) {
+  const allowed = canCreateFmPlayer({ source, record });
+  if (!allowed.allowed) throw Error(allowed.reason);
+  const result = {
+    name: record.name.trim(),
+    ...buildSafeFmPatch({ source, record, target: { id: "__new__", name: record.name }, now }),
+  };
+  const birth = isoDate(record.birth_date);
+  if (birth) result.date_of_birth = `${birth.slice(8, 10)}/${birth.slice(5, 7)}/${birth.slice(0, 4)}`;
+  if (Number.isFinite(record.height_cm)) result.height = record.height_cm;
+  if (Number.isFinite(record.left_foot)) result.left_foot = String(record.left_foot);
+  if (Number.isFinite(record.right_foot)) result.right_foot = String(record.right_foot);
+  const natural = Array.isArray(record.natural_positions) ? record.natural_positions : [];
+  const accomplished = Array.isArray(record.accomplished_positions) ? record.accomplished_positions : [];
+  const primary = [...natural, ...accomplished].find(item => PRIMARY_POSITION[item]);
+  if (primary) {
+    result.position = PRIMARY_POSITION[primary];
+    result.position_raw = primary;
+  }
+  if (source.game === "FM26") {
+    result.fm26_club_uid = String(record.club_uid ?? "");
+    result.fm26_nation_id = String(record.nation_id ?? "");
+    result.fm26_save_club_name = String(record.club_name || "");
+    result.fm26_team_slot = Number.isFinite(record.team_slot) ? record.team_slot : null;
+    result.fm26_natural_positions = natural;
+    result.fm26_accomplished_positions = accomplished;
+    result.fm26_raw_positions = record.positions || {};
+    result.fm26_raw_attributes = record.raw_attributes || {};
+    result.fm26_personality = record.personality || {};
+    result.fm26_traits = Array.isArray(record.traits) ? record.traits : [];
+    result.fm26_reputation = record.reputation || {};
+    result.fm_position = [...natural, ...accomplished].join(", ");
+    result.best_positions = natural.join(", ");
+  }
+  if (teamId) result.team_id = String(teamId);
+  if (countryId) result.country_id = String(countryId);
+  return result;
+}
+
