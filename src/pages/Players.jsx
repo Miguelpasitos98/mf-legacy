@@ -7,6 +7,7 @@ import {
 import PlayersDetail from "@/pages/PlayerDetail";
 import {candidatePoolValue} from "@/components/managers/managerCandidatePool.mjs";
 import {fm27FilterPlayer,fm27ReviewSummary} from "@/components/players/fm27Review.mjs";
+import {bestFmRating} from "@/utils/playerBestFmRatings.mjs";
 import {groupPlayersByLeague} from "@/components/players/playerLeagueGroups.mjs";
 import {groupPlayerIds,selectedGroupCount,toggleGroupSelection} from "@/components/players/playerGroupSelection.mjs";
 import {updatePlayerCacheRows} from "@/utils/playerEditPatch";
@@ -1859,8 +1860,8 @@ export default function Players() {
         );
       })
       .sort((a, b) => {
-        if (sortBy === "ca") return Number(b.ca || 0) - Number(a.ca || 0);
-        if (sortBy === "cp") return Number(b.cp || 0) - Number(a.cp || 0);
+        if (sortBy === "ca") return (bestFmRating(b,"ca").value ?? -1) - (bestFmRating(a,"ca").value ?? -1);
+        if (sortBy === "cp") return (bestFmRating(b,"cp").value ?? -1) - (bestFmRating(a,"cp").value ?? -1);
         if (sortBy === "position") {
           const oa = posOrder(a), ob = posOrder(b);
           if (oa !== ob) return oa - ob;
