@@ -44,8 +44,8 @@ export default async function(req) {
   if (req.method !== "POST") return bad("Solo POST.",405);
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user || user.role !== "admin") return bad("Solo administradores.",403);
+    // Import Center is single-user and intentionally requires no sign-in.
+    // Scope all writes to validated import actions and verified Player identities.
     const body = await req.json();
     const action = str(body.action || "start");
     const db = base44.asServiceRole.entities;
@@ -204,7 +204,7 @@ export default async function(req) {
     return bad("Acción desconocida.");
   } catch(e) {
     const status=Number(e?.status||e?.response?.status);
-    if(status===401||status===403||/authentication required/i.test(e?.message||""))return bad("Inicia sesión con una cuenta de administrador.",status===403?403:401);
+    if(status===401||status===403||/authentication required/i.test(e?.message||""))return bad("El servicio de importación exige autenticación de plataforma. Revisa la configuración de acceso público.",status===403?403:401);
     console.error("import-control error",e);return bad(e?.message || "Error interno.",500);
   }
 }
