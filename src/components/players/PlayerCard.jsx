@@ -3,6 +3,7 @@ import { Users, Building2 } from "lucide-react";
 import SmartImage from "./SmartImage";
 import {candidateOutlineClass} from "./playerCandidateOutline.mjs";
 import {isFm27Reviewed,hasFm27Value} from "./fm27Review.mjs";
+import {bestFmRating} from "@/utils/playerBestFmRatings.mjs";
 
 // ============================================================
 // Helpers extraídos de Players.jsx para mantener PlayerCard
@@ -362,10 +363,10 @@ function PlayerCardInner({
         <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 flex-wrap items-center gap-1.5 text-xs`}>
           <span className="min-w-0 break-words font-semibold text-slate-900">{legacyTitle}</span>
           <span className="shrink-0 text-slate-300">|</span>
-          <span title="CA / CP de FM26" className="shrink-0 font-semibold text-slate-500">
-            FM26 {player.ca !== "" && player.ca != null ? player.ca : "—"} / {player.cp !== "" && player.cp != null ? player.cp : "—"}
+          <span className="shrink-0 font-bold text-[#003399]"
+            title={`Mejor CA entre FM26 y FM27: ${bestFmRating(player,"ca").edition || "sin dato"}. Mejor CP: ${bestFmRating(player,"cp").edition || "sin dato"}. Valores originales conservados por edición.`}>
+            CA {bestFmRating(player,"ca").value ?? "—"} / CP {bestFmRating(player,"cp").value ?? "—"}
           </span>
-          {hasFm27Value(player)&&<span title="CA / CP registrados manualmente para FM27" className="shrink-0 font-bold text-blue-800">FM27 {player.fm27_ca??"—"} / {player.fm27_cp??"—"}</span>}
         </div>
 
         {/* AGE + POSITION RATINGS */}
