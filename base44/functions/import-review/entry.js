@@ -238,8 +238,8 @@ export default async function(req) {
   if(req.method!=="POST")return bad("Solo POST.",405);
   try {
     const sdk=createClientFromRequest(req);
-    const user=await sdk.auth.me();
-    if(!user || user.role!=="admin")return bad("Solo administradores.",403);
+    // The owner chose an import workflow without sign-in. Audit as public editor.
+    const user={id:"public-import-editor"};
     const data=await req.json();
     const action=str(data.action),candidateId=str(data.candidate_id);
     const db=withEntityRetries(sdk.asServiceRole.entities);
