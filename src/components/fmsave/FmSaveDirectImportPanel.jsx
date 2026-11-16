@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { usePlayersQuery, useTeamsQuery, useCountriesQuery } from "@/hooks/useSharedData";
 import { buildSafeFmPatch, buildNewFmPlayer, canCreateFmPlayer, compatibleFmTarget, fmNameKey, suggestFmTarget } from "@/utils/fmSaveDirectImport.mjs";
+import { automaticFmDestination, matchingFmTeams, matchingFmCountries } from "@/utils/fmImportDestinations.mjs";
 
 const responseRows = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || null;
 
@@ -72,6 +73,7 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
   const [failures, setFailures] = useState([]);
 
   const suggestions = useMemo(() => rows.map(row => suggestFmTarget(row, players, source.game)), [rows, players, source.game]);
+  const suggestedDestinations=useMemo(()=>rows.map(record=>automaticFmDestination(record,teams,countries)),[rows,teams,countries]);
   useEffect(() => {
     if (isLoading || readError) return;
     const preselected = {};
@@ -138,8 +140,8 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
             throw Error("No se pudo verificar completamente el catálogo de duplicados.");
           }
           if (remote.some(result => result.length)) throw Error("La ficha ya existe o se creó en otra sesión. Revisa antes de importar.");
-          const teamId = teamChoices[rowIndex] || "";
-          const countryId = countryChoices[rowIndex] || "";
+          const teamId = teamChoices[rowIndex] === undefined ? suggestedDestinations[rowIndex]?.teamId || "" : teamChoices[rowIndex];
+          const countryId = countryChoices[rowIndex] === undefined ? suggestedDestinations[rowIndex]?.countryId || "" : countryChoices[rowIndex];
           if (teamId && !teams.some(item => String(item.id) === String(teamId))) throw Error("Equipo de destino no válido.");
           if (countryId && !countries.some(item => String(item.id) === String(countryId))) throw Error("País de destino no válido.");
           const data = buildNewFmPlayer({ source, record, teamId, countryId });
