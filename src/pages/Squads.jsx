@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Search, Plus, Trash2, Users, Copy, CalendarDays } from "lucide-react";
+import { Search, Plus, Trash2, Users, Copy, CalendarDays, ChevronLeft } from "lucide-react";
 import TacticalBuilder from "@/components/teams/TacticalBuilder";
 import FreeLineupPanel from "@/components/teams/FreeLineupPanel";
 import SquadManagerBadge from "@/components/managers/SquadManagerBadge";
@@ -227,15 +227,15 @@ export default function Squads() {
   };
   return <div className="mx-auto max-w-[1650px] px-3 py-3 md:px-5 text-slate-900">
     <div className="mb-3"><p className="text-xs font-bold uppercase tracking-[.2em] text-blue-700">MF LEGACY</p><h1 className="text-3xl md:text-4xl font-black">Plantillas y Onces</h1><p className="text-slate-500 mt-1">Crea plantillas y onces de tus clubes personalizados, sin afectar a los equipos reales de la base.</p></div>
-    <div className="grid grid-cols-1 lg:grid-cols-[205px_minmax(0,1fr)] gap-3">
-      <aside className="rounded-2xl border border-slate-200 bg-white p-4 lg:self-start"><h2 className="font-bold mb-3">Mis clubes personalizados</h2><div className="relative mb-3"><Search className="absolute left-3 top-3 text-slate-400" size={17}/><input aria-label="Buscar equipo" value={teamQuery} onChange={e=>setTeamQuery(e.target.value)} placeholder="Buscar equipo..." className="w-full rounded-lg border border-slate-200 p-2.5 pl-9"/></div>
+    <div className={`grid grid-cols-1 gap-3 ${freeMode ? "" : "lg:grid-cols-[205px_minmax(0,1fr)]"}`}>
+      {!freeMode && <aside className="rounded-2xl border border-slate-200 bg-white p-4 lg:self-start"><h2 className="font-bold mb-3">Mis clubes personalizados</h2><div className="relative mb-3"><Search className="absolute left-3 top-3 text-slate-400" size={17}/><input aria-label="Buscar equipo" value={teamQuery} onChange={e=>setTeamQuery(e.target.value)} placeholder="Buscar equipo..." className="w-full rounded-lg border border-slate-200 p-2.5 pl-9"/></div>
         <div className="max-h-[650px] overflow-auto space-y-1"><button type="button" onClick={chooseFree} aria-pressed={freeMode} className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-slate-100 ${freeMode?"bg-blue-50 ring-1 ring-blue-300":""}`}><Users size={23} className="text-slate-500"/><span className="text-sm font-semibold">Once sin equipo</span></button>{customTeams.filter(t=>t.name?.toLowerCase().includes(teamQuery.toLowerCase())).map(t=><button type="button" key={t.id} onClick={()=>chooseTeam(t.id)} className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-slate-100 ${teamId === String(t.id)?"bg-blue-50 ring-1 ring-blue-300":""}`}>{t.logo?<img src={t.logo} className="w-8 h-8 object-contain" alt=""/>:<Users size={23}/>}<span className="text-sm font-semibold">{t.name}</span></button>)}</div>
-      </aside>
+      </aside>}
       <section className="rounded-2xl border border-slate-200 bg-white p-3 md:p-4 min-h-[430px] min-w-0">
         {!activeTeam ? <div className="flex flex-col items-center justify-center h-64 text-center gap-2 px-4">
           <p className="font-semibold text-slate-700">{!loading && customTeams.length === 0 ? "Todavía no hay clubes marcados como personalizados." : "Elige un club personalizado o crea un once sin equipo."}</p>
           <p className="text-sm text-slate-500">{teamId && !allowedTeamIds.has(teamId) ? "Este equipo no está marcado como club personalizado, por lo que no se puede editar aquí." : "Puedes marcar un club como personalizado desde su ficha en Equipos, o trabajar sin club con «Once sin equipo»."}</p>
-        </div> : freeMode ? <FreeLineupPanel players={players} onDirtyChange={setLineupDirty} /> : <>
+        </div> : freeMode ? <><div className="mb-2 flex justify-end"><button type="button" onClick={()=>chooseTeam("")} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><ChevronLeft size={14}/> Elegir club</button></div><FreeLineupPanel players={players} onDirtyChange={setLineupDirty} /></> : <>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><div className="flex gap-3 items-center">{team.logo&&<img src={team.logo} alt="" className="w-12 h-12 object-contain"/>}<div><h2 className="text-2xl font-extrabold">{team.name}</h2><p className="text-sm text-slate-500">{roster.length} jugadores asignados</p></div></div><label className="text-sm font-medium">Temporada <select aria-label="Temporada histórica" value={season} onChange={e=>navigateSeason(e.target.value)} className="block mt-1 w-40 rounded-lg border px-3 py-2">{sortSeasons([...seasonOptions,season]).map(s=><option key={s} value={s}>{s}</option>)}</select></label></div>
           <SquadManagerBadge teamId={teamId} season={season} />
           <TacticalBuilder key={`${teamId}:${season}`} coachShape={coachShape} team={team} season={season} roster={roster} allPlayers={players} comparison={comparison} balanceComparison={balanceComparison} onEnsurePlayer={ensurePlayerForSquad} onDirtyChange={setLineupDirty} />

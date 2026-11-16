@@ -66,3 +66,12 @@ export function assignmentShape(assignment,profiles,managers){
 export function templateName(manager,formation){
  return `Once táctico · ${manager?.display_name||manager?.name||"Entrenador"} · ${formation}`;
 }
+// Catálogo amplio de sistemas disponible en el constructor de onces. Cada
+// nombre se dibuja con generateFormation, que garantiza once posiciones únicas.
+export const EXTRA_FORMATIONS=[
+ "4-1-4-1","4-2-2-2","4-1-2-1-2","4-2-1-3","4-3-2-1","4-4-1-1","4-1-3-2","4-2-4","4-5-1",
+ "3-4-3","3-4-2-1","3-4-1-2","3-5-1-1","3-3-3-1","3-6-1",
+ "5-3-2","5-2-3","5-4-1","5-2-2-1","5-3-1-1",
+ "2-3-5","2-6-2","4-6-0"
+];
+export const FORMATION_CATALOG=[...new Set([...Object.keys(BASE_FORMATIONS),...EXTRA_FORMATIONS])];

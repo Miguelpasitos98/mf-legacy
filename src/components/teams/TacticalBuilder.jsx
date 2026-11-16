@@ -6,7 +6,9 @@ import PlayerPortrait from "./PlayerPortrait";
 import LineupManagerPicker from "./LineupManagerPicker";
 import { BalancePanel, PlayerPicker } from "./LineupSidePanel";
 import { analyzeLineup } from "./lineupAnalysis.mjs";
-import {BASE_FORMATIONS,generateFormation} from "./managerFormationBridge.mjs";
+import {BASE_FORMATIONS,FORMATION_CATALOG,generateFormation} from "./managerFormationBridge.mjs";
+import {slotRoleBadge} from "./lineupRoles.mjs";
+import useManagerRoleProfile from "@/hooks/useManagerRoleProfile";
 import {lineupRows,reconcileLineupChildren} from "./lineupPersistence.mjs";
 
 export const FORMATIONS = BASE_FORMATIONS;
@@ -25,6 +27,8 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
   const scopeId = String(team.id);
   const lineupFilter = standalone ? {team_type:scopeType,team_id:scopeId} : {team_type:scopeType,team_id:scopeId,season};
   const [manager,setManager] = useState(()=>coachShape?.manager?{id:String(coachShape.manager.id),name:coachShape.manager.display_name||coachShape.manager.name||""}:null);
+  // Prioridades por posición del entrenador elegido: se muestran como rol en el campo.
+  const roleText = useManagerRoleProfile(manager?.id || "");
   const [formation,setFormation] = useState(coachShape?.formation||"4-3-3");
   const [slots,setSlots] = useState({});
   const [slotPositions,setSlotPositions]=useState({});
@@ -37,7 +41,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
   const [lineups,setLineups] = useState([]);
   const appliedAssignment=useRef("");
   const shapeOf=code=>FORMATIONS[code]||generateFormation(code);
-  const formationOptions=[...new Set([...Object.keys(FORMATIONS),...(coachShape?.formation?[coachShape.formation]:[]),...lineups.map(l=>l.formation)])].filter(f=>{try{return shapeOf(f).length===11}catch{return false}});
+  const formationOptions=[...new Set([...FORMATION_CATALOG,...Object.keys(FORMATIONS),...(coachShape?.formation?[coachShape.formation]:[]),...lineups.map(l=>l.formation)])].filter(f=>{try{return shapeOf(f).length===11}catch{return false}});
   const [activeId,setActiveId] = useState("");
   const [lineupName,setLineupName] = useState("Once ideal");
   const [busy,setBusy] = useState(false);
@@ -285,7 +289,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     {exportError&&<p role="alert" className="mb-3 text-sm text-red-700">{exportError}</p>}
     {error&&<p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
     {notice&&<p role="status" className="mb-3 text-xs text-amber-700">{notice}</p>}
-    <div className="flex flex-wrap items-center gap-2 mb-2"><span className="font-bold text-sm">Formación</span>{formationOptions.map(f=><button type="button" key={f} aria-pressed={f===formation} onClick={()=>changeFormation(f)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${formation===f?"bg-lime-400 text-slate-900":"bg-slate-100 hover:bg-slate-200"}`}>{f}</button>)}
+    <div className="flex flex-wrap items-start gap-2 mb-2"><span className="pt-1 text-sm font-bold">Formación</span><div className="flex max-h-[92px] flex-wrap gap-1 overflow-y-auto pr-1">{formationOptions.map(f=><button type="button" key={f} aria-pressed={f===formation} onClick={()=>changeFormation(f)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${formation===f?"bg-lime-400 text-slate-900":"bg-slate-100 hover:bg-slate-200"}`}>{f}</button>)}</div>
       <button type="button" onClick={restoreShape} className="text-xs rounded-lg border px-2 py-1.5" title="Restaurar posiciones sin quitar jugadores">Restaurar forma</button>
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <LineupManagerPicker value={manager} onChange={setManager} disabled={busy}/>
@@ -303,9 +307,10 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
           </div>
         <div ref={pitchRef} className="relative w-full overflow-hidden rounded-xl border-2 border-white/20 h-[min(53dvh,520px)] sm:h-[min(60dvh,600px)] xl:h-[min(60dvh,610px)]" style={{backgroundColor:pitchColor,backgroundImage:pitchStyle==="striped"?"repeating-linear-gradient(0deg,transparent 0%,transparent 10%,rgba(255,255,255,.055) 10%,rgba(255,255,255,.055) 20%)":pitchStyle==="diagonal"?"repeating-linear-gradient(135deg,transparent 0px,transparent 54px,rgba(255,255,255,.04) 54px,rgba(255,255,255,.04) 108px)":"none"}} aria-label="Campo de fútbol">
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" fill="none" stroke="#ffffff" strokeOpacity=".23" strokeWidth=".65"><rect x="4" y="3" width="92" height="94" rx="2"/><path d="M4 50H96"/><ellipse cx="50" cy="50" rx="12" ry="9"/><path d="M31 3V18H69V3M40 3V9H60V3M31 97V82H69V97M40 97V91H60V97"/></svg>
-          {activeSlots.map(([x,y,code])=>{const id=slots[code];const entry=roster.find(r=>String(r.player_id)===id);return <button type="button" key={code} aria-label={`${code}: ${entry?.player?.name||"vacío"}`} aria-pressed={selected===code} onPointerDown={e=>pointerDown(e,code)} onPointerMove={e=>pointerMove(e,code)} onPointerUp={e=>pointerUp(e,code)} onPointerCancel={()=>{pointerRef.current=null}} onClick={()=>selectPosition(code)} className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-[21%] sm:w-[18%] max-w-[125px] rounded-xl py-0.5 transition-all touch-none select-none cursor-grab active:cursor-grabbing ${selected===code?"bg-white/10 ring-1 ring-white/50":"hover:bg-white/5"}`} style={{left:(slotPositions[code]?.x??x)+"%",top:(slotPositions[code]?.y??y)+"%"}}>
+          {activeSlots.map(([x,y,code])=>{const id=slots[code];const entry=roster.find(r=>String(r.player_id)===id);const role=manager?.id?slotRoleBadge(code,roleText):null;return <button type="button" key={code} aria-label={`${code}: ${entry?.player?.name||"vacío"}`} aria-pressed={selected===code} onPointerDown={e=>pointerDown(e,code)} onPointerMove={e=>pointerMove(e,code)} onPointerUp={e=>pointerUp(e,code)} onPointerCancel={()=>{pointerRef.current=null}} onClick={()=>selectPosition(code)} className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center w-[21%] sm:w-[18%] max-w-[125px] rounded-xl py-0.5 transition-all touch-none select-none cursor-grab active:cursor-grabbing ${selected===code?"bg-white/10 ring-1 ring-white/50":"hover:bg-white/5"}`} style={{left:(slotPositions[code]?.x??x)+"%",top:(slotPositions[code]?.y??y)+"%"}}>
             <span className={`relative flex rounded-full items-center justify-center overflow-hidden shrink-0 text-white font-bold transition-all ${id ? "w-12 h-12 sm:w-16 sm:h-16 xl:w-[72px] xl:h-[72px] bg-transparent border-0 shadow-[0_4px_12px_rgba(0,0,0,.28)]" : "w-10 h-10 sm:w-12 sm:h-12 xl:w-12 xl:h-12 bg-[#0e3026]/65 border border-white/25 text-xs shadow-sm"}`}>{showPhotos&&id?<PlayerPortrait player={entry?.player} className="w-full h-full object-cover" fallback={showNumbers?(entry?.shirt_number??"?"):"●"}/>:showNumbers?(entry?.shirt_number??"+"):(id?"●":"+ ")}</span>
             <span className="mt-0.5 text-[10px] sm:text-xs font-extrabold text-white text-center leading-tight w-full truncate drop-shadow-md bg-black/25 rounded px-1">{entry?.player?.name?.split(" ").slice(-1)[0] || code}</span>
+            {role&&<span className="mt-0.5 w-full truncate rounded bg-black/40 px-1 text-[8px] sm:text-[9px] font-bold text-lime-200" title={`Rol pedido por ${manager?.name||"el entrenador"}`}>{role.emoji} {role.label}</span>}
           </button>})}
         </div>
           {showBenchExport&&bench.length>0&&<div className="pt-3 px-2 pb-2"><p className="text-[10px] uppercase tracking-widest text-lime-300 mb-2 font-bold">Banquillo · {bench.length}</p><div className="flex flex-wrap gap-2">{bench.map(pid=>{const m=roster.find(r=>String(r.player_id)===pid);return <span key={pid} className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-xs font-semibold">{showNumbers&&m?.shirt_number!=null?`${m.shirt_number} · `:""}{m?.player?.name||"Jugador"}</span>})}</div></div>}
