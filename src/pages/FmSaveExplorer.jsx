@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, Cloud, CloudDownload, Database, Download, FileUp, Loader2, Search, ShieldCheck, Users, X } from "lucide-react";
 import { buildFmSaveIndex, findFmPlayers, findFmClubs, filterFmTeamDetails, buildFmExport } from "@/utils/fmSaveSearch.mjs";
 import FmSaveDirectImportPanel from "@/components/fmsave/FmSaveDirectImportPanel";
+import FmVaultPanel from "@/components/fmsave/FmVaultPanel";
 import { base44 } from "@/api/base44Client";
 import { archiveFmCloudSave, listFmCloudSaves, openFmCloudSave } from "@/utils/fmCloudSaves.mjs";
 import { listRememberedFmSaves, rememberFmSaveHandle, touchRememberedFmSave, forgetRememberedFmSave, getRememberedFmFile } from "@/utils/fmSavedHandles.mjs";
@@ -218,7 +219,8 @@ export default function FmSaveExplorer() {
   };
 
   useEffect(() => {
-    if (stage !== "ready" || !meta || !index || !cloudUser || cloudBusy) return;
+    // Legacy administrator-only archive is retired in favour of the private-key vault.
+    if (true || stage !== "ready" || !meta || !index || !cloudUser || cloudBusy) return;
     const pending = fileToCloudRef.current;
     if (!pending || pending.generation !== generationRef.current) return;
     if (!["FM26", "FM27"].includes(meta.game)) {
@@ -470,7 +472,13 @@ export default function FmSaveExplorer() {
           href="https://github.com/rhiever/fmsave" target="_blank" rel="noreferrer">Motor fmsave · MIT ↗</a>
       </header>
 
-      <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+      <FmVaultPanel
+        readyFile={stage === "ready" && meta && index && lastLocalFileRef.current?.generation === generationRef.current
+          ? {...lastLocalFileRef.current,meta,count:index.count}:null}
+        onOpenFile={file => readFile(file,"cloud")}
+        disabled={!reader || downloading || ["boot","open","players","indexing"].includes(stage)} />
+
+      <section className="hidden rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-emerald-50 p-3 text-emerald-700"><Cloud size={23} /></div>
           <div className="flex-1">
