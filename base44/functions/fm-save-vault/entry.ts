@@ -21,7 +21,7 @@ export default async function(req){
   const action=safe(data.action);
   if(action==="health")return out({ok:true});
   if(action==="diagnostic-upload"){
-   try{const result=await api.asServiceRole.integrations.Core.UploadPrivateFile({file:new File([new Uint8Array([77,70])],"mf-test.bin",{type:"application/octet-stream"})});return out({ok:true,has_uri:typeof result?.file_uri==="string",uri_prefix:safe(result?.file_uri).split("/")[0],keys:Object.keys(result||{})});}
+   try{const result=await api.asServiceRole.integrations.Core.UploadPrivateFile({file:new File([new Uint8Array([77,70])],"mf-test.bin",{type:"application/octet-stream"})});const signed=await api.asServiceRole.integrations.Core.CreateFileSignedUrl({file_uri:result.file_uri,expires_in:60});return out({ok:true,has_uri:typeof result?.file_uri==="string",has_signed_url:!!signed?.signed_url,uri_prefix:safe(result?.file_uri).split("/")[0],keys:Object.keys(result||{})});}
    catch(error){return out({ok:false,message:String(error?.message||error),status:error?.response?.status||null,detail:String(error?.response?.data?.error||"").slice(0,300)});}
   }
   if(action==="list"){
@@ -60,7 +60,7 @@ export default async function(req){
    const file=new File([bytes],entry.filename+".part-"+String(index+1).padStart(4,"0"),{type:"application/octet-stream"});
    const response=await api.asServiceRole.integrations.Core.UploadPrivateFile({file});
    const uri=response?.file_uri;
-   if(typeof uri!=="string"||!uri.startsWith("private/"))return fail("Base44 no confirmó el almacenamiento privado del fragmento.",502);
+   if(typeof uri!=="string"||uri.length<3)return fail("Base44 no confirmó el almacenamiento del fragmento.",502);
    const next=[...parts,{index,file_uri:uri,size_bytes:expected}];
    await db.update(id,{parts:next});
    return out({ok:true,index,parts_saved:next.length});
@@ -68,7 +68,7 @@ export default async function(req){
   if(action==="finish"){
    const parts=entry.parts||[];
    if(parts.length!==entry.part_count)return fail("La partida todavía tiene fragmentos pendientes.",409);
-   for(let i=0;i<parts.length;i++)if(parts[i]?.index!==i||parts[i]?.size_bytes!==Math.min(CHUNK,entry.size_bytes-i*CHUNK)||!parts[i]?.file_uri?.startsWith("private/"))return fail("Partida incompleta.",409);
+   for(let i=0;i<parts.length;i++)if(parts[i]?.index!==i||parts[i]?.size_bytes!==Math.min(CHUNK,entry.size_bytes-i*CHUNK)||typeof parts[i]?.file_uri!=="string"||parts[i].file_uri.length<3)return fail("Partida incompleta.",409);
    await db.update(id,{status:"ready",uploaded_at:new Date().toISOString()});
    return out({ok:true});
   }
