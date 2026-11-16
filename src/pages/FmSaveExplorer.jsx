@@ -181,12 +181,12 @@ export default function FmSaveExplorer() {
     pendingRef.current.forEach(({reject})=>reject(new Error("Se ha seleccionado otro índice.")));
     pendingRef.current.clear();
     const numbers={
-      uid:Float64Array.from(payload.numbers.uid).buffer,
-      club_uid:Float64Array.from(payload.numbers.club_uid).buffer,
-      team_slot:Float32Array.from(payload.numbers.team_slot).buffer,
-      ability_current:Float32Array.from(payload.numbers.ability_current).buffer,
-      ability_potential:Float32Array.from(payload.numbers.ability_potential).buffer,
-      age:Float32Array.from(payload.numbers.age).buffer,
+      uid:Float64Array.from(payload.numbers.uid, value => value === null ? NaN : value).buffer,
+      club_uid:Float64Array.from(payload.numbers.club_uid, value => value === null ? NaN : value).buffer,
+      team_slot:Float32Array.from(payload.numbers.team_slot, value => value === null ? NaN : value).buffer,
+      ability_current:Float32Array.from(payload.numbers.ability_current, value => value === null ? NaN : value).buffer,
+      ability_potential:Float32Array.from(payload.numbers.ability_potential, value => value === null ? NaN : value).buffer,
+      age:Float32Array.from(payload.numbers.age, value => value === null ? NaN : value).buffer,
     };
     const cached=buildFmSaveIndex({count:payload.count,numbers,text:payload.text});
     const metadata={game:entry.game,build:entry.build,date:entry.in_game_date,fmsave:"Índice guardado"};
