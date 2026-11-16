@@ -123,7 +123,8 @@ export default function FmSaveExplorer() {
             pending.reject(new Error(message.text));
           }
         } else {
-          setError(message.text || "No se ha podido leer la partida.");
+          const phaseLabel = {open:"apertura del archivo",players:"lectura de jugadores"}[message.failedStage];
+          setError((message.text || "No se ha podido leer la partida.") + (phaseLabel ? " Fase: " + phaseLabel + "." : ""));
           setStage("failed");
         }
       }
