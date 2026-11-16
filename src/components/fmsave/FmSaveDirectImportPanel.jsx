@@ -12,7 +12,7 @@ function SearchableDestination({ items, value, onChange, placeholder, pendingLab
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const selected = items.find(item => String(item.id) === String(value || ""));
-  const normalize = text => String(text || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase().trim();
+  const normalize = text => String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase().trim();
   const matches = useMemo(() => {
     const term = normalize(query);
     return (term ? items.filter(item => normalize(item.name).includes(term)) : items).slice(0, 12);
