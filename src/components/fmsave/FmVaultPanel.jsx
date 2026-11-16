@@ -1,9 +1,9 @@
 import React,{useEffect,useRef,useState} from "react";
 import {Cloud,CloudDownload,Loader2,RefreshCw} from "lucide-react";
 import {base44} from "@/api/base44Client";
-import {checkVault,downloadVault,listVault,uploadVault} from "@/utils/fmVaultClient.mjs";
+import {checkVault,downloadVault,downloadVaultIndex,listVault,uploadVault,uploadVaultIndex} from "@/utils/fmVaultClient.mjs";
 
-export default function FmVaultPanel({readyFile,onOpenFile,disabled=false}){
+export default function FmVaultPanel({readyFile,onOpenFile,onOpenIndex,disabled=false}){
  const [connected,setConnected]=useState(false);
  const [items,setItems]=useState([]);
  const [loading,setLoading]=useState(true);
@@ -28,7 +28,14 @@ export default function FmVaultPanel({readyFile,onOpenFile,disabled=false}){
   try{
    const result=await uploadVault(base44,"",fileData.file,{...fileData.meta,players_count:fileData.count},(done,total)=>setProgress({done,total,caption:"Guardando en la nube"}));
    await refresh();
-   setMessage(result.alreadySaved?"La partida ya estaba guardada en la nube.":"Partida guardada. Puedes abrirla desde el móvil o el PC sin volver a subirla.");
+   try{
+    setProgress({done:0,total:0,caption:"Preparando buscador rápido"});
+    await uploadVaultIndex(base44,"",result.entry,fileData.index,(done,total)=>setProgress({done,total,caption:"Guardando índice de búsqueda"}));
+    await refresh();
+    setMessage("Partida e índice de búsqueda guardados. Puedes buscar desde cualquier dispositivo sin descargar todo el archivo.");
+   }catch(indexError){
+    setMessage("Partida .fm guardada correctamente. El índice rápido está pendiente: "+indexError.message);
+   }
   }catch(caught){setError("No se terminó el guardado: "+caught.message);}
   finally{setBusy(false);}
  };
@@ -39,6 +46,16 @@ export default function FmVaultPanel({readyFile,onOpenFile,disabled=false}){
   attemptedRef.current.add(identity);
   void archive(readyFile);
  },[connected,readyFile?.generation]);
+ const openIndex=async entry=>{
+  if(busy||disabled||!onOpenIndex)return;
+  setBusy(true);setError("");setMessage("");setProgress({done:0,total:entry.index_part_count,caption:"Abriendo buscador rápido"});
+  try{
+   const payload=await downloadVaultIndex(base44,"",entry,(done,total)=>setProgress({done,total,caption:"Abriendo buscador rápido"}));
+   onOpenIndex(entry,payload);
+   setMessage("Buscador listo. Para consultar atributos completos o importar, abre la partida original.");
+  }catch(caught){setError(caught.message);}
+  finally{setBusy(false);}
+ };
  const open=async entry=>{
   if(busy||disabled)return;
   setBusy(true);setError("");setMessage("");setProgress({done:0,total:entry.part_count,caption:"Recuperando partida"});
@@ -65,7 +82,10 @@ export default function FmVaultPanel({readyFile,onOpenFile,disabled=false}){
     <span className="rounded bg-blue-100 px-2 py-1 text-[10px] font-bold text-blue-900">{item.game}</span>
     <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold" title={item.filename}>{item.filename}</p>
      <p className="text-[11px] text-slate-500">{(item.size_bytes/1048576).toFixed(1)} MB · {item.players_count||0} jugadores · {item.parts_saved}/{item.part_count} fragmentos</p></div>
-    {item.status==="ready"?<button type="button" disabled={busy||disabled} onClick={()=>open(item)} className="inline-flex items-center gap-1 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40"><CloudDownload size={15}/> Abrir</button>:
+    {item.status==="ready"?<div className="flex gap-2">
+      {item.index_status==="ready"&&<button type="button" disabled={busy||disabled} onClick={()=>openIndex(item)} className="inline-flex items-center gap-1 rounded-lg border border-[#003399] bg-white px-3 py-2 text-xs font-bold text-[#003399] disabled:opacity-40">Buscar rápido</button>}
+      <button type="button" disabled={busy||disabled} onClick={()=>open(item)} className="inline-flex items-center gap-1 rounded-lg bg-[#003399] px-3 py-2 text-xs font-bold text-white disabled:opacity-40"><CloudDownload size={15}/> Abrir completo</button>
+     </div>:
      <span className="text-xs text-amber-700">Subida pendiente · vuelve a seleccionar el archivo</span>}
    </div>)}
   </div>
