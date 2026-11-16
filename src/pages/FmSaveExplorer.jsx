@@ -313,36 +313,9 @@ export default function FmSaveExplorer() {
     return () => { active = false; restoreCheckedRef.current = false; };
   }, [reader]);
 
-  const chooseLocalSave = async () => {
-    if (typeof window.showOpenFilePicker !== "function") {
-      pickerRef.current?.click();
-      return;
-    }
-    try {
-      // Called directly from the button click: the browser requires a user gesture.
-      const [handle] = await window.showOpenFilePicker({
-        id: "mf-legacy-fmsave",
-        multiple: false,
-        types: [{ description: "Partida Football Manager", accept: { "application/octet-stream": [".fm"] } }],
-      });
-      if (!handle) return;
-      const file = await handle.getFile();
-      if (!/\.fm$/i.test(file.name)) { setError("Selecciona una partida con extensión .fm."); return; }
-      readFile(file);
-      try {
-        await rememberFmSaveHandle(handle);
-        await refreshRememberedSaves();
-        setRememberMessage(`Se ha recordado «${file.name}» en este navegador, sin copiar el archivo a Base44.`);
-      } catch (caught) {
-        setRememberMessage(`La partida se abrió, pero no se pudo recordar el acceso: ${caught.message}`);
-      }
-    } catch (caught) {
-      if (caught.name !== "AbortError") {
-        setRememberMessage("El navegador no permitió recordar la partida desde este selector. Puedes usar «Abrir sin recordar».");
-        setError(`No se pudo seleccionar la partida: ${caught.message}`);
-      }
-    }
-  };
+  // Selector universal: nunca requiere permisos para recordar rutas locales.
+  // La copia persistente se gestiona por separado en la biblioteca de la nube.
+  const chooseLocalSave = () => pickerRef.current?.click();
 
   const readDroppedSave = async event => {
     event.preventDefault();
@@ -504,10 +477,9 @@ export default function FmSaveExplorer() {
             {working ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
             {fileName ? "Cambiar partida" : "Seleccionar archivo .fm"}
           </button>
-          {typeof window.showOpenFilePicker === "function" && <button type="button" disabled={working || downloading || cloudBusy || !reader}
-            onClick={() => pickerRef.current?.click()} className="ml-3 mt-2 text-xs font-semibold text-[#003399] underline disabled:opacity-50">Abrir sin recordar acceso local</button>}
+
           <p className="mt-2 text-xs text-slate-500">{fileName || "También puedes arrastrar aquí tu partida guardada."}</p>
-          <p className="mt-1 text-[11px] text-slate-500">El primer paso sigue usando el selector de archivos porque los navegadores no pueden leer directamente tu disco. Después usarás «Abrir en la web» desde la biblioteca superior, sin selector de Windows.</p>
+          <p className="mt-1 text-[11px] text-slate-500">Selecciona tu .fm una sola vez; al completar el guardado, podrás abrir la copia en la nube desde cualquier dispositivo sin volver a buscar el archivo.</p>
           {working && <p role="status" className="mt-3 text-sm font-semibold text-[#003399]">{STAGES[stage]}</p>}
         </div>
         {!!rememberedSaves.length && <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
