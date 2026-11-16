@@ -58,6 +58,23 @@ export function filterFmTeamDetails(details, firstTeamOnly = true) {
   return details.filter(detail => detail?.player && (!firstTeamOnly || Number(detail.player.team_slot) === 0));
 }
 
+// El lector entrega los enteros de Python como BigInt, que JSON y las
+// entidades de Base44 no pueden serializar. Se convierten una sola vez al
+// salir del lector; los enteros fuera del rango seguro se conservan como texto.
+export function fmJsonSafe(value) {
+  if (typeof value === "bigint") {
+    const numeric = Number(value);
+    return Number.isSafeInteger(numeric) ? numeric : value.toString();
+  }
+  if (Array.isArray(value)) return value.map(fmJsonSafe);
+  if (value && typeof value === "object") {
+    const copy = {};
+    for (const [key, item] of Object.entries(value)) copy[key] = fmJsonSafe(item);
+    return copy;
+  }
+  return value;
+}
+
 export function buildFmExport({ meta, selection, details }) {
   return {
     format: "mf_legacy_fmsave_selection_v1",
@@ -69,8 +86,8 @@ export function buildFmExport({ meta, selection, details }) {
     },
     selection,
     // Import compatibility: existing MF Legacy's JSON loader accepts a `players` array.
-    players: details.map(detail => detail.player),
+    players: details.map(detail => fmJsonSafe(detail.player)),
     // Kept separate so no fmsave Player model field is silently overwritten.
-    player_season_stats: details.flatMap(detail => detail.stats || []),
+    player_season_stats: fmJsonSafe(details.flatMap(detail => detail.stats || [])),
   };
 }

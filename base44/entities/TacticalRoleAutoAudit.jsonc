@@ -1,0 +1,89 @@
+{
+  "name": "TacticalRoleAutoAudit",
+  "type": "object",
+  "properties": {
+    "batch_id": {
+      "type": "string"
+    },
+    "player_id": {
+      "type": "string"
+    },
+    "player_name": {
+      "type": "string"
+    },
+    "model_version": {
+      "type": "string"
+    },
+    "source_position": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "alta",
+        "media",
+        "baja"
+      ]
+    },
+    "original_roles": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "proposed_roles": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "original_description": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "object"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "applied",
+        "skipped",
+        "failed"
+      ]
+    }
+  },
+  "required": [
+    "batch_id",
+    "player_id",
+    "player_name",
+    "model_version",
+    "proposed_roles",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

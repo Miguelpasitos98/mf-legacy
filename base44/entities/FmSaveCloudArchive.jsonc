@@ -1,0 +1,117 @@
+{
+  "name": "FmSaveCloudArchive",
+  "type": "object",
+  "properties": {
+    "record_key": {
+      "type": "string",
+      "description": "Identidad del archivo: nombre, tama\u00f1o, fecha de modificaci\u00f3n y edici\u00f3n FM"
+    },
+    "filename": {
+      "type": "string"
+    },
+    "size_bytes": {
+      "type": "number"
+    },
+    "last_modified": {
+      "type": "number"
+    },
+    "game": {
+      "type": "string",
+      "enum": [
+        "FM26",
+        "FM27"
+      ]
+    },
+    "build": {
+      "type": "string"
+    },
+    "in_game_date": {
+      "type": "string"
+    },
+    "fmsave_version": {
+      "type": "string"
+    },
+    "players_count": {
+      "type": "number"
+    },
+    "parts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "number"
+          },
+          "file_uri": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "part_count": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "uploading",
+        "ready"
+      ]
+    },
+    "uploaded_at": {
+      "type": "string"
+    },
+    "owner_user_id": {
+      "type": "string",
+      "description": "Cuenta Base44 que lo subi\u00f3"
+    }
+  },
+  "required": [
+    "record_key",
+    "filename",
+    "size_bytes",
+    "last_modified",
+    "game",
+    "part_count",
+    "parts",
+    "status",
+    "owner_user_id"
+  ],
+  "rls": {
+    "read": {
+      "data.owner_user_id": "{{user.id}}"
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "$and": [
+        {
+          "data.owner_user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.owner_user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

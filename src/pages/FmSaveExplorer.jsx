@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, Cloud, CloudDownload, Database, Download, FileUp, Loader2, Search, ShieldCheck, Users, X } from "lucide-react";
-import { buildFmSaveIndex, findFmPlayers, findFmClubs, filterFmTeamDetails, buildFmExport } from "@/utils/fmSaveSearch.mjs";
+import { buildFmSaveIndex, findFmPlayers, findFmClubs, filterFmTeamDetails, buildFmExport, fmJsonSafe } from "@/utils/fmSaveSearch.mjs";
 import FmSaveDirectImportPanel from "@/components/fmsave/FmSaveDirectImportPanel";
 import FmVaultPanel from "@/components/fmsave/FmVaultPanel";
 import { base44 } from "@/api/base44Client";
@@ -13,7 +13,7 @@ const filenamePart = (value) => String(value || "seleccion").normalize("NFD").re
   .replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 75) || "seleccion";
 
 function downloadSelection(payload, filename) {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const blob = new Blob([JSON.stringify(fmJsonSafe(payload), null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -565,7 +565,7 @@ export default function FmSaveExplorer() {
           {!playerDetail && <p className="text-xs text-slate-500">{indexPreviewOnly?"Vista rápida: para consultar la ficha completa, pulsa «Abrir completo» en la biblioteca superior.":"Recuperando ficha completa de fmsave..."}</p>}
           {playerDetail && <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
             <summary className="cursor-pointer font-bold text-[#003399]">Ver todos los campos disponibles del jugador</summary>
-            <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-all">{JSON.stringify(playerDetail.player, null, 2)}</pre>
+            <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-all">{JSON.stringify(fmJsonSafe(playerDetail.player), null, 2)}</pre>
           </details>}
         </div>}
         {selection.type === "club" && <div className="mt-3">
