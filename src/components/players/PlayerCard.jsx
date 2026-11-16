@@ -361,10 +361,12 @@ function PlayerCardInner({
 
         <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 flex-col items-start gap-0.5 text-xs`}>
           <span className="min-w-0 break-words font-semibold text-slate-900">{legacyTitle}</span>
-          <span className="shrink-0 font-bold text-[#003399]"
+          {!(hasFm27Value(player) && player.fm27_ca != null && player.fm27_cp != null &&
+            Number(bestFmRating(player,"ca").value) === Number(player.fm27_ca) &&
+            Number(bestFmRating(player,"cp").value) === Number(player.fm27_cp)) && <span className="shrink-0 font-bold text-[#003399]"
             title={`Mejor CA entre FM26 y FM27: ${bestFmRating(player,"ca").edition || "sin dato"}. Mejor CP: ${bestFmRating(player,"cp").edition || "sin dato"}. Valores originales conservados por edición.`}>
             CA {bestFmRating(player,"ca").value ?? "—"} / CP {bestFmRating(player,"cp").value ?? "—"}
-          </span>
+          </span>}
         </div>
         {hasFm27Value(player) && <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px]">
           <span title={isFm27Reviewed(player) ? "FM27 revisado" : "Datos FM27"}
