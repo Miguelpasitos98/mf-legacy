@@ -467,7 +467,7 @@ export default function FmSaveExplorer() {
       <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-3"><div className="rounded-xl bg-blue-50 p-3 text-[#003399]"><FileUp size={22} /></div>
           <div><h2 className="font-bold text-slate-900">2. Añadir una partida .fm nueva</h2>
-            <p className="text-xs text-slate-500">Selecciona el archivo una vez. Cuando fmsave confirme que es FM26 o FM27, se guardará automáticamente en tu biblioteca privada si has introducido tu clave de MF LEGACY.</p></div></div>
+            <p className="text-xs text-slate-500">Selecciona el archivo una vez. Cuando fmsave confirme que es FM26 o FM27, se guardará automáticamente en la nube. Después podrás abrirlo aquí desde cualquier dispositivo, sin volver a buscarlo en tu PC.</p></div></div>
         <div onDragOver={event => event.preventDefault()} onDrop={event => { if (!cloudBusy) void readDroppedSave(event); }}
           className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/30 p-6 text-center">
           <input ref={pickerRef} type="file" accept=".fm" className="hidden" onChange={event => { readFile(event.target.files?.[0]); event.target.value = ""; }} />
