@@ -133,7 +133,7 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
             </tr></thead>
             <tbody className="divide-y divide-slate-100">{listed.map(row=><tr key={row.player_id||row.name} className="align-top">
               <td className="px-3 py-3"><input type="checkbox" aria-label={"Seleccionar "+(row.name||"jugador")} checked={selected.includes(row.player_id)} disabled={saving||row.status!=="ready"} onChange={()=>toggle(row.player_id)}/></td>
-              <td className="px-3 py-3"><strong>{row.name||"Ficha sin evaluar"}</strong><p className="mt-1 text-[11px] text-slate-500">{row.position||"—"} · {row.confidence?("Confianza "+row.confidence):"Revisión manual"}</p></td>
+              <td className="px-3 py-3"><strong>{row.name||"Ficha sin evaluar"}</strong><p className="mt-1 text-[11px] text-slate-500">{row.position||"—"} · {row.edition||"FM"} · {row.confidence?("Confianza "+row.confidence):"Revisión manual"}</p></td>
               <td className="px-3 py-3"><strong>{row.roles?.[0]?.name||"—"}</strong><p className="mt-1 max-w-xs text-[11px] leading-4 text-slate-500">{row.roles?.[0]?.description||""}</p></td>
               <td className="px-3 py-3"><strong>{row.roles?.[1]?.name||"—"}</strong><p className="mt-1 max-w-xs text-[11px] leading-4 text-slate-500">{row.roles?.[1]?.description||""}</p></td>
               <td className="px-3 py-3 text-[11px] text-slate-600">{row.season?"FM + FotMob "+row.season.season+" ("+row.season.minutes+" min)":"Atributos FM"}{row.reason&&<p className="text-amber-700">{row.reason}</p>}</td>
@@ -147,7 +147,7 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
         <p className="flex items-center gap-2 text-xs text-slate-500"><ShieldCheck size={15}/> {saving?progress.done+" / "+progress.total:"Solo roles y descripción principal"} · Registro auditable</p>
         <div className="flex gap-2">
           <button type="button" disabled={saving} onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold">Cerrar</button>
-          <button type="button" onClick={apply} disabled={!admin||loading||saving||selectedCount===0}
+          <button type="button" onClick={apply} disabled={loading||saving||selectedCount===0}
             className="flex items-center gap-2 rounded-lg bg-[#003399] px-4 py-2 text-xs font-extrabold text-white disabled:opacity-40">
             {saving?<Loader2 size={15} className="animate-spin"/>:<CheckCheck size={15}/>}
             {saving?"Aplicando "+progress.done+"/"+progress.total:"Adjudicar "+selectedCount+" jugadores"}
