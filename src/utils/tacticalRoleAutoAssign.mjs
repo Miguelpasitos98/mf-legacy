@@ -1,7 +1,7 @@
 // MF LEGACY — evaluación táctica basada en atributos FM y métricas reales.
 // Nunca infiere por nombre de jugador ni usa roles "especiales" sin contexto.
 import { tacticalAttributeSource } from "./fmEditionAttributes.mjs";
-export const TACTICAL_AUTO_VERSION = "mf_legacy_roles_auto_v2";
+export const TACTICAL_AUTO_VERSION = "mf_legacy_roles_auto_v3";
 export const TACTICAL_ROLE_FAMILIES = {
   GK: "Goalkeepers", DFC: "Centre-Backs",
   LI: "Full-Backs / Wing-Backs", LD: "Full-Backs / Wing-Backs",
@@ -104,9 +104,13 @@ export function hasTacticalRole(player) {
 }
 export function needsTacticalRoles(player) { return !hasTacticalRole(player); }
 
-function chosenSeason(records) {
-  return (records||[]).filter(row=>row?.source==="fotmob" && numeric(row.minutes)>=450 && Array.isArray(row.metrics) && row.metrics.length>=8)
-    .sort((a,b)=>Number(b.minutes||0)-Number(a.minutes||0))[0] || null;
+function chosenSeason(records, player) {
+  const available=(records||[]).filter(row=>row?.source==="fotmob" && numeric(row.minutes)>=450 && Array.isArray(row.metrics) && row.metrics.length>=8);
+  const currentYear=new Date().getUTCFullYear();
+  const recent=available.filter(row=>{const year=Number(String(row.season||"").match(/\d{4}/)?.[0]);return year>=currentYear-5 && year<=currentYear;});
+  // Avoid youth-season statistics dominating current young players.
+  const pool=recent.length?recent:(Number(player?.age||0)<32?[]:available);
+  return pool.sort((a,b)=>Number(b.minutes||0)-Number(a.minutes||0))[0] || null;
 }
 function realMetric(record, name) {
   const found=(record?.metrics||[]).find(m=>String(m?.name||"").toLowerCase()===name.toLowerCase());
@@ -122,6 +126,12 @@ function profileScore(player, role, season) {
   if(name==="Chaotic Winger" && !(statValue(player,"m.consistencia")<=10 && statValue(player,"m.talento")>=14 && statValue(player,"m.decisiones")<=12))return null;
   if(name==="Defensive Leader" && !(statValue(player,"m.liderazgo")>=14))return null;
   if(name==="Libero Defender" && !(Number(player?.position_ratings?.mediocentro||0)>=12))return null;
+  if(["The Anchorman","The Destroyer"].includes(name)) {
+    const dm=Number(player?.position_ratings?.mediocentro||0);
+    const cm=Number(player?.position_ratings?.centrocampista||0);
+    // A combative number eight is not automatically a holding midfielder.
+    if(dm<15 || (cm>dm+4 && String(player?.position||"").toUpperCase()!=="CDM"))return null;
+  }
   let sum=0, weight=0, missing=0, details=[];
   for(const [key,importance] of Object.entries(attrs)){
     const value=statValue(player,key);
@@ -151,7 +161,7 @@ export function evaluateTacticalRoles(player, seasonRecords=[], roleGroups=[]) {
   if(!family)return {status:"insufficient",reason:"Posición sin equivalencia táctica en MF LEGACY"};
   const available=roleGroups.find(group=>group.group===family)?.options||[];
   if(!available.length)return {status:"insufficient",reason:"Falta el catálogo táctico del editor"};
-  const season=chosenSeason(seasonRecords);
+  const season=chosenSeason(seasonRecords,player);
   const attributeSource=tacticalAttributeSource(player);
   const scoredPlayer={...player,stats:attributeSource.stats};
   const scores=(TACTICAL_ROLE_PROFILES[family]||[]).map(spec=>profileScore(scoredPlayer,spec,season)).filter(Boolean)
