@@ -95,6 +95,24 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
   const creationNames = newRows.map(({ record }) => fmNameKey(record.name));
   const creationIds = newRows.map(({ record }) => String(record.uid));
   const duplicateCreation = new Set(creationNames).size !== creationNames.length || new Set(creationIds).size !== creationIds.length;
+  const selectableNewIndexes=useMemo(()=>{
+    const nameCounts=new Map(),uidCounts=new Map();
+    for(const record of rows){
+      const name=fmNameKey(record.name),uid=String(record.uid??"");
+      nameCounts.set(name,(nameCounts.get(name)||0)+1);
+      uidCounts.set(uid,(uidCounts.get(uid)||0)+1);
+    }
+    return rows.flatMap((record,index)=>{
+      const name=fmNameKey(record.name),uid=String(record.uid??"");
+      return !links[index]&&nameCounts.get(name)===1&&uidCounts.get(uid)===1&&
+        canCreateFmPlayer({source,record,players}).allowed?[index]:[];
+    });
+  },[rows,links,players,source]);
+  const selectAllNew=()=>{
+    setCreateSelections(Object.fromEntries(selectableNewIndexes.map(index=>[index,true])));
+    setConfirmed(false);
+  };
+  const clearNew=()=>{setCreateSelections({});setConfirmed(false);};
   const selectedTotal = mapped.length + newRows.length;
   const reviewing = isLoading || teamsLoading || countriesLoading;
   const approved = selectedTotal > 0 && !duplicateTarget && !duplicateCreation && confirmed && !busy &&
@@ -192,6 +210,13 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
         <span className="rounded-full bg-blue-50 px-3 py-1.5 text-[#003399]">{newRows.length} nuevas fichas preparadas</span>
         <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-800">{rows.length - selectedTotal} pendientes</span>
         <span className="rounded-full bg-slate-100 px-3 py-1.5">{players.length} fichas existentes</span>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" disabled={busy||!selectableNewIndexes.length} onClick={selectAllNew}
+          className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-extrabold text-[#003399] hover:bg-blue-100 disabled:opacity-40">✓ Seleccionar todos los nuevos ({selectableNewIndexes.length})</button>
+        <button type="button" disabled={busy||!newRows.length} onClick={clearNew}
+          className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-40">Deseleccionar nuevos</button>
+        <span className="text-[11px] text-slate-500">Las identidades duplicadas o dudosas no se seleccionan automáticamente.</span>
       </div>
       <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
         {rows.map((record, index) => {
