@@ -82,7 +82,6 @@ const DESCRIPTION_OPTIONS = [
       "🚀 Sweeper Distributor",
       "🪟 Sweeper Keeper",
       "🪞 Penalty Specialist",
-      "🔁 Reliable Backup Keeper",
     ],
   },
   {
