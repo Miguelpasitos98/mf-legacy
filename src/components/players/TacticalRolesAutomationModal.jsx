@@ -140,7 +140,7 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
           <button type="button" disabled={saving} onClick={()=>setSelected([])} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500">Deseleccionar</button>
         </div>
         {!proposals.length&&<p className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">No hay jugadores pendientes de evaluar ni perfiles FM27 con roles anteriores.</p>}
-        {candidates.some(p=>hasTacticalRole(p))&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Los perfiles con roles existentes permanecen desmarcados. Revisa cada propuesta antes de reemplazar los roles; se guardará una copia anterior en la auditoría.</p>
+        {candidates.some(p=>hasTacticalRole(p))&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Los perfiles con roles existentes permanecen desmarcados. Revisa cada propuesta antes de reemplazar los roles; se guardará una copia anterior en la auditoría.</p>}
         <div className="max-h-[52vh] overflow-auto rounded-xl border border-slate-200">
           <table className="w-full min-w-[740px] text-left text-xs">
             <thead className="sticky top-0 bg-slate-50 font-bold text-slate-600"><tr>
