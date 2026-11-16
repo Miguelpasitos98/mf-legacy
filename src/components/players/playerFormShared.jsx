@@ -33,7 +33,6 @@ export const PLAYER_DESCRIPTIONS = [
       "🚀 Sweeper Distributor",
       "🪟 Sweeper Keeper",
       "🪞 Penalty Specialist",
-      "🔁 Reliable Backup Keeper",
     ],
   },
   {
