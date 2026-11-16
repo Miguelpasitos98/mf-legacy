@@ -10,7 +10,8 @@ import { preferredFmAttributeEdition, fm27VisibleAttributes } from "@/utils/fmEd
 const rows = value => Array.isArray(value) ? value : value?.data || value?.items || value?.entities || [];
 const chunk = (list, size) => Array.from({length:Math.ceil(list.length/size)}, (_,i)=>list.slice(i*size,(i+1)*size));
 const fm27ReplacementCandidate = player => hasTacticalRole(player) && preferredFmAttributeEdition(player)==="FM27" && !!fm27VisibleAttributes(player);
-const roleCandidate = player => needsTacticalRoles(player) || fm27ReplacementCandidate(player);
+const midfieldReviewCandidate = player => hasTacticalRole(player) && ["CM","CDM"].includes(String(player?.position||"").toUpperCase());
+const roleCandidate = player => needsTacticalRoles(player) || fm27ReplacementCandidate(player) || midfieldReviewCandidate(player);
 const rolesSnapshot = player => JSON.stringify({roles:player?.tactical_roles||[],description:player?.description||""});
 
 export default function TacticalRolesAutomationModal({ open, players=[], onClose }) {
@@ -81,10 +82,10 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
         try{
           const live=await base44.entities.Player.get(proposal.player_id);
           const original=candidatesById.get(String(proposal.player_id));
-          const replacing=original && fm27ReplacementCandidate(original);
+          const replacing=original && (fm27ReplacementCandidate(original) || midfieldReviewCandidate(original));
           if(!live || !original || String(live.name||"")!==proposal.name ||
             rolesSnapshot(live)!==rolesSnapshot(original) ||
-            (replacing && (!fm27ReplacementCandidate(live) || proposal.edition!=="FM27")) ||
+            (replacing && !(midfieldReviewCandidate(live) || (fm27ReplacementCandidate(live) && proposal.edition==="FM27"))) ||
             (!replacing && hasTacticalRole(live))){
             protectedCount++;continue;
           }
@@ -120,14 +121,14 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
       <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-black text-[#0d315b]"><Sparkles size={20}/> Adjudicación automática de roles</h2>
-          <p className="mt-1 text-xs text-slate-600">Evalúa atributos de la mejor edición FM y estadísticas reales. Los jugadores con roles previos pueden recalcularse con FM27 tras seleccionar expresamente su sustitución.</p>
+          <p className="mt-1 text-xs text-slate-600">Revisa también los MC/MCD con roles previos. Su sustitución requiere selección expresa; se conservan los roles anteriores en auditoría.</p>
         </div>
         <button type="button" aria-label="Cerrar" onClick={onClose} disabled={saving} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"><X size={19}/></button>
       </header>
       <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="rounded-lg bg-blue-50 px-3 py-2 font-bold text-[#003399]">{candidates.length-replacements.length} sin roles</span>
-          <span className="rounded-lg bg-amber-50 px-3 py-2 font-bold text-amber-800">{replacements.length} con roles anteriores y atributos FM27</span>
+          <span className="rounded-lg bg-blue-50 px-3 py-2 font-bold text-[#003399]">{candidates.filter(p=>!hasTacticalRole(p)).length} sin roles</span>
+          <span className="rounded-lg bg-amber-50 px-3 py-2 font-bold text-amber-800">{candidates.filter(p=>hasTacticalRole(p)).length} con roles anteriores para revisar (MC/MCD y FM27)</span>
           <span className="rounded-lg bg-emerald-50 px-3 py-2 font-bold text-emerald-700">{eligible.length} evaluables</span>
           <span className="rounded-lg bg-amber-50 px-3 py-2 font-bold text-amber-800">{proposals.length-eligible.length} sin suficientes datos</span>
           {loading&&<span className="flex items-center gap-1 text-slate-500"><Loader2 size={13} className="animate-spin"/> Buscando temporadas FotMob…</span>}
@@ -139,7 +140,7 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
           <button type="button" disabled={saving} onClick={()=>setSelected([])} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500">Deseleccionar</button>
         </div>
         {!proposals.length&&<p className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">No hay jugadores pendientes de evaluar ni perfiles FM27 con roles anteriores.</p>}
-        {replacements.length>0&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Los jugadores que ya tienen roles aparecen sin marcar. Selecciónalos para reemplazar sus dos roles por una propuesta basada en los atributos FM27. Se conservará una copia de los roles anteriores en el historial de auditoría.</p>}
+        {candidates.some(p=>hasTacticalRole(p))&&<p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Los perfiles con roles existentes permanecen desmarcados. Revisa cada propuesta antes de reemplazar los roles; se guardará una copia anterior en la auditoría.</p>
         <div className="max-h-[52vh] overflow-auto rounded-xl border border-slate-200">
           <table className="w-full min-w-[740px] text-left text-xs">
             <thead className="sticky top-0 bg-slate-50 font-bold text-slate-600"><tr>
