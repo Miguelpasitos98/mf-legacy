@@ -70,7 +70,7 @@ export default function SeasonStatsTable({items=[],category="Resumen",page=0,onO
       <td className="px-2 py-3 text-center"><input type="checkbox" aria-label={"Seleccionar "+name+" "+summary.season} checked={selection.has(summary.id)} onChange={()=>onToggleSelect(summary.id)} className="h-3.5 w-3.5 cursor-pointer accent-[#1D4ED8]"/></td>
       <td className={"whitespace-nowrap px-2 py-3 text-center"+line("rank")}><strong className="font-black text-slate-800">{playerRanks.get(rankIdentity({summary,player},"season"))??"—"}</strong><span className="ml-1 text-[10px] font-normal text-slate-500">({globalRanks.get(rankIdentity({summary,player},"season"))??"—"})</span></td>
       <td className={"px-3 py-2"+line("player")}><button onClick={()=>onOpen(summary,player)} className="flex items-center gap-2 text-left">
-       <PlayerPhoto player={player} name={name}/><span className="font-extrabold text-[#0f3156] hover:underline">{name}</span>
+       <PlayerPhoto player={player} name={name}/><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" title="Estadísticas incorporadas" aria-label="Estadísticas incorporadas"/><span className="font-extrabold text-[#0f3156] hover:underline">{name}</span></span>
       </button></td>
       <td className={"whitespace-nowrap px-2 py-2 font-semibold"+line("season")}>{shortSeason(summary.season)}{seasonActive(summary.season)&&<span className="ml-1 text-[10px] font-normal text-blue-700">(en curso)</span>}</td>
       <td className={"px-2 py-2"+line("club")}><ClubBadge summary={summary} onTeam={onTeam}/></td>
