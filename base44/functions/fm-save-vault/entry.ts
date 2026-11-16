@@ -8,9 +8,6 @@ const rows=value=>Array.isArray(value)?value:value?.items||value?.data||value?.e
 const safe=value=>String(value||"").trim();
 const validId=id=>/^[a-f0-9]{24}$/i.test(safe(id));
 const validGame=game=>game==="FM26"||game==="FM27";
-const toHex=bytes=>Array.from(bytes).map(x=>x.toString(16).padStart(2,"0")).join("");
-const hash=async value=>toHex(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value))));
-const equal=(left,right)=>{if(left.length!==right.length)return false;let delta=0;for(let i=0;i<left.length;i++)delta|=left.charCodeAt(i)^right.charCodeAt(i);return delta===0;};
 function publicRow(row){return {id:row.id,record_key:row.record_key,filename:row.filename,size_bytes:row.size_bytes,last_modified:row.last_modified,game:row.game,build:row.build,in_game_date:row.in_game_date,players_count:row.players_count,part_count:row.part_count,parts_saved:row.parts?.length||0,status:row.status,uploaded_at:row.uploaded_at};}
 export default async function(req){
  if(req.method!=="POST")return fail("Solo POST",405);
