@@ -1,6 +1,7 @@
 import {createClientFromRequest} from "npm:@base44/sdk";
 const ID="miguel-vault-v1";
-const CHUNK=2*1024*1024;
+// Fragmentos pequeños para evitar los límites de payload/tiempo del gateway de funciones.
+const CHUNK=256*1024;
 const LIMIT=1024*1024*1024;
 const out=(data,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"no-store"}});
 const fail=(error,status=400)=>out({ok:false,error},status);
@@ -27,7 +28,7 @@ export default async function(req){
    const filename=safe(data.filename),game=safe(data.game),size=Number(data.size_bytes),last=Number(data.last_modified||0);
    if(!validGame(game)||!filename.toLowerCase().endsWith(".fm")||filename.length>220||!Number.isSafeInteger(size)||size<1||size>LIMIT)return fail("Archivo FM26/FM27 no válido o superior a 1 GB.");
    if(!Number.isFinite(last)||last<0)return fail("Fecha de archivo no válida.");
-   const record_key=[game,filename.toLowerCase(),size,last].join("|");
+   const record_key=[game,filename.toLowerCase(),size,last,"chunk256k-v2"].join("|");
    const matches=rows(await db.filter({kind:"save",vault_id:ID,record_key},undefined,3));
    if(matches.length>1)return fail("Se detectaron partidas duplicadas. Revisa la biblioteca.",409);
    let entry=matches[0];
