@@ -1788,7 +1788,8 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                             <label htmlFor={`edit-stat-${editTab}-${key}`} className="min-w-0 text-xs font-semibold text-slate-700">{label}</label>
                             <input
                               id={`edit-stat-${editTab}-${key}`}
-                              aria-label={`${label} (0–20)`}
+                              aria-label={`${label} (${attributeEdition}, 0–20)`}
+                              disabled={attributeEdition==="FM27"}
                               type="number"
                               min={0}
                               max={20}
@@ -1798,7 +1799,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                                 ...current,
                                 stats: { ...current.stats, [editTab]: { ...(current.stats?.[editTab] || {}), [key]: event.target.value } },
                               }))}
-                              className="h-9 w-14 rounded-lg border border-slate-200 bg-slate-50 px-1 text-center text-sm font-extrabold text-slate-900 outline-none focus:border-blue-400"
+                              className="h-9 w-14 rounded-lg border border-slate-200 bg-slate-50 px-1 text-center text-sm font-extrabold text-slate-900 outline-none focus:border-blue-400 disabled:bg-blue-50 disabled:text-blue-900"
                             />
                           </div>
                           <div className="h-2 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={20} aria-valuenow={Math.max(0, Math.min(20, Number(value) || 0))}>
