@@ -1,5 +1,5 @@
 export const VAULT_KEY_STORAGE="mf_legacy_fm_vault_key_v1";
-export const VAULT_CHUNK_BYTES=2*1024*1024;
+export const VAULT_CHUNK_BYTES=256*1024;
 export const VAULT_MAX_BYTES=1024*1024*1024;
 export const vaultKey=value=>String(value||"").trim().toLowerCase().replace(/[^a-f0-9]/g,"");
 const body=async(base44,key,action,fields={})=>{
@@ -24,7 +24,11 @@ export async function uploadVault(api,key,file,meta,progress=()=>{}){
  for(let i=entry.parts_saved;i<total;i++){
   const start=i*VAULT_CHUNK_BYTES;
   const bytes=await file.slice(start,Math.min(start+VAULT_CHUNK_BYTES,file.size)).arrayBuffer();
-  await body(api,key,"upload",{id:entry.id,index:i,base64:base64Bytes(bytes)});
+  const encoded=base64Bytes(bytes);
+  for(let attempt=0;attempt<3;attempt++){
+   try{await body(api,key,"upload",{id:entry.id,index:i,base64:encoded});break;}
+   catch(error){if(attempt===2)throw Error(`No se pudo guardar el fragmento ${i+1} tras 3 intentos: ${error.message}`);await new Promise(resolve=>setTimeout(resolve,1000*(attempt+1)));}
+  }
   progress(i+1,total);
  }
  await body(api,key,"finish",{id:entry.id});
