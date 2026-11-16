@@ -44,6 +44,21 @@
     "part_count": {
       "type": "number"
     },
+    "index_parts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "index_part_count": {
+      "type": "number"
+    },
+    "index_size_bytes": {
+      "type": "number"
+    },
+    "index_status": {
+      "type": "string"
+    },
     "status": {
       "type": "string"
     },
