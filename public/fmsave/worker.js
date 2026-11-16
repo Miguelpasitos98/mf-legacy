@@ -64,18 +64,21 @@ function unmount() {
 }
 
 function openSave(file, reply) {
+  let failedStage = "open";
   unmount();
   pyodide.FS.mkdirTree("/save");
   pyodide.FS.mount(pyodide.FS.filesystems.WORKERFS, { files: [file] }, "/save");
   try {
     reply({ type: "stage", stage: "open" });
     reply({ type: "meta", meta: call("open_save", "/save/" + file.name) });
+    failedStage = "players";
     reply({ type: "stage", stage: "players" });
     const players = call("read_players");
     const numbers = packed(players.numbers);
     reply({ type: "players", count: players.count, numbers, text: players.text, warnings: players.warnings }, Object.values(numbers));
   } catch (error) {
     unmount();
+    error.failedStage = failedStage;
     throw error;
   }
   // The players are on screen by now, so a stats failure is reported on its own and the
@@ -125,6 +128,6 @@ onmessage = async ({ data }) => {
         : "Something went wrong in the reader. Reload the page and try again.";
     const request = data.type === "boot" ? "boot" : !reader ? "boot" : data.type;
     const kind = error.safe ? error.kind : error.name;
-    postMessage({ type: "error", request, name: data.name, uid: data.uid, text, kind, generation: data.type === "boot" ? undefined : data.generation });
+    postMessage({ type: "error", request, failedStage: error.failedStage || null, name: data.name, uid: data.uid, text, kind, generation: data.type === "boot" ? undefined : data.generation });
   }
 };
