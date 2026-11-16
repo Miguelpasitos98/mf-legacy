@@ -150,7 +150,7 @@ export default function FmSaveExplorer() {
     fileChosenRef.current = true;
     generationRef.current += 1;
     fileToCloudRef.current = source === "local" ? { file, generation: generationRef.current } : null;
-    lastLocalFileRef.current = source === "local" ? { file, generation: generationRef.current } : null;
+    lastLocalFileRef.current = { file, generation: generationRef.current };
     pendingRef.current.forEach(({ reject }) => reject(new Error("Se ha cargado otra partida.")));
     pendingRef.current.clear();
     detailCacheRef.current.clear();
