@@ -395,6 +395,11 @@ export default function FmSaveExplorer() {
   };
 
   const knownTeams=useMemo(()=>fm26KnownClubSelection(index,existingPlayers),[index,existingPlayers]);
+  const importedEditionUids=useMemo(()=>{
+    const field=meta?.game==="FM26"?"fm26_uid":meta?.game==="FM27"?"fm27_uid":null;
+    return new Set(field?existingPlayers.map(player=>String(player?.[field]??"").trim()).filter(Boolean):[]);
+  },[existingPlayers,meta?.game]);
+  const isImportedFromCurrentSave=rowIndex=>!!index&&importedEditionUids.has(String(index.uid[rowIndex]));
   const playerResults = useMemo(() => mode === "player" ? findFmPlayers(index, query) : [], [index, mode, query]);
   const clubResults = useMemo(() => mode === "club" ? findFmClubs(index, query) : [], [index, mode, query]);
   const selectedClubMembers = useMemo(() => {
@@ -585,13 +590,13 @@ export default function FmSaveExplorer() {
         {index && <div className="mt-4 max-h-[380px] divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
           {mode === "player" ? playerResults.map(i => <button type="button" key={index.uid[i]}
             onClick={() => showPlayer(i)} className={`flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-blue-50 ${selection?.type === "player" && selection.index === i ? "bg-blue-50" : ""}`}>
-            <span className="min-w-0 flex-1"><strong className="block truncate text-sm">{index.names[i]}</strong><span className="block truncate text-xs text-slate-500">{index.clubNames[i] || "Sin equipo"} · {index.positions[i] || "Sin posición"}</span></span>
+            <span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-2"><strong className="truncate text-sm">{index.names[i]}</strong>{isImportedFromCurrentSave(i)&&<span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800" title={"Este ID de "+meta?.game+" ya está vinculado a un jugador de MF LEGACY"}><CheckCircle2 size={12}/> Incorporado</span>}</span><span className="block truncate text-xs text-slate-500">{index.clubNames[i] || "Sin equipo"} · {index.positions[i] || "Sin posición"}</span></span>
             <span className="text-xs text-slate-500">CA <b className="text-slate-900">{fmNumber(index.ca[i])}</b> · PA <b className="text-slate-900">{fmNumber(index.pa[i])}</b></span>
           </button>) : clubResults.map(club => <button type="button" key={club.uid}
             onClick={() => chooseClub(club)} className={`flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-blue-50 ${selection?.club?.uid === club.uid ? "bg-blue-50" : ""}`}>
             <Users size={16} className="shrink-0 text-[#003399]" />
             <span className="min-w-0 flex-1 truncate text-sm font-bold">{club.name}</span>
-            <span className="text-xs text-slate-500">{club.members.length} jugadores</span>
+            <span className="shrink-0 text-xs text-slate-500">{club.members.filter(i=>isImportedFromCurrentSave(i)).length}/{club.members.length} incorporados</span>
           </button>)}
           {mode === "player" && query.trim().length >= 2 && playerResults.length === 0 && <p className="p-4 text-sm text-slate-500">No hay jugadores con ese nombre.</p>}
           {mode === "club" && clubResults.length === 0 && <p className="p-4 text-sm text-slate-500">No hay equipos con ese nombre.</p>}
@@ -606,7 +611,7 @@ export default function FmSaveExplorer() {
           <button type="button" className="flex items-center gap-1 text-xs font-semibold text-slate-500" onClick={() => { setSelection(null); setPlayerDetail(null); }}><ArrowLeft size={14} /> Volver</button>
         </div>
         {selection.type === "player" && <div className="mt-3 space-y-3">
-          <h3 className="text-lg font-black">{index.names[selection.index]}</h3>
+          <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black">{index.names[selection.index]}</h3>{isImportedFromCurrentSave(selection.index)&&<span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-800"><CheckCircle2 size={13}/> Ya incorporado desde {meta?.game}</span>}</div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <DataBadge label="CA" value={fmNumber(index.ca[selection.index])} />
             <DataBadge label="PA" value={fmNumber(index.pa[selection.index])} />
@@ -628,7 +633,7 @@ export default function FmSaveExplorer() {
           <p className="mt-2 text-xs text-slate-500">{smallNumber(selectedClubMembers.length)} jugadores en la selección. {firstTeamOnly ? "Reservas y juveniles excluidos." : "Se incluyen equipos B y categorías inferiores."}</p>
           <div className="mt-3 max-h-48 overflow-y-auto rounded-lg border border-slate-200">
             {selectedClubMembers.slice(0, 70).map(i => <div key={index.uid[i]} className="flex justify-between gap-3 border-b border-slate-100 px-3 py-2 text-xs">
-              <span className="truncate">{index.names[i]}</span><span className="shrink-0 text-slate-500">CA {fmNumber(index.ca[i])} · PA {fmNumber(index.pa[i])}</span>
+              <span className="flex min-w-0 flex-wrap items-center gap-2"><span className="truncate">{index.names[i]}</span>{isImportedFromCurrentSave(i)&&<span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 font-bold text-emerald-700"><CheckCircle2 size={11}/> Incorporado</span>}</span><span className="shrink-0 text-slate-500">CA {fmNumber(index.ca[i])} · PA {fmNumber(index.pa[i])}</span>
             </div>)}
             {!selectedClubMembers.length && <p className="p-3 text-sm text-slate-500">No hay jugadores con este filtro.</p>}
           </div>
