@@ -277,7 +277,9 @@ function PlayerCardInner({
 
   const bestCa = bestFmRating(player, "ca");
   const bestCp = bestFmRating(player, "cp");
-  const sameEdition = bestCa.edition && bestCa.edition === bestCp.edition ? bestCa.edition : null;
+  const editionsShown = [bestCa.edition, bestCp.edition].filter(Boolean);
+  const showFm26 = editionsShown.some(edition => edition.includes("FM26"));
+  const showFm27 = editionsShown.some(edition => edition.includes("FM27"));
 
   return (
     <div
@@ -366,9 +368,9 @@ function PlayerCardInner({
           <span className="min-w-0 break-words font-semibold text-slate-900">{legacyTitle}</span>
           <div className="flex min-w-0 flex-wrap items-center gap-1.5 font-bold text-[#003399]"
             title={`Mejor CA: ${bestCa.edition || "sin dato"}. Mejor CP: ${bestCp.edition || "sin dato"}. FM26 y FM27 se conservan por separado.`}>
-            {sameEdition && <span className="inline-flex shrink-0 rounded border border-blue-100 bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">{sameEdition}</span>}
-            <span>CA {bestCa.value ?? "—"}{!sameEdition && bestCa.edition && <small className="ml-1 font-semibold text-slate-500">({bestCa.edition})</small>}
-              {" / "}CP {bestCp.value ?? "—"}{!sameEdition && bestCp.edition && <small className="ml-1 font-semibold text-slate-500">({bestCp.edition})</small>}</span>
+            {showFm26 && <span className="inline-flex shrink-0 rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">FM26</span>}
+            {showFm27 && <span className="inline-flex shrink-0 rounded border border-blue-100 bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">FM27</span>}
+            <span className="whitespace-nowrap">CA {bestCa.value ?? "—"} / CP {bestCp.value ?? "—"}</span>
           </div>
         </div>
 
