@@ -7,6 +7,52 @@ import { buildSafeFmPatch, buildNewFmPlayer, canCreateFmPlayer, compatibleFmTarg
 
 const responseRows = result => Array.isArray(result) ? result : result?.items || result?.data || result?.results || null;
 
+function SearchableDestination({ items, value, onChange, placeholder, pendingLabel, disabled }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const selected = items.find(item => String(item.id) === String(value || ""));
+  const normalize = text => String(text || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase().trim();
+  const matches = useMemo(() => {
+    const term = normalize(query);
+    return (term ? items.filter(item => normalize(item.name).includes(term)) : items).slice(0, 12);
+  }, [items, query]);
+  const choose = item => {
+    onChange(item ? String(item.id) : "");
+    setQuery("");
+    setOpen(false);
+    setActive(0);
+  };
+  return <div className="relative mt-1">
+    <div className="flex items-center rounded-lg border border-slate-300 bg-white focus-within:border-[#003399]">
+      <input type="search" disabled={disabled} value={open ? query : selected?.name || ""}
+        aria-label={placeholder} aria-expanded={open} role="combobox" aria-autocomplete="list"
+        placeholder={placeholder} onFocus={() => { setQuery(""); setOpen(true); setActive(0); }}
+        onChange={event => { setQuery(event.target.value); setOpen(true); setActive(0); }}
+        onKeyDown={event => {
+          if (event.key === "Escape") { setOpen(false); event.currentTarget.blur(); }
+          if (event.key === "ArrowDown" && open) { event.preventDefault(); setActive(index => Math.min(index + 1, matches.length - 1)); }
+          if (event.key === "ArrowUp" && open) { event.preventDefault(); setActive(index => Math.max(index - 1, 0)); }
+          if (event.key === "Enter" && open && matches[active]) { event.preventDefault(); choose(matches[active]); }
+        }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="w-full min-w-0 rounded-lg bg-transparent px-3 py-2 text-xs outline-none" />
+      {!!value && <button type="button" disabled={disabled} aria-label={pendingLabel}
+        onMouseDown={event => event.preventDefault()} onClick={() => choose(null)}
+        className="px-2 text-slate-500 hover:text-slate-900"><X size={14}/></button>}
+    </div>
+    {open && !disabled && <div role="listbox" className="absolute z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+      <button type="button" role="option" aria-selected={!value}
+        onMouseDown={event => event.preventDefault()} onClick={() => choose(null)}
+        className="block w-full rounded px-3 py-2 text-left text-xs font-semibold text-slate-500 hover:bg-slate-100">{pendingLabel}</button>
+      {matches.map((item, index) => <button type="button" role="option" aria-selected={String(item.id) === String(value)}
+        key={item.id} onMouseDown={event => event.preventDefault()} onClick={() => choose(item)}
+        className={`block w-full rounded px-3 py-2 text-left text-xs hover:bg-blue-50 ${index === active ? "bg-blue-50 text-[#003399]" : "text-slate-700"}`}>{item.name}</button>)}
+      {!matches.length && <p className="px-3 py-2 text-xs text-slate-500">No hay coincidencias.</p>}
+    </div>}
+  </div>;
+}
+
 export default function FmSaveDirectImportPanel({ payload, onClose }) {
   const source = payload?.source || {};
   const rows = payload?.players || [];
@@ -194,11 +240,9 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
                 {selectedForCreation && <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700">Equipo de destino (opcional)</label>
-                    <select disabled={busy} value={teamChoices[index] || ""} onChange={event => { setTeamChoices(old => ({ ...old, [index]: event.target.value })); setConfirmed(false); }}
-                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs">
-                      <option value="">Dejar equipo pendiente</option>
-                      {teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
-                    </select>
+                    <SearchableDestination items={teams} value={teamChoices[index] || ""} disabled={busy}
+                      placeholder="Buscar equipo..." pendingLabel="Dejar equipo pendiente"
+                      onChange={value => { setTeamChoices(old => ({ ...old, [index]: value })); setConfirmed(false); }} />
                     {teamMatches.length === 1 && !teamChoices[index] && <button type="button" disabled={busy}
                       onClick={() => { setTeamChoices(old => ({ ...old, [index]: String(teamMatches[0].id) })); setConfirmed(false); }}
                       className="mt-1 text-left text-[11px] font-semibold text-[#003399] underline">Vincular equipo con «{teamMatches[0].name}»</button>}
@@ -206,11 +250,9 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700">País de destino (opcional)</label>
-                    <select disabled={busy} value={countryChoices[index] || ""} onChange={event => { setCountryChoices(old => ({ ...old, [index]: event.target.value })); setConfirmed(false); }}
-                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs">
-                      <option value="">Dejar país pendiente</option>
-                      {countries.map(country => <option key={country.id} value={country.id}>{country.name}</option>)}
-                    </select>
+                    <SearchableDestination items={countries} value={countryChoices[index] || ""} disabled={busy}
+                      placeholder="Buscar país..." pendingLabel="Dejar país pendiente"
+                      onChange={value => { setCountryChoices(old => ({ ...old, [index]: value })); setConfirmed(false); }} />
                     {countryMatches.length === 1 && !countryChoices[index] && <button type="button" disabled={busy}
                       onClick={() => { setCountryChoices(old => ({ ...old, [index]: String(countryMatches[0].id) })); setConfirmed(false); }}
                       className="mt-1 text-left text-[11px] font-semibold text-[#003399] underline">Vincular país con «{countryMatches[0].name}»</button>}
