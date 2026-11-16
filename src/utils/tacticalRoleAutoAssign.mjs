@@ -1,6 +1,7 @@
 // MF LEGACY — evaluación táctica basada en atributos FM y métricas reales.
 // Nunca infiere por nombre de jugador ni usa roles "especiales" sin contexto.
-export const TACTICAL_AUTO_VERSION = "mf_legacy_roles_auto_v1";
+import { tacticalAttributeSource } from "./fmEditionAttributes.mjs";
+export const TACTICAL_AUTO_VERSION = "mf_legacy_roles_auto_v2";
 export const TACTICAL_ROLE_FAMILIES = {
   GK: "Goalkeepers", DFC: "Centre-Backs",
   LI: "Full-Backs / Wing-Backs", LD: "Full-Backs / Wing-Backs",
@@ -151,7 +152,9 @@ export function evaluateTacticalRoles(player, seasonRecords=[], roleGroups=[]) {
   const available=roleGroups.find(group=>group.group===family)?.options||[];
   if(!available.length)return {status:"insufficient",reason:"Falta el catálogo táctico del editor"};
   const season=chosenSeason(seasonRecords);
-  const scores=(TACTICAL_ROLE_PROFILES[family]||[]).map(spec=>profileScore(player,spec,season)).filter(Boolean)
+  const attributeSource=tacticalAttributeSource(player);
+  const scoredPlayer={...player,stats:attributeSource.stats};
+  const scores=(TACTICAL_ROLE_PROFILES[family]||[]).map(spec=>profileScore(scoredPlayer,spec,season)).filter(Boolean)
     .filter(x=>available.some(role=>clean(role)===clean(x.name)))
     .map(x=>({...x,name:available.find(role=>clean(role)===clean(x.name))}))
     .sort((a,b)=>b.score-a.score);
@@ -171,9 +174,10 @@ export function evaluateTacticalRoles(player, seasonRecords=[], roleGroups=[]) {
     const evidence=real && Number(season?.minutes||0)>=600
       ? ". FotMob "+season.season+" ("+season.minutes+" min): "+real.name+" percentil "+Math.round(real.pct)
       : "";
-    return "Perfil valorado por "+top+" en FM"+evidence+". Asignación automática revisable.";
+    return "Perfil valorado por "+top+" en "+attributeSource.edition+evidence+". Asignación automática revisable.";
   };
   return {status:"ready",player_id:player.id,name:player.name,position:player.position,confidence,
+    edition:attributeSource.edition,
     season:season?{season:season.season,competition:season.competition,minutes:season.minutes}:null,
     roles:[{name:first.name,description:describe(first)},{name:second.name,description:describe(second)}],
     scores:[first,second],margin:first.score-(scores[2]?.score||0),model:TACTICAL_AUTO_VERSION};
