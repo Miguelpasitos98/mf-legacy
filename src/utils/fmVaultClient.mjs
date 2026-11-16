@@ -1,5 +1,5 @@
 export const VAULT_KEY_STORAGE="mf_legacy_fm_vault_key_v1";
-export const VAULT_CHUNK_BYTES=256*1024;
+export const VAULT_CHUNK_BYTES=2*1024*1024;
 export const VAULT_MAX_BYTES=1024*1024*1024;
 export const vaultKey=value=>String(value||"").trim().toLowerCase().replace(/[^a-f0-9]/g,"");
 const body=async(base44,key,action,fields={})=>{
@@ -36,15 +36,27 @@ export async function uploadVault(api,key,file,meta,progress=()=>{}){
 }
 export async function downloadVault(api,key,entry,progress=()=>{}){
  if(!entry||entry.status!=="ready"||entry.part_count<1)throw Error("Partida incompleta.");
- const chunks=[];let totalBytes=0;
- for(let i=0;i<entry.part_count;i++){
-  const response=await body(api,key,"url",{id:entry.id,index:i});
-  const fetchResponse=await fetch(response.url);
-  if(!fetchResponse.ok)throw Error("No se pudo descargar el fragmento "+(i+1));
-  const blob=await fetchResponse.blob();
-  if(blob.size!==response.size_bytes)throw Error("Tamaño incorrecto del fragmento "+(i+1));
-  chunks.push(blob);totalBytes+=blob.size;progress(i+1,entry.part_count);
- }
+ const chunks=new Array(entry.part_count);let completed=0;
+ const concurrency=Math.min(6,entry.part_count);
+ let cursor=0;
+ await Promise.all(Array.from({length:concurrency},async()=>{
+  while(cursor<entry.part_count){
+   const i=cursor++;
+   let blob;
+   for(let attempt=0;attempt<3;attempt++){
+    try{
+     const response=await body(api,key,"url",{id:entry.id,index:i});
+     const fetchResponse=await fetch(response.url);
+     if(!fetchResponse.ok)throw Error("Error de descarga "+fetchResponse.status);
+     blob=await fetchResponse.blob();
+     if(blob.size!==response.size_bytes)throw Error("Tamaño incorrecto.");
+     break;
+    }catch(error){if(attempt===2)throw Error("No se pudo descargar el fragmento "+(i+1)+": "+error.message);await new Promise(resolve=>setTimeout(resolve,(attempt+1)*800));}
+   }
+   chunks[i]=blob;completed++;progress(completed,entry.part_count);
+  }
+ }));
+ const totalBytes=chunks.reduce((sum,blob)=>sum+blob.size,0);
  if(totalBytes!==entry.size_bytes)throw Error("El archivo recuperado está incompleto.");
  return new File(chunks,entry.filename,{type:"application/octet-stream",lastModified:entry.last_modified||Date.now()});
 }
