@@ -227,10 +227,11 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
               const allowed = canCreateFmPlayer({ source, record, players });
               if (!allowed.allowed) return <p className="mt-2 text-xs text-amber-800">{allowed.reason}</p>;
               const selectedForCreation = Boolean(createSelections[index]);
-              const teamMatches = teams.filter(team => fmNameKey(team.name) === fmNameKey(record.club_name));
-              const countryMatches = source.game === "FM26"
-                ? countries.filter(country => String(country.fm_nation_id ?? "") !== "" && String(country.fm_nation_id) === String(record.nation_id ?? ""))
-                : [];
+              const teamMatches = matchingFmTeams(record.club_name, teams);
+              const countryMatches = matchingFmCountries(record.nation_id, countries);
+              const suggested=suggestedDestinations[index] || {};
+              const selectedTeamId=teamChoices[index]===undefined?suggested.teamId||"":teamChoices[index];
+              const selectedCountryId=countryChoices[index]===undefined?suggested.countryId||"":countryChoices[index];
               return <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/40 p-3">
                 <label className="flex items-center gap-2 text-xs font-bold text-[#003399]">
                   <input type="checkbox" checked={selectedForCreation} disabled={busy} onChange={event => {
@@ -242,20 +243,20 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
                 {selectedForCreation && <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700">Equipo de destino (opcional)</label>
-                    <SearchableDestination items={teams} value={teamChoices[index] || ""} disabled={busy}
+                    <SearchableDestination items={teams} value={selectedTeamId} disabled={busy}
                       placeholder="Buscar equipo..." pendingLabel="Dejar equipo pendiente"
                       onChange={value => { setTeamChoices(old => ({ ...old, [index]: value })); setConfirmed(false); }} />
-                    {teamMatches.length === 1 && !teamChoices[index] && <button type="button" disabled={busy}
+                    {teamMatches.length === 1 && !selectedTeamId && <button type="button" disabled={busy}
                       onClick={() => { setTeamChoices(old => ({ ...old, [index]: String(teamMatches[0].id) })); setConfirmed(false); }}
                       className="mt-1 text-left text-[11px] font-semibold text-[#003399] underline">Vincular equipo con «{teamMatches[0].name}»</button>}
                     <p className="mt-1 text-[11px] text-slate-500">En la partida: {record.club_name || "Sin club"}.</p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700">País de destino (opcional)</label>
-                    <SearchableDestination items={countries} value={countryChoices[index] || ""} disabled={busy}
+                    <SearchableDestination items={countries} value={selectedCountryId} disabled={busy}
                       placeholder="Buscar país..." pendingLabel="Dejar país pendiente"
                       onChange={value => { setCountryChoices(old => ({ ...old, [index]: value })); setConfirmed(false); }} />
-                    {countryMatches.length === 1 && !countryChoices[index] && <button type="button" disabled={busy}
+                    {countryMatches.length === 1 && !selectedCountryId && <button type="button" disabled={busy}
                       onClick={() => { setCountryChoices(old => ({ ...old, [index]: String(countryMatches[0].id) })); setConfirmed(false); }}
                       className="mt-1 text-left text-[11px] font-semibold text-[#003399] underline">Vincular país con «{countryMatches[0].name}»</button>}
                     <p className="mt-1 text-[11px] text-slate-500">ID de país original: {String(record.nation_id ?? "No disponible")}. No se adivina la nacionalidad de FM27.</p>
