@@ -30,6 +30,7 @@ import PalmaresButton from "@/components/trophies/PalmaresButton";
 import PlayerIdentityDialog from "@/components/players/PlayerIdentityDialog";
 import {changedPlayerFields,playerEditHasChanges,applyPlayerEditPatch} from "@/utils/playerEditPatch";
 import {fm27Value,fm27Delta,fm27Payload,isFm27Reviewed} from "@/components/players/fm27Review.mjs";
+import {fm27VisibleAttributes,preferredFmAttributeEdition} from "@/utils/fmEditionAttributes.mjs";
 
 // MF LEGACY: logos de estado integrados, sin dependencias externas.
 const CAREER_STATUS_LOGOS = {
@@ -735,6 +736,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
   const [editOpen, setEditOpen] = useState(false);
   const [editTab, setEditTab] = useState("general");
+  const [attributeEdition,setAttributeEdition]=useState(()=>preferredFmAttributeEdition(player));
   const [isSaving, setIsSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [editablePlayer, setEditablePlayer] = useState(player);
@@ -781,6 +783,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
   useEffect(() => {
     setEditablePlayer(player);
     setForm(initialForm);
+    setAttributeEdition(preferredFmAttributeEdition(player));
   }, [player, initialForm]);
   // La tarjeta vuelve al rol principal al navegar a otro jugador.
   useEffect(() => { setSelectedRoleIndex(0); }, [player?.id, player?.fm26_uid]);
@@ -892,6 +895,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
     setForm({...initialForm,tacticalRoles:Array.isArray(savedRoles)?savedRoles:[{name:editablePlayer?.description||"",description:""},{name:"",description:""}]});
     setEditError("");
     setEditTab("general");
+    setAttributeEdition(preferredFmAttributeEdition(editablePlayer));
     setEditOpen(true);
   };
 
@@ -1757,7 +1761,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
               {["mental", "physical", "technical", "goalkeeping"].includes(editTab) && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold text-slate-700">
                         {editTab === "mental"
@@ -1768,18 +1772,16 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
                               ? "Technical"
                               : "Goalkeeping"}
                       </p>
-                      <p className="mt-1 text-[11px] text-slate-400">
-                        Todos los atributos utilizan una escala de 0 a 20.
-                      </p>
+                      <p className="mt-1 text-[11px] text-slate-500">Atributos de {attributeEdition} · escala 0–20. {attributeEdition==="FM27"?"Lectura original de FM27 (solo consulta).":"Valores FM26 editables."}</p>
                     </div>
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                      0-20
-                    </span>
+                    <div className="flex items-center gap-2" aria-label="Edición de los atributos">
+                      {["FM26","FM27"].map(edition=><button key={edition} type="button" onClick={()=>setAttributeEdition(edition)} className={`rounded-lg border px-3 py-1.5 text-xs font-black ${attributeEdition===edition?(edition==="FM27"?"border-blue-300 bg-blue-100 text-blue-900":"border-amber-300 bg-amber-100 text-amber-900"):"border-slate-200 bg-white text-slate-500"}`}>{edition}</button>)}
+                    </div>
                   </div>
-
+                  {attributeEdition==="FM27"&&!fm27VisibleAttributes(editablePlayer)&&<p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">No hay atributos FM27 legibles en el registro importado. No se sustituyen por los de FM26.</p>}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {STAT_GROUPS[editTab].map(([key, label]) => {
-                      const value = form.stats?.[editTab]?.[key] ?? 0;
+                      const value = attributeEdition==="FM27" ? (fm27VisibleAttributes(editablePlayer)?.[editTab]?.[key] ?? "") : (form.stats?.[editTab]?.[key] ?? 0);
                       return (
                         <div key={key} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100">
                           <div className="mb-2 flex items-center justify-between gap-2">
