@@ -18,10 +18,8 @@ export default async function(req){
   const data=await req.json();
   const api=createClientFromRequest(req);
   const db=api.asServiceRole.entities.FmSaveVault;
-  const config=rows(await db.filter({kind:"config",vault_id:ID},undefined,2));
-  if(config.length!==1||!config[0].secret_hash)return fail("Biblioteca privada no configurada",503);
-  const secret=safe(data?.vault_key);
-  if(!/^[a-f0-9]{64}$/i.test(secret)||!equal(await hash(secret),config[0].secret_hash))return fail("Clave privada incorrecta",403);
+  // Biblioteca compartida sin cuenta ni contraseña, solicitada expresamente por el propietario.
+  // El acceso al enlace de la web también permite usar esta biblioteca.
   const action=safe(data.action);
   if(action==="health")return out({ok:true});
   if(action==="list"){
