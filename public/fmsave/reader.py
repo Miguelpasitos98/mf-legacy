@@ -76,6 +76,13 @@ def friendly_error(error: BaseException) -> str:
         )
     if isinstance(error, fmsave.SaveChangedError):
         return "The save changed while it was being read. Wait for the game to finish saving."
+    if isinstance(error, KeyError):
+        return (
+            "El lector fmsave no encontró un campo interno esperado en esta partida "
+            "(KeyError). Puede deberse a una versión de FM26/FM27 que todavía no "
+            "está cubierta por fmsave 0.12.2. Prueba con una partida recién "
+            "guardada; si persiste, necesitamos la versión/build y la fase del error."
+        )
     if isinstance(error, fmsave.FmsaveError):
         return f"fmsave could not read this save ({type(error).__name__})."
     if isinstance(error, OSError):
@@ -293,7 +300,9 @@ def open_save(path: str) -> dict[str, object]:
     info = career_save.info
     try:
         managed = career_save.managed_clubs()
-    except fmsave.FmsaveError:
+    except (fmsave.FmsaveError, KeyError, IndexError, ValueError):
+        # The managed-club section is optional; partial FM build coverage must
+        # not prevent reading the complete player database.
         managed = ()
     club = managed[0] if managed else None
     _state["club_uid"] = None if club is None else club.club_uid
