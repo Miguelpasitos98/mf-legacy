@@ -1,0 +1,80 @@
+{
+  "name": "FmSaveVault",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string"
+    },
+    "vault_id": {
+      "type": "string"
+    },
+    "secret_hash": {
+      "type": "string"
+    },
+    "record_key": {
+      "type": "string"
+    },
+    "filename": {
+      "type": "string"
+    },
+    "size_bytes": {
+      "type": "number"
+    },
+    "last_modified": {
+      "type": "number"
+    },
+    "game": {
+      "type": "string"
+    },
+    "build": {
+      "type": "string"
+    },
+    "in_game_date": {
+      "type": "string"
+    },
+    "players_count": {
+      "type": "number"
+    },
+    "parts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "part_count": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string"
+    },
+    "uploaded_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "vault_id"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
