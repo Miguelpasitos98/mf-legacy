@@ -49,7 +49,7 @@ export default function Squads() {
   const allowedTeamIds = useMemo(() => new Set(customTeams.map(t => String(t.id))), [customTeams]);
   const team = customTeams.find(t => String(t.id) === teamId);
   // Modo libre: onces sueltos, sin club, sin temporada y sin plantilla.
-  const freeMode = params.get("libre") === "1";
+  const freeMode = params.get("libre") === "1" || !teamId;
   const activeTeam = freeMode ? { id: "standalone" } : team;
   useEffect(() => {
     let alive = true;
@@ -226,7 +226,7 @@ export default function Squads() {
     act(() => base44.entities.TeamSquadMembership.delete(m.id), "Jugador retirado de la plantilla.");
   };
   return <div className="mx-auto max-w-[1650px] px-3 py-3 md:px-5 text-slate-900">
-    <div className="mb-3"><p className="text-xs font-bold uppercase tracking-[.2em] text-blue-700">MF LEGACY</p><h1 className="text-3xl md:text-4xl font-black">Plantillas y Onces</h1><p className="text-slate-500 mt-1">Crea plantillas y onces de tus clubes personalizados, sin afectar a los equipos reales de la base.</p></div>
+    <div className="mb-3"><p className="text-xs font-bold uppercase tracking-[.2em] text-blue-700">MF LEGACY</p><h1 className="text-3xl md:text-4xl font-black">Plantillas y Onces</h1><p className="text-slate-500 mt-1">Crea y guarda onces libres con jugadores de toda la base. Puedes asociar un entrenador sin vincular el once a ningún club.</p></div>
     <div className={`grid grid-cols-1 gap-3 ${freeMode ? "" : "lg:grid-cols-[205px_minmax(0,1fr)]"}`}>
       {!freeMode && <aside className="rounded-2xl border border-slate-200 bg-white p-4 lg:self-start"><h2 className="font-bold mb-3">Mis clubes personalizados</h2><div className="relative mb-3"><Search className="absolute left-3 top-3 text-slate-400" size={17}/><input aria-label="Buscar equipo" value={teamQuery} onChange={e=>setTeamQuery(e.target.value)} placeholder="Buscar equipo..." className="w-full rounded-lg border border-slate-200 p-2.5 pl-9"/></div>
         <div className="max-h-[650px] overflow-auto space-y-1"><button type="button" onClick={chooseFree} aria-pressed={freeMode} className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-slate-100 ${freeMode?"bg-blue-50 ring-1 ring-blue-300":""}`}><Users size={23} className="text-slate-500"/><span className="text-sm font-semibold">Once sin equipo</span></button>{customTeams.filter(t=>t.name?.toLowerCase().includes(teamQuery.toLowerCase())).map(t=><button type="button" key={t.id} onClick={()=>chooseTeam(t.id)} className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-slate-100 ${teamId === String(t.id)?"bg-blue-50 ring-1 ring-blue-300":""}`}>{t.logo?<img src={t.logo} className="w-8 h-8 object-contain" alt=""/>:<Users size={23}/>}<span className="text-sm font-semibold">{t.name}</span></button>)}</div>
