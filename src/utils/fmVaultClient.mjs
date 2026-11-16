@@ -34,6 +34,61 @@ export async function uploadVault(api,key,file,meta,progress=()=>{}){
  await body(api,key,"finish",{id:entry.id});
  return {alreadySaved:false,entry};
 }
+
+const INDEX_CHUNK=512*1024;
+async function packIndex(index){
+ if(typeof CompressionStream==="undefined")throw Error("Este navegador no permite comprimir el índice.");
+ const payload={
+  format:"mf_legacy_fm_search_index_v1",count:index.count,
+  numbers:{uid:Array.from(index.uid),club_uid:Array.from(index.clubUid),team_slot:Array.from(index.teamSlot),
+   ability_current:Array.from(index.ca),ability_potential:Array.from(index.pa),age:Array.from(index.age)},
+  text:{name:index.names,club_name:index.clubNames,natural_positions:index.positions},
+ };
+ const bytes=new TextEncoder().encode(JSON.stringify(payload));
+ const stream=new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+ return new Blob([await new Response(stream).arrayBuffer()],{type:"application/gzip"});
+}
+export async function uploadVaultIndex(api,key,entry,index,progress=()=>{}){
+ if(!entry?.id||!index||entry.index_status==="ready")return;
+ const compressed=await packIndex(index);
+ if(compressed.size>40*1024*1024)throw Error("El índice supera los 40 MB comprimidos.");
+ const begin=await body(api,key,"index-begin",{id:entry.id,size_bytes:compressed.size});
+ if(begin.already_saved)return;
+ if(begin.chunk_bytes!==INDEX_CHUNK)throw Error("Incompatibilidad de formato del índice.");
+ for(let i=begin.index_parts_saved||0;i<begin.index_part_count;i++){
+  const encoded=base64Bytes(await compressed.slice(i*INDEX_CHUNK,Math.min((i+1)*INDEX_CHUNK,compressed.size)).arrayBuffer());
+  for(let attempt=0;attempt<3;attempt++){
+   try{await body(api,key,"index-upload",{id:entry.id,index:i,base64:encoded});break;}
+   catch(error){if(attempt===2)throw error;await new Promise(resolve=>setTimeout(resolve,800*(attempt+1)));}
+  }
+  progress(i+1,begin.index_part_count);
+ }
+ await body(api,key,"index-finish",{id:entry.id});
+}
+export async function downloadVaultIndex(api,key,entry,progress=()=>{}){
+ if(entry?.index_status!=="ready")throw Error("El índice todavía no está guardado.");
+ if(typeof DecompressionStream==="undefined")throw Error("Tu navegador no admite índices comprimidos.");
+ const parts=new Array(entry.index_part_count);
+ let cursor=0,completed=0;
+ await Promise.all(Array.from({length:Math.min(6,parts.length)},async()=>{
+  while(cursor<parts.length){
+   const i=cursor++;
+   const response=await body(api,key,"index-url",{id:entry.id,index:i});
+   const downloaded=await fetch(response.url);
+   if(!downloaded.ok)throw Error("Error al descargar el índice.");
+   const blob=await downloaded.blob();
+   if(blob.size!==response.size_bytes)throw Error("Fragmento de índice incompleto.");
+   parts[i]=blob;progress(++completed,parts.length);
+  }
+ }));
+ const zipped=new Blob(parts);
+ if(zipped.size!==entry.index_size_bytes)throw Error("El índice no se ha recuperado íntegramente.");
+ const plain=await new Response(zipped.stream().pipeThrough(new DecompressionStream("gzip"))).text();
+ const payload=JSON.parse(plain);
+ if(payload?.format!=="mf_legacy_fm_search_index_v1"||payload.count!==entry.players_count)throw Error("El índice no corresponde a esta partida.");
+ return payload;
+}
+
 export async function downloadVault(api,key,entry,progress=()=>{}){
  if(!entry||entry.status!=="ready"||entry.part_count<1)throw Error("Partida incompleta.");
  const chunks=new Array(entry.part_count);let completed=0;
