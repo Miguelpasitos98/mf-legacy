@@ -20,12 +20,6 @@ export default async function(req){
   // El acceso al enlace de la web también permite usar esta biblioteca.
   const action=safe(data.action);
   if(action==="health")return out({ok:true});
-  if(action==="remove-obsolete-fm27-betis"){
-   const target=await db.get("6afae6f19d0c2647bc7447fc");
-   if(!target||target.id!=="6afae6f19d0c2647bc7447fc"||target.kind!=="save"||target.vault_id!==ID||target.game!=="FM27"||target.filename!=="Miguel Núñez - Real Betis.fm"||target.status!=="ready")return fail("La partida no coincide con el registro autorizado.",409);
-   await db.delete(target.id);
-   return out({ok:true,deleted_id:target.id});
-  }
   if(action==="list"){
    const values=rows(await db.filter({kind:"save",vault_id:ID},"-uploaded_at",500));
    return out({ok:true,items:values.map(publicRow)});
