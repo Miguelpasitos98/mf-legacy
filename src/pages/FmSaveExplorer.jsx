@@ -218,20 +218,6 @@ export default function FmSaveExplorer() {
     }
   };
 
-  useEffect(() => {
-    // Legacy administrator-only archive is retired in favour of the private-key vault.
-    if (true || stage !== "ready" || !meta || !index || !cloudUser || cloudBusy) return;
-    const pending = fileToCloudRef.current;
-    if (!pending || pending.generation !== generationRef.current) return;
-    if (!["FM26", "FM27"].includes(meta.game)) {
-      setCloudMessage("Esta versión de la partida no se puede guardar en la biblioteca FM26/FM27.");
-      fileToCloudRef.current = null;
-      return;
-    }
-    fileToCloudRef.current = null;
-    void uploadCloudFile(pending.file, meta, index.count);
-  }, [stage, index, meta, cloudUser, cloudBusy]);
-
   const openCloudEntry = async entry => {
     if (cloudTransferRef.current || !reader || ["boot", "open", "players", "indexing"].includes(stage) || downloading) return;
     cloudTransferRef.current = true;
