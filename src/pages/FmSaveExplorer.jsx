@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, Cloud, CloudDownload, Database, Download, FileUp, Loader2, Search, ShieldCheck, Users, X } from "lucide-react";
 import { buildFmSaveIndex, findFmPlayers, findFmClubs, filterFmTeamDetails, buildFmExport, fmJsonSafe } from "@/utils/fmSaveSearch.mjs";
+import { fm26KnownClubSelection } from "@/utils/fmSaveBulkTeams.mjs";
+import { usePlayersQuery } from "@/hooks/useSharedData";
 import FmSaveDirectImportPanel from "@/components/fmsave/FmSaveDirectImportPanel";
 import FmVaultPanel from "@/components/fmsave/FmVaultPanel";
 import { base44 } from "@/api/base44Client";
@@ -73,6 +75,8 @@ export default function FmSaveExplorer() {
   const [exportProgress, setExportProgress] = useState({ done: 0, total: 0 });
   const [firstTeamOnly, setFirstTeamOnly] = useState(true);
   const [directImport, setDirectImport] = useState(null);
+  const {data:existingPlayers=[],isLoading:loadingExistingPlayers}=usePlayersQuery();
+  const [bulkReviewOpen,setBulkReviewOpen]=useState(false);
   const [rememberedSaves, setRememberedSaves] = useState([]);
   const [rememberBusy, setRememberBusy] = useState(false);
   const [rememberMessage, setRememberMessage] = useState("");
@@ -390,6 +394,7 @@ export default function FmSaveExplorer() {
     setError("");
   };
 
+  const knownTeams=useMemo(()=>fm26KnownClubSelection(index,existingPlayers),[index,existingPlayers]);
   const playerResults = useMemo(() => mode === "player" ? findFmPlayers(index, query) : [], [index, mode, query]);
   const clubResults = useMemo(() => mode === "club" ? findFmClubs(index, query) : [], [index, mode, query]);
   const selectedClubMembers = useMemo(() => {
