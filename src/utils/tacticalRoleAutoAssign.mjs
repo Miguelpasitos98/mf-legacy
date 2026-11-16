@@ -109,7 +109,9 @@ function chosenSeason(records, player) {
   const currentYear=new Date().getUTCFullYear();
   const recent=available.filter(row=>{const year=Number(String(row.season||"").match(/\d{4}/)?.[0]);return year>=currentYear-5 && year<=currentYear;});
   // Avoid youth-season statistics dominating current young players.
-  const pool=recent.length?recent:(Number(player?.age||0)<32?[]:available);
+  const birthYear=Number(String(player?.date_of_birth||"").match(/\d{4}/)?.[0]);
+  const age=Number(player?.age)|| (birthYear>1900 ? currentYear-birthYear : null);
+  const pool=recent.length?recent:(age!=null && age<32?[]:available);
   return pool.sort((a,b)=>Number(b.minutes||0)-Number(a.minutes||0))[0] || null;
 }
 function realMetric(record, name) {
