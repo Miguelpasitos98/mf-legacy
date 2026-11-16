@@ -449,6 +449,29 @@ export default function FmSaveExplorer() {
     }
   };
 
+  const prepareKnownTeams = async () => {
+    if(downloading||indexPreviewOnly||metaRef.current?.game!=="FM27"||!knownTeams.indexes.length)return;
+    const generation=generationRef.current;
+    setDownloading(true);setError("");setNotice("");setDirectImport(null);
+    setExportProgress({done:0,total:knownTeams.indexes.length});
+    try{
+      const details=[];
+      for(let start=0;start<knownTeams.indexes.length;start+=16){
+        if(generation!==generationRef.current)throw Error("La partida ha cambiado durante la lectura.");
+        const group=knownTeams.indexes.slice(start,start+16);
+        details.push(...await Promise.all(group.map(i=>requestDetail(index.uid[i]))));
+        setExportProgress({done:details.length,total:knownTeams.indexes.length});
+      }
+      const safe=details.filter(detail=>detail?.player && Number(detail.player.team_slot)===0);
+      if(!safe.length)throw Error("No se han encontrado jugadores de primera plantilla.");
+      setDirectImport(buildFmExport({meta:metaRef.current,selection:{type:"known_fm26_clubs_bulk",club_count:knownTeams.clubs.length,first_team_only:true},details:safe}));
+      setBulkReviewOpen(false);
+      setNotice(`${safe.length} fichas FM27 de ${knownTeams.clubs.length} equipos preparadas. Revisa las coincidencias antes de confirmar; las identidades dudosas quedarán pendientes.`);
+      window.setTimeout(()=>document.getElementById("fm-direct-import-review")?.scrollIntoView({behavior:"smooth",block:"start"}),80);
+    }catch(caught){setError(caught.message||"No se pudo preparar la importación de equipos.");}
+    finally{setDownloading(false);}
+  };
+
   const working = ["boot", "open", "players", "indexing"].includes(stage);
 
   return <div className="mf-page-scroll min-h-full bg-[#f7f9fc] p-4 text-slate-800 md:p-7">
