@@ -182,7 +182,7 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
       Puedes actualizar fichas existentes o crear jugadores nuevos después de confirmarlo. Los registros se guardan bajo <b>{source.game}</b>.
       No se sustituyen CA/PA, atributos, roles, equipos, fotografías ni estadísticas de fichas existentes.
-      Los ID de FM26 y FM27 son independientes. Los jugadores nuevos pueden quedar sin equipo o país vinculados cuando no exista una equivalencia segura.
+      Los ID de jugador de FM26 y FM27 son independientes. Para fichas nuevas, equipo y país se preseleccionan solo si hay una equivalencia única; puedes cambiarla o dejarla pendiente antes de confirmar.
     </div>
     {reviewing && <p className="mt-4 flex items-center gap-2 text-sm text-slate-600"><Loader2 size={16} className="animate-spin" /> Leyendo jugadores, equipos y países de MF LEGACY...</p>}
     {(readError || teamsError || countriesError) && <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">No se pudo consultar el catálogo: {(readError || teamsError || countriesError).message}</p>}
@@ -249,7 +249,7 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
                     {teamMatches.length === 1 && !selectedTeamId && <button type="button" disabled={busy}
                       onClick={() => { setTeamChoices(old => ({ ...old, [index]: String(teamMatches[0].id) })); setConfirmed(false); }}
                       className="mt-1 text-left text-[11px] font-semibold text-[#003399] underline">Vincular equipo con «{teamMatches[0].name}»</button>}
-                    <p className="mt-1 text-[11px] text-slate-500">En la partida: {record.club_name || "Sin club"}.</p>
+                    <p className="mt-1 text-[11px] text-slate-500">En la partida: {record.club_name || "Sin club"}. {selectedTeamId&&teamChoices[index]===undefined&&<strong className="text-emerald-700">✓ Vinculado automáticamente.</strong>}</p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700">País de destino (opcional)</label>
@@ -259,7 +259,7 @@ export default function FmSaveDirectImportPanel({ payload, onClose }) {
                     {countryMatches.length === 1 && !selectedCountryId && <button type="button" disabled={busy}
                       onClick={() => { setCountryChoices(old => ({ ...old, [index]: String(countryMatches[0].id) })); setConfirmed(false); }}
                       className="mt-1 text-left text-[11px] font-semibold text-[#003399] underline">Vincular país con «{countryMatches[0].name}»</button>}
-                    <p className="mt-1 text-[11px] text-slate-500">ID de país original: {String(record.nation_id ?? "No disponible")}. No se adivina la nacionalidad de FM27.</p>
+                    <p className="mt-1 text-[11px] text-slate-500">ID de país de {source.game}: {String(record.nation_id ?? "No disponible")}. {selectedCountryId&&countryChoices[index]===undefined?<strong className="text-emerald-700">✓ Vinculado automáticamente por ID único.</strong>:"Sin equivalencia única, queda pendiente."}</p>
                   </div>
                   <p className="sm:col-span-2 text-[11px] text-slate-600">Se conservarán nombre, datos básicos, CA/PA de su edición y registro fmsave completo. Los vínculos que dejes vacíos podrán completarse después.</p>
                 </div>}
