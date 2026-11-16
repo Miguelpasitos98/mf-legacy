@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Users, Building2 } from "lucide-react";
 import SmartImage from "./SmartImage";
 import {candidateOutlineClass} from "./playerCandidateOutline.mjs";
-import {isFm27Reviewed,hasFm27Value} from "./fm27Review.mjs";
 import {bestFmRating} from "@/utils/playerBestFmRatings.mjs";
 
 // ============================================================
@@ -276,6 +275,10 @@ function PlayerCardInner({
     event.stopPropagation();
   };
 
+  const bestCa = bestFmRating(player, "ca");
+  const bestCp = bestFmRating(player, "cp");
+  const sameEdition = bestCa.edition && bestCa.edition === bestCp.edition ? bestCa.edition : null;
+
   return (
     <div
       role="button"
@@ -359,20 +362,15 @@ function PlayerCardInner({
 
         {/* LEGACY TITLE + CA/CP */}
 
-        <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 flex-col items-start gap-0.5 text-xs`}>
+        <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 flex-col items-start gap-1 text-xs`}>
           <span className="min-w-0 break-words font-semibold text-slate-900">{legacyTitle}</span>
-          {!(hasFm27Value(player) && player.fm27_ca != null && player.fm27_cp != null &&
-            Number(bestFmRating(player,"ca").value) === Number(player.fm27_ca) &&
-            Number(bestFmRating(player,"cp").value) === Number(player.fm27_cp)) && <span className="shrink-0 font-bold text-[#003399]"
-            title={`Mejor CA entre FM26 y FM27: ${bestFmRating(player,"ca").edition || "sin dato"}. Mejor CP: ${bestFmRating(player,"cp").edition || "sin dato"}. Valores originales conservados por edición.`}>
-            CA {bestFmRating(player,"ca").value ?? "—"} / CP {bestFmRating(player,"cp").value ?? "—"}
-          </span>}
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 font-bold text-[#003399]"
+            title={`Mejor CA: ${bestCa.edition || "sin dato"}. Mejor CP: ${bestCp.edition || "sin dato"}. FM26 y FM27 se conservan por separado.`}>
+            {sameEdition && <span className="inline-flex shrink-0 rounded border border-blue-100 bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">{sameEdition}</span>}
+            <span>CA {bestCa.value ?? "—"}{!sameEdition && bestCa.edition && <small className="ml-1 font-semibold text-slate-500">({bestCa.edition})</small>}
+              {" / "}CP {bestCp.value ?? "—"}{!sameEdition && bestCp.edition && <small className="ml-1 font-semibold text-slate-500">({bestCp.edition})</small>}</span>
+          </div>
         </div>
-        {hasFm27Value(player) && <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px]">
-          <span title={isFm27Reviewed(player) ? "FM27 revisado" : "Datos FM27"}
-            className={`inline-flex shrink-0 items-center rounded border px-1.5 py-0.5 text-[10px] font-bold ${isFm27Reviewed(player) ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-blue-100 bg-blue-50 text-blue-800"}`}>FM27</span>
-          <span className="font-bold text-[#003399]">CA {player.fm27_ca ?? "—"} / CP {player.fm27_cp ?? "—"}</span>
-        </div>}
 
         {/* AGE + POSITION RATINGS */}
         <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 items-start gap-1.5 text-xs`}>
