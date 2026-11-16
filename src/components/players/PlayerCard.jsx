@@ -358,8 +358,7 @@ function PlayerCardInner({
         </div>
 
         {/* LEGACY TITLE + CA/CP */}
-        {isFm27Reviewed(player)&&<span title={player.fm27_reviewed_at?"Confirmado el "+player.fm27_reviewed_at:"Revisión FM27 confirmada"} className="mt-1 inline-flex w-fit items-center rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">FM27 ✓</span>}
-        {!isFm27Reviewed(player)&&hasFm27Value(player)&&<span className="mt-1 inline-flex w-fit items-center rounded-md border border-blue-100 bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800">FM27 · En curso</span>}
+
         <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 flex-wrap items-center gap-1.5 text-xs`}>
           <span className="min-w-0 break-words font-semibold text-slate-900">{legacyTitle}</span>
           <span className="shrink-0 text-slate-300">|</span>
@@ -368,6 +367,11 @@ function PlayerCardInner({
             CA {bestFmRating(player,"ca").value ?? "—"} / CP {bestFmRating(player,"cp").value ?? "—"}
           </span>
         </div>
+        {hasFm27Value(player) && <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px]">
+          <span title={isFm27Reviewed(player) ? "FM27 revisado" : "Datos FM27"}
+            className={`inline-flex shrink-0 items-center rounded border px-1.5 py-0.5 text-[10px] font-bold ${isFm27Reviewed(player) ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-blue-100 bg-blue-50 text-blue-800"}`}>FM27</span>
+          <span className="font-bold text-[#003399]">CA {player.fm27_ca ?? "—"} / CP {player.fm27_cp ?? "—"}</span>
+        </div>}
 
         {/* AGE + POSITION RATINGS */}
         <div className={`${compact ? "mt-1.5" : "mt-2"} flex min-w-0 items-start gap-1.5 text-xs`}>
