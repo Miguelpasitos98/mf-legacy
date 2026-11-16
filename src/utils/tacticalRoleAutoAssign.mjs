@@ -106,13 +106,17 @@ export function needsTacticalRoles(player) { return !hasTacticalRole(player); }
 
 function chosenSeason(records, player) {
   const available=(records||[]).filter(row=>row?.source==="fotmob" && numeric(row.minutes)>=450 && Array.isArray(row.metrics) && row.metrics.length>=8);
-  const currentYear=new Date().getUTCFullYear();
-  const recent=available.filter(row=>{const year=Number(String(row.season||"").match(/\d{4}/)?.[0]);return year>=currentYear-5 && year<=currentYear;});
-  // Avoid youth-season statistics dominating current young players.
+  // Historical peak seasons remain eligible: recency alone would discard the
+  // defining years of retired legends. Exclude youth seasons (<19 years old)
+  // when date of birth is available, then favor full senior seasons.
   const birthYear=Number(String(player?.date_of_birth||"").match(/\d{4}/)?.[0]);
-  const age=Number(player?.age)|| (birthYear>1900 ? currentYear-birthYear : null);
-  const pool=recent.length?recent:(age!=null && age<32?[]:available);
-  return pool.sort((a,b)=>Number(b.minutes||0)-Number(a.minutes||0))[0] || null;
+  const senior=available.filter(row=>{
+    const year=Number(String(row.season||"").match(/\d{4}/)?.[0]);
+    return !year || !birthYear || year-birthYear>=19;
+  });
+  const established=senior.filter(row=>Number(row.minutes)>=1200);
+  const pool=established.length?established:senior;
+  return [...pool].sort((a,b)=>Number(b.minutes||0)-Number(a.minutes||0))[0] || null;
 }
 function realMetric(record, name) {
   const found=(record?.metrics||[]).find(m=>String(m?.name||"").toLowerCase()===name.toLowerCase());
