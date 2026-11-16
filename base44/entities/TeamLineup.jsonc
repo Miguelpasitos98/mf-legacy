@@ -6,14 +6,18 @@
       "type": "string",
       "enum": [
         "club",
-        "national"
-      ]
+        "national",
+        "standalone"
+      ],
+      "description": "standalone identifica onces libres que no se vinculan a ning\u00fan equipo."
     },
     "team_id": {
-      "type": "string"
+      "type": "string",
+      "description": "ID del equipo del once o 'standalone' cuando el once es libre."
     },
     "season": {
-      "type": "string"
+      "type": "string",
+      "description": "Vac\u00edo en los onces libres sin equipo."
     },
     "name": {
       "type": "string"
@@ -38,6 +42,14 @@
     },
     "notes": {
       "type": "string"
+    },
+    "manager_id": {
+      "type": "string",
+      "description": "Entrenador asociado al once. Opcional."
+    },
+    "manager_name": {
+      "type": "string",
+      "description": "Nombre del entrenador en el momento de guardar, para mostrarlo sin consultas adicionales."
     }
   },
   "required": [

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw, Save, Trash2, Download, Palette } from "lucide-react";
+import { RotateCcw, Save, Trash2, Download, Palette, Copy } from "lucide-react";
 import html2canvas from "html2canvas";
 import { base44 } from "@/api/base44Client";
 import PlayerPortrait from "./PlayerPortrait";
+import LineupManagerPicker from "./LineupManagerPicker";
 import { BalancePanel, PlayerPicker } from "./LineupSidePanel";
 import { analyzeLineup } from "./lineupAnalysis.mjs";
 import {BASE_FORMATIONS,generateFormation} from "./managerFormationBridge.mjs";
@@ -18,7 +19,12 @@ export function assignSlot(slots, target, playerId) {
   if (!playerId) delete next[target];
   return next;
 }
-export default function TacticalBuilder({ team, season, roster, allPlayers = [], comparison = [], balanceComparison = [], onEnsurePlayer, onDirtyChange, coachShape = null }) {
+export default function TacticalBuilder({ team, season, roster, allPlayers = [], comparison = [], balanceComparison = [], onEnsurePlayer, onDirtyChange, coachShape = null, standalone = false }) {
+  // Un once libre no se vincula a ningún equipo ni a una temporada.
+  const scopeType = standalone ? "standalone" : "club";
+  const scopeId = String(team.id);
+  const lineupFilter = standalone ? {team_type:scopeType,team_id:scopeId} : {team_type:scopeType,team_id:scopeId,season};
+  const [manager,setManager] = useState(()=>coachShape?.manager?{id:String(coachShape.manager.id),name:coachShape.manager.display_name||coachShape.manager.name||""}:null);
   const [formation,setFormation] = useState(coachShape?.formation||"4-3-3");
   const [slots,setSlots] = useState({});
   const [slotPositions,setSlotPositions]=useState({});
@@ -60,7 +66,8 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
       if(!blob)throw new Error("El navegador no pudo generar el archivo.");
       const url=URL.createObjectURL(blob);
       const a=document.createElement("a");
-      a.href=url;a.download=`${safeFilename(team.name)}-${safeFilename(season)}-${safeFilename(lineupName)}.png`;
+      const parts=standalone?[lineupName||"once",formation]:[team.name,season,lineupName];
+      a.href=url;a.download=`${parts.map(safeFilename).join("-")}.png`;
       document.body.appendChild(a);a.click();a.remove();
       window.setTimeout(()=>URL.revokeObjectURL(url),1500);
     }catch(e){setExportError("No se pudo exportar el PNG. Comprueba si alguna foto externa bloquea la captura. "+(e.message||""))}
@@ -70,24 +77,24 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
   useEffect(()=>{
     let live=true;
     setLoadingSaved(true);setError("");
-    listRecords(base44.entities.TeamLineup,{team_type:"club",team_id:String(team.id),season}).then(rows=>{if(live)setLineups(rows)})
+    listRecords(base44.entities.TeamLineup,lineupFilter).then(rows=>{if(live)setLineups(rows)})
       .catch(e=>{if(live)setError(e.message || "No se pudieron cargar los onces")})
       .finally(()=>{if(live)setLoadingSaved(false)});
     return ()=>{live=false};
-  },[team.id,season,revision]);
+  },[team.id,season,revision,standalone]);
   const availableIds = new Set(roster.map(r=>String(r.player_id)));
   const markDirty = () => setDirty(true);
   const loadLineup = async id => {
     if(busy)return;
     if(dirty && !window.confirm("Hay cambios sin guardar. ¿Descartarlos?")) return;
-    if(!id){setSlots({});setSlotPositions({});setBench([]);setActiveId("");setLineupName("Nuevo once");setDirty(false);return;}
+    if(!id){setSlots({});setSlotPositions({});setBench([]);setActiveId("");setLineupName("");setDirty(false);return;}
     setBusy(true);setError("");
     try {
       const [savedSlots,savedBench] = await Promise.all([
         listRecords(base44.entities.TeamLineupSlot,{lineup_id:id}),
         listRecords(base44.entities.TeamLineupBench,{lineup_id:id})
       ]);
-      const chosen=lineups.find(l=>l.id===id && l.season===season && String(l.team_id)===String(team.id));
+      const chosen=lineups.find(l=>l.id===id && String(l.team_id)===scopeId && (standalone || l.season===season));
       if(!chosen) throw new Error("No se encontró el once seleccionado");
       const newSlots={};
       const newPositions={};
@@ -104,6 +111,7 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
       const newBench=savedBench.sort((a,b)=>(a.bench_order??0)-(b.bench_order??0))
         .map(b=>String(b.player_id)).filter(pid=>availableIds.has(pid)&&!occupied.has(pid));
       setFormation(chosen.formation);
+      setManager(chosen.manager_id?{id:String(chosen.manager_id),name:chosen.manager_name||""}:null);
       setSlots(newSlots);setSlotPositions(newPositions);setBench([...new Set(newBench)]);setActiveId(id);setLineupName(chosen.name);setDirty(false);setSelected(null);
       setNotice("Alineación recuperada.");
     }catch(e){setError(e.message||"No se pudo cargar el once")}
@@ -111,11 +119,12 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
   };
   // A manager assignment creates its template on assignment, not on every
   // view. Never recreate a template the user deliberately deleted.
-  const saveLineup = async () => {
+  const suggestedName = () => ((manager?.name?manager.name+" · ":"")+formation).slice(0,100);
+  // Guardado en un clic: sin diálogos de confirmación ni nombre obligatorio.
+  const saveLineup = async (asNew = false) => {
     if(busy || loadingSaved)return;
-    const name=lineupName.trim();
-    if(!name){setError("Escribe un nombre para el once.");return;}
-    if(!season.trim()){setError("La temporada es obligatoria.");return;}
+    const name=(lineupName.trim()||suggestedName()).slice(0,100);
+    if(!standalone && !season.trim()){setError("La temporada es obligatoria.");return;}
     const slotRows=shapeOf(formation).filter(([,,code])=>slots[code]).map(([x,y,code],index)=>({
       player_id:slots[code],slot_code:code,x_position:slotPositions[code]?.x??x,y_position:slotPositions[code]?.y??y,display_order:index
     }));
@@ -123,14 +132,12 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     if(new Set(ids).size!==ids.length || ids.some(pid=>!availableIds.has(String(pid)))){
       setError("Hay jugadores duplicados o que ya no pertenecen a la plantilla.");return;
     }
-    if(slotRows.length<11&&!window.confirm(`El once tiene ${slotRows.length}/11 titulares. ¿Guardarlo incompleto?`))return;
-    if(activeId&&!window.confirm("¿Actualizar el once guardado con los cambios actuales?"))return;
     setBusy(true);setError("");
-    let id=activeId;let created=false;
+    let id=asNew?"":activeId;let created=false;
     try{
       if(!id){
-        const entity=await base44.entities.TeamLineup.create({team_type:"club",team_id:String(team.id),season,name,formation,type:season==="2026/2027"?"custom":"historical",is_default:false});
-        id=entity.id;created=true;
+        const entity=await base44.entities.TeamLineup.create({team_type:scopeType,team_id:scopeId,...(standalone?{}:{season}),name,formation,type:standalone||season==="2026/2027"?"custom":"historical",is_default:false,manager_id:manager?.id||"",manager_name:manager?.name||""});
+        id=entity?.id||entity?.data?.id;created=true;
       }
       // Update only changed positions, keeping existing Base44 record IDs.
       // No bulk delete/recreate of all players, preventing duplicate writes.
@@ -140,8 +147,9 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
         lineupId:id,slots:slotRows,
         bench:bench.map((pid,i)=>({player_id:pid,bench_order:i}))
       });
-      await base44.entities.TeamLineup.update(id,{name,formation});
-      setActiveId(id);setDirty(false);setRevision(r=>r+1);setNotice("Once guardado correctamente.");
+      await base44.entities.TeamLineup.update(id,{name,formation,manager_id:manager?.id||"",manager_name:manager?.name||""});
+      setActiveId(id);setLineupName(name);setDirty(false);setRevision(r=>r+1);
+      setNotice(slotRows.length<11?`Once guardado con ${slotRows.length}/11 titulares.`:"Once guardado correctamente.");
     }catch(e){
       if(created&&id){
         try{
@@ -180,16 +188,27 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     setBench(b=>b.includes(pid)?b.filter(v=>v!==pid):[...b,pid]);
     setDirty(true);
   };
+  const [benchQuery,setBenchQuery]=useState("");
+  // Con toda la base disponible (onces libres) el banquillo se filtra con búsqueda.
+  const benchPool=useMemo(()=>{
+    const open=roster.filter(m=>!Object.values(slots).includes(String(m.player_id)));
+    if(roster.length<=60)return open;
+    const q=benchQuery.trim().toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    if(!q)return open.slice(0,60);
+    return open.filter(m=>(m.player?.name||"").toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").includes(q)).slice(0,60);
+  },[roster,slots,benchQuery]);
   useEffect(() => {
     setSlots({});setSlotPositions({});setBench([]);setActiveId("");setDirty(false);
     setSelected(null);setNotice("");appliedAssignment.current="";
     setFormation(coachShape?.formation||"4-3-3");
+    setManager(coachShape?.manager?{id:String(coachShape.manager.id),name:coachShape.manager.display_name||coachShape.manager.name||""}:null);
   },[team?.id,season]);
   useEffect(()=>{
     if(!coachShape?.formation||loadingSaved||busy||dirty)return;
     const key=String(team.id)+"|"+season+"|"+String(coachShape.assignment.id);
     if(appliedAssignment.current===key)return;
     const preferred=lineups.find(l=>String(l.notes||"").includes("manager_assignment:"+coachShape.assignment.id)&&l.formation===coachShape.formation);
+    if(coachShape?.manager)setManager({id:String(coachShape.manager.id),name:coachShape.manager.display_name||coachShape.manager.name||""});
     appliedAssignment.current=key;
     if(preferred){
       loadLineup(preferred.id);
@@ -262,20 +281,24 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     setNotice("Formación cambiada. Revisa las posiciones de los jugadores.");
   };
   return <section className="rounded-2xl border border-slate-200 bg-white p-2 sm:p-3 mt-1" aria-label="Constructor táctico">
-    <div className="flex flex-wrap justify-between items-center gap-2 mb-2"><div><p className="text-xs font-bold tracking-wider text-blue-700">CONSTRUCTOR TÁCTICO</p><h3 className="text-xl font-extrabold">Arma tu once · {team.name}</h3><p className="text-xs text-slate-500">{dirty?"Cambios sin guardar":activeId?"Once guardado":"Nuevo once"}</p></div><button type="button" className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm" onClick={()=>{setSlots({});setSlotPositions({});setBench([]);setSelected(null);setNotice("");markDirty();}}><RotateCcw size={15}/> Vaciar campo</button></div>
+    <div className="flex flex-wrap justify-between items-center gap-2 mb-2"><div><p className="text-xs font-bold tracking-wider text-blue-700">CONSTRUCTOR TÁCTICO</p><h3 className="text-xl font-extrabold">{standalone?"Once libre":"Arma tu once · "+team.name}</h3><p className="text-xs text-slate-500">{(dirty?"Cambios sin guardar":activeId?"Once guardado":"Nuevo once")+(manager?.name?" · "+manager.name:"")}</p></div><button type="button" className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm" onClick={()=>{setSlots({});setSlotPositions({});setBench([]);setSelected(null);setNotice("");markDirty();}}><RotateCcw size={15}/> Vaciar campo</button></div>
     {exportError&&<p role="alert" className="mb-3 text-sm text-red-700">{exportError}</p>}
     {error&&<p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
     {notice&&<p role="status" className="mb-3 text-xs text-amber-700">{notice}</p>}
     <div className="flex flex-wrap items-center gap-2 mb-2"><span className="font-bold text-sm">Formación</span>{formationOptions.map(f=><button type="button" key={f} aria-pressed={f===formation} onClick={()=>changeFormation(f)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${formation===f?"bg-lime-400 text-slate-900":"bg-slate-100 hover:bg-slate-200"}`}>{f}</button>)}
       <button type="button" onClick={restoreShape} className="text-xs rounded-lg border px-2 py-1.5" title="Restaurar posiciones sin quitar jugadores">Restaurar forma</button>
-      <button type="button" disabled={busy||loadingSaved} onClick={saveLineup} className="ml-auto flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white"><Save size={15}/> Guardar once</button>
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        <LineupManagerPicker value={manager} onChange={setManager} disabled={busy}/>
+        {activeId&&<button type="button" disabled={busy||loadingSaved} onClick={()=>saveLineup(true)} title="Guardar una copia nueva sin sobrescribir el once actual" className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"><Copy size={15}/> Copiar</button>}
+        <button type="button" disabled={busy||loadingSaved} onClick={()=>saveLineup()} className="flex items-center gap-1 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Save size={15}/> {busy?"Guardando…":activeId?"Guardar cambios":"Guardar once"}</button>
+      </div>
     </div>
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_270px] gap-3 min-h-0">
       <div className="min-w-0">
         <div ref={exportRef} className="rounded-2xl overflow-hidden bg-[#071c17] p-2 sm:p-3 text-white min-w-0">
           <div className="mb-2 flex items-center gap-2 px-2 pt-1 min-w-0">
-            {team.logo&&!logoError?<img src={team.logo} alt={team.name} onError={()=>setLogoError(true)} className="w-9 h-9 sm:w-11 sm:h-11 object-contain flex-none"/>:<div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-white">{team.short_name||team.name?.slice(0,3).toUpperCase()}</div>}
-            <div className="min-w-0 flex-1"><p className="uppercase text-[10px] tracking-[.24em] text-lime-300 font-bold">MF LEGACY · TACTICAL XI</p><h4 className="font-black text-lg sm:text-2xl truncate">{team.name}</h4><p className="text-xs text-white/60">{lineupName} · {formation} · {season}</p></div>
+            {standalone?<div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg bg-white/10 flex items-center justify-center text-[10px] font-bold text-lime-300">XI</div>:team.logo&&!logoError?<img src={team.logo} alt={team.name} onError={()=>setLogoError(true)} className="w-9 h-9 sm:w-11 sm:h-11 object-contain flex-none"/>:<div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-white">{team.short_name||team.name?.slice(0,3).toUpperCase()}</div>}
+            <div className="min-w-0 flex-1"><p className="uppercase text-[10px] tracking-[.24em] text-lime-300 font-bold">MF LEGACY · TACTICAL XI</p><h4 className="font-black text-lg sm:text-2xl truncate">{standalone?(lineupName||"Once sin equipo"):team.name}</h4><p className="text-xs text-white/60">{standalone?[manager?.name,formation].filter(Boolean).join(" · "):`${lineupName} · ${formation} · ${season}`}</p></div>
             <span className="text-xs font-black text-lime-300 whitespace-nowrap">{Object.values(slots).filter(Boolean).length}/11</span>
           </div>
         <div ref={pitchRef} className="relative w-full overflow-hidden rounded-xl border-2 border-white/20 h-[min(53dvh,520px)] sm:h-[min(60dvh,600px)] xl:h-[min(60dvh,610px)]" style={{backgroundColor:pitchColor,backgroundImage:pitchStyle==="striped"?"repeating-linear-gradient(0deg,transparent 0%,transparent 10%,rgba(255,255,255,.055) 10%,rgba(255,255,255,.055) 20%)":pitchStyle==="diagonal"?"repeating-linear-gradient(135deg,transparent 0px,transparent 54px,rgba(255,255,255,.04) 54px,rgba(255,255,255,.04) 108px)":"none"}} aria-label="Campo de fútbol">
@@ -304,8 +327,8 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     </div>}
     <div className="xl:hidden mt-2 rounded-xl border p-3"><BalancePanel assessment={assessment} comparison={comparison} balanceComparison={balanceComparison} season={season}/></div>
     <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="cursor-pointer text-sm font-bold">Opciones del once · Onces guardados, apariencia y exportación</summary><div className="mt-3">    <div className="flex flex-wrap gap-2 items-end mb-4">
-      <label className="text-xs font-semibold flex-1 min-w-[160px]">Nombre del once<input value={lineupName} onChange={e=>{setLineupName(e.target.value);markDirty()}} maxLength={100} className="block w-full border rounded-lg px-3 py-2 text-sm mt-1"/></label>
-      <label className="text-xs font-semibold flex-1 min-w-[160px]">Onces guardados<select aria-label="Seleccionar once guardado" value={activeId} disabled={busy||loadingSaved} onChange={e=>loadLineup(e.target.value)} className="block w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="">Nuevo once</option>{lineups.map(l=><option value={l.id} key={l.id}>{l.name} · {l.formation}</option>)}</select></label>
+      <label className="text-xs font-semibold flex-1 min-w-[160px]">Nombre del once<input value={lineupName} onChange={e=>{setLineupName(e.target.value);markDirty()}} maxLength={100} placeholder={`Se propone automáticamente: ${suggestedName()}`} className="block w-full border rounded-lg px-3 py-2 text-sm mt-1"/></label>
+      <label className="text-xs font-semibold flex-1 min-w-[160px]">Onces guardados<select aria-label="Seleccionar once guardado" value={activeId} disabled={busy||loadingSaved} onChange={e=>loadLineup(e.target.value)} className="block w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="">Nuevo once</option>{lineups.map(l=><option value={l.id} key={l.id}>{l.name} · {l.formation}{l.manager_name?" · "+l.manager_name:""}</option>)}</select></label>
       {activeId&&<button type="button" disabled={busy} onClick={deleteLineup} className="flex items-center gap-2 border border-red-200 text-red-700 rounded-lg px-3 py-2 disabled:opacity-50"><Trash2 size={16}/> Eliminar</button>}
     </div>
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-4 flex flex-wrap items-end gap-3" aria-label="Personalización del campo">
@@ -320,8 +343,9 @@ export default function TacticalBuilder({ team, season, roster, allPlayers = [],
     </div></details>
     <details className="mt-3 border-t pt-3"><summary className="cursor-pointer text-sm font-bold">Banquillo · {bench.length} suplentes</summary><div className="mt-2">
       <div className="flex justify-between items-center gap-2 mb-3"><h4 className="font-bold">Banquillo · {bench.length} suplentes</h4><span className="text-xs text-slate-500">Pulsa un jugador para añadirlo o retirarlo</span></div>
+      {roster.length>60&&<input value={benchQuery} onChange={e=>setBenchQuery(e.target.value)} placeholder="Buscar jugador para el banquillo..." aria-label="Buscar jugador para el banquillo" className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"/>}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-        {roster.filter(m=>!Object.values(slots).includes(String(m.player_id))).map(m=>{
+        {benchPool.map(m=>{
           const isBench=bench.includes(String(m.player_id));
           return <button type="button" key={m.id} aria-pressed={isBench} onClick={()=>toggleBench(m.player_id)} className={`flex items-center gap-2 p-2 border rounded-lg text-left text-xs ${isBench?"border-lime-500 bg-lime-50":"hover:bg-slate-50"}`}>
             <PlayerPortrait player={m.player} className="w-8 h-8 object-cover rounded-full" />
