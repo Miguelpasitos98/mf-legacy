@@ -20,10 +20,6 @@ export default async function(req){
   // El acceso al enlace de la web también permite usar esta biblioteca.
   const action=safe(data.action);
   if(action==="health")return out({ok:true});
-  if(action==="diagnostic-upload"){
-   try{const result=await api.asServiceRole.integrations.Core.UploadPrivateFile({file:new File([new Uint8Array([77,70])],"mf-test.bin",{type:"application/octet-stream"})});const signed=await api.asServiceRole.integrations.Core.CreateFileSignedUrl({file_uri:result.file_uri,expires_in:60});return out({ok:true,has_uri:typeof result?.file_uri==="string",has_signed_url:!!signed?.signed_url,uri_prefix:safe(result?.file_uri).split("/")[0],keys:Object.keys(result||{})});}
-   catch(error){return out({ok:false,message:String(error?.message||error),status:error?.response?.status||null,detail:String(error?.response?.data?.error||"").slice(0,300)});}
-  }
   if(action==="list"){
    const values=rows(await db.filter({kind:"save",vault_id:ID},"-uploaded_at",500));
    return out({ok:true,items:values.map(publicRow)});
