@@ -61,6 +61,7 @@ export default function FmSaveExplorer() {
   const [fileName, setFileName] = useState("");
   const [meta, setMeta] = useState(null);
   const [index, setIndex] = useState(null);
+  const [indexPreviewOnly, setIndexPreviewOnly] = useState(false);
   const [warnings, setWarnings] = useState([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -157,6 +158,7 @@ export default function FmSaveExplorer() {
     setFileName(file.name);
     setMeta(null);
     setIndex(null);
+    setIndexPreviewOnly(false);
     setSelection(null);
     setPlayerDetail(null);
     setDirectImport(null);
@@ -168,6 +170,29 @@ export default function FmSaveExplorer() {
     setExportProgress({ done: 0, total: 0 });
     setStage("open");
     workerRef.current?.postMessage({ type: "open", file, generation: generationRef.current });
+  };
+
+  const openCloudIndex=(entry,payload)=>{
+    if(!reader||!payload?.numbers||!payload?.text)return;
+    generationRef.current+=1;
+    lastLocalFileRef.current=null;
+    fileToCloudRef.current=null;
+    detailCacheRef.current.clear();
+    pendingRef.current.forEach(({reject})=>reject(new Error("Se ha seleccionado otro índice.")));
+    pendingRef.current.clear();
+    const numbers={
+      uid:Float64Array.from(payload.numbers.uid).buffer,
+      club_uid:Float64Array.from(payload.numbers.club_uid).buffer,
+      team_slot:Float32Array.from(payload.numbers.team_slot).buffer,
+      ability_current:Float32Array.from(payload.numbers.ability_current).buffer,
+      ability_potential:Float32Array.from(payload.numbers.ability_potential).buffer,
+      age:Float32Array.from(payload.numbers.age).buffer,
+    };
+    const cached=buildFmSaveIndex({count:payload.count,numbers,text:payload.text});
+    const metadata={game:entry.game,build:entry.build,date:entry.in_game_date,fmsave:"Índice guardado"};
+    metaRef.current=metadata;setMeta(metadata);setIndex(cached);setIndexPreviewOnly(true);
+    setFileName(entry.filename);setStage("ready");setQuery("");setSelection(null);setPlayerDetail(null);setDirectImport(null);setError("");
+    setNotice("Buscador de jugadores cargado desde la nube. Para atributos completos y exportaciones, utiliza «Abrir completo».");
   };
 
   const refreshCloudSaves = async (user = cloudUser) => {
@@ -375,6 +400,7 @@ export default function FmSaveExplorer() {
     setDirectImport(null);
     setPlayerDetail(null);
     setError("");
+    if(indexPreviewOnly)return;
     try {
       const detail = await requestDetail(uid);
       if (detailCacheRef.current.get(String(uid)) === detail) setPlayerDetail(detail);
@@ -401,6 +427,7 @@ export default function FmSaveExplorer() {
 
   const prepareSelection = async (action = "download") => {
     if (!selection || downloading || !index) return;
+    if(indexPreviewOnly){setError("Abre la partida completa para leer atributos, exportar o incorporar jugadores.");return;}
     const indexes = selection.type === "player" ? [selection.index] : selectedClubMembers;
     if (!indexes.length) {
       setError("Esta selección no contiene jugadores que cumplan el filtro.");
@@ -460,8 +487,9 @@ export default function FmSaveExplorer() {
 
       <FmVaultPanel
         readyFile={stage === "ready" && meta && index && lastLocalFileRef.current?.generation === generationRef.current
-          ? {...lastLocalFileRef.current,meta,count:index.count}:null}
+          ? {...lastLocalFileRef.current,meta,count:index.count,index}:null}
         onOpenFile={file => readFile(file,"cloud")}
+        onOpenIndex={openCloudIndex}
         disabled={!reader || downloading || ["boot","open","players","indexing"].includes(stage)} />
 
       <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
@@ -502,7 +530,7 @@ export default function FmSaveExplorer() {
           <DataBadge label="Jugadores encontrados" value={index ? smallNumber(index.count) : "…"} />
           <p className="col-span-full text-xs text-slate-500">Build: {meta.build || "—"} · Fecha de partida: {meta.date || "—"}</p>
         </div>}
-        {index && <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 size={16} />Datos disponibles para consultar y descargar.</p>}
+        {index && <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 size={16} />{indexPreviewOnly?"Buscador rápido disponible sin descargar la partida completa.":"Datos disponibles para consultar y descargar."}</p>}
         {meta?.game === "FM27" && <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           FM27 tiene campos aún no verificados. Comprueba CA, PA y atributos con el videojuego antes de incorporarlos a MF Legacy. Este explorador no modifica automáticamente la base de datos.
         </p>}
@@ -562,7 +590,7 @@ export default function FmSaveExplorer() {
             <DataBadge label="Edad" value={fmNumber(index.age[selection.index])} />
             <DataBadge label="ID de la partida" value={index.uid[selection.index]} />
           </div>
-          {!playerDetail && <p className="text-xs text-slate-500">Recuperando ficha completa de fmsave...</p>}
+          {!playerDetail && <p className="text-xs text-slate-500">{indexPreviewOnly?"Vista rápida: para consultar la ficha completa, pulsa «Abrir completo» en la biblioteca superior.":"Recuperando ficha completa de fmsave..."}</p>}
           {playerDetail && <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
             <summary className="cursor-pointer font-bold text-[#003399]">Ver todos los campos disponibles del jugador</summary>
             <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-all">{JSON.stringify(playerDetail.player, null, 2)}</pre>
