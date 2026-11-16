@@ -592,12 +592,17 @@ export default function FmSaveExplorer() {
             onClick={() => showPlayer(i)} className={`flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-blue-50 ${selection?.type === "player" && selection.index === i ? "bg-blue-50" : ""}`}>
             <span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-2"><strong className="truncate text-sm">{index.names[i]}</strong>{isImportedFromCurrentSave(i)&&<span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800" title={"Este ID de "+meta?.game+" ya está vinculado a un jugador de MF LEGACY"}><CheckCircle2 size={12}/> Incorporado</span>}</span><span className="block truncate text-xs text-slate-500">{index.clubNames[i] || "Sin equipo"} · {index.positions[i] || "Sin posición"}</span></span>
             <span className="text-xs text-slate-500">CA <b className="text-slate-900">{fmNumber(index.ca[i])}</b> · PA <b className="text-slate-900">{fmNumber(index.pa[i])}</b></span>
-          </button>) : clubResults.map(club => <button type="button" key={club.uid}
-            onClick={() => chooseClub(club)} className={`flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-blue-50 ${selection?.club?.uid === club.uid ? "bg-blue-50" : ""}`}>
-            <Users size={16} className="shrink-0 text-[#003399]" />
-            <span className="min-w-0 flex-1 truncate text-sm font-bold">{club.name}</span>
-            <span className="shrink-0 text-xs text-slate-500">{club.members.filter(i=>isImportedFromCurrentSave(i)).length}/{club.members.length} incorporados</span>
-          </button>)}
+          </button>) : clubResults.map(club => {
+            const incorporated=club.members.filter(i=>isImportedFromCurrentSave(i)).length;
+            const complete=incorporated>0&&incorporated===club.members.length;
+            const colored=incorporated>0;
+            return <button type="button" key={club.uid}
+              onClick={() => chooseClub(club)} className={`flex w-full items-center gap-3 border-l-[3px] px-3 py-3 text-left transition-colors ${complete?"border-emerald-600 bg-emerald-100 hover:bg-emerald-200":colored?"border-emerald-400 bg-emerald-50 hover:bg-emerald-100":"border-transparent hover:bg-blue-50"} ${selection?.club?.uid===club.uid?"ring-1 ring-inset ring-blue-300":""}`}>
+              <Users size={16} className={`shrink-0 ${colored?"text-emerald-700":"text-[#003399]"}`} />
+              <span className={`min-w-0 flex-1 truncate text-sm font-bold ${colored?"text-emerald-950":"text-slate-900"}`}>{club.name}</span>
+              <span className={`shrink-0 text-xs ${colored?"font-bold text-emerald-800":"text-slate-500"}`}>{incorporated}/{club.members.length} incorporados {complete?"✓":""}</span>
+            </button>;
+          })}
           {mode === "player" && query.trim().length >= 2 && playerResults.length === 0 && <p className="p-4 text-sm text-slate-500">No hay jugadores con ese nombre.</p>}
           {mode === "club" && clubResults.length === 0 && <p className="p-4 text-sm text-slate-500">No hay equipos con ese nombre.</p>}
         </div>}
