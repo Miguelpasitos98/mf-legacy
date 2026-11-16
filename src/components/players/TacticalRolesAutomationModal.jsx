@@ -19,7 +19,6 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
   const [notice,setNotice] = useState("");
   const [error,setError] = useState("");
   const [search,setSearch] = useState("");
-  const [admin,setAdmin] = useState(false);
   const candidates=useMemo(()=>players.filter(needsTacticalRoles),[players]);
   const byPlayer=useMemo(()=>{
     const map=new Map();
@@ -39,10 +38,6 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
     setError("");setNotice("");setSeasonData([]);setSearch("");setProgress({done:0,total:0});
     setLoading(true);
     (async()=>{
-      const user=await base44.auth.me();
-      if(!active)return;
-      if(user?.role!=="admin")throw Error("La automatización de roles requiere permisos de administrador.");
-      setAdmin(true);
       // Enriquecer únicamente los candidatos; un fallo FotMob no bloquea atributos FM.
       const collected=[];
       const target=players.filter(needsTacticalRoles);
@@ -56,7 +51,7 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
         }
       }
       if(active)setSeasonData(collected);
-    })().catch(caught=>{if(active){setAdmin(false);setError(caught.message);}})
+    })().catch(caught=>{if(active){setError(caught.message);}})
       .finally(()=>{if(active)setLoading(false);});
     return()=>{active=false;};
   },[open]);
@@ -68,7 +63,7 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
 
   const toggle=(id)=>setSelected(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id]);
   const apply=async()=>{
-    if(saving||loading||!admin)return;
+    if(saving||loading)return;
     const chosen=eligible.filter(p=>selected.includes(p.player_id));
     if(!chosen.length)return;
     setSaving(true);setError("");setNotice("");setProgress({done:0,total:chosen.length});
@@ -87,7 +82,7 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
             model_version:TACTICAL_AUTO_VERSION,source_position:proposal.position,
             confidence:proposal.confidence,original_roles:live.tactical_roles||[],
             original_description:live.description||"",proposed_roles:proposal.roles,
-            evidence:{season:proposal.season,scores:proposal.scores.map(s=>({name:s.name,score:s.score,attributes:s.details.slice(0,5)}))},
+            evidence:{edition:proposal.edition,season:proposal.season,scores:proposal.scores.map(s=>({name:s.name,score:s.score,attributes:s.details.slice(0,5)}))},
             status:"proposed",created_at:new Date().toISOString()
           });
           await base44.entities.Player.update(proposal.player_id,{
