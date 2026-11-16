@@ -20,12 +20,6 @@ export default async function(req){
   // El acceso al enlace de la web también permite usar esta biblioteca.
   const action=safe(data.action);
   if(action==="health")return out({ok:true});
-  if(action==="cleanup-empty-legacy-save"){
-   const target=await db.get("6afadb4cf3a0a35bffd7fe45");
-   if(!target||target.kind!=="save"||target.vault_id!==ID||target.filename!=="Miguel Núñez - Sevilla.fm"||target.game!=="FM26"||target.size_bytes!==109863471||target.status!=="uploading"||target.part_count!==53||(target.parts||[]).length!==0)return fail("El registro ya no cumple los requisitos de eliminación.",409);
-   await db.delete(target.id);
-   return out({ok:true,deleted_id:target.id});
-  }
   if(action==="list"){
    const values=rows(await db.filter({kind:"save",vault_id:ID},"-uploaded_at",500));
    return out({ok:true,items:values.map(publicRow)});
