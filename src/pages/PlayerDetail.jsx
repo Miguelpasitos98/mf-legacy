@@ -735,6 +735,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
 
   const [editOpen, setEditOpen] = useState(false);
   const [editTab, setEditTab] = useState("general");
+  const [ratingEditEdition, setRatingEditEdition] = useState("FM26");
   const [attributeEdition,setAttributeEdition]=useState(()=>preferredFmAttributeEdition(player));
   const [isSaving, setIsSaving] = useState(false);
   const [editError, setEditError] = useState("");
@@ -894,6 +895,7 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
     setForm({...initialForm,tacticalRoles:Array.isArray(savedRoles)?savedRoles:[{name:editablePlayer?.description||"",description:""},{name:"",description:""}]});
     setEditError("");
     setEditTab("general");
+    setRatingEditEdition("FM26");
     setAttributeEdition(preferredFmAttributeEdition(editablePlayer));
     setEditOpen(true);
   };
@@ -1366,6 +1368,23 @@ export default function PlayerDetail({ player, team, country, teams = [], countr
               {editTab === "general" && (
                 <div className="space-y-5">
                   <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4" aria-label="Valoraciones por versión de Football Manager">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div><h4 className="text-sm font-black text-blue-950">🎮 CA y CP por versión de Football Manager</h4><p className="mt-1 text-xs text-blue-800">Cada edición conserva sus propias valoraciones. Cambia de versión para consultar o editar sus datos.</p></div>
+                        <label className="text-xs font-bold text-blue-950">Versión de FM
+                          <select aria-label="Versión de Football Manager para CA y CP" value={ratingEditEdition} onChange={event=>setRatingEditEdition(event.target.value)} className="mt-1 block rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-950">
+                            <option value="FM26">Football Manager 2026</option><option value="FM27">Football Manager 2027</option>
+                          </select>
+                        </label>
+                      </div>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">{[["CA","ca","fm27Ca"],["CP","cp","fm27Cp"]].map(([label,fm26Key,fm27Key])=>{
+                        const field=ratingEditEdition==="FM27"?fm27Key:fm26Key;
+                        return <label key={field} className="block text-xs font-bold text-slate-800">{label} · {ratingEditEdition} (0–200)
+                          <input aria-label={`${label} ${ratingEditEdition} editable`} type="number" min="0" max="200" step="1" value={form[field]??""} placeholder="Sin dato" onChange={event=>setForm(current=>({...current,[field]:event.target.value}))} className="mt-1 block w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-base font-black text-blue-900"/>
+                        </label>;
+                      })}</div>
+                      <p className="mt-2 text-[11px] text-blue-800">Los cambios se aplican al pulsar «Guardar cambios». Dejar el campo vacío significa «sin dato».</p>
+                    </div>
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0">
                         <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Ficha general</p>
