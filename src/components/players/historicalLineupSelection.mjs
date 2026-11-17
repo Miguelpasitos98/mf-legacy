@@ -1,5 +1,5 @@
 // Lista visual de jugadores adjudicados en las nueve plantillas históricas de World Football Hub.
-// Mantener sincronizada con las decisiones del proyecto (78 titulares, noviembre 2026).
+// Mantener sincronizada con las decisiones del proyecto (85 titulares, noviembre 2026).
 const selectedNames = [
   "Sadio Mané",
   "Karim Benzema",
@@ -78,7 +78,14 @@ const selectedNames = [
   "Presnel Kimpembe",
   "Jérôme Boateng",
   "Milan Škriniar",
-  "Hugo Lloris"
+  "Hugo Lloris",
+  "Saúl Ñíguez",
+  "Rúben Neves",
+  "Nélson Semedo",
+  "Jorginho",
+  "Leon Goretzka",
+  "Nacho Fernández",
+  "Thomas Partey"
 ];
 
 const normalizeSelectedName = value => String(value || "")
@@ -105,6 +112,11 @@ const knownAliases = {
   "bono": "yassine bounou",
   "yassine bono": "yassine bounou",
   "reinildo": "reinildo mandava",
+  "nacho": "nacho fernandez",
+  "jose ignacio fernandez iglesias": "nacho fernandez",
+  "nelson semedo": "nelson semedo",
+  "ruben neves": "ruben neves",
+  "saul": "saul niguez",
   "n golo kante": "n golo kante",
 };
 
