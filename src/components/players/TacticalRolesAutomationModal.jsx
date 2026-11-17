@@ -52,7 +52,10 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
       const target=players.filter(roleCandidate).slice(0,100);
       const batches=chunk(target,25);
       const results=await Promise.allSettled(batches.map(batch=>
-        base44.entities.PlayerSeasonStats.filter({player_id:{$in:batch.map(p=>p.id)}},"-minutes",200)
+        Promise.race([
+          base44.entities.PlayerSeasonStats.filter({player_id:{$in:batch.map(p=>p.id)}},"-minutes",200),
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error("Tiempo de espera FotMob agotado")),8000))
+        ])
       ));
       if(active)setSeasonData(results.flatMap(result=>result.status==="fulfilled"?rows(result.value):[]));
     })().catch(caught=>{if(active){setError(caught.message);}})
