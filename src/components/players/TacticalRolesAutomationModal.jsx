@@ -45,19 +45,16 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
     setError("");setNotice("");setSeasonData([]);setSearch("");setProgress({done:0,total:0});
     setLoading(true);
     (async()=>{
-      // Enriquecer únicamente los candidatos; un fallo FotMob no bloquea atributos FM.
-      const collected=[];
-      const target=players.filter(roleCandidate);
-      for(const batch of chunk(target,10)){
-        if(!active)return;
-        try{
-          const values=await base44.entities.PlayerSeasonStats.filter({player_id:{$in:batch.map(p=>p.id)}},"-minutes",150);
-          collected.push(...rows(values));
-        }catch{
-          // El modelo continúa usando los atributos FM disponibles para este lote.
-        }
-      }
-      if(active)setSeasonData(collected);
+      // La base puede contener miles de jugadores. No bloqueamos toda la ventana
+      // con una petición por cada 10 candidatos: los roles FM son evaluables al instante.
+      // Enriquecemos con FotMob una muestra acotada en paralelo; el resto usa sus
+      // atributos FM sin inventar estadísticas, y puede revisarse manualmente.
+      const target=players.filter(roleCandidate).slice(0,100);
+      const batches=chunk(target,25);
+      const results=await Promise.allSettled(batches.map(batch=>
+        base44.entities.PlayerSeasonStats.filter({player_id:{$in:batch.map(p=>p.id)}},"-minutes",200)
+      ));
+      if(active)setSeasonData(results.flatMap(result=>result.status==="fulfilled"?rows(result.value):[]));
     })().catch(caught=>{if(active){setError(caught.message);}})
       .finally(()=>{if(active)setLoading(false);});
     return()=>{active=false;};
@@ -121,7 +118,7 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
       <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-black text-[#0d315b]"><Sparkles size={20}/> Adjudicación automática de roles</h2>
-          <p className="mt-1 text-xs text-slate-600">Revisa también los MC/MCD con roles previos. Su sustitución requiere selección expresa; se conservan los roles anteriores en auditoría.</p>
+          <p className="mt-1 text-xs text-slate-600">Las propuestas se basan en atributos FM y, cuando estén disponibles, estadísticas FotMob. Los roles anteriores requieren selección expresa y quedan en auditoría.</p>
         </div>
         <button type="button" aria-label="Cerrar" onClick={onClose} disabled={saving} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40"><X size={19}/></button>
       </header>
@@ -131,7 +128,7 @@ export default function TacticalRolesAutomationModal({ open, players=[], onClose
           <span className="rounded-lg bg-amber-50 px-3 py-2 font-bold text-amber-800">{candidates.filter(p=>hasTacticalRole(p)).length} con roles anteriores para revisar (MC/MCD y FM27)</span>
           <span className="rounded-lg bg-emerald-50 px-3 py-2 font-bold text-emerald-700">{eligible.length} evaluables</span>
           <span className="rounded-lg bg-amber-50 px-3 py-2 font-bold text-amber-800">{proposals.length-eligible.length} sin suficientes datos</span>
-          {loading&&<span className="flex items-center gap-1 text-slate-500"><Loader2 size={13} className="animate-spin"/> Buscando temporadas FotMob…</span>}
+          {loading&&<span className="flex items-center gap-1 text-slate-500"><Loader2 size={13} className="animate-spin"/> Comprobando FotMob (máx. 100 candidatos)…</span>}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar jugador…" aria-label="Filtrar jugadores sin rol"
