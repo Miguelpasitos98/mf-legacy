@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Users, Building2 } from "lucide-react";
+import { Users, Building2, X } from "lucide-react";
+import { isHistoricalLineupPlayer } from "./historicalLineupSelection.mjs";
 import SmartImage from "./SmartImage";
 import {candidateOutlineClass} from "./playerCandidateOutline.mjs";
 import {bestFmRating} from "@/utils/playerBestFmRatings.mjs";
@@ -409,6 +410,16 @@ function PlayerCardInner({
         {/* CLUB */}
         {!hideTeam && (
           <div className={`${compact ? "mt-2" : "mt-3"} flex min-w-0 items-center gap-2 text-xs text-slate-400`}>
+            {isHistoricalLineupPlayer(player) && (
+              <span
+                className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border border-emerald-200 bg-emerald-50 text-emerald-600"
+                title="Seleccionado en nuestras plantillas históricas"
+                role="img"
+                aria-label="Seleccionado en nuestras plantillas históricas"
+              >
+                <X size={10} strokeWidth={2.4} />
+              </span>
+            )}
             {teamLogo ? (
               <img src={teamLogo} alt="" className="h-4 w-4 shrink-0 object-contain" loading="lazy" />
             ) : (
